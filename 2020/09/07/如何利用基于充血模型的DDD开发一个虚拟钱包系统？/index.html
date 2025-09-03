@@ -21,33 +21,33 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"hrz123.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="转载 文章转载自极客时间王争老师的设计模式之美专栏 钱包业务背景介绍 很多具有支付、购买功能的应用（比如淘宝、滴滴出行、极客时间等）都支持钱包的功能。应用为每个用户开设一个系统内的虚拟钱包账户，支持用户重置、提现、支付、冻结、透支、转赠、查询账户余额、查询交易流水等操作。下图是一张典型的钱包功能界面，你可以直观的感受一下。  一般来讲，每个虚拟钱包账户都会对应用户的一个真实的支付账户，有可能是银行">
 <meta property="og:type" content="article">
 <meta property="og:title" content="如何利用基于充血模型的DDD开发一个虚拟钱包系统？">
-<meta property="og:url" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/index.html">
+<meta property="og:url" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/index.html">
 <meta property="og:site_name" content="侯瑞哲的博客">
 <meta property="og:description" content="转载 文章转载自极客时间王争老师的设计模式之美专栏 钱包业务背景介绍 很多具有支付、购买功能的应用（比如淘宝、滴滴出行、极客时间等）都支持钱包的功能。应用为每个用户开设一个系统内的虚拟钱包账户，支持用户重置、提现、支付、冻结、透支、转赠、查询账户余额、查询交易流水等操作。下图是一张典型的钱包功能界面，你可以直观的感受一下。  一般来讲，每个虚拟钱包账户都会对应用户的一个真实的支付账户，有可能是银行">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%851.jpg">
-<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%852.jpg">
-<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%853.jpg">
-<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%854.jpg">
-<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%855.jpg">
-<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%856.jpg">
-<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%857.jpg">
-<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%858.jpg">
-<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%859.jpg">
+<meta property="og:image" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%851.jpg">
+<meta property="og:image" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%852.jpg">
+<meta property="og:image" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%853.jpg">
+<meta property="og:image" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%854.jpg">
+<meta property="og:image" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%855.jpg">
+<meta property="og:image" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%856.jpg">
+<meta property="og:image" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%857.jpg">
+<meta property="og:image" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%858.jpg">
+<meta property="og:image" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%859.jpg">
 <meta property="article:published_time" content="2020-09-07T08:53:25.000Z">
 <meta property="article:modified_time" content="2020-09-08T01:29:35.683Z">
 <meta property="article:author" content="侯瑞哲">
 <meta property="article:tag" content="设计模式">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%851.jpg">
+<meta name="twitter:image" content="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%851.jpg">
 
-<link rel="canonical" href="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/">
+<link rel="canonical" href="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/">
 
 
 <script id="page-configurations">
@@ -198,7 +198,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -689,7 +689,7 @@ if (document.querySelectorAll('pre.mermaid').length) {
       quicklink({
         timeout : 3000,
         priority: true,
-        ignores : [uri => uri.includes('#'),uri => uri === 'https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/',]
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/',]
       });
       });
   </script>

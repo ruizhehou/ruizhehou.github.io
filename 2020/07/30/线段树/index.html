@@ -21,18 +21,18 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"hrz123.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="参考： https:&#x2F;&#x2F;zh.wikipedia.org&#x2F;wiki&#x2F;%E7%B7%9A%E6%AE%B5%E6%A8%B9 https:&#x2F;&#x2F;www.geeksforgeeks.org&#x2F;segment-tree-set-1-sum-of-given-range&#x2F; 原文我觉得挺不错的，暂时觉得先不翻译。 链接 实际问题（简单记，想快速知道数组的某一区间和，同时数组的修改频繁，使得这两种操作都变成O(l">
 <meta property="og:type" content="article">
 <meta property="og:title" content="线段树">
-<meta property="og:url" content="https://hrz123.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/index.html">
+<meta property="og:url" content="https://ruizhehou.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/index.html">
 <meta property="og:site_name" content="侯瑞哲的博客">
 <meta property="og:description" content="参考： https:&#x2F;&#x2F;zh.wikipedia.org&#x2F;wiki&#x2F;%E7%B7%9A%E6%AE%B5%E6%A8%B9 https:&#x2F;&#x2F;www.geeksforgeeks.org&#x2F;segment-tree-set-1-sum-of-given-range&#x2F; 原文我觉得挺不错的，暂时觉得先不翻译。 链接 实际问题（简单记，想快速知道数组的某一区间和，同时数组的修改频繁，使得这两种操作都变成O(l">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st1.png">
-<meta property="og:image" content="https://hrz123.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/segment-tree1.png">
+<meta property="og:image" content="https://ruizhehou.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/segment-tree1.png">
 <meta property="og:image" content="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st2.png">
 <meta property="og:image" content="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st3.png">
 <meta property="article:published_time" content="2020-07-30T03:54:36.000Z">
@@ -42,7 +42,7 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st1.png">
 
-<link rel="canonical" href="https://hrz123.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/">
+<link rel="canonical" href="https://ruizhehou.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/">
 
 
 <script id="page-configurations">
@@ -193,7 +193,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://hrz123.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -688,7 +688,7 @@ if (document.querySelectorAll('pre.mermaid').length) {
       quicklink({
         timeout : 3000,
         priority: true,
-        ignores : [uri => uri.includes('#'),uri => uri === 'https://hrz123.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/',]
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/',]
       });
       });
   </script>
