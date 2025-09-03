@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"hrz123.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="读写分离的主要目标是分摊主库的压力。每个大型架构最终都会实现读写分离。 读写分离的架构有两种。  图1中的结构是客户端（client）主动做负载均衡，这种模式下一般会把数据库的连接信息放在客户端的连接层。也就是说，由客户端来选择后端数据库进行查询。 还有一种架构是，在MySQL和客户端之间有一个中间代理层proxy，客户端只连接proxy，由proxy根据请求类型和上下文决定请求的分发路由。  接">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MySQL读写分离时处理过期读的一些方案">
+<meta property="og:url" content="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="读写分离的主要目标是分摊主库的压力。每个大型架构最终都会实现读写分离。 读写分离的架构有两种。  图1中的结构是客户端（client）主动做负载均衡，这种模式下一般会把数据库的连接信息放在客户端的连接层。也就是说，由客户端来选择后端数据库进行查询。 还有一种架构是，在MySQL和客户端之间有一个中间代理层proxy，客户端只连接proxy，由proxy根据请求类型和上下文决定请求的分发路由。  接">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%842.jpg">
+<meta property="og:image" content="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB1.png">
+<meta property="og:image" content="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB2.png">
+<meta property="og:image" content="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB3.png">
+<meta property="og:image" content="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB4.png">
+<meta property="og:image" content="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB5.png">
+<meta property="og:image" content="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB6.png">
+<meta property="og:image" content="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB7.png">
+<meta property="article:published_time" content="2020-08-25T01:28:59.000Z">
+<meta property="article:modified_time" content="2020-08-25T03:04:29.075Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据库">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%842.jpg">
+
+<link rel="canonical" href="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MySQL读写分离时处理过期读的一些方案 | 侯瑞哲的博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">侯瑞哲的博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Ruizhe's Blog</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL2hyejEyMw==" title="Follow me on GitHub" aria-label="Follow me on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+      <meta itemprop="description" content="记录我的工作与生活，分享一些想法">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MySQL读写分离时处理过期读的一些方案
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2020-08-25 09:28:59 / 修改时间：11:04:29" itemprop="dateCreated datePublished" datetime="2020-08-25T09:28:59+08:00">2020-08-25</time>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>读写分离的主要目标是分摊主库的压力。每个大型架构最终都会实现读写分离。</p>
+<p>读写分离的架构有两种。</p>
+
+<p>图1中的结构是客户端（client）主动做负载均衡，这种模式下一般会把数据库的连接信息放在客户端的连接层。也就是说，由客户端来选择后端数据库进行查询。</p>
+<p>还有一种架构是，在MySQL和客户端之间有一个中间代理层proxy，客户端只连接proxy，由proxy根据请求类型和上下文决定请求的分发路由。</p>
+<img data-src="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%842.jpg" class>
+<p>接下来，我们就看一下客户端直连和带proxy的读写分离架构，各有哪些特点。</p>
+<ol type="1">
+<li><p>客户端直连方案，因为少了一层proxy转发，所以查询性能稍微好一点儿，并且整体架构简单，排查问题更方便。但是这种方案，由于要了解后端部署细节，所以在出现主备切换、库迁移等操作的时候，客户端都会感知到，并且需要调整数据库连接信息。</p>
+<p>你可能会觉得这样客户端也太麻烦了，信息大量冗余，架构很丑。其实也未必，一般采用这样的架构，一定会伴随一个负责管理后端的组件，比如ZooKeeper，尽量让业务端只专注于业务逻辑开发。</p></li>
+<li><p>带proxy的架构，对客户端比较友好。客户端不需要关注后端细节，连接维护、后端信息维护等工作，都是由proxy完成的。但这样的话，对后端维护团队的要求会更高。而且，proxy也需要有高可用架构。因此，带proxy架构的整体就相对比较复杂。</p></li>
+</ol>
+<p>理解了这两种方案的优劣，具体选择哪个方案就取决于数据库团队提供的能力了。但目前看，趋势是往带proxy的架构方向发展的。</p>
+<p>但是，不论使用哪种架构，你都会碰到我们今天要讨论的问题：由于主从可能存在延迟，客户端执行完一个更新事务后马上发起查询，如果查询选择的是从库的话，就有可能读到刚刚事务更新之前的状态。</p>
+<p><strong>这种“在从库上会读到系统的一个过期状态”的现象，在这篇文章里，我们暂且称之为“过期读”。</strong></p>
+<p>前面我们说过了几种可能导致主备延迟的原因，以及对应的优化策略，但是主从延迟还是不能100%避免的。</p>
+<p>不论哪种结构，客户端都希望查询从库的数据结果，跟查主库的数据结果是一样的。</p>
+<p>接下来，我们就来讨论怎么处理过期读问题。</p>
+<p>这里，我先把文章中涉及到的处理过期读的方案汇总在这里，以帮助你更好的理解和掌握全文的知识脉络。这些方案包括：</p>
+<ul>
+<li>强制走主库方案；</li>
+<li>sleep 方案；</li>
+<li>判断主备无延迟方案；</li>
+<li>配合 semi-sync 方案；</li>
+<li>等主库位点方案；</li>
+<li>等 GTID 方案。</li>
+</ul>
+<h3 id="强制走主库方案">强制走主库方案</h3>
+<p>强制走主库方案其实就是，将查询请求做分类。通常情况下，我们可以将查询请求分为这么两类：</p>
+<ol type="1">
+<li>对于必须要拿到最新结果的请求，强制将其发到主库上。比如，在一个交易平台上，卖家发布商品以后，马上要返回主页面，看商品是否发布成功。那么，这个请求需要拿到最新的结果，就必须走主库。</li>
+<li>对于可以读到旧数据的请求，才将其发到从库上。在这个交易平台上，买家来逛商铺页面，就算晚几秒看到最新发布的商品，也是可以接受的。那么，这类请求就可以走从库。</li>
+</ol>
+<p>你可能会说，这个方案是不是有点畏难和取巧的意思，但其实这个方案是用得最多的。</p>
+<p>当然，这个方案最大的问题在于，有时候你会碰到”所有查询都不能是过期读“的需求，比如一些金融类的业务。这样的话，你就要放弃读写分离，所有读写压力都在主库，等同于放弃了扩展性。</p>
+<p>因此接下来，我们来讨论的话题是：可以支持读写分离的场景下，有哪些解决过期读的方案，并分析各个方案的优缺点。</p>
+<h3 id="sleep方案">Sleep方案</h3>
+<p>主库更新后，读从库之前先sleep一下。具体的方案就是，类似于执行一条select sleep(1)命令。</p>
+<p>这个方案的假设是，大多数情况下主备延迟在1s之内，做一个sleep可以有很大概率拿到最新的数据。</p>
+<p>这个方案给你的第一感觉，很可能是不靠谱，应该不会有人用吧？并且，你可能还会说，直接在发起查询时限制性一条sleep语句，用户体验很不友好啊。</p>
+<p>但，这个思路确实可以在一定程度上解决问题。为了看起来更靠谱，我们可以换一种方式。</p>
+<p>以卖家发布商品为例，商品发布后，用Ajax(Asynchronous JavaScript + XML，异步JavaScript和XML）直接把客户端输入的内容作为”新的商品“显示在页面上，而不是真正地去数据库做查询。</p>
+<p>这样，卖家就可以通过这个显示，来确认产品已经发布成功了。等到卖家再刷新页面，去查看商品的时候，其实已经过了一段时间了，也就达到了sleep的目的，进而也就解决了过期读的问题。</p>
+<p>也就是说，这个sleep方案确实解决了类似场景下的过期读问题。但，从严格意义上来说，这个方案存在的问题就是不精确。这个不精确包含了两层意思：</p>
+<ol type="1">
+<li>如果这个查询请求本来0.5秒就可以在从库上拿到正确结果，也会等1秒；</li>
+<li>如果延迟超过1s，还是会出现过期读。</li>
+</ol>
+<h3 id="判断主库无延迟方案">判断主库无延迟方案</h3>
+<p>要确保备库无延迟，通常有三种做法。</p>
+<p>通过前面的文章，我们知道show slave status结果里的seconds_behind_master参数的值，可以用来衡量主备延迟时间的长短。</p>
+<p>所以<strong>第一种确保主备无延迟的方法是</strong>，每次从库执行查询请求前，先判断seconds_behind_master是否已经等于0。如果还不等于0，那就必须等到这个参数变为0才能执行查询请求。</p>
+<p>seconds_behind_master的单位是秒，如果你觉得精度不够的话，还可以采用对比位点和GTID的方法来确保主备无延迟，也就是我们接下来要说的第二和第三种方法。</p>
+<p>如图3所示，是一个show slave status结果的部分截图。</p>
+<img data-src="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB1.png" class>
+<p>现在，我们就通过这个结果，来看看具体如何通过对比位点和GTID来确保主备无延迟。</p>
+<p><strong>第二种方法</strong>，对比位点确保主备无延迟：</p>
+<ul>
+<li>Master_Log_File和Read_Master_Log_Pos，表示的是读到的主库的最新位点；</li>
+<li>Relay_Master_Log_FIle和Exec_Master_Log_Pos，表示的是备库执行的最新位点。</li>
+</ul>
+<p>如果Master_Log_File和Relay_MAster_Log_File、Read_master_Log_Pos和Exec_Master_Log_Pos这两组值完全相同，就表示接收到的日志已经同步完成。</p>
+<p><strong>第三种方法</strong>，对比GTID集合确保主备无延迟：</p>
+<ul>
+<li>Auto_Position=1，表示这对主备关系使用了GTID协议；</li>
+<li>Retrieved_Gtid_Set，是备库收到的所有日志的GTID集合；</li>
+<li>Executed_Gtid_Set，是备库所有已经执行完成的GTID集合。</li>
+</ul>
+<p>如果这两个集合相同，也表示备库接收到的日志都已经同步完成。</p>
+<p>可见，对比位点和对比GTID这两种方法，都要比对比seconds_behind_master是否为0更准确。</p>
+<p>在执行查询请求之前，先判断从库是否同步完成的方法，相比于sleep方案，准确度确实提升了不少，但还是没有达到”精确“的程度。为什么这么说呢？</p>
+<p>我们现在一起回顾一下，一个事务的binlog在主备库之间的状态：</p>
+<ol type="1">
+<li>主库执行完成，写入binlog，并反馈给客户端；</li>
+<li>binlog被从主库发送给备库，备库收到；</li>
+<li>在备库执行binlog完成。</li>
+</ol>
+<p>我们上面判断主备无延迟的逻辑，是”备库收到的日志都执行完成了“。但是，从binlog在主备之间状态的分析中，不难看出还有一部分日志，处于客户端已经收到提交确认，而备库还没收到日志的状态。</p>
+<p>如图4所示就是这样的一个状态。</p>
+<img data-src="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB2.png" class>
+<p>这是，主库上执行完成了三个事务trx1，trx2和trx3，其中：</p>
+<ol type="1">
+<li>trx1和trx2已经传到从库，并且已经执行完成了；</li>
+<li>trx3在主库执行完成，并且已经回复给客户端，但是还没有传到从库中。</li>
+</ol>
+<p>如果这时候你在从库B上执行查询请求，按照我们上面的逻辑，从库认为已经没有同步延迟，但还是查不到trx3的。严格地说，就是出现了过期读。</p>
+<p>那么，这个问题有没有办法解决呢？</p>
+<h3 id="配合semi-sync">配合semi-sync</h3>
+<p>要解决这个问题，就要引入半同步机制，也就是semi-sync replication。</p>
+<p>semi-sync做了这样的设计：</p>
+<ol type="1">
+<li>事务提交的时候，主库把binlog发给从库；</li>
+<li>从库收到binlog以后，发回给主库一个ack，表示收到了；</li>
+<li>从库收到这个ack以后，才能给客户端返回”事务完成“的确认。</li>
+</ol>
+<p>也就是说，如果启用了semi-sync，就表示所有给客户端发送过确认的事务，都确保了备库已经收到了日志。</p>
+<p>在前面文章的评论区，有同学问道：如果主库掉电的时候，有些binlog还来不及发给从库，会不会导致系统数据丢失？</p>
+<p>答案是，如果使用的是普通的异步复制机制，就有可能丢失，但semi-sync就可以解决这个问题。</p>
+<p>这样，semi-sync配合前面关于位点的判断，就能够确定在从库上执行的查询请求，可以避免过期读。</p>
+<p>但是，semi-sync+位点判断的方案，只对一主一备的场景是成立的。在一主多从场景中，主库只要等到一个从库的ack，就开始给客户端返回确认。这是，在从库上执行查询请求，就有两种情况：</p>
+<ol type="1">
+<li>如果查询是落在这个响应了ack的从库上，是能够确保读到最新数据；</li>
+<li>但如果是查询落到了其他从库上，它们可能还没有收到最新的日志，就会产生过期读的问题。</li>
+</ol>
+<p>其实，判断同步位点的方案还有另外一个潜在的问题，即：如果在业务更新的高峰期，主库的位点或者GTID集合更新很快，那么上面的两个位点等值判断就会一直不成立，很可能出现从库上迟迟无法响应查询请求的情况。</p>
+<p>实际上，回到我们最初的业务逻辑里，当发起一个查询请求以后，我们要得到准确的结果，其实并不需要等到”主备完全同步“。</p>
+<p>为什么这么说呢？我们来看一下这个时序图。</p>
+<img data-src="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB3.png" class>
+<p>图5所示，就是等待位点方案的一个bad case。图中备库B下的虚线框，分别表示relaylog和binlog中的事务。可以看到，图5中从状态1到状态4，一直处于延迟一个事务的状态。</p>
+<p>备库B一直到状态4都和主库A存在延迟，如果用上面必须等到无延迟才能查询的方案，select语句一直到状态4都不能被执行。</p>
+<p>但是，其实客户端是在发完trx1更新后发起的select语句，我们只需要确保trx1已经执行完成就可以执行select语句了。也就是说，如果在状态3执行查询请求，得到的就是预期结果了。</p>
+<p>到这里，我们小结一下，semi-sync配合判断主备无延迟的方案，存在两个问题：</p>
+<ol type="1">
+<li>一主多从的时候，在某些从库执行查询请求会存在过期读的现象；</li>
+<li>在持续延迟的情况下，可能出现过度等待的问题。</li>
+</ol>
+<p>接下来，我要和你介绍的等主库位点方案，就可以解决这两个问题。</p>
+<h3 id="等主库位点方案">等主库位点方案</h3>
+<p>要理解等主库位点方案，我需要先和你介绍一条命令：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="keyword">master_pos_wait</span>(<span class="keyword">file</span>, pos[, <span class="keyword">timeout</span>]);</span><br></pre></td></tr></table></figure>
+<p>这条命令的逻辑如下：</p>
+<ol type="1">
+<li>它是在从库执行的；</li>
+<li>参数file和pos指的是主库上的文件名和位置；</li>
+<li>timeout可选，设置为正整数N表示这个函数最多等待N秒。</li>
+</ol>
+<p>这个命令正常返回的结果是一个正整数M，表示从命令开始执行，到应用完file和pos表示的binlog位置，执行了多少事务。</p>
+<p>当然，除了正常返回一个正整数M外，这条命令还会返回一些其他结果，包括：</p>
+<ol type="1">
+<li>如果执行期间，备库同步线程发生异常，则返回NULL；</li>
+<li>如果等待时间超过N秒，就返回-1；</li>
+<li>如果刚开始执行的时候，就发现已经执行过这个位置了，则返回0。</li>
+</ol>
+<p>对于图5中先执行trx1，再执行一个查询请求的逻辑，要保证能够查到正确的数据，我们可以使用这个逻辑：</p>
+<ol type="1">
+<li>trx1事务更新完成后，马上执行show master status得到当前主库执行到的File和Position；</li>
+<li>选定一个从库执行查询语句；</li>
+<li>在从库上执行select master_pos_wait(FIle, Position, 1);</li>
+<li>如果返回值是&gt;=0的正整数，则在这个从库执行查询语句。</li>
+<li>否则，到主库执行查询语句。</li>
+</ol>
+<p>上面的流程画出来。</p>
+<img data-src="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB4.png" class>
+<p>这里我们假设，这条select查询最多在从库上等待1秒。那么，如果1秒内master_pos_wait返回一个大于等于0的整数，就确保了从库上执行的这个查询结果一定包含了trx1的数据。</p>
+<p>步骤5到主库执行查询语句，是这类方案常用的退化机制。因为从库的延迟时间不可控，不能无限等待，所以如果等待超时，就应该放弃，然后到主库去查。</p>
+<p>你可能会说，如果所有的从库都延迟超过1秒了，那查询压力不就都跑到主库上了吗？确实是这样。</p>
+<p>但是，按照我们设定不允许过期读的要求，就只有两种选择，一种是超时放弃，一种是转到主库查询，具体怎么选择，就需要业务开发同学做好限流策略了。</p>
+<h3 id="gtid方案">GTID方案</h3>
+<p>如果你的数据库开启了GTID模式，对应的也有等待GTID的方案。</p>
+<p>MySQL中同样提供了一个类似的命令：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> wait_for_executed_gtid_set(gtid_set, <span class="number">1</span>); </span><br></pre></td></tr></table></figure>
+<p>这条命令的逻辑是：</p>
+<ol type="1">
+<li>等待，直到这个库执行的事务中包含传入的gtid_set，返回0；</li>
+<li>超时返回1.</li>
+</ol>
+<p>在前面等位点的方案中，我们执行完事务后，还要主动去主库执行show master status。而MySQL 5.7.6版本开始，允许在执行完更新类事务后，把这个事务的GTID返回给客户端，这样等GTID的方案就可以减少一次查询。</p>
+<p>这时，等GTID的执行流程就变成了：</p>
+<ol type="1">
+<li>trx1事务更新完成后，从返回包直接获取这个事务的GTID，记为gtid1；</li>
+<li>选定一个从库执行查询语句；</li>
+<li>在从库上执行select wait_for_executed_gtid_set(gtid1, 1);</li>
+<li>如果返回值是0，则在这个从库执行查询语句；</li>
+<li>否则，到主库执行查询语句。</li>
+</ol>
+<p>跟等主库位点的方案一样，等待超时后时候直接到主库查询，需要业务开发同学来做限流考虑。</p>
+<p>我把这个流程图画出来。</p>
+<img data-src="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB5.png" class>
+<p>在上面的第一步中，trx1事务更新完成后，从返回包直接获取这个事务的GTID。问题是，怎么能够让MySQL在执行事务后，返回包中带上GTID呢？</p>
+<p>你只需要将参数session_track_gtids设置为OWN_GTID，然后通过API接口mysql_session_track_get_first从返回包解析出GTID的值即可。</p>
+<p>在专栏的第一篇文章中，我介绍mysql_reset_connection的时候，有同学留言问这类接口应该怎么使用。</p>
+<p>这里我再回答一下。其实，MySQL并没有提供这类接口的SQL用法，是提供给程序的API。</p>
+<p>比如，为了让客户端在事务提交后，返回的GTID能够在客户端显示出来，我对MySQL客户端代码做了点修改，如下所示：</p>
+<img data-src="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB6.png" class>
+<p>这样，就可以看到语句执行完成，显示出GTID的值。</p>
+<img data-src="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/%E8%BF%87%E6%9C%9F%E8%AF%BB7.png" class>
+<p>当然了，这只是一个例子。你要是用这个方案的时候，还是应该在你的客户端代码中调用mysql_session_track_get_first这个函数。</p>
+<h3 id="小结">小结</h3>
+<p>在今天这篇文章中，我跟你介绍了一主多从做读写分离时，可能碰到过期读的原因，以及几种应对的方案。</p>
+<p>这几种方案中，有的方案看上去是做了妥协，有的方案看上去不那么靠谱儿，但都是有实际应用场景的，你需要根据业务需求选择。</p>
+<p>即使是最后等待位点和等待 GTID 这两个方案，虽然看上去比较靠谱儿，但仍然存在需要权衡的情况。如果所有的从库都延迟，那么请求就会全部落到主库上，这时候会不会由于压力突然增大，把主库打挂了呢？</p>
+<p>其实，在实际应用中，这几个方案是可以混合使用的。</p>
+<p>比如，先在客户端对请求做分类，区分哪些请求可以接受过期读，而哪些请求完全不能接受过期读；然后，对于不能接受过期读的语句，再使用等 GTID 或等位点的方案。</p>
+<p>但话说回来，过期读在本质上是由一写多读导致的。在实际应用中，可能会有别的不需要等待就可以水平扩展的数据库方案，但这往往是用牺牲写性能换来的，也就是需要在读性能和写性能中取权衡。</p>
+<h3 id="转载">转载</h3>
+<p>感谢丁奇老师的<span class="exturl" data-url="aHR0cHM6Ly90aW1lLmdlZWtiYW5nLm9yZy9jb2x1bW4vYXJ0aWNsZS83NzYzNg==">专栏<i class="fa fa-external-link-alt"></i></span>，如转载参考有不妥，请通知我立即删除。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"># 数据库</a>
+          </div>
+
+        
+  <div class="post-widgets">
+    <div class="wp_rating">
+      <div id="wpac-rating"></div>
+    </div>
+  </div>
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/08/24/%E8%A2%AB%E8%AE%A8%E5%8E%8C%E7%9A%84%E5%8B%87%E6%B0%94/" rel="prev" title="被讨厌的勇气">
+      <i class="fa fa-chevron-left"></i> 被讨厌的勇气
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/08/26/%E5%8F%AF%E4%B8%8D%E5%8F%AF%E4%BB%A5%E4%BD%BF%E7%94%A8join/" rel="next" title="可不可以使用join">
+      可不可以使用join <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%BA%E5%88%B6%E8%B5%B0%E4%B8%BB%E5%BA%93%E6%96%B9%E6%A1%88"><span class="nav-number">1.</span> <span class="nav-text">强制走主库方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sleep%E6%96%B9%E6%A1%88"><span class="nav-number">2.</span> <span class="nav-text">Sleep方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%A4%E6%96%AD%E4%B8%BB%E5%BA%93%E6%97%A0%E5%BB%B6%E8%BF%9F%E6%96%B9%E6%A1%88"><span class="nav-number">3.</span> <span class="nav-text">判断主库无延迟方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%85%8D%E5%90%88semi-sync"><span class="nav-number">4.</span> <span class="nav-text">配合semi-sync</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AD%89%E4%B8%BB%E5%BA%93%E4%BD%8D%E7%82%B9%E6%96%B9%E6%A1%88"><span class="nav-number">5.</span> <span class="nav-text">等主库位点方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#gtid%E6%96%B9%E6%A1%88"><span class="nav-number">6.</span> <span class="nav-text">GTID方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93"><span class="nav-number">7.</span> <span class="nav-text">小结</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BD%AC%E8%BD%BD"><span class="nav-number">8.</span> <span class="nav-text">转载</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="侯瑞哲"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">侯瑞哲</p>
+  <div class="site-description" itemprop="description">记录我的工作与生活，分享一些想法</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">143</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <span class="exturl theme-link" data-url="aHR0cHM6Ly9oZXhvLmlv">Hexo</span> & <span class="exturl theme-link" data-url="aHR0cHM6Ly90aGVtZS1uZXh0Lm9yZw==">NexT.Gemini</span> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+<script src="/js/bookmark.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      // Force synchronous loading of peripheral JS.
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  // Define Motion Sequence & Bootstrap Motion.
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+
+
+
+  
+  <script data-pjax>
+    (function(){
+      var canonicalURL, curProtocol;
+      //Get the <link> tag
+      var x=document.getElementsByTagName("link");
+		//Find the last canonical URL
+		if(x.length > 0){
+			for (i=0;i<x.length;i++){
+				if(x[i].rel.toLowerCase() == 'canonical' && x[i].href){
+					canonicalURL=x[i].href;
+				}
+			}
+		}
+    //Get protocol
+	    if (!canonicalURL){
+	    	curProtocol = window.location.protocol.split(':')[0];
+	    }
+	    else{
+	    	curProtocol = canonicalURL.split(':')[0];
+	    }
+      //Get current URL if the canonical URL does not exist
+	    if (!canonicalURL) canonicalURL = window.location.href;
+	    //Assign script content. Replace current URL with the canonical URL
+      !function(){var e=/([http|https]:\/\/[a-zA-Z0-9\_\.]+\.baidu\.com)/gi,r=canonicalURL,t=document.referrer;if(!e.test(r)){var n=(String(curProtocol).toLowerCase() === 'https')?"https://sp0.baidu.com/9_Q4simg2RQJ8t7jm9iCKT-xh_/s.gif":"//api.share.baidu.com/s.gif";t?(n+="?r="+encodeURIComponent(document.referrer),r&&(n+="&l="+r)):r&&(n+="?l="+r);var i=new Image;i.src=n}}(window);})();
+  </script>
+
+
+
+  <script data-pjax>
+  if (CONFIG.page.isPost) {
+    wpac_init = window.wpac_init || [];
+    wpac_init.push({
+      widget: 'Rating',
+      id    : 22229,
+      el    : 'wpac-rating',
+      color : 'fc6423'
+    });
+    (function() {
+      if ('WIDGETPACK_LOADED' in window) return;
+      WIDGETPACK_LOADED = true;
+      var mc = document.createElement('script');
+      mc.type = 'text/javascript';
+      mc.async = true;
+      mc.src = '//embed.widgetpack.com/widget.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(mc, s.nextSibling);
+    })();
+  }
+  </script>
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+<script data-pjax>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+    <div id="pjax">
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://hrz123.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/',]
+      });
+      });
+  </script>
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : '8YC1b0uYNOAbXVznOWHGd3aN-MdYXbMMI',
+      appKey     : '9KUsD7M9QgpQiV7VRKDR1F7s',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</body>
+</html>

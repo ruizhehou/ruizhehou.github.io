@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"hrz123.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="1. 问题描述 给出只包含int类型的数组，所有值出现k(k&gt;1)次，除了一个值，这个值出现了p次（p&gt;1, p%k!&#x3D;0)。找到这个值。 2. 从只有1bit的特殊情况开始 为了应用位运算，我们应该重新思考integers是如何在计算机中被表示的--通过位。让我们先考虑1位。假如我们有一数组的一bit数（除了0就是1），我们要统计数组中的1，使得当统计1的计数器到达k时，计数器回到0">
+<meta property="og:type" content="article">
+<meta property="og:title" content="位运算解决全部其余所有数出现k次，找出唯一出现p次的数的题目">
+<meta property="og:url" content="https://hrz123.github.io/2020/07/22/%E4%BD%8D%E8%BF%90%E7%AE%97%E8%A7%A3%E5%86%B3%E5%85%A8%E9%83%A8%E5%85%B6%E4%BD%99%E6%89%80%E6%9C%89%E6%95%B0%E5%87%BA%E7%8E%B0k%E6%AC%A1%EF%BC%8C%E6%89%BE%E5%87%BA%E5%94%AF%E4%B8%80%E5%87%BA%E7%8E%B0p%E6%AC%A1%E7%9A%84%E6%95%B0%E7%9A%84%E9%A2%98%E7%9B%AE/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="1. 问题描述 给出只包含int类型的数组，所有值出现k(k&gt;1)次，除了一个值，这个值出现了p次（p&gt;1, p%k!&#x3D;0)。找到这个值。 2. 从只有1bit的特殊情况开始 为了应用位运算，我们应该重新思考integers是如何在计算机中被表示的--通过位。让我们先考虑1位。假如我们有一数组的一bit数（除了0就是1），我们要统计数组中的1，使得当统计1的计数器到达k时，计数器回到0">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://hrz123.github.io/2020/07/22/%E4%BD%8D%E8%BF%90%E7%AE%97%E8%A7%A3%E5%86%B3%E5%85%A8%E9%83%A8%E5%85%B6%E4%BD%99%E6%89%80%E6%9C%89%E6%95%B0%E5%87%BA%E7%8E%B0k%E6%AC%A1%EF%BC%8C%E6%89%BE%E5%87%BA%E5%94%AF%E4%B8%80%E5%87%BA%E7%8E%B0p%E6%AC%A1%E7%9A%84%E6%95%B0%E7%9A%84%E9%A2%98%E7%9B%AE/%E4%BD%8D%E8%BF%90%E7%AE%971.png">
+<meta property="article:published_time" content="2020-07-22T15:56:03.000Z">
+<meta property="article:modified_time" content="2020-08-01T04:52:24.148Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据结构与算法">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://hrz123.github.io/2020/07/22/%E4%BD%8D%E8%BF%90%E7%AE%97%E8%A7%A3%E5%86%B3%E5%85%A8%E9%83%A8%E5%85%B6%E4%BD%99%E6%89%80%E6%9C%89%E6%95%B0%E5%87%BA%E7%8E%B0k%E6%AC%A1%EF%BC%8C%E6%89%BE%E5%87%BA%E5%94%AF%E4%B8%80%E5%87%BA%E7%8E%B0p%E6%AC%A1%E7%9A%84%E6%95%B0%E7%9A%84%E9%A2%98%E7%9B%AE/%E4%BD%8D%E8%BF%90%E7%AE%971.png">
+
+<link rel="canonical" href="https://hrz123.github.io/2020/07/22/%E4%BD%8D%E8%BF%90%E7%AE%97%E8%A7%A3%E5%86%B3%E5%85%A8%E9%83%A8%E5%85%B6%E4%BD%99%E6%89%80%E6%9C%89%E6%95%B0%E5%87%BA%E7%8E%B0k%E6%AC%A1%EF%BC%8C%E6%89%BE%E5%87%BA%E5%94%AF%E4%B8%80%E5%87%BA%E7%8E%B0p%E6%AC%A1%E7%9A%84%E6%95%B0%E7%9A%84%E9%A2%98%E7%9B%AE/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>位运算解决全部其余所有数出现k次，找出唯一出现p次的数的题目 | 侯瑞哲的博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">侯瑞哲的博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Ruizhe's Blog</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL2hyejEyMw==" title="Follow me on GitHub" aria-label="Follow me on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://hrz123.github.io/2020/07/22/%E4%BD%8D%E8%BF%90%E7%AE%97%E8%A7%A3%E5%86%B3%E5%85%A8%E9%83%A8%E5%85%B6%E4%BD%99%E6%89%80%E6%9C%89%E6%95%B0%E5%87%BA%E7%8E%B0k%E6%AC%A1%EF%BC%8C%E6%89%BE%E5%87%BA%E5%94%AF%E4%B8%80%E5%87%BA%E7%8E%B0p%E6%AC%A1%E7%9A%84%E6%95%B0%E7%9A%84%E9%A2%98%E7%9B%AE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+      <meta itemprop="description" content="记录我的工作与生活，分享一些想法">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          位运算解决全部其余所有数出现k次，找出唯一出现p次的数的题目
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-07-22 23:56:03" itemprop="dateCreated datePublished" datetime="2020-07-22T23:56:03+08:00">2020-07-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-08-01 12:52:24" itemprop="dateModified" datetime="2020-08-01T12:52:24+08:00">2020-08-01</time>
+              </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/2020/07/22/%E4%BD%8D%E8%BF%90%E7%AE%97%E8%A7%A3%E5%86%B3%E5%85%A8%E9%83%A8%E5%85%B6%E4%BD%99%E6%89%80%E6%9C%89%E6%95%B0%E5%87%BA%E7%8E%B0k%E6%AC%A1%EF%BC%8C%E6%89%BE%E5%87%BA%E5%94%AF%E4%B8%80%E5%87%BA%E7%8E%B0p%E6%AC%A1%E7%9A%84%E6%95%B0%E7%9A%84%E9%A2%98%E7%9B%AE/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2020/07/22/%E4%BD%8D%E8%BF%90%E7%AE%97%E8%A7%A3%E5%86%B3%E5%85%A8%E9%83%A8%E5%85%B6%E4%BD%99%E6%89%80%E6%9C%89%E6%95%B0%E5%87%BA%E7%8E%B0k%E6%AC%A1%EF%BC%8C%E6%89%BE%E5%87%BA%E5%94%AF%E4%B8%80%E5%87%BA%E7%8E%B0p%E6%AC%A1%E7%9A%84%E6%95%B0%E7%9A%84%E9%A2%98%E7%9B%AE/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="问题描述">1. 问题描述</h2>
+<p>给出只包含int类型的数组，所有值出现k(k&gt;1)次，除了一个值，这个值出现了p次（p&gt;1, p%k!=0)。找到这个值。</p>
+<h2 id="从只有1bit的特殊情况开始">2. 从只有1bit的特殊情况开始</h2>
+<p>为了应用位运算，我们应该重新思考integers是如何在计算机中被表示的--通过位。让我们先考虑1位。假如我们有一数组的一bit数（除了0就是1），我们要统计数组中的1，使得当统计1的计数器到达k时，计数器回到0并且重新统计（k和我们问题中提到的k一样）。为了跟踪我们已经遇到多少个1，我们需要一个计数器。假设计数器二进制表示有m位：xm, ..., x1（最重要的位到最不重要的位）。我们至少可以总结出计数器的以下四个特性。</p>
+<ol type="1">
+<li>计数器有一个初始状态，简单来讲为0</li>
+<li>对于数组中的每一个输入，如果我们击中0，计数器应该保持不变</li>
+<li>对于数组中的每一个输入，如果我们击中1，计数器应该增加1</li>
+<li>为了覆盖k个计数，我们要求2^m&gt;=k，这意味着m &gt; logk</li>
+</ol>
+<p>这里是关键部分：当我们扫描数组时，计数器（从x1到xm）中的每个位如何变化。注意，我们被提示使用位运算。为了满足第2个属性，回想一下，如果另一个操作数为0，有哪些位操作不会改变操作数？是的，有位与x=x|0和位异或x=x^0。</p>
+<p>好了，我们现在有一个表达式：x = x | i或者x = x^i，其中i是数组中的扫描元素。哪一个更好呢？我们还不知道。所以，让我们开始实际的计算。</p>
+<p>开始的时候，计数器的所有位都初始化为0，即xm=0, ..., x1=0。由于我们要选择的位操作，保证了计数器的所有位在遇到0时都保持不变，所以直到我们遇到数组中第一个1，计数器将是0。当我们遇到第一个1的时候，我们得到：xm = 0, ... , x2=0, x1=1。让我们继续下去，直到打出第二个1，之后我们得到：xm=0, ... , x2=1, x1=0。注意，x1从1变成了0。对于x1 = x1 | i，在第二次计数之后，x1仍然会是1。所以很明显，我们应该使用x1 = x1 ^ i，那么x2, ..., xm呢？我们的想法是找到x2, ... , xm将改变其值的条件。以x2为例。如果我们打了一个1，需要改变x2的值，那么在我们进行改变之前，x1的值一定是多少？答案是：x1必须是1，否则我们不应该改变x2，因为把x1从0改成1就可以了。因此，只有当x1和i都是1时，x2才会改变值，或者数学上说，x2 = x2 ^ (x1 &amp; i)。同理，xm只有在，xm-1, ... , x1和i都是1的时候才会改变数值：xm = xm ^ (xm-1 &amp; ... &amp; x1 &amp; i)。ok，我们找到了这个位运算。</p>
+<p>但是，你可能会注意到，上面发现的位运算将从0开始计数，直到2^m-1，而不是k。如果k &lt; 2^m - 1，我们需要一些”切割“机制，以在计数达到k时将计数器重新初始化为0。为此，我们对xm, ... , x1应用位AND，并使用一些称为mask的变量，即xm = xm &amp; mask, ... , x1 = x1 &amp; mask。如果我们能保证只有当计数达到k时，mask才为0，而在其他所有计数情况下为1，那么我们就完成了。我们如何实现这一点呢？试着想一想，计数为k的情况与其他所有情况的区别是什么？是的，是1的计数！对于每一个计数，我们对计数器的每一个位都有唯一的值，这可以看作是它的状态。如果我们把k写成二进制形式：km, ... ,k1, 我们就可以构造mask如下。</p>
+<p>mask = ~(y1 &amp; y2 &amp; .. &amp; ym)，其中如果kj = 1, yj = xj， 如果kj = 0， yj = -xj ( j = 1 to m )</p>
+<p>简单来讲，就是只有当x1..xm和k的所有位都相等的时候，mask才会为0</p>
+<p>我们来举一些例子：</p>
+<p>k = 3: k1 = 1, k2 = 1, mask = ~(x1 &amp; x2);</p>
+<p>k = 5: k1 = 1, k2 = 1, k3 = 1, mask = ~(x1 &amp; ~x2 &amp; x3);</p>
+<p>综上所述，我们的算法将是这样的（nums是输入数组）：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="keyword">int</span> i : nums) &#123;</span><br><span class="line">    xm ^= (xm<span class="number">-1</span> &amp; ... &amp; x1 &amp; i);</span><br><span class="line">    xm<span class="number">-1</span> ^= (xm<span class="number">-2</span> &amp; ... &amp; x1 &amp; i);</span><br><span class="line">    .....</span><br><span class="line">    x1 ^= i;</span><br><span class="line">    </span><br><span class="line">    mask = ~(y1 &amp; y2 &amp; ... &amp; ym) where yj = xj <span class="keyword">if</span> kj = <span class="number">1</span>, <span class="keyword">and</span> yj = ~xj <span class="keyword">if</span> kj = <span class="number">0</span> (j = <span class="number">1</span> to m).</span><br><span class="line"></span><br><span class="line">    xm &amp;= mask;</span><br><span class="line">    ......</span><br><span class="line">    x1 &amp;= mask;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="位数的一般情况">3. 32位数的一般情况</h2>
+<p>现在是时候把我们的结果从1位数的情况推广到32位整数了。一个直接的方法是为整数中的每个位创建32个计数器。但是，如果我们利用位操作的优势，我们也许可以”集体“管理所有的32个计数器，其中m是满足m&gt;=logk的最小整数。原因是位操作只适用于每个位，所以对不同位的操作是相互独立的（有点明显，对吧？）。这使得我们可以将32个计数器的对应位归为一个32位整数。下面是一个示意图，展示了如何做到这一点。</p>
+<img data-src="/2020/07/22/%E4%BD%8D%E8%BF%90%E7%AE%97%E8%A7%A3%E5%86%B3%E5%85%A8%E9%83%A8%E5%85%B6%E4%BD%99%E6%89%80%E6%9C%89%E6%95%B0%E5%87%BA%E7%8E%B0k%E6%AC%A1%EF%BC%8C%E6%89%BE%E5%87%BA%E5%94%AF%E4%B8%80%E5%87%BA%E7%8E%B0p%E6%AC%A1%E7%9A%84%E6%95%B0%E7%9A%84%E9%A2%98%E7%9B%AE/%E4%BD%8D%E8%BF%90%E7%AE%971.png" class>
+<p>最上面的一行是32位的整数，其中每一个位，我们都有一个对应的m位计数器（由向上箭头下面的那一列所示）。由于对32位中每一个位的操作都是相互独立的，所以我们可以将比如说所有计数器的第m位，归为一个32位数（由橙色框所示）。这个32位数中的所有位（表示为xm）将遵循相同的位操作。由于每个计数器有m个位，我们最终得到m个32位数，对应于第二部分中定义的x1, ... , xm，但现在它们是32位数而不是1位数。因此，在上面开发的算法中，我们只需要将x1到xm视为32位整数而不是1位数。其他一切都将是相同的，我们就完成了。很简单，嗯？</p>
+<h2 id="返回什么">4. 返回什么</h2>
+<p>最后就是我们应该返回什么值，或者等价于x1到xm中哪一个会等于单一元素。为了得到正确的答案，我们需要了解m个32位整数x1到xm代表什么。以x1为例，x1有32位，我们把它们标注为r（r=1到32)。当我们扫描完输入数组后，x1的r-th位的值将由数组中所有元素的r-th为决定（更具体的说，假设数组中所有元素的r-th位1的总计数为q，那么最终r-th位就是q'=q%k，其二进制形式为：q'm, ... , q'1，那么根据定义，x1的r-th位将等于 q'1)。现在你可以问自己这个问题：如果x1的r-th位是1，这意味着什么？</p>
+<p>答案是要找到能对这个1做出贡献的东西，一个出现了k次的元素会有贡献吗？不会，为什么？因为一个元素要做出贡献，至少要同时满足两个条件：这个元素的r-th位是1，这个1的出现次数不是k的整数倍，第一个条件是微不足道的。第二个条件来自于每当1的命中次数为k时，计数器就会回零，也就是x1中的对应位会被重置为0，对于一个出现了k次的元素，不可能同时满足这两个条件（违反第二条），所以它不会有贡献。所以，只有出现p（p%k!=0）次的单个元素才会做出贡献。如果p&gt;k，那么前k*[p/k] ([p/k]表示p/k的整数部分)的元素也不会做出贡献。所以我们总是可以设置p' = p % k，并说这个单元素有效地出现了p'次。</p>
+<p>我们把p‘写成二进制形式：p'm, ... , p'1(注意p' &lt; k, 所以它将适合m位)。这里提出一个声明，xj等于这个单个元素的条件是p'j = 1(j =1 到 m)，下面给出一个快速证明：</p>
+<p>如果xj的r-th位是1，我们可以放心的说这个单一元素的r-th位也是1（否则没有任何东西可以使xj的r-th位是1）。我们还要证明，如果xj的r-th位是0，那么单元素的r-th位只能是0，我们就假设在这种情况下，单元素的r-th位是1，我们看看会发生什么。在扫描结束时，这个1将被计算p'次。根据定义，xj的r-th位将等于p'j，也就是1，这与xj的r-th位为0的假设相矛盾，因此我们得出结论，只要p'j=1，xj的r-th位将始终与单一元素的r-th位相同。由于这对xj中的所有位都是真的（即对若r=1到32来说是真的），所以我们得出结论，只要p'j=1，xj将等于这个单一元素的值。</p>
+<p>所以现在我们应该返回什么就很清楚了。只要用其二进制形式表达p'=p%k，只要p'j = 1，就可以返回对应的xj中的任何一个。总的来说，该算法将在O(n*logk)时间和O(logk)的空间内运行。</p>
+<h2 id="快速例子几个">快速例子几个</h2>
+<p>Here is a list of few quick examples to show how the algorithm works (you can easily come up with other examples):</p>
+<ol type="1">
+<li><code>k = 2, p = 1</code> <code>k</code> is <code>2</code>, then <code>m = 1</code>, we need only one 32-bit integer (<code>x1</code>) as the counter. And <code>2^m = k</code> so we do not even need a mask! A complete java program will look like:</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public int singleNumber(int[] nums) &#123;</span><br><span class="line">    int x1 &#x3D; 0;</span><br><span class="line">     </span><br><span class="line">    for (int i : nums) &#123;</span><br><span class="line">        x1 ^&#x3D; i;</span><br><span class="line">    &#125;</span><br><span class="line">     </span><br><span class="line">    return x1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ol start="2" type="1">
+<li><code>k = 3, p = 1</code> <code>k</code> is <code>3</code>, then <code>m = 2</code>, we need two 32-bit integers(<code>x2</code>, <code>x1</code>) as the counter. And <code>2^m &gt; k</code> so we do need a mask. Write <code>k</code> in its binary form: <code>k = '11'</code>, then <code>k1 = 1</code>, <code>k2 = 1</code>, so we have <code>mask = ~(x1 &amp; x2)</code>. A complete java program will look like:</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">public int singleNumber(int[] nums) &#123;</span><br><span class="line">    int x1 &#x3D; 0, x2 &#x3D; 0, mask &#x3D; 0;</span><br><span class="line">     </span><br><span class="line">    for (int i : nums) &#123;</span><br><span class="line">        x2 ^&#x3D; x1 &amp; i;</span><br><span class="line">        x1 ^&#x3D; i;</span><br><span class="line">        mask &#x3D; ~(x1 &amp; x2);</span><br><span class="line">        x2 &amp;&#x3D; mask;</span><br><span class="line">        x1 &amp;&#x3D; mask;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return x1;  &#x2F;&#x2F; Since p &#x3D; 1, in binary form p &#x3D; &#39;01&#39;, then p1 &#x3D; 1, so we should return x1. </span><br><span class="line">                &#x2F;&#x2F; If p &#x3D; 2, in binary form p &#x3D; &#39;10&#39;, then p2 &#x3D; 1, and we should return x2.</span><br><span class="line">                &#x2F;&#x2F; Or alternatively we can simply return (x1 | x2).</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ol start="3" type="1">
+<li><code>k = 5, p = 3</code> <code>k</code> is <code>5</code>, then <code>m = 3</code>, we need three 32-bit integers(<code>x3</code>, <code>x2</code>, <code>x1</code>) as the counter. And <code>2^m &gt; k</code> so we need a mask. Write <code>k</code> in its binary form: <code>k = '101'</code>, then <code>k1 = 1</code>, <code>k2 = 0</code>, <code>k3 = 1</code>, so we have <code>mask = ~(x1 &amp; ~x2 &amp; x3)</code>. A complete java program will look like:</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">public int singleNumber(int[] nums) &#123;</span><br><span class="line">    int x1 &#x3D; 0, x2 &#x3D; 0, x3  &#x3D; 0, mask &#x3D; 0;</span><br><span class="line">   </span><br><span class="line">    for (int i : nums) &#123;</span><br><span class="line">        x3 ^&#x3D; x2 &amp; x1 &amp; i;</span><br><span class="line">        x2 ^&#x3D; x1 &amp; i;</span><br><span class="line">        x1 ^&#x3D; i;</span><br><span class="line">        mask &#x3D; ~(x1 &amp; ~x2 &amp; x3);</span><br><span class="line">        x3 &amp;&#x3D; mask;</span><br><span class="line">        x2 &amp;&#x3D; mask;</span><br><span class="line">        x1 &amp;&#x3D; mask;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    return x1;  &#x2F;&#x2F; Since p &#x3D; 3, in binary form p &#x3D; &#39;011&#39;, then p1 &#x3D; p2 &#x3D; 1, so we can return either x1 or x2. </span><br><span class="line">                &#x2F;&#x2F; If p &#x3D; 4, in binary form p &#x3D; &#39;100&#39;, only p3 &#x3D; 1, which implies we can only return x3.</span><br><span class="line">                &#x2F;&#x2F; Or alternatively we can simply return (x1 | x2 | x3).</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Lastly I would like to thank those for providing feedbacks to make this post better. Hope it helps and happy coding!</p>
+<h2 id="相关力扣题目">相关力扣题目</h2>
+<p>136 <span class="exturl" data-url="aHR0cHM6Ly9sZWV0Y29kZS1jbi5jb20vcHJvYmxlbXMvc2luZ2xlLW51bWJlci8=">https://leetcode-cn.com/problems/single-number/<i class="fa fa-external-link-alt"></i></span></p>
+<p>137 <span class="exturl" data-url="aHR0cHM6Ly9sZWV0Y29kZS1jbi5jb20vcHJvYmxlbXMvc2luZ2xlLW51bWJlci1paS8=">https://leetcode-cn.com/problems/single-number-ii/<i class="fa fa-external-link-alt"></i></span></p>
+<p>260 <span class="exturl" data-url="aHR0cHM6Ly9sZWV0Y29kZS1jbi5jb20vcHJvYmxlbXMvc2luZ2xlLW51bWJlci1paWkv">https://leetcode-cn.com/problems/single-number-iii/<i class="fa fa-external-link-alt"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E7%AE%97%E6%B3%95/" rel="tag"># 数据结构与算法</a>
+          </div>
+
+        
+  <div class="post-widgets">
+    <div class="wp_rating">
+      <div id="wpac-rating"></div>
+    </div>
+  </div>
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/07/22/%E6%8E%A5%E5%8F%A3%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%EF%BC%9A%E6%BC%8F%E6%A1%B6%E7%AE%97%E6%B3%95-%E4%BB%A4%E7%89%8C%E6%A1%B6%E7%AE%97%E6%B3%95/" rel="prev" title="接口限流算法：漏桶算法 & 令牌桶算法">
+      <i class="fa fa-chevron-left"></i> 接口限流算法：漏桶算法 & 令牌桶算法
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/07/23/%E9%83%AD%E5%BE%B7%E7%BA%B2%E5%86%99%E7%BB%99%E5%84%BF%E5%AD%90%E9%83%AD%E9%BA%92%E9%BA%9F%E7%9A%84%E5%AE%B6%E4%B9%A6/" rel="next" title="郭德纲写给儿子郭麒麟的家书">
+      郭德纲写给儿子郭麒麟的家书 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E6%8F%8F%E8%BF%B0"><span class="nav-number">1.</span> <span class="nav-text">1. 问题描述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%8E%E5%8F%AA%E6%9C%891bit%E7%9A%84%E7%89%B9%E6%AE%8A%E6%83%85%E5%86%B5%E5%BC%80%E5%A7%8B"><span class="nav-number">2.</span> <span class="nav-text">2. 从只有1bit的特殊情况开始</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BD%8D%E6%95%B0%E7%9A%84%E4%B8%80%E8%88%AC%E6%83%85%E5%86%B5"><span class="nav-number">3.</span> <span class="nav-text">3. 32位数的一般情况</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%94%E5%9B%9E%E4%BB%80%E4%B9%88"><span class="nav-number">4.</span> <span class="nav-text">4. 返回什么</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BF%AB%E9%80%9F%E4%BE%8B%E5%AD%90%E5%87%A0%E4%B8%AA"><span class="nav-number">5.</span> <span class="nav-text">快速例子几个</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%9B%B8%E5%85%B3%E5%8A%9B%E6%89%A3%E9%A2%98%E7%9B%AE"><span class="nav-number">6.</span> <span class="nav-text">相关力扣题目</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="侯瑞哲"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">侯瑞哲</p>
+  <div class="site-description" itemprop="description">记录我的工作与生活，分享一些想法</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">143</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <span class="exturl theme-link" data-url="aHR0cHM6Ly9oZXhvLmlv">Hexo</span> & <span class="exturl theme-link" data-url="aHR0cHM6Ly90aGVtZS1uZXh0Lm9yZw==">NexT.Gemini</span> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+<script src="/js/bookmark.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      // Force synchronous loading of peripheral JS.
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  // Define Motion Sequence & Bootstrap Motion.
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+
+
+
+  
+  <script data-pjax>
+    (function(){
+      var canonicalURL, curProtocol;
+      //Get the <link> tag
+      var x=document.getElementsByTagName("link");
+		//Find the last canonical URL
+		if(x.length > 0){
+			for (i=0;i<x.length;i++){
+				if(x[i].rel.toLowerCase() == 'canonical' && x[i].href){
+					canonicalURL=x[i].href;
+				}
+			}
+		}
+    //Get protocol
+	    if (!canonicalURL){
+	    	curProtocol = window.location.protocol.split(':')[0];
+	    }
+	    else{
+	    	curProtocol = canonicalURL.split(':')[0];
+	    }
+      //Get current URL if the canonical URL does not exist
+	    if (!canonicalURL) canonicalURL = window.location.href;
+	    //Assign script content. Replace current URL with the canonical URL
+      !function(){var e=/([http|https]:\/\/[a-zA-Z0-9\_\.]+\.baidu\.com)/gi,r=canonicalURL,t=document.referrer;if(!e.test(r)){var n=(String(curProtocol).toLowerCase() === 'https')?"https://sp0.baidu.com/9_Q4simg2RQJ8t7jm9iCKT-xh_/s.gif":"//api.share.baidu.com/s.gif";t?(n+="?r="+encodeURIComponent(document.referrer),r&&(n+="&l="+r)):r&&(n+="?l="+r);var i=new Image;i.src=n}}(window);})();
+  </script>
+
+
+
+  <script data-pjax>
+  if (CONFIG.page.isPost) {
+    wpac_init = window.wpac_init || [];
+    wpac_init.push({
+      widget: 'Rating',
+      id    : 22229,
+      el    : 'wpac-rating',
+      color : 'fc6423'
+    });
+    (function() {
+      if ('WIDGETPACK_LOADED' in window) return;
+      WIDGETPACK_LOADED = true;
+      var mc = document.createElement('script');
+      mc.type = 'text/javascript';
+      mc.async = true;
+      mc.src = '//embed.widgetpack.com/widget.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(mc, s.nextSibling);
+    })();
+  }
+  </script>
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+<script data-pjax>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+    <div id="pjax">
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://hrz123.github.io/2020/07/22/%E4%BD%8D%E8%BF%90%E7%AE%97%E8%A7%A3%E5%86%B3%E5%85%A8%E9%83%A8%E5%85%B6%E4%BD%99%E6%89%80%E6%9C%89%E6%95%B0%E5%87%BA%E7%8E%B0k%E6%AC%A1%EF%BC%8C%E6%89%BE%E5%87%BA%E5%94%AF%E4%B8%80%E5%87%BA%E7%8E%B0p%E6%AC%A1%E7%9A%84%E6%95%B0%E7%9A%84%E9%A2%98%E7%9B%AE/',]
+      });
+      });
+  </script>
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : '8YC1b0uYNOAbXVznOWHGd3aN-MdYXbMMI',
+      appKey     : '9KUsD7M9QgpQiV7VRKDR1F7s',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</body>
+</html>

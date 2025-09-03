@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"hrz123.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="参考： https:&#x2F;&#x2F;zh.wikipedia.org&#x2F;wiki&#x2F;%E7%B7%9A%E6%AE%B5%E6%A8%B9 https:&#x2F;&#x2F;www.geeksforgeeks.org&#x2F;segment-tree-set-1-sum-of-given-range&#x2F; 原文我觉得挺不错的，暂时觉得先不翻译。 链接 实际问题（简单记，想快速知道数组的某一区间和，同时数组的修改频繁，使得这两种操作都变成O(l">
+<meta property="og:type" content="article">
+<meta property="og:title" content="线段树">
+<meta property="og:url" content="https://hrz123.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="参考： https:&#x2F;&#x2F;zh.wikipedia.org&#x2F;wiki&#x2F;%E7%B7%9A%E6%AE%B5%E6%A8%B9 https:&#x2F;&#x2F;www.geeksforgeeks.org&#x2F;segment-tree-set-1-sum-of-given-range&#x2F; 原文我觉得挺不错的，暂时觉得先不翻译。 链接 实际问题（简单记，想快速知道数组的某一区间和，同时数组的修改频繁，使得这两种操作都变成O(l">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st1.png">
+<meta property="og:image" content="https://hrz123.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/segment-tree1.png">
+<meta property="og:image" content="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st2.png">
+<meta property="og:image" content="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st3.png">
+<meta property="article:published_time" content="2020-07-30T03:54:36.000Z">
+<meta property="article:modified_time" content="2020-08-13T10:50:45.713Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据结构与算法">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st1.png">
+
+<link rel="canonical" href="https://hrz123.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>线段树 | 侯瑞哲的博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">侯瑞哲的博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Ruizhe's Blog</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL2hyejEyMw==" title="Follow me on GitHub" aria-label="Follow me on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://hrz123.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+      <meta itemprop="description" content="记录我的工作与生活，分享一些想法">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          线段树
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-07-30 11:54:36" itemprop="dateCreated datePublished" datetime="2020-07-30T11:54:36+08:00">2020-07-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-08-13 18:50:45" itemprop="dateModified" datetime="2020-08-13T18:50:45+08:00">2020-08-13</time>
+              </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="参考">参考：</h2>
+<p><span class="exturl" data-url="aHR0cHM6Ly96aC53aWtpcGVkaWEub3JnL3dpa2kv57ea5q615qi5">https://zh.wikipedia.org/wiki/%E7%B7%9A%E6%AE%B5%E6%A8%B9<i class="fa fa-external-link-alt"></i></span></p>
+<p>https://www.geeksforgeeks.org/segment-tree-set-1-sum-of-given-range/</p>
+<p>原文我觉得挺不错的，暂时觉得先不翻译。</p>
+<p><span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS9xdWVzdGlvbnMvMTc0NjYyMTgvd2hhdC1hcmUtdGhlLWRpZmZlcmVuY2VzLWJldHdlZW4tc2VnbWVudC10cmVlcy1pbnRlcnZhbC10cmVlcy1iaW5hcnktaW5kZXhlZC10Izp+OnRleHQ9U2VnbWVudCUyMHRyZWUlMjBzdG9yZXMlMjBpbnRlcnZhbHMlMkMlMjBhbmQsd2l0aCUyMGElMjBnaXZlbiUyMGludGVydmFsJTIyJTIwcXVlcmllcy4=">链接<i class="fa fa-external-link-alt"></i></span></p>
+<h2 id="实际问题简单记想快速知道数组的某一区间和同时数组的修改频繁使得这两种操作都变成ologn用线段树可利用思想解决最大子段和问题">实际问题（简单记，想快速知道数组的某一区间和，同时数组的修改频繁，使得这两种操作都变成O(logn)，用线段树，可利用思想解决最大子段和问题）</h2>
+<p>Let us consider the following problem to understand Segment Trees.</p>
+<p>We have an array arr[0 . . . n-1]. We should be able to <strong>1</strong> Find the sum of elements from index l to r where 0 &lt;= l &lt;= r &lt;= n-1</p>
+<p><strong>2</strong> Change value of a specified element of the array to a new value x. We need to do arr[i] = x where 0 &lt;= i &lt;= n-1.</p>
+<p>A <strong>simple solution</strong> is to run a loop from l to r and calculate the sum of elements in the given range. To update a value, simply do arr[i] = x. The first operation takes O(n) time and the second operation takes O(1) time.</p>
+<p><strong>Another solution</strong> is to create another array and store sum from start to i at the ith index in this array. The sum of a given range can now be calculated in O(1) time, but update operation takes O(n) time now. This works well if the number of query operations is large and very few updates.</p>
+<p>给定一个数组，我们既想快速的知道任意一段区间的总和是多少，也想经常改变其中任何一个元素的值。</p>
+<p>第一种解决办法就是，对每一个l和r，我们计算l和r之间的和，O(n)的复杂度，改变其中任何一个值，O(1)的时间复杂度。</p>
+<p>第二种解决办法就是，我们创建好另一个数组，存储从开始到这个索引的元素和是多少，（前缀和，通常前缀和在数组的前面加上一个0，这样所有lr之间的和等于这个_sum数组的 _sum[r] - _sum[l-1]）。这样求l到r之间的和就变成O(1)的时间复杂度了，但是每改变一个值就变成O(n)的了。</p>
+<p>What if the number of query and updates are equal? <strong>Can we perform both the operations in O(log n) time once given the array?</strong> We can use a Segment Tree to do both operations in O(Logn) time.</p>
+<p><strong>Representation of Segment trees</strong> <strong>1.</strong> Leaf Nodes are the elements of the input array. <strong>2.</strong> Each internal node represents some merging of the leaf nodes. The merging may be different for different problems. For this problem, merging is sum of leaves under a node.</p>
+<p>An array representation of tree is used to represent Segment Trees. For each node at index i, the left child is at index 2<em>i+1, right child at 2</em>i+2 and the parent is at <a target="_blank" rel="noopener" href="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st1.png"><img data-src="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st1.png" alt="st1"></a>.</p>
+<img data-src="/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/segment-tree1.png" class>
+<p><strong>How does above segment tree look in memory?</strong> Like Heap, the segment tree is also represented as an array. The difference here is, it is not a complete binary tree. It is rather a full binary tree (every node has 0 or 2 children) and all levels are filled except possibly the last level. Unlike Heap, the last level may have gaps between nodes. Below are the values in the segment tree array for the above diagram.</p>
+<blockquote>
+<p><em>Below is memory representation of segment tree for input array {1, 3, 5, 7, 9, 11}</em> <em>st[] = {36, 9, 27, 4, 5, 16, 11, 1, 3, DUMMY, DUMMY, 7, 9, DUMMY, DUMMY}</em></p>
+</blockquote>
+<p>The dummy values are never accessed and have no use. This is some wastage of space due to simple array representation. We may optimize this wastage using some clever implementations, but code for sum and update becomes more complex.</p>
+<p><strong>Construction of Segment Tree from given array</strong> We start with a segment arr[0 . . . n-1]. and every time we divide the current segment into two halves(if it has not yet become a segment of length 1), and then call the same procedure on both halves, and for each such segment, we store the sum in the corresponding node. All levels of the constructed segment tree will be completely filled except the last level. Also, the tree will be a <span class="exturl" data-url="aHR0cHM6Ly93d3cuZ2Vla3Nmb3JnZWVrcy5vcmcvYmluYXJ5LXRyZWUtc2V0LTMtdHlwZXMtb2YtYmluYXJ5LXRyZWUv">Full Binary Tree<i class="fa fa-external-link-alt"></i></span> because we always divide segments in two halves at every level. Since the constructed tree is always a full binary tree with n leaves, there will be n-1 internal nodes. So the total number of nodes will be 2*n – 1. Note that this does not include dummy nodes.</p>
+<p><strong>What is the total size of the array representing segment tree?</strong> If n is a power of 2, then there are no dummy nodes. So the size of the segment tree is 2n-1 (n leaf nodes and n-1) internal nodes. If n is not a power of 2, then the size of the tree will be 2*x – 1 where x is the smallest power of 2 greater than n. For example, when n = 10, then size of array representing segment tree is 2*16-1 = 31. An alternate explanation for size is based on heignt. Height of the segment tree will be <a target="_blank" rel="noopener" href="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st2.png"><img data-src="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st2.png" alt="st2"></a>. Since the tree is represented using array and relation between parent and child indexes must be maintained, size of memory allocated for segment tree will be <a target="_blank" rel="noopener" href="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st3.png"><img data-src="https://media.geeksforgeeks.org/wp-content/cdn-uploads/st3.png" alt="st3"></a>.</p>
+<p><strong>Query for Sum of given range</strong> Once the tree is constructed, how to get the sum using the constructed segment tree. The following is the algorithm to get the sum of elements.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">getSum</span><span class="params">(node, l, r)</span> </span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">   <span class="keyword">if</span> the range of the node is within l <span class="keyword">and</span> r</span><br><span class="line">        <span class="keyword">return</span> value in the node</span><br><span class="line">   <span class="keyword">else</span> <span class="keyword">if</span> the range of the node is completely outside l <span class="keyword">and</span> r</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span></span><br><span class="line">   <span class="keyword">else</span></span><br><span class="line">    <span class="keyword">return</span> getSum(node<span class="number">&#x27;</span>s left child, l, r) + </span><br><span class="line">           getSum(node<span class="number">&#x27;</span>s right child, l, r)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>Update a value</strong> Like tree construction and query operations, the update can also be done recursively. We are given an index which needs to be updated. Let <em>diff</em> be the value to be added. We start from the root of the segment tree and add <em>diff</em> to all nodes which have given index in their range. If a node doesn’t have a given index in its range, we don’t make any changes to that node.</p>
+<p><strong>Implementation:</strong> Following is the implementation of segment tree. The program implements construction of segment tree for any given array. It also implements query and update operations.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Python3 program to show segment tree operations like </span></span><br><span class="line"><span class="comment"># construction, query and update </span></span><br><span class="line"><span class="keyword">from</span> math <span class="keyword">import</span> ceil, log2; </span><br><span class="line"></span><br><span class="line"><span class="comment"># A utility function to get the </span></span><br><span class="line"><span class="comment"># middle index from corner indexes. </span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">getMid</span>(<span class="params">s, e</span>) :</span> </span><br><span class="line">   <span class="keyword">return</span> s + (e -s) // <span class="number">2</span>; </span><br><span class="line"></span><br><span class="line"><span class="string">&quot;&quot;&quot; A recursive function to get the sum of values </span></span><br><span class="line"><span class="string">   in the given range of the array. The following </span></span><br><span class="line"><span class="string">   are parameters for this function. </span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">  st --&gt; Pointer to segment tree </span></span><br><span class="line"><span class="string">    si --&gt; Index of current node in the segment tree. </span></span><br><span class="line"><span class="string">     Initially 0 is passed as root is always at index 0 </span></span><br><span class="line"><span class="string">   ss &amp; se --&gt; Starting and ending indexes of the segment </span></span><br><span class="line"><span class="string">                represented by current node, i.e., st[si] </span></span><br><span class="line"><span class="string">    qs &amp; qe --&gt; Starting and ending indexes of query range &quot;&quot;&quot;</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">getSumUtil</span>(<span class="params">st, ss, se, qs, qe, si</span>) :</span> </span><br><span class="line"></span><br><span class="line">    <span class="comment"># If segment of this node is a part of given range, </span></span><br><span class="line"> <span class="comment"># then return the sum of the segment </span></span><br><span class="line">    <span class="keyword">if</span> (qs &lt;= ss <span class="keyword">and</span> qe &gt;= se) : </span><br><span class="line">     <span class="keyword">return</span> st[si]; </span><br><span class="line"></span><br><span class="line">    <span class="comment"># If segment of this node is </span></span><br><span class="line">    <span class="comment"># outside the given range </span></span><br><span class="line">   <span class="keyword">if</span> (se &lt; qs <span class="keyword">or</span> ss &gt; qe) : </span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>; </span><br><span class="line"></span><br><span class="line"> <span class="comment"># If a part of this segment overlaps </span></span><br><span class="line">    <span class="comment"># with the given range </span></span><br><span class="line">  mid = getMid(ss, se); </span><br><span class="line">    </span><br><span class="line">  <span class="keyword">return</span> getSumUtil(st, ss, mid, qs, qe, <span class="number">2</span> * si + <span class="number">1</span>) + \ </span><br><span class="line">      getSumUtil(st, mid + <span class="number">1</span>, se, qs, qe, <span class="number">2</span> * si + <span class="number">2</span>); </span><br><span class="line"></span><br><span class="line"><span class="string">&quot;&quot;&quot; A recursive function to update the nodes </span></span><br><span class="line"><span class="string">which have the given index in their range. </span></span><br><span class="line"><span class="string">The following are parameters st, si, ss and se </span></span><br><span class="line"><span class="string">are same as getSumUtil() </span></span><br><span class="line"><span class="string">i --&gt; index of the element to be updated. </span></span><br><span class="line"><span class="string">    This index is in the input array. </span></span><br><span class="line"><span class="string">diff --&gt; Value to be added to all nodes </span></span><br><span class="line"><span class="string">which have i in range &quot;&quot;&quot;</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">updateValueUtil</span>(<span class="params">st, ss, se, i, diff, si</span>) :</span> </span><br><span class="line"></span><br><span class="line"> <span class="comment"># Base Case: If the input index lies </span></span><br><span class="line">    <span class="comment"># outside the range of this segment </span></span><br><span class="line"> <span class="keyword">if</span> (i &lt; ss <span class="keyword">or</span> i &gt; se) : </span><br><span class="line">      <span class="keyword">return</span>; </span><br><span class="line"></span><br><span class="line">   <span class="comment"># If the input index is in range of this node, </span></span><br><span class="line">  <span class="comment"># then update the value of the node and its children </span></span><br><span class="line">    st[si] = st[si] + diff; </span><br><span class="line">  </span><br><span class="line">  <span class="keyword">if</span> (se != ss) : </span><br><span class="line"> </span><br><span class="line">      mid = getMid(ss, se); </span><br><span class="line">        updateValueUtil(st, ss, mid, i, </span><br><span class="line">                      diff, <span class="number">2</span> * si + <span class="number">1</span>); </span><br><span class="line">       updateValueUtil(st, mid + <span class="number">1</span>, se, i, </span><br><span class="line">                      diff, <span class="number">2</span> * si + <span class="number">2</span>); </span><br><span class="line"></span><br><span class="line"><span class="comment"># The function to update a value in input array </span></span><br><span class="line"><span class="comment"># and segment tree. It uses updateValueUtil() </span></span><br><span class="line"><span class="comment"># to update the value in segment tree </span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">updateValue</span>(<span class="params">arr, st, n, i, new_val</span>) :</span> </span><br><span class="line"></span><br><span class="line">    <span class="comment"># Check for erroneous input index </span></span><br><span class="line">   <span class="keyword">if</span> (i &lt; <span class="number">0</span> <span class="keyword">or</span> i &gt; n - <span class="number">1</span>) : </span><br><span class="line">        </span><br><span class="line">      print(<span class="string">&quot;Invalid Input&quot;</span>, end = <span class="string">&quot;&quot;</span>); </span><br><span class="line">        <span class="keyword">return</span>; </span><br><span class="line"></span><br><span class="line">   <span class="comment"># Get the difference between </span></span><br><span class="line">    <span class="comment"># new value and old value </span></span><br><span class="line">   diff = new_val - arr[i]; </span><br><span class="line"></span><br><span class="line">   <span class="comment"># Update the value in array </span></span><br><span class="line"> arr[i] = new_val; </span><br><span class="line"></span><br><span class="line">  <span class="comment"># Update the values of nodes in segment tree </span></span><br><span class="line">    updateValueUtil(st, <span class="number">0</span>, n - <span class="number">1</span>, i, diff, <span class="number">0</span>); </span><br><span class="line"></span><br><span class="line"><span class="comment"># Return sum of elements in range from </span></span><br><span class="line"><span class="comment"># index qs (quey start) to qe (query end). </span></span><br><span class="line"><span class="comment"># It mainly uses getSumUtil() </span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">getSum</span>(<span class="params">st, n, qs, qe</span>) :</span> </span><br><span class="line"></span><br><span class="line">  <span class="comment"># Check for erroneous input values </span></span><br><span class="line">  <span class="keyword">if</span> (qs &lt; <span class="number">0</span> <span class="keyword">or</span> qe &gt; n - <span class="number">1</span> <span class="keyword">or</span> qs &gt; qe) : </span><br><span class="line"></span><br><span class="line">     print(<span class="string">&quot;Invalid Input&quot;</span>, end = <span class="string">&quot;&quot;</span>); </span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>; </span><br><span class="line">  </span><br><span class="line">  <span class="keyword">return</span> getSumUtil(st, <span class="number">0</span>, n - <span class="number">1</span>, qs, qe, <span class="number">0</span>); </span><br><span class="line"></span><br><span class="line"><span class="comment"># A recursive function that constructs </span></span><br><span class="line"><span class="comment"># Segment Tree for array[ss..se]. </span></span><br><span class="line"><span class="comment"># si is index of current node in segment tree st </span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">constructSTUtil</span>(<span class="params">arr, ss, se, st, si</span>) :</span> </span><br><span class="line"></span><br><span class="line">   <span class="comment"># If there is one element in array, </span></span><br><span class="line"> <span class="comment"># store it in current node of </span></span><br><span class="line">   <span class="comment"># segment tree and return </span></span><br><span class="line">   <span class="keyword">if</span> (ss == se) : </span><br><span class="line"> </span><br><span class="line">      st[si] = arr[ss]; </span><br><span class="line">        <span class="keyword">return</span> arr[ss]; </span><br><span class="line"> </span><br><span class="line">  <span class="comment"># If there are more than one elements, </span></span><br><span class="line">  <span class="comment"># then recur for left and right subtrees </span></span><br><span class="line">    <span class="comment"># and store the sum of values in this node </span></span><br><span class="line">  mid = getMid(ss, se); </span><br><span class="line">    </span><br><span class="line">  st[si] = constructSTUtil(arr, ss, mid, st, si * <span class="number">2</span> + <span class="number">1</span>) +\ </span><br><span class="line">            constructSTUtil(arr, mid + <span class="number">1</span>, se, st, si * <span class="number">2</span> + <span class="number">2</span>); </span><br><span class="line">   </span><br><span class="line">  <span class="keyword">return</span> st[si]; </span><br><span class="line"></span><br><span class="line"><span class="string">&quot;&quot;&quot; Function to construct segment tree </span></span><br><span class="line"><span class="string">from given array. This function allocates memory </span></span><br><span class="line"><span class="string">for segment tree and calls constructSTUtil() to </span></span><br><span class="line"><span class="string">fill the allocated memory &quot;&quot;&quot;</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">constructST</span>(<span class="params">arr, n</span>) :</span> </span><br><span class="line"></span><br><span class="line"> <span class="comment"># Allocate memory for the segment tree </span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Height of segment tree </span></span><br><span class="line">    x = (int)(ceil(log2(n))); </span><br><span class="line"></span><br><span class="line">  <span class="comment"># Maximum size of segment tree </span></span><br><span class="line">  max_size = <span class="number">2</span> * (int)(<span class="number">2</span>**x) - <span class="number">1</span>; </span><br><span class="line">  </span><br><span class="line">  <span class="comment"># Allocate memory </span></span><br><span class="line">   st = [<span class="number">0</span>] * max_size; </span><br><span class="line"></span><br><span class="line">   <span class="comment"># Fill the allocated memory st </span></span><br><span class="line">  constructSTUtil(arr, <span class="number">0</span>, n - <span class="number">1</span>, st, <span class="number">0</span>); </span><br><span class="line"></span><br><span class="line"> <span class="comment"># Return the constructed segment tree </span></span><br><span class="line">   <span class="keyword">return</span> st; </span><br><span class="line"></span><br><span class="line"><span class="comment"># Driver Code </span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span> : </span><br><span class="line"></span><br><span class="line">    arr = [<span class="number">1</span>, <span class="number">3</span>, <span class="number">5</span>, <span class="number">7</span>, <span class="number">9</span>, <span class="number">11</span>]; </span><br><span class="line">   n = len(arr); </span><br><span class="line"></span><br><span class="line">  <span class="comment"># Build segment tree from given array </span></span><br><span class="line">   st = constructST(arr, n); </span><br><span class="line"></span><br><span class="line">  <span class="comment"># Print sum of values in array from index 1 to 3 </span></span><br><span class="line">    print(<span class="string">&quot;Sum of values in given range = &quot;</span>, </span><br><span class="line">                   getSum(st, n, <span class="number">1</span>, <span class="number">3</span>)); </span><br><span class="line"></span><br><span class="line">  <span class="comment"># Update: set arr[1] = 10 and update </span></span><br><span class="line">    <span class="comment"># corresponding segment tree nodes </span></span><br><span class="line">  updateValue(arr, st, n, <span class="number">1</span>, <span class="number">10</span>); </span><br><span class="line"></span><br><span class="line">    <span class="comment"># Find sum after the value is updated </span></span><br><span class="line">   print(<span class="string">&quot;Updated sum of values in given range = &quot;</span>, </span><br><span class="line">                   getSum(st, n, <span class="number">1</span>, <span class="number">3</span>), end = <span class="string">&quot;&quot;</span>); </span><br><span class="line">    </span><br></pre></td></tr></table></figure>
+<p><strong>Output:</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Sum of values in given range &#x3D; 15</span><br><span class="line">Updated sum of values in given range &#x3D; 22</span><br></pre></td></tr></table></figure>
+<p><strong>Time Complexity:</strong> Time Complexity for tree construction is O(n). There are total 2n-1 nodes, and value of every node is calculated only once in tree construction.</p>
+<p>Time complexity to query is O(Logn). To query a sum, we process at most four nodes at every level and number of levels is O(Logn).</p>
+<p>The time complexity of update is also O(Logn). To update a leaf value, we process one node at every level and number of levels is O(Logn).</p>
+<h2 id="示例题目">示例题目</h2>
+<ol type="1">
+<li><h3 id="spoj-gss1">SPOJ-GSS1</h3>
+<p>You are given a sequence A[1], A[2], ..., A[N] . ( |A[i]| ≤ 15007 , 1 ≤ N ≤ 50000 ). A query is defined as follows: Query(x,y) = Max { a[i]+a[i+1]+...+a[j] ; x ≤ i ≤ j ≤ y }. Given M queries, your program must output the results of these queries.</p>
+<h3 id="input">Input</h3>
+<ul>
+<li>The first line of the input file contains the integer N.</li>
+<li>In the second line, N numbers follow.</li>
+<li>The third line contains the integer M.</li>
+<li>M lines follow, where line i contains 2 numbers xi and yi.</li>
+</ul>
+<h3 id="output">Output</h3>
+<p>Your program should output the results of the M queries, one query per line.</p>
+<h3 id="example">Example</h3>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Input:</span><br><span class="line">3 </span><br><span class="line">-1 2 3</span><br><span class="line">1</span><br><span class="line">1 2</span><br><span class="line"></span><br><span class="line">Output:</span><br><span class="line">2</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>大致翻译：给定一段长度为n的序列a1, a2, ..., an （a有正有负），每次询问[L, R] (即aL ~ aR)范围内的最大子段和，并涉及单点修改操作。</p>
+<p>线段树：维护区间最大子段和。</p>
+<p>这里不能用传统的线段树了，我们维护的值要更多。</p>
+<ol type="1">
+<li><p>定义：</p>
+<p>线段树一共要维护4个值，如下：（每个值的含义都是相对于该结点对应区间[l, r]而言）</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">node</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="keyword">int</span> sum;       <span class="comment">//[l,r]区间之和</span></span><br><span class="line">    <span class="keyword">int</span> max_sum;   <span class="comment">//[l,r]内的最大子段和</span></span><br><span class="line">    <span class="keyword">int</span> max_pre;   <span class="comment">//[l,r]内的最大前缀和</span></span><br><span class="line">    <span class="keyword">int</span> max_post;  <span class="comment">//[l,r]内的最大后缀和</span></span><br><span class="line">&#125;t[maxn&lt;&lt;<span class="number">2</span>];</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<ol type="1">
+<li>向上传递</li>
+</ol>
+<p>我们采用分治归并的思路，我们知道在l=r时这四个值都是确定的，都等于al。那么通过左右两边的四个值如何求出合并后的值呢。这里我觉得这段话讲的很清楚。</p>
+<p>我们定义一个操作get(a, l, r)表示查询a序列[l, r]区间内的最大子段和。如何分治实现这个操作呢？对于一个区间l, r，我们取m = (l + r)/2， 对区间[l,m] 和 [m+1, r]分治求解。当递归逐层深入直到区间长度缩小为1的时候，递归「开始回升」。这个时候我们考虑如何通过[l, m]区间的信息和[m+1, r]区间的信息合并成区间[l, r]的信息。最关键的两个问题是：</p>
+<ul>
+<li>我们要维护区间的哪些信息呢？</li>
+<li>我们如何合并这些信息？</li>
+</ul>
+<p>对于一个区间[l, r]，我们可以维护四个量：</p>
+<ul>
+<li>lSum表示[l, r]内以l为左端点的最大子段和</li>
+<li>rSum表示[l, r]内以r为右端点的最大字段和</li>
+<li>mSum表示[l, r]内的最大子段和</li>
+<li>iSum表示[l, r]的区间和</li>
+</ul>
+<p>以下简称[l, m]为[l, r]的「左子区间」，[m+1, r]为[l, r]的右子区间。我们考虑如何维护这些量呢（如何通过左右子区间的信息合并得到[l,r]的信息）？对于长度为1的区间[i,i]，四个量的值都和ai相等。对于长度大于1的区间：</p>
+<p>首先最好维护的是iSum，区间[l, r]的iSum就等于「左子区间」的iSum加上「右子区间」的iSum。</p>
+<p>对于[l, r]的lSum，存在两种可能，它要么等于「左子区间」的lSum，要么等于「左子区间」的iSum加上「右子区间」的lSum，两者取大。</p>
+<p>对于[l, r]的rSum，同理，它要么等于「右子区间」的rSum，要么等于「右子区间」的iSum加上「左子区间」的rSum，两者取大。</p>
+<p>当计算好上面的三个量之后，就很好计算[l, r]的mSum了。我们可以考虑[l, r]的mSum对应的区间是否跨越m--它可能不跨越m，也就是说[l, r]的mSum可能是「左子区间」的mSum和「右子区间」的mSum中的一个；它可能跨越m，可能是「左子区间」的rSum和「右子区间」的lSum求和。三者取大。</p>
+<p>我们把这个过程叫做向上传递，英文叫做pushup。</p>
+<p>如果我们把 [0,n−1] 分治下去出现的所有子区间的信息都用堆式存储的方式记忆化下来，即建成一颗真正的树之后，我们就可以在 O(logn) 的时间内求到任意区间内的答案，我们甚至可以修改序列中的值，做一些简单的维护，之后仍然可以在 O(logn) 的时间内求到任意区间内的答案，对于大规模查询的情况下，这种方法的优势便体现了出来。这棵树就是线段树。</p></li>
+<li><p>leetcode，<span class="exturl" data-url="aHR0cHM6Ly9sZWV0Y29kZS1jbi5jb20vcHJvYmxlbXMvbWF4aW11bS1zdWJhcnJheS8=">53. 最大子序和<i class="fa fa-external-link-alt"></i></span>，可用dp也可用线段树求解。与上一题一样，只不过上一题有多个query，适合把线段树存下来。</p>
+<p>示例解法：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 线段树</span></span><br><span class="line"><span class="comment"># 我们定义一个操作get(a, l, r)表示查询a序列[l, r]区间内的最大子段和，</span></span><br><span class="line"><span class="comment"># 那么最终我们要求的答案就是get(arr, 0, n-1)。如何分治实现这个操作呢？</span></span><br><span class="line"><span class="comment"># 对于一个区间l, r，我们取m = (l + r)/2， 对区间[l,m] 和 [m+1, r]分治求解。</span></span><br><span class="line"><span class="comment"># 当递归逐层深入直到区间长度缩小为1的时候，递归「开始回升」。</span></span><br><span class="line"><span class="comment"># 这个时候我们考虑如何通过[l, m]区间的信息和[m+1, r]区间的信息合并成区间[l, r]的信息。</span></span><br><span class="line"><span class="comment"># 最关键的两个问题是：</span></span><br><span class="line"><span class="comment"># 我们要维护区间的哪些信息呢？</span></span><br><span class="line"><span class="comment"># 我们如何合并这些信息？</span></span><br><span class="line"><span class="comment"># 对于一个区间[l, r]，我们可以维护四个量：</span></span><br><span class="line"><span class="comment"># lSum表示[l, r]内以l为左端点的最大子段和</span></span><br><span class="line"><span class="comment"># rSum表示[l, r]内以r为右端点的最大字段和</span></span><br><span class="line"><span class="comment"># mSum表示[l, r]内的最大子段和</span></span><br><span class="line"><span class="comment"># iSum表示[l, r]的区间和</span></span><br><span class="line"><span class="comment"># 以下简称[l, m]为[l, r]的「左子区间」，[m+1, r]为[l, r]的右子区间。</span></span><br><span class="line"><span class="comment"># 我们考虑如何维护这些量呢（如何通过左右子区间的信息合并得到[l,r]的信息）？</span></span><br><span class="line"><span class="comment"># 对于长度为1的区间[start,start]，四个量的值都和ai相等。对于长度大于1的区间：</span></span><br><span class="line"><span class="comment"># 首先最好维护的是iSum，区间[l, r]的iSum就等于「左子区间」的iSum加上「右子区间」的iSum。</span></span><br><span class="line"><span class="comment"># 对于[l, r]的lSum，存在两种可能，它要么等于「左子区间」的lSum，</span></span><br><span class="line"><span class="comment"># 要么等于「左子区间」的iSum加上「右子区间」的lSum，两者取大。</span></span><br><span class="line"><span class="comment"># 对于[l, r]的rSum，同理，它要么等于「右子区间」的rSum，</span></span><br><span class="line"><span class="comment"># 要么等于「右子区间」的iSum加上「左子区间」的rSum，两者取大</span></span><br><span class="line"><span class="comment"># 当计算好上面的三个量之后，就很好计算[l, r]的mSum了。</span></span><br><span class="line"><span class="comment"># 我们可以考虑[l, r]的mSum对应的区间是否跨越m--它可能不跨越m，</span></span><br><span class="line"><span class="comment"># 也就是说[l, r]的mSum可能是「左子区间」的mSum和「右子区间」</span></span><br><span class="line"><span class="comment"># 的mSum中的一个；</span></span><br><span class="line"><span class="comment"># 它可能跨越m，可能是「左子区间」的rSum和「右子区间」的lSum求和。三者取大。</span></span><br><span class="line"><span class="comment"># 时间复杂度，相当于遍历一个二叉树的所有结点，结点最多为2*n个，所以时间为O(n)</span></span><br><span class="line"><span class="comment"># 空间复杂度：递归：O(logn)</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">maxSubArray</span>(<span class="params">self, nums: List[int]</span>) -&gt; int:</span></span><br><span class="line">        l, r = <span class="number">0</span>, len(nums) - <span class="number">1</span></span><br><span class="line">        <span class="keyword">return</span> self.get(nums, l, r)[<span class="number">2</span>]</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get</span>(<span class="params">self, nums, l, r</span>):</span></span><br><span class="line">        <span class="keyword">if</span> l == r:</span><br><span class="line">            <span class="keyword">return</span> [nums[l]] * <span class="number">4</span></span><br><span class="line"></span><br><span class="line">        mid = l + ((r - l) &gt;&gt; <span class="number">1</span>)</span><br><span class="line">        lSum1, rSum1, mSum1, iSum1 = self.get(nums, l, mid)</span><br><span class="line">        lSum2, rSum2, mSum2, iSum2 = self.get(nums, mid + <span class="number">1</span>, r)</span><br><span class="line">        iSum = iSum1 + iSum2</span><br><span class="line">        lSum = max(lSum1, iSum1 + lSum2)</span><br><span class="line">        rSum = max(rSum2, iSum2 + rSum1)</span><br><span class="line">        mSum = max(mSum1, mSum2, rSum1 + lSum2)</span><br><span class="line">        <span class="keyword">return</span> lSum, rSum, mSum, iSum</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># 存储一颗线段树</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">maxSubArray</span>(<span class="params">self, nums: List[int]</span>) -&gt; int:</span></span><br><span class="line">        l, r = <span class="number">0</span>, len(nums) - <span class="number">1</span></span><br><span class="line">        memo = &#123;&#125;</span><br><span class="line">        res = self.build(nums, l, r, memo)[<span class="number">2</span>]</span><br><span class="line">        print(memo)</span><br><span class="line">        <span class="keyword">return</span> res</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">build</span>(<span class="params">self, nums, l, r, memo</span>):</span></span><br><span class="line">        <span class="keyword">if</span> l == r:</span><br><span class="line">            memo[l, r] = [nums[l]] * <span class="number">4</span></span><br><span class="line">            <span class="keyword">return</span> [nums[l]] * <span class="number">4</span></span><br><span class="line"></span><br><span class="line">        mid = l + ((r - l) &gt;&gt; <span class="number">1</span>)</span><br><span class="line">        lSum1, rSum1, mSum1, iSum1 = self.build(nums, l, mid, memo)</span><br><span class="line">        lSum2, rSum2, mSum2, iSum2 = self.build(nums, mid + <span class="number">1</span>, r, memo)</span><br><span class="line">        iSum = iSum1 + iSum2</span><br><span class="line">        lSum = max(lSum1, iSum1 + lSum2)</span><br><span class="line">        rSum = max(rSum2, iSum2 + rSum1)</span><br><span class="line">        mSum = max(mSum1, mSum2, rSum1 + lSum2)</span><br><span class="line">        memo[l, r] = [lSum, rSum, mSum, iSum]</span><br><span class="line">        <span class="keyword">return</span> lSum, rSum, mSum, iSum</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># f(i) s[:i]的最大子序和，且一定包括i</span></span><br><span class="line"><span class="comment"># f(i) = max(f(i-1), 0) + a[i]</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">maxSubArray</span>(<span class="params">self, nums: List[int]</span>) -&gt; int:</span></span><br><span class="line">        pre, cur = float(<span class="string">&#x27;-inf&#x27;</span>), float(<span class="string">&#x27;-inf&#x27;</span>)</span><br><span class="line">        <span class="keyword">for</span> n <span class="keyword">in</span> nums:</span><br><span class="line">            pre = max(pre + n, n)</span><br><span class="line">            cur = max(cur, pre)</span><br><span class="line">        <span class="keyword">return</span> cur</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># 「方法二」相较于「方法一」来说，时间复杂度相同，但是因为使用了递归，并且维护了四个信息的结构体，</span></span><br><span class="line"><span class="comment"># 运行的时间略长，空间复杂度也不如方法一优秀，而且难以理解。</span></span><br><span class="line"><span class="comment"># 那么这种方法存在的意义是什么呢？</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># 对于这道题而言，确实是如此的。但是仔细观察「方法二」，它不仅可以解决区间 [0,n−1]，</span></span><br><span class="line"><span class="comment"># 还可以用于解决任意的子区间 [l,r] 的问题。</span></span><br><span class="line"><span class="comment"># 如果我们把 [0,n−1] 分治下去出现的所有子区间的信息都用堆式存储的方式记忆化下来，</span></span><br><span class="line"><span class="comment"># 即建成一颗真正的树之后，我们就可以在 O(logn) 的时间内求到任意区间内的答案，</span></span><br><span class="line"><span class="comment"># 我们甚至可以修改序列中的值，做一些简单的维护，</span></span><br><span class="line"><span class="comment"># 之后仍然可以在 O(logn) 的时间内求到任意区间内的答案，</span></span><br><span class="line"><span class="comment"># 对于大规模查询的情况下，这种方法的优势便体现了出来。</span></span><br><span class="line"><span class="comment"># 这棵树就是上文提及的一种神奇的数据结构——线段树。</span></span><br></pre></td></tr></table></figure></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E7%AE%97%E6%B3%95/" rel="tag"># 数据结构与算法</a>
+          </div>
+
+        
+  <div class="post-widgets">
+    <div class="wp_rating">
+      <div id="wpac-rating"></div>
+    </div>
+  </div>
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/07/28/The-Humble-Programmer-by-Edsger-W-Dijkstra-%E4%BC%9F%E5%A4%A7%E7%9A%84-Dijkstra/" rel="prev" title="The Humble Programmer by Edsger W. Dijkstra 伟大的 Dijkstra">
+      <i class="fa fa-chevron-left"></i> The Humble Programmer by Edsger W. Dijkstra 伟大的 Dijkstra
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/07/30/%E5%8C%BA%E9%97%B4%E6%A0%91/" rel="next" title="区间树">
+      区间树 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">1.</span> <span class="nav-text">参考：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9E%E9%99%85%E9%97%AE%E9%A2%98%E7%AE%80%E5%8D%95%E8%AE%B0%E6%83%B3%E5%BF%AB%E9%80%9F%E7%9F%A5%E9%81%93%E6%95%B0%E7%BB%84%E7%9A%84%E6%9F%90%E4%B8%80%E5%8C%BA%E9%97%B4%E5%92%8C%E5%90%8C%E6%97%B6%E6%95%B0%E7%BB%84%E7%9A%84%E4%BF%AE%E6%94%B9%E9%A2%91%E7%B9%81%E4%BD%BF%E5%BE%97%E8%BF%99%E4%B8%A4%E7%A7%8D%E6%93%8D%E4%BD%9C%E9%83%BD%E5%8F%98%E6%88%90ologn%E7%94%A8%E7%BA%BF%E6%AE%B5%E6%A0%91%E5%8F%AF%E5%88%A9%E7%94%A8%E6%80%9D%E6%83%B3%E8%A7%A3%E5%86%B3%E6%9C%80%E5%A4%A7%E5%AD%90%E6%AE%B5%E5%92%8C%E9%97%AE%E9%A2%98"><span class="nav-number">2.</span> <span class="nav-text">实际问题（简单记，想快速知道数组的某一区间和，同时数组的修改频繁，使得这两种操作都变成O(logn)，用线段树，可利用思想解决最大子段和问题）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%A4%BA%E4%BE%8B%E9%A2%98%E7%9B%AE"><span class="nav-number">3.</span> <span class="nav-text">示例题目</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#spoj-gss1"><span class="nav-number">3.1.</span> <span class="nav-text">SPOJ-GSS1</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#input"><span class="nav-number">3.2.</span> <span class="nav-text">Input</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#output"><span class="nav-number">3.3.</span> <span class="nav-text">Output</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#example"><span class="nav-number">3.4.</span> <span class="nav-text">Example</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="侯瑞哲"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">侯瑞哲</p>
+  <div class="site-description" itemprop="description">记录我的工作与生活，分享一些想法</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">143</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <span class="exturl theme-link" data-url="aHR0cHM6Ly9oZXhvLmlv">Hexo</span> & <span class="exturl theme-link" data-url="aHR0cHM6Ly90aGVtZS1uZXh0Lm9yZw==">NexT.Gemini</span> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+<script src="/js/bookmark.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      // Force synchronous loading of peripheral JS.
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  // Define Motion Sequence & Bootstrap Motion.
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+
+
+
+  
+  <script data-pjax>
+    (function(){
+      var canonicalURL, curProtocol;
+      //Get the <link> tag
+      var x=document.getElementsByTagName("link");
+		//Find the last canonical URL
+		if(x.length > 0){
+			for (i=0;i<x.length;i++){
+				if(x[i].rel.toLowerCase() == 'canonical' && x[i].href){
+					canonicalURL=x[i].href;
+				}
+			}
+		}
+    //Get protocol
+	    if (!canonicalURL){
+	    	curProtocol = window.location.protocol.split(':')[0];
+	    }
+	    else{
+	    	curProtocol = canonicalURL.split(':')[0];
+	    }
+      //Get current URL if the canonical URL does not exist
+	    if (!canonicalURL) canonicalURL = window.location.href;
+	    //Assign script content. Replace current URL with the canonical URL
+      !function(){var e=/([http|https]:\/\/[a-zA-Z0-9\_\.]+\.baidu\.com)/gi,r=canonicalURL,t=document.referrer;if(!e.test(r)){var n=(String(curProtocol).toLowerCase() === 'https')?"https://sp0.baidu.com/9_Q4simg2RQJ8t7jm9iCKT-xh_/s.gif":"//api.share.baidu.com/s.gif";t?(n+="?r="+encodeURIComponent(document.referrer),r&&(n+="&l="+r)):r&&(n+="?l="+r);var i=new Image;i.src=n}}(window);})();
+  </script>
+
+
+
+  <script data-pjax>
+  if (CONFIG.page.isPost) {
+    wpac_init = window.wpac_init || [];
+    wpac_init.push({
+      widget: 'Rating',
+      id    : 22229,
+      el    : 'wpac-rating',
+      color : 'fc6423'
+    });
+    (function() {
+      if ('WIDGETPACK_LOADED' in window) return;
+      WIDGETPACK_LOADED = true;
+      var mc = document.createElement('script');
+      mc.type = 'text/javascript';
+      mc.async = true;
+      mc.src = '//embed.widgetpack.com/widget.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(mc, s.nextSibling);
+    })();
+  }
+  </script>
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+<script data-pjax>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+    <div id="pjax">
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://hrz123.github.io/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/',]
+      });
+      });
+  </script>
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : '8YC1b0uYNOAbXVznOWHGd3aN-MdYXbMMI',
+      appKey     : '9KUsD7M9QgpQiV7VRKDR1F7s',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</body>
+</html>

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"hrz123.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="转载 文章转载自极客时间王争老师的设计模式之美专栏 钱包业务背景介绍 很多具有支付、购买功能的应用（比如淘宝、滴滴出行、极客时间等）都支持钱包的功能。应用为每个用户开设一个系统内的虚拟钱包账户，支持用户重置、提现、支付、冻结、透支、转赠、查询账户余额、查询交易流水等操作。下图是一张典型的钱包功能界面，你可以直观的感受一下。  一般来讲，每个虚拟钱包账户都会对应用户的一个真实的支付账户，有可能是银行">
+<meta property="og:type" content="article">
+<meta property="og:title" content="如何利用基于充血模型的DDD开发一个虚拟钱包系统？">
+<meta property="og:url" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="转载 文章转载自极客时间王争老师的设计模式之美专栏 钱包业务背景介绍 很多具有支付、购买功能的应用（比如淘宝、滴滴出行、极客时间等）都支持钱包的功能。应用为每个用户开设一个系统内的虚拟钱包账户，支持用户重置、提现、支付、冻结、透支、转赠、查询账户余额、查询交易流水等操作。下图是一张典型的钱包功能界面，你可以直观的感受一下。  一般来讲，每个虚拟钱包账户都会对应用户的一个真实的支付账户，有可能是银行">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%851.jpg">
+<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%852.jpg">
+<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%853.jpg">
+<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%854.jpg">
+<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%855.jpg">
+<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%856.jpg">
+<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%857.jpg">
+<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%858.jpg">
+<meta property="og:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%859.jpg">
+<meta property="article:published_time" content="2020-09-07T08:53:25.000Z">
+<meta property="article:modified_time" content="2020-09-08T01:29:35.683Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="设计模式">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%851.jpg">
+
+<link rel="canonical" href="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>如何利用基于充血模型的DDD开发一个虚拟钱包系统？ | 侯瑞哲的博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">侯瑞哲的博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Ruizhe's Blog</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL2hyejEyMw==" title="Follow me on GitHub" aria-label="Follow me on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+      <meta itemprop="description" content="记录我的工作与生活，分享一些想法">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          如何利用基于充血模型的DDD开发一个虚拟钱包系统？
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-09-07 16:53:25" itemprop="dateCreated datePublished" datetime="2020-09-07T16:53:25+08:00">2020-09-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-09-08 09:29:35" itemprop="dateModified" datetime="2020-09-08T09:29:35+08:00">2020-09-08</time>
+              </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h3 id="转载">转载</h3>
+<p>文章转载自极客时间王争老师的设计模式之美专栏</p>
+<h3 id="钱包业务背景介绍">钱包业务背景介绍</h3>
+<p>很多具有支付、购买功能的应用（比如淘宝、滴滴出行、极客时间等）都支持钱包的功能。应用为每个用户开设一个系统内的虚拟钱包账户，支持用户重置、提现、支付、冻结、透支、转赠、查询账户余额、查询交易流水等操作。下图是一张典型的钱包功能界面，你可以直观的感受一下。</p>
+<img data-src="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%851.jpg" class>
+<p>一般来讲，每个虚拟钱包账户都会对应用户的一个真实的支付账户，有可能是银行卡账户，也有可能是三方支付账户（比如支付宝、微信钱包）。为了方便后续的讲解，我们限定钱包暂时只支持充值、提现、支付、查询余额、查询交易流水这五个核心的功能，其他比如冻结、透支、转赠等不常用的功能，我们暂不考虑。为了让你理解这五个核心功能是如何工作的，接下来，我们来一块儿看下它们的业务实现流程。</p>
+<h4 id="充值">1.充值</h4>
+<p>用户通过三方支付渠道，把自己银行卡账户内的钱，充值到虚拟钱包账号中。这整个过程，我们可以分解为三个主要的操作流程：第一个操作是从用户的银行卡账户转账到应用的公共银行卡账户；第二个操作是将用户的充值金额添加到虚拟钱包余额上；第三个操作是记录刚刚这笔交易流水。</p>
+<img data-src="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%852.jpg" class>
+<h4 id="支付">2.支付</h4>
+<p>用户用钱包内的余额，支付购买应用内的商品。实际上，支付的过程就是一个转账的过程，从用户的虚拟钱包账户划钱到商家的虚拟钱包账户上。除此之外，我们也需要记录这笔支付的交易流水信息。</p>
+<img data-src="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%853.jpg" class>
+<h4 id="提现">3.提现</h4>
+<p>除了充值、支付之外，用户还可以将虚拟钱包中的余额，提现到自己的银行卡中。这个过程实际上就是扣减用户虚拟钱包中的余额，并且触发真正的银行转账操作，从应用的公共银行账户转钱到用户的银行账户。同样，我们也需要记录这笔提现的交易流水信息。</p>
+<img data-src="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%854.jpg" class>
+<h4 id="查询余额">4.查询余额</h4>
+<p>查询余额功能比较简单，我们看一下虚拟钱包中的余额数字即可。</p>
+<h4 id="查询交易流水">5.查询交易流水</h4>
+<p>查询交易流水也比较简单。我们只支持三种类型的交易流水：充值、支付、提现。在用户充值、支付、提现的时候，我们会记录相应的交易信息。在需要查询的时候，我们只需要将之前记录的交易流水，按照时间、类型等条件过滤之后，显示出来即可。</p>
+<h3 id="钱包系统的设计思路">钱包系统的设计思路</h3>
+<p>根据刚刚讲的业务实现流程和数据流转图，我们可以把整个钱包系统的业务划分为两部分，其中一部分单纯跟应用内的虚拟钱包账户打交道，另一部分单纯跟银行账户打交道。我们基于这样一个业务划分，给系统解耦，将整个钱包系统拆分为两个子系统：虚拟钱包系统和三方支付系统。</p>
+<img data-src="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%855.jpg" class>
+<p>为了能在有限的篇幅内，将今天的内容讲透彻，我们接下来只聚焦于虚拟钱包系统的设计与实现。对于三方支付系统以及整个钱包系统的设计与实现，不作讲解，可以自己思考一下。</p>
+<p><strong>现在我们来看下，如果要支持钱包的这五个核心功能，虚拟钱包系统需要对应实现哪些操作。</strong>我画了一张图，列出了这五个功能都会对应虚拟钱包的哪些操作。注意，交易流水的记录和查询，我暂时在图中打了个问号，那是因为这块比较特殊，待会再讲。</p>
+<img data-src="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%856.jpg" class>
+<p>从图中我们可以看出，虚拟钱包系统要支持的操作非常简单，就是余额的加加减减。其中，充值、提现、查询余额三个功能，只涉及一个账户余额的加减操作，而支付功能涉及两个账户的余额加减操：一个账户减余额，另一个账户加余额。</p>
+<p><strong>现在，我们再来看一下图中问号的那部分，也就是交易流水该如何记录和查询？</strong>我们先来看一下，交易流水都需要包含哪些信息。我觉得下面这几个信息是必须包含的。</p>
+<img data-src="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%857.jpg" class>
+<p>从图中我们可以发现，交易流水的数据格式包含两个钱包账号，一个是入账钱包账号，一个是出账钱包账号。为什么要有两个账号信息呢？这主要是为了兼容支付这种涉及两个账户的交易类型。不过，对于充值、提现这两种交易类型来说，我们只需要记录一个钱包账户信息就够了，所以，这样的交易流水数据格式的涉及稍微有点浪费存储空间。</p>
+<p>实际上，我们还有另外一种交易流水数据格式的设计思路，可以解决这个问题。我们把”支付“这个交易类型，拆为两个子类型：支付和被支付。支付单纯表示出账，余额扣减，被支付单纯表示入账，余额增加。这样我们在设计交易流水数据格式的时候，只需要记录一个账户信息即可。我画了一张两种交易流水数据格式的对比图，你可以对比着看一下。</p>
+<img data-src="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%858.jpg" class>
+<p><strong>那以上两种交易流水数据格式的设计思路，你觉得哪一个更好呢？</strong></p>
+<p>答案是第一种设计思路更好些。因为交易流水有两个功能：一个是业务功能，比如，提供用户查询交易流水信息；另一个是非业务功能，保证数据的一致性。这里主要是指支付操作数据的一致性。</p>
+<p>支付实际上就是一个转账的操作，在一个账户上加上一定的金额，在另一个账户上减去相应的金额。我们需要保证加金额和减金额这两个操作，要么都成功，要么都失败。如果一个成功，一个失败，就会导致数据的不一致，一个账户明明减掉了钱，理你个一个账户却没有收到钱。</p>
+<p>保证数据一致性的方法有很多，比如依赖数据库事务的原子性，将两个操作放在同一个事务中执行。但是，这样的做法不够灵活，因为我们有可能做了分库分表，支付涉及的两个账户可能存储在不同的库中，无法直接利用数据库本身的事务特性，在一个事务中执行两个账户的操作。当然，我们还有一些支持分布式事务的开源框架，但是，为了保证数据的强一致性，它们的实现逻辑一般都比较复杂、本身的性能也不高，会影响业务的执行时间。所以，更加权衡的一种做法就是，不保证数据的强一致性，只实现数据的最终一致性，也就是我们刚刚提到的交易流水要实现的非业务功能。</p>
+<p>对于支付这样的类似转账的操作，我们在操作两个钱包账户余额之前，先记录交易流水，并且标记为"待执行"，当两个钱包的加减金额都完成之后，我们再回过头来，将交易流水标记为"成功"。在给两个钱包加减金额的过程中，如果有任意一个操作失败，我们就将交易记录的状态标记为"失败"。我们通过后台补漏Job，拉去状态为"失败"或者长时间处于"待执行"状态的交易记录，重新执行或者人工介入处理。（两阶段提交，根据流水可以反推余额，反之则不可以）</p>
+<p>如果选择第二种交易流水的设计思路，使用两条交易流水来记录支付操作，那记录两条交易流水本身又存在数据的一致性问题，有可能入账的交易流水记录成功，出账的交易流水信息记录失败。所以，权衡利弊，我们选择第一种稍微有些冗余的数据格式设计思路。</p>
+<p><strong>现在，我们在思考这样一个问题：充值、提现、支付这些业务交易类型，是否应该让虚拟钱包系统感知？换句话说，我们是否应该在虚拟钱包系统的交易流水中记录这三种类型？</strong></p>
+<p>答案是否定的。虚拟钱包系统不应该感知具体的业务交易类型。我们前面讲到，虚拟钱包支持的操作，仅仅是余额的加加减减操作，不涉及复杂业务概念，职责单一、功能通用。如果耦合太多业务概念到里面，势必影响系统的通用性，而且还会导致系统越做越复杂。因此，我们不希望将充值、支付、体现这样的业务概念添加到虚拟钱包系统中。</p>
+<p>但是，<strong>如果我们不在虚拟钱包系统的交易流水中记录交易类型，那在用户查询交易流水的时候，如何显示每条交易流水的交易类型呢？</strong></p>
+<p>从系统设计的角度，我们不应该在虚拟钱包系统的交易流水中记录交易类型。从产品需求的角度来说，我们又必须记录交易流水的交易烈性。听起来比较矛盾，这个问题该如何解决呢？</p>
+<p>我们可以通过记录两条交易流水信息的方式来解决。我们前面讲到，整个钱包系统分为两个子系统，上层钱包系统的实现，依赖底层虚拟钱包系统和三方支付系统。对于钱包系统来说，它可以感知充值、支付、提现等业务概念，所以，我们在钱包系统这一层额外在记录一条包含交易类型的交易流水信息，而在底层的虚拟钱包系统中国基路不包含交易类型的交易流水信息。</p>
+<p>为了让你更好地理解刚刚的设计思路，我画了一张图，你可以对比着我的讲解一块儿来看。</p>
+<img data-src="/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/%E9%92%B1%E5%8C%859.jpg" class>
+<p>我们通过查询上层钱包系统的交易流水信息，去满足用户查询交易流水的功能需求，而虚拟钱包中的交易流水就只是用来解决数据一致性问题。实际上，它的作用还有很多，比如用来对账等。限于篇幅，这里我们就不展开讲了。</p>
+<p>整个虚拟钱包的设计思路到此讲完了。接下来，我们来看一下，如何分别用基于贫血模型的传统开发模式和基于充血模型的DDD开发模式，来实现这样一个虚拟钱包系统？</p>
+<h3 id="基于贫血模型的传统开发模式">基于贫血模型的传统开发模式</h3>
+<p>如果有一定的Web项目开发经验，并且听明白了我刚刚讲的设计思路，利用基于贫血模型的传统开发模式来实现这样一个系统，应该是一件挺简单的事情。</p>
+<p>这是一个典型的Web后端项目的三层结构。其中，COntroller和VO负责暴露接口，具体的代码实现如下所示。注意，Controller中，接口实现比较简单，主要就是调用Service的方法，所以，我省略了具体的代码实现。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">VirtualWalletController</span> </span>&#123;</span><br><span class="line">  <span class="keyword">private</span> VirtualWalletService virtualWalletService;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> BigDecimal <span class="title">getBalance</span><span class="params">(Long walletId)</span> </span>&#123;...&#125; <span class="comment">// read balance</span></span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">debit</span><span class="params">(Long walletId, BigDecimal amount)</span> </span>&#123;...&#125; <span class="comment">// amount out</span></span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">credit</span><span class="params">(Long walletId, BigDecimal amount)</span> </span>&#123;...&#125; <span class="comment">// amount in</span></span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">transfer</span><span class="params">(Long fromWalletId, Long toWalletId, BigDecimal amount)</span> </span>&#123;...&#125; <span class="comment">// transfer</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Service和BO负责核心业务逻辑，Repository和Entity负责数据存取。Repository这一层的代码实现比较简单，不是我们讲解的重点，所以我也省略调了。Srvice层的代码如下所示。注意，这里我省略了一些不重要的校验代码，比如，对amount是否小于0、钱包是否存在的校验等等。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">VirtualWalletService</span> </span>&#123;</span><br><span class="line">  <span class="keyword">private</span> VirtualWalletRepository walletRepository;</span><br><span class="line">  <span class="keyword">private</span> VirtualWalletTransactionRepository transactionRepository;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> VirtualWalletBo <span class="title">getVirtualWallet</span><span class="params">(Long walletId)</span> </span>&#123;</span><br><span class="line">    VirtualWalletEntity walletEntity = walletRepository.getWalletEntity(walletId);</span><br><span class="line">    VirtualWalletBo walletBo = convert(walletEntity);</span><br><span class="line">    <span class="keyword">return</span> walletBo;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> BigDecimal <span class="title">getBalance</span><span class="params">(Long walletId)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> walletRepository.getBalance(walletId);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">debit</span><span class="params">(Long walletId, BigDecimal amount)</span> </span>&#123;</span><br><span class="line">    VirtualWalletEntity walletEntity = walletRepository.getWalletEntity(walletId);</span><br><span class="line">    BigDecimal balance = walletEntity.getBalance();</span><br><span class="line">    <span class="keyword">if</span> (balance.compareTo(amount) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> NoSuffcientBalanceException(...)</span><br><span class="line">    &#125;</span><br><span class="line">    walletRepository.updateBalance(walletId, balance.substract(amount));</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">credit</span><span class="params">(Long walletId, BigDecimal amount)</span> </span>&#123;</span><br><span class="line">    VirtualWalletEntity walletEntity = walletRepository.getWalletEntity(walletId);</span><br><span class="line">    BigDecimal balance = walletEntity.getBalance();</span><br><span class="line">    walletRepository.updateBalance(walletId, balance.add(amount));</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">transfer</span><span class="params">(Long fromWalletId, Lng toWalletId, BigDecimal amount)</span> </span>&#123;</span><br><span class="line">    VirtualWalletTransactionEntity transactionEntity = <span class="keyword">new</span> VirtualWalletTransactionEntity();</span><br><span class="line">    transactionEntity.setAmount(amount);</span><br><span class="line">    transactionEntity.setCreateTime(System.currentTimeMillis());</span><br><span class="line">    transactionEntity.setFromWalletId(fromWalletId);</span><br><span class="line">    transactionEntity.setToWalletId(toWalletId);</span><br><span class="line">    transactionEntity.setStatus(Status.TO_BE_EXECUTED);</span><br><span class="line">    Long transactionId = transactionRepository.saveTransaction(transactionEntity);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      debit(fromWalletId, amount);</span><br><span class="line">      credit(fromWalletId, amount);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (InsufficientBalanceException e) &#123;</span><br><span class="line">      transactionRepository.updateStatus(transactionId, Status.CLOSED);</span><br><span class="line">      ...rethrow exception e...</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">      transactionRepository.updateStatus(transactionId, Status.FAILED);</span><br><span class="line">      ...rethrow exception e...</span><br><span class="line">    &#125;</span><br><span class="line">    transactionRepository.updateStatus(transactionId, Status.EXECUTED);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以上便是利用基于贫血模型的传统开发模式来实现的虚拟钱包系统。尽管我们对代码稍微做了简化，但整体的业务逻辑就是上面这样子。其中大部分代码逻辑都非常简单，最复杂的是Service中的transfer()转账函数。我们为了保证转账操作的数据一致性，添加了一些跟transaction相关的记录和状态更新的代码。</p>
+<p>基于充血模型的DDD开发模式</p>
+<p>在上一篇文章中，我们讲到，基于充血模型的DDD开发模式，跟基于贫血模型的传统开发模式的主要区别就在Service层，Controller层和Repository层的代码基本上相同。所以，我们重点看一下，Service层按照基于充血模型的DDD开发模式该如何来实现。</p>
+<p>在这种开发模式下，我们把虚拟钱包VirtualWallet类设计成一个充血的Domain领域模型，并且将原来在Service类中的部分业务逻辑移动到VirtualWallet类中，让Service类的实现依赖VirtualWallet类。具体的代码实现如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">VirtualWallet</span> </span>&#123;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Long createTime = System.currentTimeMillis();</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> BigDecimal balance = BigDecimal.ZERO;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Long id;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="title">VirtualWallet</span><span class="params">(Long preAllocatedId)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.id = preAllocatedId;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> BigDecimal <span class="title">balance</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>.balance;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">debit</span><span class="params">(BigDecimal amount)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">this</span>.balance.compareTo(amount) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> InsufficientBalanceException(...)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">this</span>.balance.subtract(amount);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">credit</span><span class="params">(BigDecimal amount)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (amount.compareTo(BigDecimal.ZERO) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> InvalidAmountException(...)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">this</span>.balance.add(amount);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">VirtualWalletService</span> </span>&#123;</span><br><span class="line">  <span class="keyword">private</span> VirtualWalletRepository walletRepository;</span><br><span class="line">  <span class="keyword">private</span> VirtualWalletTransactionRepository transactionRepository;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> VirtualWallet <span class="title">getVirtualWallet</span><span class="params">(Long walletId)</span> </span>&#123;</span><br><span class="line">    VirtualWalletEntity walletEntity = walletRepository.getWalletEntity(walletId);</span><br><span class="line">    VirtualWallet wallet = convert(walletEntity);</span><br><span class="line">    <span class="keyword">return</span> wallet;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> BigDecimal <span class="title">getBalance</span><span class="params">(Long walletId)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> walletRepository.getBalance(walletId);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">debit</span><span class="params">(Long walletId, BigDecimal amount)</span> </span>&#123;</span><br><span class="line">    VirtualWalletEntity walletEntity = walletRepository.getWalletEntity(walletId);</span><br><span class="line">    VirtualWallet wallet = convert(walletEntity);</span><br><span class="line">    wallet.debit(amount);</span><br><span class="line">    walletRepository.updateBalance(walletId, wallet.balance());</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">credit</span><span class="params">(Long walletId, BigDecimal amount)</span> </span>&#123;</span><br><span class="line">    VirtualWalletEntity walletEntity = walletRepository.getWalletEntity(walletId);</span><br><span class="line">    VirtualWallet wallet = convert(walletEntity);</span><br><span class="line">    wallet.credit(amount);</span><br><span class="line">    walletRepository.updateBalance(walletId, wallet.balance());</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">transfer</span><span class="params">(Long fromWalletId, Long toWalletId, BigDecimal amount)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// ...same as Anemic Domain model...</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>看了上面的代码，你可能会说，领域模型VirtualWallet类很单薄，包含的业务逻辑很简单。相对于原来的贫血模型的设计思路，这种充血模型的设计思路，貌似并没有太大优势。你说得没错！这也是大部分业务系统都使用基于贫血模型开发的原因。不过，如果虚拟钱包系统需要支持更复杂的业务逻辑，那充血模型的优势就显现出来了。比如，我们要支持透支一定额度和冻结部分余额的功能。这个时候，我们重新来看一下VirtualWallet类的实现代码。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">VirtualWallet</span> </span>&#123;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Long createTime = System.currentTimeMillis();</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> BigDecimal balance = BigDecimal.ZERO;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Long id;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">boolean</span> isAllowedOverdraft = <span class="keyword">true</span>;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> BigDecimal overdraftAmount = BigDecimal.ZERO;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> BigDecimal frozenAMount = BigDecimal.ZERO;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="title">VirtualWallet</span><span class="params">(Long preAllocatedId)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.id = preAllocatedId;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">freeze</span><span class="params">(BigDecimal amount)</span> </span>&#123;...&#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">unfreeze</span><span class="params">(BigDecimal amount)</span> </span>&#123;...&#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">increaseOverdraftAmount</span><span class="params">(BigDecimal amount)</span> </span>&#123;...&#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">decreaseOverdraftAmount</span><span class="params">(BIgDecimal amount)</span> </span>&#123;...&#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">closeOverdraft</span><span class="params">()</span> </span>&#123;...&#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">openOverdraft</span><span class="params">()</span> </span>&#123;...&#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> BigDecimal <span class="title">balance</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>.balance;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> BigDecimal <span class="title">getAvailableBalance</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    BigDecimal totalAvailableBalance = <span class="keyword">this</span>.balance.subtract(<span class="keyword">this</span>.frozenAMount);</span><br><span class="line">    <span class="keyword">if</span> (isAllowedOverdraft) &#123;</span><br><span class="line">      totalAvailableBalance = totalAvailableBalance.add(<span class="keyword">this</span>.overdraftAmount);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> totalAvailableBalance;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">debit</span><span class="params">(BigDecimal amount)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">this</span>.balance.compareTo(amount) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> InsufficientBalanceException(...)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">this</span>.balance.subtract(amount);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">credit</span><span class="params">(BigDecimal amount)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (amount.compareTo(BigDecimal.ZERO) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> InvalidAmountException(...)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">this</span>.balance.add(amount);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>领域模型VirtualWallet类添加了简单的冻结和透支逻辑之后，功能看起来就丰富了很多，代码也没那么单薄了。如果功能继续演进，我们可以增加更加细化的冻结策略、透支策略、支持钱包账号（VirtualWallet id字段）自动生成的逻辑（不是通过构造函数境外不传入ID，而是通过分布式ID生成算法来自动生成ID）等等。VirtualWallet类的业务逻辑会变得越来越复杂，也就很值得设计成充血模型了。</p>
+<h3 id="辩证思考与灵活应用">辩证思考与灵活应用</h3>
+<p>对于虚拟钱包系统的设计与两种开发模式的代码实现，应该有一个比较清晰的了解了。不过，我觉得还有两个问题值得讨论一下。</p>
+<p><strong>第一个要讨论的问题是：在基于充血模型的DDD开发模式中，将业务逻辑移动到Domain中，Service类变得很薄，但在我们的代码设计与实现中，并没有完全将Service类去掉，这是为什么？或者说，Service类在这种情况下担当的职责是什么？哪些功能逻辑会放到Service类中？</strong></p>
+<p>区别于Domain的职责，Service类主要有下面这样几个职责。</p>
+<ol type="1">
+<li><p>Service类负责与Repository交流。在我的设计与代码实现中，VirtualWalletService类负责与Repository层打交道，调用Repository类的方法，获取数据库中的数据，转化成领域模型VirtualWallet，然后由领域模型VirtualWallet来完成业务逻辑，最后调用Repository类的方法，将数据存回数据库。</p>
+<p>这我再稍微解释一下，之所以让VirtualWalletService类与Repository打交道，而不是让领域模型VirtualWallet与Repository打交道，那是因为我们想保持领域模型的独立性，不与任何其他层的代码（Repository层的代码）或开发框架（比如Spring、MaBatis）耦合在一起，将流程性的代码逻辑（比如从DB中取数据、映射数据）与领域模型的业务逻辑解耦，让领域模型更加可复用。</p></li>
+<li><p>Service类负责跨领域模型的业务聚合功能。VirtualWalletService类中农的transfer()转张函数会涉及两个钱包的操作，因此这部分业务逻辑无法放到VirtualWallet类中，所以，我们暂且把转账业务放到VirtualWalletService类中了。当然，虽然功能演进，使得转账业务变得复杂起来之后，我们也可以将转账业务抽取出来，设计成一个独立的领域模型。</p></li>
+<li><p>Service类负责一些非功能性及与三方系统交互的工作。比如幂等、事务、发邮件、发消息、记录日志、调用其他系统的RPC接口等，都可以放到Service类中。</p></li>
+</ol>
+<p><strong>第二个要讨论的问题是：在基于充血模型的DDD开发模式中，尽管Service层被改造成了充血模型，但是Controller层和Repository层还是贫血模型，是否有必要也进行充血领域建模呢？</strong></p>
+<p>答案是没有必要。Controller层主要负责接口的暴露，Repository层主要负责与数据库打交道，这两层包含的业务逻辑并不多，前面我们也提到了，如果业务逻辑比较简单，就没必要充血建模，即便设计成充血模型，类也非常单薄，看起来也很奇怪。</p>
+<p>尽管这样的设计是一种面向过程的编程风格，但我们只要控制好面向过程编程风格的副作用，照样可以开发出优秀的软件。那这里的副作用怎么控制呢？</p>
+<p>就拿Repository的Entity来说，即便它被设计成贫血模型，违反面向对象编程的封装特性，有被任意代码修改数据的风险，但Entity的生命周期是有限的。一般来讲，我们把它传递到Service层之后，就会转化成BO或者Domain来继续后面的业务逻辑。Entity的生命周期到此就结束了，所以也并不会被到处任意修改。</p>
+<p>我们再来说说Controller层的VO。实际上VO是一种DTO（Data Transfer Object，数据传输对象）。它主要是作为接口的数据传输承载体，将数据发送给其他系统。从功能上来说，它理应不包含业务逻辑、只包含数据。所以，我们将它设计成贫血模型也是比较合理的。</p>
+<h3 id="重点回顾">重点回顾</h3>
+<p>基于充血模型的DDD开发模式跟基于贫血模型的传统开发模式相比，主要区别在Service层。在基于充血模型的开发模式下，我们将部分原来在Service类中的业务逻辑移动到了一个充血的Domain领域模型中，让Service类的实现依赖这个Domain类。</p>
+<p>在基于充血模型的DDD开发模式下，Service类并不会完全移除，而是负责一些不适合放在Domain类中的功能。比如，负责与Repository层打交道。跨领域模型的业务聚合功能、幂等事务等非功能性的工作。</p>
+<p>基于充血模型的DDD开发模式跟基于贫血模型的传统开发模式相比，Controller层和Repository层的代码基本上相同。这是因为，Repository层的Entity生命周期有限，Controller层的VO只是淡出您作为一种DTO。两部分的业务逻辑都不会太复杂。业务逻辑主要集中在Service层。所以，Repository层和Controller层继续沿用贫血模型的设计思路是没有问题的。</p>
+<h3 id="讨论">讨论</h3>
+<p>这两节课中对于 DDD 的讲解，都是我的个人主观看法，你可能会有不同看法。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/" rel="tag"># 设计模式</a>
+          </div>
+
+        
+  <div class="post-widgets">
+    <div class="wp_rating">
+      <div id="wpac-rating"></div>
+    </div>
+  </div>
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/09/07/%E4%B8%9A%E5%8A%A1%E5%BC%80%E5%8F%91%E5%B8%B8%E7%94%A8%E7%9A%84%E5%9F%BA%E4%BA%8E%E8%B4%AB%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84MVC%E6%9E%B6%E6%9E%84%E8%BF%9D%E8%83%8COOP%E5%90%97%EF%BC%9F/" rel="prev" title="业务开发常用的基于贫血模型的MVC架构违背OOP吗？">
+      <i class="fa fa-chevron-left"></i> 业务开发常用的基于贫血模型的MVC架构违背OOP吗？
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/09/08/%E5%A6%82%E4%BD%95%E5%AF%B9%E6%8E%A5%E5%8F%A3%E9%89%B4%E6%9D%83%E8%BF%99%E6%A0%B7%E4%B8%80%E4%B8%AA%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E5%81%9A%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%88%86%E6%9E%90%EF%BC%9F/" rel="next" title="如何对接口鉴权这样一个功能开发做面向对象分析？">
+      如何对接口鉴权这样一个功能开发做面向对象分析？ <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BD%AC%E8%BD%BD"><span class="nav-number">1.</span> <span class="nav-text">转载</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%92%B1%E5%8C%85%E4%B8%9A%E5%8A%A1%E8%83%8C%E6%99%AF%E4%BB%8B%E7%BB%8D"><span class="nav-number">2.</span> <span class="nav-text">钱包业务背景介绍</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%85%E5%80%BC"><span class="nav-number">2.1.</span> <span class="nav-text">1.充值</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%94%AF%E4%BB%98"><span class="nav-number">2.2.</span> <span class="nav-text">2.支付</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8F%90%E7%8E%B0"><span class="nav-number">2.3.</span> <span class="nav-text">3.提现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9F%A5%E8%AF%A2%E4%BD%99%E9%A2%9D"><span class="nav-number">2.4.</span> <span class="nav-text">4.查询余额</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9F%A5%E8%AF%A2%E4%BA%A4%E6%98%93%E6%B5%81%E6%B0%B4"><span class="nav-number">2.5.</span> <span class="nav-text">5.查询交易流水</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%E7%9A%84%E8%AE%BE%E8%AE%A1%E6%80%9D%E8%B7%AF"><span class="nav-number">3.</span> <span class="nav-text">钱包系统的设计思路</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E%E8%B4%AB%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84%E4%BC%A0%E7%BB%9F%E5%BC%80%E5%8F%91%E6%A8%A1%E5%BC%8F"><span class="nav-number">4.</span> <span class="nav-text">基于贫血模型的传统开发模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BE%A9%E8%AF%81%E6%80%9D%E8%80%83%E4%B8%8E%E7%81%B5%E6%B4%BB%E5%BA%94%E7%94%A8"><span class="nav-number">5.</span> <span class="nav-text">辩证思考与灵活应用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%87%8D%E7%82%B9%E5%9B%9E%E9%A1%BE"><span class="nav-number">6.</span> <span class="nav-text">重点回顾</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%A8%E8%AE%BA"><span class="nav-number">7.</span> <span class="nav-text">讨论</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="侯瑞哲"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">侯瑞哲</p>
+  <div class="site-description" itemprop="description">记录我的工作与生活，分享一些想法</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">143</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <span class="exturl theme-link" data-url="aHR0cHM6Ly9oZXhvLmlv">Hexo</span> & <span class="exturl theme-link" data-url="aHR0cHM6Ly90aGVtZS1uZXh0Lm9yZw==">NexT.Gemini</span> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+<script src="/js/bookmark.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      // Force synchronous loading of peripheral JS.
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  // Define Motion Sequence & Bootstrap Motion.
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+
+
+
+  
+  <script data-pjax>
+    (function(){
+      var canonicalURL, curProtocol;
+      //Get the <link> tag
+      var x=document.getElementsByTagName("link");
+		//Find the last canonical URL
+		if(x.length > 0){
+			for (i=0;i<x.length;i++){
+				if(x[i].rel.toLowerCase() == 'canonical' && x[i].href){
+					canonicalURL=x[i].href;
+				}
+			}
+		}
+    //Get protocol
+	    if (!canonicalURL){
+	    	curProtocol = window.location.protocol.split(':')[0];
+	    }
+	    else{
+	    	curProtocol = canonicalURL.split(':')[0];
+	    }
+      //Get current URL if the canonical URL does not exist
+	    if (!canonicalURL) canonicalURL = window.location.href;
+	    //Assign script content. Replace current URL with the canonical URL
+      !function(){var e=/([http|https]:\/\/[a-zA-Z0-9\_\.]+\.baidu\.com)/gi,r=canonicalURL,t=document.referrer;if(!e.test(r)){var n=(String(curProtocol).toLowerCase() === 'https')?"https://sp0.baidu.com/9_Q4simg2RQJ8t7jm9iCKT-xh_/s.gif":"//api.share.baidu.com/s.gif";t?(n+="?r="+encodeURIComponent(document.referrer),r&&(n+="&l="+r)):r&&(n+="?l="+r);var i=new Image;i.src=n}}(window);})();
+  </script>
+
+
+
+  <script data-pjax>
+  if (CONFIG.page.isPost) {
+    wpac_init = window.wpac_init || [];
+    wpac_init.push({
+      widget: 'Rating',
+      id    : 22229,
+      el    : 'wpac-rating',
+      color : 'fc6423'
+    });
+    (function() {
+      if ('WIDGETPACK_LOADED' in window) return;
+      WIDGETPACK_LOADED = true;
+      var mc = document.createElement('script');
+      mc.type = 'text/javascript';
+      mc.async = true;
+      mc.src = '//embed.widgetpack.com/widget.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(mc, s.nextSibling);
+    })();
+  }
+  </script>
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+<script data-pjax>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+    <div id="pjax">
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://hrz123.github.io/2020/09/07/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8%E5%9F%BA%E4%BA%8E%E5%85%85%E8%A1%80%E6%A8%A1%E5%9E%8B%E7%9A%84DDD%E5%BC%80%E5%8F%91%E4%B8%80%E4%B8%AA%E8%99%9A%E6%8B%9F%E9%92%B1%E5%8C%85%E7%B3%BB%E7%BB%9F%EF%BC%9F/',]
+      });
+      });
+  </script>
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : '8YC1b0uYNOAbXVznOWHGd3aN-MdYXbMMI',
+      appKey     : '9KUsD7M9QgpQiV7VRKDR1F7s',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</body>
+</html>
