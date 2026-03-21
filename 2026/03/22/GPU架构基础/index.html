@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="GPU（Graphics Processing Unit，图形处理器）最初是为了处理图形渲染而设计的，但随着技术的发展，它已经演变成一种强大的并行计算设备。本文将介绍 GPU 的基本架构和核心概念。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="GPU 架构基础">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/22/GPU架构基础/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="GPU（Graphics Processing Unit，图形处理器）最初是为了处理图形渲染而设计的，但随着技术的发展，它已经演变成一种强大的并行计算设备。本文将介绍 GPU 的基本架构和核心概念。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-22T00:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-22T00:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="GPU">
+<meta property="article:tag" content="计算机体系结构">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/22/GPU架构基础/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>GPU 架构基础 | 侯瑞哲的博客</title>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <div class="post-block" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-03-22T00:00:00+08:00" content="2026-03-22">
+      03-22
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      GPU 架构基础
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+    <p>GPU（Graphics Processing Unit，图形处理器）最初是为了处理图形渲染而设计的，但随着技术的发展，它已经演变成一种强大的并行计算设备。本文将介绍 GPU 的基本架构和核心概念。</p>
+<h2 id="GPU-的发展历程">GPU 的发展历程</h2>
+<p>GPU 的发展可以分为几个重要阶段：</p>
+<ul>
+<li><strong>早期阶段（1990s）</strong>：主要用于 3D 图形加速，处理简单的几何变换和光栅化</li>
+<li><strong>可编程阶段（2000s）</strong>：引入可编程着色器，开发者可以自定义渲染逻辑</li>
+<li><strong>通用计算阶段（2006+）</strong>：NVIDIA 推出 CUDA，使 GPU 可以用于通用计算（GPGPU）</li>
+<li><strong>AI 加速阶段（2010s+）</strong>：深度学习兴起，GPU 成为 AI 训练和推理的核心硬件</li>
+</ul>
+<h2 id="GPU-与-CPU-的核心区别">GPU 与 CPU 的核心区别</h2>
+<p>CPU（Central Processing Unit，中央处理器）和 GPU 的设计理念完全不同：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>CPU</th>
+<th>GPU</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>设计目标</td>
+<td>低延迟、复杂逻辑处理</td>
+<td>高吞吐量、并行计算</td>
+</tr>
+<tr>
+<td>核心数量</td>
+<td>几十个（通常 4-64）</td>
+<td>数千个（通常 1000-10000）</td>
+</tr>
+<tr>
+<td>缓存</td>
+<td>大容量、多级缓存</td>
+<td>相对较小，注重共享内存</td>
+</tr>
+<tr>
+<td>时钟频率</td>
+<td>高（2-5 GHz）</td>
+<td>较低（1-2 GHz）</td>
+</tr>
+<tr>
+<td>适用场景</td>
+<td>操作系统、串行任务</td>
+<td>图形渲染、矩阵运算、AI</td>
+</tr>
+</tbody>
+</table>
+<h2 id="GPU-的核心架构">GPU 的核心架构</h2>
+<h3 id="SM-Streaming-Multiprocessor">SM（Streaming Multiprocessor）</h3>
+<p>SM 是 GPU 的基本计算单元，一个 GPU 包含多个 SM。每个 SM 包含：</p>
+<ul>
+<li><strong>CUDA Cores</strong>：实际的计算单元，负责执行指令</li>
+<li><strong>Shared Memory</strong>：SM 内部的共享内存，速度快但容量小</li>
+<li><strong>Register File</strong>：寄存器文件，存储线程的临时数据</li>
+<li><strong>Scheduler</strong>：指令调度器，负责分配线程到核心</li>
+<li><strong>Load/Store Units</strong>：负责内存读写操作</li>
+</ul>
+<h3 id="Warp-和-Thread-Block">Warp 和 Thread Block</h3>
+<p>GPU 的并行计算基于层次化的线程组织：</p>
+<ul>
+<li><strong>Thread（线程）</strong>：最基本的执行单元</li>
+<li><strong>Warp（线程束）</strong>：一组同时执行的线程（通常 32 个），所有线程执行相同指令（SIMT）</li>
+<li><strong>Thread Block（线程块）</strong>：一组线程，可以访问共享内存和同步</li>
+<li><strong>Grid（网格）</strong>：一组线程块，构成一个完整的 kernel</li>
+</ul>
+<pre><code class="language-cpp">// CUDA 线程层次结构示例
+__global__ void kernel(int *data) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    data[idx] = idx * 2;
+}
+
+int main() {
+    int N = 1024;
+    int *d_data;
+    cudaMalloc(&d_data, N * sizeof(int));
+
+    // 启动 kernel：256 个线程，每个 block 256 个线程
+    kernel<<<4, 256>>>(d_data);
+}
+</code></pre>
+<h2 id="GPU-内存层次结构">GPU 内存层次结构</h2>
+<p>GPU 有复杂的内存层次结构，从快到慢依次为：</p>
+<ol>
+<li><strong>Registers</strong>：最快的存储，每个线程独有</li>
+<li><strong>Shared Memory</strong>：Block 内共享，速度快</li>
+<li><strong>L1/L2 Cache</strong>：硬件管理的缓存</li>
+<li><strong>Global Memory</strong>：最大的存储空间，但访问慢</li>
+<li><strong>Constant/Texture Memory</strong>：只读内存，有缓存优化</li>
+</ol>
+<h2 id="GPU-性能优化要点">GPU 性能优化要点</h2>
+<h3 id="1-内存合并访问">1. 内存合并访问</h3>
+<p>确保相邻线程访问连续的内存地址，提高内存带宽利用率。</p>
+<h3 id="2-避免线程分歧">2. 避免线程分歧</h3>
+<p>Warp 内的线程应执行相同的代码路径，分歧会导致性能下降。</p>
+<h3 id="3-最大化占用率">3. 最大化占用率</h3>
+<p>保持足够的活跃线程，隐藏内存延迟。</p>
+<h3 id="4-使用共享内存">4. 使用共享内存</h3>
+<p>利用共享内存减少全局内存访问次数。</p>
+<h2 id="现代-GPU-架构示例">现代 GPU 架构示例</h2>
+<h3 id="NVIDIA-Ampere-RTX-30-系列">NVIDIA Ampere（RTX 30 系列）</h3>
+<ul>
+<li>第二代 RT Core：光线追踪加速</li>
+<li>第三代 Tensor Core：AI 推理加速</li>
+<li>GDDR6X 显存：高速显存</li>
+<li>NVLink：多 GPU 互连</li>
+</ul>
+<h3 id="NVIDIA-Hopper-H100">NVIDIA Hopper（H100）</h3>
+<ul>
+<li>第四代 Tensor Core：FP8 支持</li>
+<li>HBM3 显存：超高带宽</li>
+<li>Transformer Engine：优化 AI 模型</li>
+<li>机密计算：安全计算支持</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>GPU 通过大规模并行计算能力，在图形渲染、科学计算、人工智能等领域发挥着重要作用。理解 GPU 的架构和编程模型，是高效利用 GPU 性能的基础。随着 AI 的发展，GPU 架构也在不断演进，为更强大的计算能力提供支持。</p>
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/GPU/" rel="tag"><i class="fa fa-tag"></i> GPU</a>
+          <a href="/tags/计算机体系结构/" rel="tag"><i class="fa fa-tag"></i> 计算机体系结构</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+
+        <span class="post-nav-divider"></span>
+
+        <div class="post-nav-prev post-nav-item">
+            <a href="/2020/10/11/LeetCode-210-%E5%91%A8%E8%B5%9B/" rel="prev" title="LeetCode 210 周赛">
+              LeetCode 210 周赛 <i class="fa fa-chevron-right"></i>
+            </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#GPU-的发展历程"><span class="nav-number">1.</span> <span class="nav-text">GPU 的发展历程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#GPU-与-CPU-的核心区别"><span class="nav-number">2.</span> <span class="nav-text">GPU 与 CPU 的核心区别</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#GPU-的核心架构"><span class="nav-number">3.</span> <span class="nav-text">GPU 的核心架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#SM-Streaming-Multiprocessor"><span class="nav-number">3.1.</span> <span class="nav-text">SM（Streaming Multiprocessor）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Warp-和-Thread-Block"><span class="nav-number">3.2.</span> <span class="nav-text">Warp 和 Thread Block</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#GPU-内存层次结构"><span class="nav-number">4.</span> <span class="nav-text">GPU 内存层次结构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#GPU-性能优化要点"><span class="nav-number">5.</span> <span class="nav-text">GPU 性能优化要点</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-内存合并访问"><span class="nav-number">5.1.</span> <span class="nav-text">1. 内存合并访问</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-避免线程分歧"><span class="nav-number">5.2.</span> <span class="nav-text">2. 避免线程分歧</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-最大化占用率"><span class="nav-number">5.3.</span> <span class="nav-text">3. 最大化占用率</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-使用共享内存"><span class="nav-number">5.4.</span> <span class="nav-text">4. 使用共享内存</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#现代-GPU-架构示例"><span class="nav-number">6.</span> <span class="nav-text">现代 GPU 架构示例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#NVIDIA-Ampere-RTX-30-系列"><span class="nav-number">6.1.</span> <span class="nav-text">NVIDIA Ampere（RTX 30 系列）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#NVIDIA-Hopper-H100"><span class="nav-number">6.2.</span> <span class="nav-text">NVIDIA Hopper（H100）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">148</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">36</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+
+
+
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/js/pjax.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+
+
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>

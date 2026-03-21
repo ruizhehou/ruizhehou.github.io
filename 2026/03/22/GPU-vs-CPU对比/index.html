@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="CPU 和 GPU 的设计理念截然不同，各自擅长不同的任务类型。本文将深入对比 CPU 和 GPU 的架构差异、性能特点以及适用场景。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="GPU vs CPU 对比">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/22/GPU-vs-CPU对比/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="CPU 和 GPU 的设计理念截然不同，各自擅长不同的任务类型。本文将深入对比 CPU 和 GPU 的架构差异、性能特点以及适用场景。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-22T00:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-22T00:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="GPU">
+<meta property="article:tag" content="CPU">
+<meta property="article:tag" content="计算机体系结构">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/22/GPU-vs-CPU对比/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>GPU vs CPU 对比 | 侯瑞哲的博客</title>
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <div class="post-block" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-03-22T00:00:00+08:00" content="2026-03-22">
+      03-22
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      GPU vs CPU 对比
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+    <p>CPU 和 GPU 的设计理念截然不同，各自擅长不同的任务类型。本文将深入对比 CPU 和 GPU 的架构差异、性能特点以及适用场景。</p>
+<h2 id="设计理念对比">设计理念对比</h2>
+<p>CPU 和 GPU 的设计目标完全不同，这导致了它们在架构上的显著差异：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>CPU（中央处理器）</th>
+<th>GPU（图形处理器）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计目标</strong></td>
+<td>低延迟、复杂逻辑处理</td>
+<td>高吞吐量、并行计算</td>
+</tr>
+<tr>
+<td><strong>核心架构</strong></td>
+<td>少数强大的核心</td>
+<td>大量简单核心</td>
+</tr>
+<tr>
+<td><strong>控制逻辑</strong></td>
+<td>复杂的分支预测、乱序执行</td>
+<td>简单的控制逻辑，SIMT 执行</td>
+</tr>
+<tr>
+<td><strong>缓存设计</strong></td>
+<td>大容量、多级缓存（L1/L2/L3）</td>
+<td>相对较小，注重共享内存</td>
+</tr>
+<tr>
+<td><strong>内存带宽</strong></td>
+<td>相对较低</td>
+<td>极高（数百 GB/s）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="架构细节对比">架构细节对比</h2>
+<h3 id="CPU-架构">CPU 架构</h3>
+<p>CPU 采用了复杂的架构设计来优化单线程性能：</p>
+<ul>
+<li><strong>超标量设计</strong>：每个周期可以发射多条指令</li>
+<li><strong>乱序执行</strong>：动态调整指令执行顺序</li>
+<li><strong>分支预测</strong>：预测分支方向，减少流水线停顿</li>
+<li><strong>大缓存</strong>：L1/L2/L3 缓存，减少内存访问延迟</li>
+</ul>
+<pre><code class="language-cpp">// CPU 擅长的任务：复杂逻辑、分支多
+void complexAlgorithm(int *data, int n) {
+    for (int i = 0; i < n; i++) {
+        if (data[i] > 0) {
+            data[i] = sqrt(data[i]);
+        } else if (data[i] < 0) {
+            data[i] = abs(data[i]);
+        } else {
+            data[i] = 0;
+        }
+        // 更多复杂的条件判断...
+    }
+}
+</code></pre>
+<h3 id="GPU-架构">GPU 架构</h3>
+<p>GPU 采用了大规模并行架构：</p>
+<ul>
+<li><strong>SIMT 模型</strong>：单指令多线程，32 个线程（Warp）执行相同指令</li>
+<li><strong>大量 ALU</strong>：数千个计算单元，同时处理大量数据</li>
+<li><strong>共享内存</strong>：Block 内线程共享，速度快</li>
+<li><strong>高内存带宽</strong>：专为并行访问优化的内存控制器</li>
+</ul>
+<pre><code class="language-cpp">// GPU 擅长的任务：数据并行
+__global__ void vectorAdd(float *a, float *b, float *c, int n) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    if (idx < n) {
+        c[idx] = a[idx] + b[idx];  // 简单操作，大量并行
+    }
+}
+</code></pre>
+<h2 id="性能特点对比">性能特点对比</h2>
+<h3 id="CPU-性能特点">CPU 性能特点</h3>
+<ul>
+<li><strong>单线程性能强</strong>：适合串行任务</li>
+<li><strong>分支处理优秀</strong>：复杂的条件判断</li>
+<li><strong>延迟敏感</strong>：响应时间短</li>
+<li><strong>通用性强</strong>：可以处理各种类型的任务</li>
+</ul>
+<h3 id="GPU-性能特点">GPU 性能特点</h3>
+<ul>
+<li><strong>并行吞吐量大</strong>：适合大规模并行计算</li>
+<li><strong>计算密度高</strong>：浮点运算能力强</li>
+<li><strong>延迟较高</strong>：单线程性能不如 CPU</li>
+<li><strong>专用性强</strong>：适合特定类型的并行任务</li>
+</ul>
+<h2 id="适用场景对比">适用场景对比</h2>
+<table>
+<thead>
+<tr>
+<th>任务类型</th>
+<th>CPU</th>
+<th>GPU</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>操作系统</strong></td>
+<td>✅ 非常适合</td>
+<td>❌ 不适合</td>
+</tr>
+<tr>
+<td><strong>数据库查询</strong></td>
+<td>✅ 适合</td>
+<td>⚠️ 部分适合</td>
+</tr>
+<tr>
+<td><strong>Web 服务器</strong></td>
+<td>✅ 适合</td>
+<td>❌ 不适合</td>
+</tr>
+<tr>
+<td><strong>图形渲染</strong></td>
+<td>⚠️ 勉强可以</td>
+<td>✅ 非常适合</td>
+</tr>
+<tr>
+<td><strong>矩阵运算</strong></td>
+<td>⚠️ 较慢</td>
+<td>✅ 非常适合</td>
+</tr>
+<tr>
+<td><strong>深度学习训练</strong></td>
+<td>⚠️ 可行但慢</td>
+<td>✅ 非常适合</td>
+</tr>
+<tr>
+<td><strong>科学计算</strong></td>
+<td>⚠️ 较慢</td>
+<td>✅ 非常适合</td>
+</tr>
+<tr>
+<td><strong>密码破解</strong></td>
+<td>❌ 太慢</td>
+<td>✅ 非常适合</td>
+</tr>
+</tbody>
+</table>
+<h2 id="实际性能对比案例">实际性能对比案例</h2>
+<h3 id="矩阵乘法">矩阵乘法</h3>
+<p>对于 4096×4096 的矩阵乘法：</p>
+<table>
+<thead>
+<tr>
+<th>硬件</th>
+<th>性能（GFLOPS）</th>
+<th>耗时</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Intel i9-13900K</td>
+<td>~1000</td>
+<td>~2.5 秒</td>
+</tr>
+<tr>
+<td>NVIDIA RTX 4090</td>
+<td>~80,000</td>
+<td>~0.03 秒</td>
+</tr>
+</tbody>
+</table>
+<p>GPU 在矩阵运算上比 CPU 快约 80 倍。</p>
+<h3 id="深度学习训练">深度学习训练</h3>
+<p>训练 ResNet-50 模型：</p>
+<table>
+<thead>
+<tr>
+<th>硬件</th>
+<td>每秒处理图像数</td>
+<th>相对性能</td>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Intel i9-13900K</td>
+<td>~50</td>
+<td>1x</td>
+</tr>
+<tr>
+<td>NVIDIA RTX 4090</td>
+<td>~800</td>
+<td>16x</td>
+</tr>
+</tbody>
+</table>
+<h2 id="协同计算">协同计算</h2>
+<p>现代系统通常采用 CPU+GPU 协同计算的架构：</p>
+<ul>
+<li><strong>CPU 负责</strong>：任务调度、数据预处理、串行逻辑</li>
+<li><strong>GPU 负责</strong>：大规模并行计算、矩阵运算</li>
+</ul>
+<pre><code class="language-cpp">// CPU+GPU 协同计算示例
+int main() {
+    int N = 1000000;
+    float *h_a, *h_b, *h_c;  // 主机内存（CPU）
+    float *d_a, *d_b, *d_c;  // 设备内存（GPU）
+
+    // CPU 分配内存
+    h_a = (float*)malloc(N * sizeof(float));
+    h_b = (float*)malloc(N * sizeof(float));
+    h_c = (float*)malloc(N * sizeof(float));
+
+    // 初始化数据（CPU）
+    for (int i = 0; i < N; i++) {
+        h_a[i] = i;
+        h_b[i] = i * 2;
+    }
+
+    // GPU 分配内存
+    cudaMalloc(&d_a, N * sizeof(float));
+    cudaMalloc(&d_b, N * sizeof(float));
+    cudaMalloc(&d_c, N * sizeof(float));
+
+    // 数据传输：CPU -> GPU
+    cudaMemcpy(d_a, h_a, N * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b, h_b, N * sizeof(float), cudaMemcpyHostToDevice);
+
+    // GPU 执行并行计算
+    int blockSize = 256;
+    int numBlocks = (N + blockSize - 1) / blockSize;
+    vectorAdd<<<numBlocks, blockSize>>>(d_a, d_b, d_c, N);
+
+    // 数据传输：GPU -> CPU
+    cudaMemcpy(h_c, d_c, N * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // CPU 处理结果
+    printf("Result: %f\n", h_c[0]);
+
+    // 释放资源
+    free(h_a); free(h_b); free(h_c);
+    cudaFree(d_a); cudaFree(d_b); cudaFree(d_c);
+
+    return 0;
+}
+</code></pre>
+<h2 id="选择建议">选择建议</h2>
+<h3 id="何时使用-CPU">何时使用 CPU</h3>
+<ul>
+<li>任务需要复杂的条件判断和分支</li>
+<li>单线程性能是关键</li>
+<li>数据量小，并行度低</li>
+<li>需要频繁的随机内存访问</li>
+<li>操作系统、数据库、Web 服务等应用</li>
+</ul>
+<h3 id="何时使用-GPU">何时使用 GPU</h3>
+<ul>
+<li>大规模数据并行计算</li>
+<li>矩阵运算、向量运算</li>
+<li>深度学习训练和推理</li>
+<li>科学计算、模拟仿真</li>
+<li>图形渲染、视频处理</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>CPU 和 GPU 各有优势，选择合适的硬件取决于任务特性：</p>
+<ul>
+<li><strong>CPU</strong>：低延迟、复杂逻辑、通用计算</li>
+<li><strong>GPU</strong>：高吞吐、并行计算、专用加速</li>
+</ul>
+<p>在实际应用中，CPU 和 GPU 往往协同工作，发挥各自的优势，实现最佳��性能。理解两者的差异，有助于我们更好地设计系统架构和优化程序性能。</p>
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/GPU/" rel="tag"><i class="fa fa-tag"></i> GPU</a>
+          <a href="/tags/CPU/" rel="tag"><i class="fa fa-tag"></i> CPU</a>
+          <a href="/tags/计算机体系结构/" rel="tag"><i class="fa fa-tag"></i> 计算机体系结构</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+            <a href="/2026/03/22/GPU并行计算原理/" rel="next" title="GPU 并行计算原理">
+              <i class="fa fa-chevron-left"></i> GPU 并行计算原理
+            </a>
+        </div>
+
+        <span class="post-nav-divider"></span>
+
+        <div class="post-nav-prev post-nav-item">
+            <a href="/2020/10/11/LeetCode-210-%E5%91%A8%E8%B5%9B/" rel="prev" title="LeetCode 210 周赛">
+              LeetCode 210 周赛 <i class="fa fa-chevron-right"></i>
+            </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#设计理念对比"><span class="nav-number">1.</span> <span class="nav-text">设计理念对比</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#架构细节对比"><span class="nav-number">2.</span> <span class="nav-text">架构细节对比</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#CPU-架构"><span class="nav-number">2.1.</span> <span class="nav-text">CPU 架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#GPU-架构"><span class="nav-number">2.2.</span> <span class="nav-text">GPU 架构</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能特点对比"><span class="nav-number">3.</span> <span class="nav-text">性能特点对比</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#CPU-性能特点"><span class="nav-number">3.1.</span> <span class="nav-text">CPU 性能特点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#GPU-性能特点"><span class="nav-number">3.2.</span> <span class="nav-text">GPU 性能特点</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#适用场景对比"><span class="nav-number">4.</span> <span class="nav-text">适用场景对比</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实际性能对比案例"><span class="nav-number">5.</span> <span class="nav-text">实际性能对比案例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#矩阵乘法"><span class="nav-number">5.1.</span> <span class="nav-text">矩阵乘法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#深度学习训练"><span class="nav-number">5.2.</span> <span class="nav-text">深度学习训练</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#协同计算"><span class="nav-number">6.</span> <span class="nav-text">协同计算</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#选择建议"><span class="nav-number">7.</span> <span class="nav-text">选择建议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#何时使用-CPU"><span class="nav-number">7.1.</span> <span class="nav-text">何时使用 CPU</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#何时使用-GPU"><span class="nav-number">7.2.</span> <span class="nav-text">何时使用 GPU</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">8.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">148</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">36</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+
+
+
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/js/pjax.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>

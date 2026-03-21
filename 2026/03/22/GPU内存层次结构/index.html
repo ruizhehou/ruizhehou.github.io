@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="GPU 的内存层次结构是其高性能的关键。理解 GPU 的内存层次结构对于编写高效的 CUDA 程序至关重要。本文将详细介绍 GPU 的内存层次结构及其优化策略。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="GPU 内存层次结构">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/22/GPU内存层次结构/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="GPU 的内存层次结构是其高性能的关键。理解 GPU 的内存层次结构对于编写高效的 CUDA 程序至关重要。本文将详细介绍 GPU 的内存层次结构及其优化策略。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-22T00:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-22T00:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="GPU">
+<meta property="article:tag" content="内存管理">
+<meta property="article:tag" content="CUDA">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/22/GPU内存层次结构/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>GPU 内存层次结构 | 侯瑞哲的博客</title>
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <div class="post-block" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-03-22T00:00:00+08:00" content="2026-03-22">
+      03-22
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      GPU 内存层次结构
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+    <p>GPU 的内存层次结构是其高性能的关键。理解 GPU 的内存层次结构对于编写高效的 CUDA 程序至关重要。本文将详细介绍 GPU 的内存层次结构及其优化策略。</p>
+<h2 id="GPU-内存层次概览">GPU 内存层次概览</h2>
+<p>GPU 的内存层次结构从快到慢依次为：</p>
+<table>
+<thead>
+<tr>
+<th>内存类型</th>
+<th>访问速度</th>
+<th>容量</th>
+<th>作用域</th>
+<th>缓存</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Registers（寄存器）</td>
+<td>最快</td>
+<td>极小（每个线程）</td>
+<td>线程私有</td>
+<td>无</td>
+</tr>
+<tr>
+<td>Shared Memory（共享内存）</td>
+<td>极快</td>
+<td>小（每个 Block）</td>
+<td>Block 共享</td>
+<td>无</td>
+</tr>
+<tr>
+<td>L1 Cache</td>
+<td>快</td>
+<td>小（每个 SM）</td>
+<td>Block 共享</td>
+<td>有</td>
+</tr>
+<tr>
+<td>L2 Cache</td>
+<td>中等</td>
+<td>中（整个 GPU）</td>
+<td>全局</td>
+<td>有</td>
+</tr>
+<tr>
+<td>Global Memory（全局内存）</td>
+<td>慢</td>
+<td>大（整个 GPU）</td>
+<td>全局</td>
+<td>有（L1/L2）</td>
+</tr>
+<tr>
+<td>Constant Memory（常量内存）</td>
+<td>快</td>
+<td>小（64KB）</td>
+<td>全局</td>
+<td>有</td>
+</tr>
+<tr>
+<td>Texture Memory（纹理内存）</td>
+<td>快</td>
+<td>中</td>
+<td>全局</td>
+<td>有</td>
+</tr>
+</tbody>
+</table>
+<h2 id="寄存器-Registers">寄存器（Registers）</h2>
+<p>寄存器是 GPU 上最快的存储器，每个线程都有自己的一组寄存器。</p>
+<h3 id="寄存器特性">寄存器特性</h3>
+<ul>
+<li><strong>速度</strong>：访问延迟约 1 个时钟周期</li>
+<li><strong>容量</strong>：每个 SM 有数千个寄存器，每个线程分配一部分</li>
+<li><strong>作用域</strong>：线程私有，其他线程无法访问</li>
+<li><strong>生命周期</strong>：与线程生命周期相同</li>
+</ul>
+<h3 id="寄存器使用示例">寄存器使用示例</h3>
+<pre><code class="language-cpp">__global__ void kernel(float *data) {
+    // 局部变量通常存储在寄存器中
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    float temp = data[idx];  // temp 可能存储在寄存器中
+    temp *= 2.0f;
+    data[idx] = temp;
+}
+</code></pre>
+<h3 id="寄存器优化">寄存器优化</h3>
+<ul>
+<li>减少寄存器使用可以提高占用率</li>
+<li>使用 <code>__launch_bounds__</code> 指定最大线程数</li>
+<li>避免过多的局部变量</li>
+</ul>
+<pre><code class="language-cpp">// 指定每个 Block 最多 256 个线程，每个 SM 最多 2 个 Block
+__global__ void __launch_bounds__(256, 2) optimizedKernel(float *data) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    data[idx] = idx;
+}
+</code></pre>
+<h2 id="共享内存-Shared-Memory">共享内存（Shared Memory）</h2>
+<p>共享内存是 SM 内部的高速存储器，同一个 Block 内的线程可以共享访问。</p>
+<h3 id="共享内存特性">共享内存特性</h3>
+<ul>
+<li><strong>速度</strong>：比全局内存快 100 倍以上</li>
+<li><strong>容量</strong>：通常 48KB-96KB（可配置）</li>
+<li><strong>作用域</strong>：Block 内线程共享</li>
+<li><strong>生命周期</strong>：与 Block 生命周期相同</li>
+</ul>
+<h3 id="共享内存使用示例">共享内存使用示例</h3>
+<pre><code class="language-cpp">#define TILE_SIZE 16
+
+__global__ void matrixMul(float *A, float *B, float *C, int N) {
+    // 声明共享内存
+    __shared__ float tileA[TILE_SIZE][TILE_SIZE];
+    __shared__ float tileB[TILE_SIZE][TILE_SIZE];
+
+    int bx = blockIdx.x, by = blockIdx.y;
+    int tx = threadIdx.x, ty = threadIdx.y;
+
+    int row = by * TILE_SIZE + ty;
+    int col = bx * TILE_SIZE + tx;
+
+    float sum = 0.0f;
+
+    for (int t = 0; t < N / TILE_SIZE; ++t) {
+        // 加载数据到共享内存
+        tileA[ty][tx] = A[row * N + t * TILE_SIZE + tx];
+        tileB[ty][tx] = B[(t * TILE_SIZE + ty) * N + col];
+
+        // 等待所有线程完成加载
+        __syncthreads();
+
+        // 使用共享内存中的数据进行计算
+        for (int k = 0; k < TILE_SIZE; ++k) {
+            sum += tileA[ty][k] * tileB[k][tx];
+        }
+
+        // 等待所有线程完成计算
+        __syncthreads();
+    }
+
+    C[row * N + col] = sum;
+}
+</code></pre>
+<h3 id="共享内存优化">共享内存优化</h3>
+<ul>
+<li><strong>Bank Conflict</strong>：避免 Bank 冲突，提高访问效率</li>
+<li><strong>Pad</strong>：使用 padding 避免 Bank 冲突</li>
+<li><strong>异步拷贝</strong>：使用 <code>__cp_async</code> 异步加载数据</li>
+</ul>
+<pre><code class="language-cpp">// 避免 Bank Conflict 的示例
+__global__ void avoidBankConflict(float *data) {
+    __shared__ float s_data[32];  // 32 个 Bank，每个 Bank 4 字节
+
+    int tid = threadIdx.x;
+    s_data[tid] = data[tid];  // 每个线程访问不同 Bank，无冲突
+
+    __syncthreads();
+
+    data[tid] = s_data[tid];
+}
+
+// 使用 Padding 避免 Bank Conflict
+__global__ void withPadding(float *data) {
+    __shared__ float s_data[32][33];  // 添加 Padding
+
+    int tid = threadIdx.x;
+    s_data[tid][0] = data[tid];  // 避免 Bank 冲突
+
+    __syncthreads();
+
+    data[tid] = s_data[tid][0];
+}
+</code></pre>
+<h2 id="全局内存-Global-Memory">全局内存（Global Memory）</h2>
+<p>全局内存是 GPU 上最大的存储空间，但访问速度最慢。</p>
+<h3 id="全局内存特性">全局内存特性</h3>
+<ul>
+<li><strong>速度</strong>：访问延迟高（数百个时钟周期）</li>
+<li><strong>容量</strong>：大（几 GB 到几十 GB）</li>
+<li><strong>作用域</strong>：全局，所有线程都可以访问</li>
+<li><strong>缓存</strong>：有 L1/L2 缓存</li>
+</ul>
+<h3 id="内存合并访问">内存合并访问</h3>
+<p>当相邻线程访问连续的内存地址时，GPU 可以将多个内存请求合并为一个事务。</p>
+<pre><code class="language-cpp">// 好的内存合并
+__global__ void coalescedAccess(float *data) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    data[idx] = idx;  // 连续访问，合并
+}
+
+// 不好的内存访问
+__global__ void stridedAccess(float *data, int stride) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    data[idx * stride] = idx;  // 跨步访问，不合并
+}
+</code></pre>
+<h3 id="全局内存优化">全局内存优化</h3>
+<ul>
+<li>使用行优先存储（Row-major）</li>
+<li>避免跨步访问（Strided Access）</li>
+<li>使用共享内存减少全局内存访问</li>
+<li>考虑数据对齐（Alignment）</li>
+</ul>
+<h2 id="常量内存-Constant-Memory">常量内存（Constant Memory）</h2>
+<p>常量内存是只读内存，有缓存优化，适合存储常量数据。</p>
+<h3 id="常量内存特性">常量内存特性</h3>
+<ul>
+<li><strong>速度</strong>：快，有缓存</li>
+<li><strong>容量</strong>：64KB</li>
+<li><strong>作用域</strong>：全局</li>
+<li><strong>访问</strong>：只读</li>
+</ul>
+<h3 id="常量内存使用示例">常量内存使用示例</h3>
+<pre><code class="language-cpp">// 声明常量内存
+__constant__ float constData[256];
+
+// 从主机复制数据到常量内存
+cudaMemcpyToSymbol(constData, hostData, 256 * sizeof(float));
+
+// 在 Kernel 中使用
+__global__ void useConstant(float *data) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    data[idx] = constData[idx % 256];  // 从常量内存读取
+}
+</code></pre>
+<h2 id="纹理内存-Texture-Memory">纹理内存（Texture Memory）</h2>
+<p>纹理内存是专门为图形渲染优化的内存，也适用于某些计算场景。</p>
+<h3 id="纹理内存特性">纹理内存特性</h3>
+<ul>
+<li><strong>速度</strong>：快，有缓存</li>
+<li><strong>容量</strong>：中</li>
+<li><strong>作用域</strong>：全局</li>
+<li><strong>特性</strong>：支持 2D/3D 寻址、插值、边界处理</li>
+</ul>
+<h3 id="纹理内存使用示例">纹理内存使用示例</h3>
+<pre><code class="language-cpp">// 声明纹理引用
+texture<float, 2, cudaReadModeElementType> texRef;
+
+// 绑定纹理到全局内存
+cudaBindTexture(NULL, texRef, d_data, width * height * sizeof(float));
+
+// 在 Kernel 中使用纹理
+__global__ void useTexture(float *output) {
+    int x = threadIdx.x + blockIdx.x * blockDim.x;
+    int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+    // 使用纹理坐标读取
+    float u = x / (float)width;
+    float v = y / (float)height;
+    output[y * width + x] = tex2D(texRef, u, v);  // 纹理读取
+}
+
+// 解绑纹理
+cudaUnbindTexture(texRef);
+</code></pre>
+<h2 id="内存访问模式优化">内存访问模式优化</h2>
+<h3 id="1-内存合并">1. 内存合并</h3>
+<p>确保相邻线程访问连续的内存地址。</p>
+<h3 id="2-避免-Bank-冲突">2. 避免 Bank 冲突</h3>
+<p>在共享内存中，避免多个线程同时访问同一个 Bank。</p>
+<h3 id="3-使用共享内存">3. 使用共享内存</h3>
+<p>利用共享内存减少全局内存访问次数。</p>
+<h3 id="4-数据重用">4. 数据重用</h3>
+<p>将频繁使用的数据加载到共享内存或寄存器中。</p>
+<h2 id="内存管理函数">内存管理函数</h2>
+<pre><code class="language-cpp">// 分配全局内存
+float *d_data;
+cudaMalloc(&d_data, N * sizeof(float));
+
+// 释放全局内存
+cudaFree(d_data);
+
+// 内存拷贝：主机到设备
+cudaMemcpy(d_data, h_data, N * sizeof(float), cudaMemcpyHostToDevice);
+
+// 内存拷贝：设备到主机
+cudaMemcpy(h_data, d_data, N * sizeof(float), cudaMemcpyDeviceToHost);
+
+// 内存拷贝：设备到设备
+cudaMemcpy(d_dest, d_src, N * sizeof(float), cudaMemcpyDeviceToDevice);
+
+// 内存填充
+cudaMemset(d_data, 0, N * sizeof(float));
+
+// 异步内存拷贝
+cudaMemcpyAsync(d_data, h_data, N * sizeof(float), cudaMemcpyHostToDevice, stream);
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>GPU 的内存层次结构是其高性能的关键。理解不同内存类型的特性和访问模式，可以帮助我们编写高效的 CUDA 程序：</p>
+<ul>
+<li><strong>寄存器</strong>：最快的存储，用于局部变量</li>
+<li><strong>共享内存</strong>：Block 内共享，用于数据重用</li>
+<li><strong>全局内存</strong>：最大的存储，但访问慢，需要优化访问模式</li>
+<li><strong>常量/纹理内存</strong>：只读内存，有缓存优化</li>
+</ul>
+<p>通过合理使用不同层次的内存，可以充分发挥 GPU 的计算能力，实现高性能的并行计算。</p>
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/GPU/" rel="tag"><i class="fa fa-tag"></i> GPU</a>
+          <a href="/tags/内存管理/" rel="tag"><i class="fa fa-tag"></i> 内存管理</a>
+          <a href="/tags/CUDA/" rel="tag"><i class="fa fa-tag"></i> CUDA</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+            <a href="/2026/03/22/GPU-vs-CPU对比/" rel="next" title="GPU vs CPU 对比">
+              <i class="fa fa-chevron-left"></i> GPU vs CPU 对比
+            </a>
+        </div>
+
+        <span class="post-nav-divider"></span>
+
+        <div class="post-nav-prev post-nav-item">
+            <a href="/2020/10/11/LeetCode-210-%E5%91%A8%E8%B5%9B/" rel="prev" title="LeetCode 210 周赛">
+              LeetCode 210 周赛 <i class="fa fa-chevron-right"></i>
+            </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#GPU-内存层次概览"><span class="nav-number">1.</span> <span class="nav-text">GPU 内存层次概览</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#寄存器-Registers"><span class="nav-number">2.</span> <span class="nav-text">寄存器（Registers）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#寄存器特性"><span class="nav-number">2.1.</span> <span class="nav-text">寄存器特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#寄存器使用示例"><span class="nav-number">2.2.</span> <span class="nav-text">寄存器使用示例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#寄存器优化"><span class="nav-number">2.3.</span> <span class="nav-text">寄存器优化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#共享内存-Shared-Memory"><span class="nav-number">3.</span> <span class="nav-text">共享内存（Shared Memory）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#共享内存特性"><span class="nav-number">3.1.</span> <span class="nav-text">共享内存特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#共享内存使用示例"><span class="nav-number">3.2.</span> <span class="nav-text">共享内存使用示例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#共享内存优化"><span class="nav-number">3.3.</span> <span class="nav-text">共享内存优化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#全局内存-Global-Memory"><span class="nav-number">4.</span> <span class="nav-text">全局内存（Global Memory）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#全局内存特性"><span class="nav-number">4.1.</span> <span class="nav-text">全局内存特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存合并访问"><span class="nav-number">4.2.</span> <span class="nav-text">内存合并访问</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#全局内存优化"><span class="nav-number">4.3.</span> <span class="nav-text">全局内存优化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#常量内存-Constant-Memory"><span class="nav-number">5.</span> <span class="nav-text">常量内存（Constant Memory）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#常量内存特性"><span class="nav-number">5.1.</span> <span class="nav-text">常量内存特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#常量内存使用示例"><span class="nav-number">5.2.</span> <span class="nav-text">常量内存使用示例</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#纹理内存-Texture-Memory"><span class="nav-number">6.</span> <span class="nav-text">纹理内存（Texture Memory）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#纹理内存特性"><span class="nav-number">6.1.</span> <span class="nav-text">纹理内存特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#纹理内存使用示例"><span class="nav-number">6.2.</span> <span class="nav-text">纹理内存使用示例</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#内存访问模式优化"><span class="nav-number">7.</span> <span class="nav-text">内存访问模式优化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#内存管理函数"><span class="nav-number">8.</span> <span class="nav-text">内存管理函数</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">9.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">148</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">36</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+
+
+
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/js/pjax.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>

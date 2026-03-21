@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="GPU 并行计算的核心在于其大规模并行处理能力。本文将深入探讨 GPU 并行计算的原理、模型和优化策略。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="GPU 并行计算原理">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/22/GPU并行计算原理/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="GPU 并行计算的核心在于其大规模并行处理能力。本文将深入探讨 GPU 并行计算的原理、模型和优化策略。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-22T00:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-22T00:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="GPU">
+<meta property="article:tag" content="并行计算">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/22/GPU并行计算原理/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>GPU 并行计算原理 | 侯瑞哲的博客</title>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <div class="post-block" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-03-22T00:00:00+08:00" content="2026-03-22">
+      03-22
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      GPU 并行计算原理
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+    <p>GPU 并行计算的核心在于其大规模并行处理能力。本文将深入探讨 GPU 并行计算的原理、模型和优化策略。</p>
+<h2 id="SIMT-单指令多线程模型">SIMT（单指令多线程）模型</h2>
+<p>GPU 采用 SIMT（Single Instruction, Multiple Threads）架构，这是一种特殊的并行计算模型：</p>
+<h3 id="SIMT-的工作原理">SIMT 的工作原理</h3>
+<ul>
+<li><strong>单指令</strong>：Warp 中的所有线程同时执行相同的指令</li>
+<li><strong>多线程</strong>：每个线程处理不同的数据</li>
+<li><strong>数据并行</strong>：通过数据并行实现高性能计算</li>
+</ul>
+<pre><code class="language-cpp">// SIMT 示例：向量加法
+__global__ void vectorAdd(float *a, float *b, float *c, int n) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    if (idx < n) {
+        c[idx] = a[idx] + b[idx];  // 所有线程执行相同操作
+    }
+}
+</code></pre>
+<h3 id="线程分歧-Warp-Divergence">线程分歧（Warp Divergence）</h3>
+<p>当 Warp 内的线程需要执行不同的代码路径时，会产生线程分歧：</p>
+<pre><code class="language-cpp">// 线程分歧示例
+__global__ void divergentKernel(int *data) {
+    int idx = threadIdx.x;
+    if (idx % 2 == 0) {
+        data[idx] = idx * 2;  // 偶数线程
+    } else {
+        data[idx] = idx * 3;  // 奇数线程
+    }
+}
+</code></pre>
+<p>线程分歧会导致性能下降，因为 GPU 需要串行执行不同的分支。优化方法包括：</p>
+<ul>
+<li>尽量减少条件分支</li>
+<li>使用 warp 内建函数（如 <code>__any</code>、<code>__all</code>）</li>
+<li>重新组织数据使相同条件的线程相邻</li>
+</ul>
+<h2 id="内存合并访问">内存合并访问</h2>
+<p>内存合并访问是 GPU 性能优化的关键概念：</p>
+<h3 id="什么是内存合并">什么是内存合并</h3>
+<p>当相邻线程访问连续的内存地址时，GPU 可以将多个内存请求合并为一个事务，提高带宽利用率。</p>
+<pre><code class="language-cpp">// 好的内存合并
+__global__ void coalescedAccess(float *data) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    data[idx] = idx;  // 连续访问
+}
+
+// 不好的内存访问
+__global__ void stridedAccess(float *data, int stride) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    data[idx * stride] = idx;  // 跨步访问
+}
+</code></pre>
+<h3 id="内存合并的最佳实践">内存合并的最佳实践</h3>
+<ul>
+<li>使用行优先存储（Row-major）</li>
+<li>避免跨步访问（Strided Access）</li>
+<li>使用共享内存进行数据重排</li>
+<li>考虑数据对齐（Alignment）</li>
+</ul>
+<h2 id="共享内存优化">共享内存优化</h2>
+<p>共享内存是 GPU 上最快的可编程存储器，合理使用可以显著提升性能。</p>
+<h3 id="共享内存的特性">共享内存的特性</h3>
+<ul>
+<li><strong>速度快</strong>：比全局内存快 100 倍以上</li>
+<li><strong>容量小</strong>：通常 48KB-96KB</li>
+<li><strong>Block 共享</strong>：同一 Block 内的线程共享</li>
+<li><strong>可编程</strong>：完全由程序员控制</li>
+</ul>
+<h3 id="矩阵乘法示例">矩阵乘法示例</h3>
+<pre><code class="language-cpp">#define TILE_SIZE 16
+
+__global__ void matrixMul(float *A, float *B, float *C, int N) {
+    __shared__ float tileA[TILE_SIZE][TILE_SIZE];
+    __shared__ float tileB[TILE_SIZE][TILE_SIZE];
+
+    int bx = blockIdx.x, by = blockIdx.y;
+    int tx = threadIdx.x, ty = threadIdx.y;
+
+    int row = by * TILE_SIZE + ty;
+    int col = bx * TILE_SIZE + tx;
+
+    float sum = 0.0f;
+
+    for (int t = 0; t < N / TILE_SIZE; ++t) {
+        tileA[ty][tx] = A[row * N + t * TILE_SIZE + tx];
+        tileB[ty][tx] = B[(t * TILE_SIZE + ty) * N + col];
+        __syncthreads();  // 等待所有线程完成加载
+
+        for (int k = 0; k < TILE_SIZE; ++k) {
+            sum += tileA[ty][k] * tileB[k][tx];
+        }
+        __syncthreads();  // 等待所有线程完成计算
+    }
+
+    C[row * N + col] = sum;
+}
+</code></pre>
+<h2 id="占用率-Occupancy">占用率（Occupancy）</h2>
+<p>占用率是指 SM 上活跃 Warp 的数量与最大 Warp 数量的比值。</p>
+<h3 id="影响占用率的因素">影响占用率的因素</h3>
+<ul>
+<li><strong>寄存器使用</strong>：每个线程使用的寄存器数量</li>
+<li><strong>共享内存使用</strong>：每个 Block 使用的共享内存</li>
+<li><strong>Block 大小</strong>：每个 Block 的线程数</li>
+</ul>
+<h3 id="优化占用率">优化占用率</h3>
+<pre><code class="language-cpp">// 检查占用率的 CUDA 工具
+// nvcc --ptxas-options=-v kernel.cu
+
+// 减少寄存器使用
+__global__ void __launch_bounds__(256, 2) optimizedKernel(int *data) {
+    // 使用较少的寄存器
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    data[idx] = idx;
+}
+</code></pre>
+<h2 id="原子操作">原子操作</h2>
+<p>当多个线程需要同时访问同一内存位置时，需要使用原子操作。</p>
+<pre><code class="language-cpp">// 原子操作示例
+__global__ void histogram(int *data, int *hist, int n) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    if (idx < n) {
+        int val = data[idx];
+        atomicAdd(&hist[val], 1);  // 原子加法
+    }
+}
+
+// 其他原子操作
+// atomicSub, atomicExch, atomicMin, atomicMax
+// atomicInc, atomicDec, atomicCAS, atomicAnd, atomicOr, atomicXor
+</code></pre>
+<h2 id="流-Streams">流（Streams）</h2>
+<p>流允许在 GPU 上并发执行多个操作，提高硬件利用率。</p>
+<pre><code class="language-cpp">// 使用流实现计算和传输重叠
+cudaStream_t stream1, stream2;
+cudaStreamCreate(&stream1);
+cudaStreamCreate(&stream2);
+
+float *d_data1, *d_data2;
+cudaMalloc(&d_data1, N * sizeof(float));
+cudaMalloc(&d_data2, N * sizeof(float));
+
+// 在不同流中异步执行
+kernel<<<grid, block, 0, stream1>>>(d_data1);
+kernel<<<grid, block, 0, stream2>>>(d_data2);
+
+// 等待所有流完成
+cudaStreamSynchronize(stream1);
+cudaStreamSynchronize(stream2);
+
+cudaStreamDestroy(stream1);
+cudaStreamDestroy(stream2);
+</code></pre>
+<h2 id="性能分析工具">性能分析工具</h2>
+<ul>
+<li><strong>Nsight Compute</strong>：详细的 GPU 性能分析</li>
+<li><strong>Nsight Systems</strong>：系统级性能分析</li>
+<li><strong>nvprof</strong>：命令行性能分析工具</li>
+<li><strong>Visual Profiler</strong>：图形化性能分析</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>GPU 并行计算通过 SIMT 模型、内存合并、共享内存优化等技术实现高性能。掌握这些原理和优化技巧，可以充分发挥 GPU 的计算能力，为科学计算、AI 训练等应用提供强大的支持。</p>
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/GPU/" rel="tag"><i class="fa fa-tag"></i> GPU</a>
+          <a href="/tags/并行计算/" rel="tag"><i class="fa fa-tag"></i> 并行计算</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+            <a href="/2026/03/22/GPU架构基础/" rel="next" title="GPU 架构基础">
+              <i class="fa fa-chevron-left"></i> GPU 架构基础
+            </a>
+        </div>
+
+        <span class="post-nav-divider"></span>
+
+        <div class="post-nav-prev post-nav-item">
+            <a href="/2020/10/11/LeetCode-210-%E5%91%A8%E8%B5%9B/" rel="prev" title="LeetCode 210 周赛">
+              LeetCode 210 周赛 <i class="fa fa-chevron-right"></i>
+            </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#SIMT-单指令多线程模型"><span class="nav-number">1.</span> <span class="nav-text">SIMT（单指令多线程）模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#SIMT-的工作原理"><span class="nav-number">1.1.</span> <span class="nav-text">SIMT 的工作原理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#线程分歧-Warp-Divergence"><span class="nav-number">1.2.</span> <span class="nav-text">线程分歧（Warp Divergence）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#内存合并访问"><span class="nav-number">2.</span> <span class="nav-text">内存合并访问</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#什么是内存合并"><span class="nav-number">2.1.</span> <span class="nav-text">什么是内存合并</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存合并的最佳实践"><span class="nav-number">2.2.</span> <span class="nav-text">内存合并的最佳实践</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#共享内存优化"><span class="nav-number">3.</span> <span class="nav-text">共享内存优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#共享内存的特性"><span class="nav-number">3.1.</span> <span class="nav-text">共享内存的特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#矩阵乘法示例"><span class="nav-number">3.2.</span> <span class="nav-text">矩阵乘法示例</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#占用率-Occupancy"><span class="nav-number">4.</span> <span class="nav-text">占用率（Occupancy）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#影响占用率的因素"><span class="nav-number">4.1.</span> <span class="nav-text">影响占用率的因素</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#优化占用率"><span class="nav-number">4.2.</span> <span class="nav-text">优化占用率</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#原子操作"><span class="nav-number">5.</span> <span class="nav-text">原子操作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#流-Streams"><span class="nav-number">6.</span> <span class="nav-text">流（Streams）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能分析工具"><span class="nav-number">7.</span> <span class="nav-text">性能分析工具</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">8.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">148</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">36</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+
+
+
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/js/pjax.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+
+
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
