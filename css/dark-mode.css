@@ -1,0 +1,249 @@
+/**
+ * 深色模式样式
+ */
+
+/* 深色模式基础样式 */
+body.dark-mode {
+  background: #1a1a1a;
+  color: #e0e0e0;
+}
+
+body.dark-mode .container {
+  background: #1a1a1a;
+}
+
+/* 导航栏深色模式 */
+body.dark-mode .header-inner {
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+}
+
+body.dark-mode .site-title {
+  color: #e0e0e0;
+}
+
+body.dark-mode .site-subtitle {
+  color: #999;
+}
+
+body.dark-mode .menu-item a {
+  color: #e0e0e0;
+}
+
+body.dark-mode .menu-item a:hover {
+  color: #fc6423;
+}
+
+/* 文章卡片深色模式 */
+body.dark-mode .post-block {
+  background: #242424;
+  border-color: #333;
+}
+
+body.dark-mode .post-title {
+  color: #e0e0e0;
+}
+
+body.dark-mode .post-meta {
+  color: #999;
+}
+
+body.dark-mode .post-body {
+  color: #d0d0d0;
+}
+
+/* 代码块深色模式 */
+body.dark-mode .highlight,
+body.dark-mode pre {
+  background: #2d2d2d !important;
+  border-color: #444 !important;
+}
+
+body.dark-mode .highlight::before {
+  background: linear-gradient(90deg, #2d2d2d, #3d3d3d) !important;
+}
+
+body.dark-mode .highlight .gutter {
+  background: #1e1e1e !important;
+  border-right-color: #444 !important;
+  color: #666 !important;
+}
+
+/* 内联代码深色模式 */
+body.dark-mode code {
+  background: #2d2d2d !important;
+  border-color: #444 !important;
+  color: #e0e0e0 !important;
+}
+
+/* 表格深色模式 */
+body.dark-mode table th {
+  background: linear-gradient(90deg, #2d2d2d, #3d3d3d) !important;
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode table td {
+  border-color: #444 !important;
+}
+
+body.dark-mode table tr:nth-child(even) {
+  background: #2d2d2d !important;
+}
+
+body.dark-mode table tr:hover {
+  background: #3d3d3d !important;
+}
+
+/* 按钮深色模式 */
+body.dark-mode .btn {
+  background: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+body.dark-mode .btn:hover {
+  background: #3d3d3d;
+  border-color: #fc6423;
+}
+
+/* 链接深色模式 */
+body.dark-mode a {
+  color: #fc6423;
+}
+
+body.dark-mode a:hover {
+  color: #ff8c61;
+}
+
+/* 搜索框深色模式 */
+body.dark-mode .search-input {
+  background: #2d2d2d;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+body.dark-mode .search-input::placeholder {
+  color: #666;
+}
+
+/* 评论区域深色模式 */
+body.dark-mode .comments {
+  background: #242424;
+  border-color: #333;
+}
+
+/* 分页深色模式 */
+body.dark-mode .pagination .page-number {
+  background: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+body.dark-mode .pagination .page-number.current {
+  background: #fc6423;
+  color: #fff;
+}
+
+body.dark-mode .pagination .page-number:hover {
+  background: #3d3d3d;
+  border-color: #fc6423;
+}
+
+/* 归档页面深色模式 */
+body.dark-mode .archive-post-item {
+  border-color: #333;
+}
+
+body.dark-mode .archive-post-title {
+  color: #e0e0e0;
+}
+
+body.dark-mode .archive-post-time {
+  color: #999;
+}
+
+/* 标签页面深色模式 */
+body.dark-mode .tag-cloud a {
+  background: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+body.dark-mode .tag-cloud a:hover {
+  background: #3d3d3d;
+  border-color: #fc6423;
+}
+
+/* 相关文章深色模式 */
+body.dark-mode .related-posts-section {
+  background: #242424;
+  border-left-color: #fc6423;
+}
+
+body.dark-mode .related-posts-title {
+  color: #e0e0e0;
+}
+
+body.dark-mode .related-post-card {
+  background: #2d2d2d;
+  border-color: #444;
+}
+
+body.dark-mode .related-post-card:hover {
+  border-color: #fc6423;
+}
+
+body.dark-mode .related-post-title {
+  color: #e0e0e0;
+}
+
+/* 页脚深色模式 */
+body.dark-mode .footer {
+  background: #1a1a1a;
+  border-top-color: #333;
+}
+
+body.dark-mode .footer-inner {
+  color: #999;
+}
+
+/* 深色模式切换按钮 */
+.dark-mode-toggle {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fc6423, #ff8c61);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5em;
+  box-shadow: 0 4px 12px rgba(252, 100, 35, 0.4);
+  transition: all 0.3s ease;
+  z-index: 9999;
+}
+
+.dark-mode-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(252, 100, 35, 0.6);
+}
+
+.dark-mode-toggle i {
+  transition: all 0.3s ease;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .dark-mode-toggle {
+    bottom: 20px;
+    right: 20px;
+    width: 45px;
+    height: 45px;
+    font-size: 1.3em;
+  }
+}

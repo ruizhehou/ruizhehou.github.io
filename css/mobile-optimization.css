@@ -1,0 +1,435 @@
+/* Mobile Optimization CSS */
+
+/* Base Mobile Styles */
+@media (max-width: 768px) {
+  /* Body and Layout */
+  body {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .container {
+    padding: 0 15px;
+    max-width: 100%;
+  }
+
+  /* Header and Navigation */
+  .header-inner {
+    padding: 10px 15px;
+  }
+
+  .site-nav-toggle {
+    display: block;
+    z-index: 999;
+  }
+
+  .site-nav-toggle .toggle .toggle-line {
+    background: #333;
+  }
+
+  body.dark-mode .site-nav-toggle .toggle .toggle-line {
+    background: #e0e0e0;
+  }
+
+  /* Main Content */
+  .main-inner {
+    padding: 15px 0;
+  }
+
+  .posts-expand {
+    margin-top: 0;
+  }
+
+  .post-block {
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+
+  /* Post Content */
+  .post-body {
+    font-size: 15px;
+  }
+
+  .post-body h1, .post-body h2, .post-body h3,
+  .post-body h4, .post-body h5, .post-body h6 {
+    margin-top: 25px;
+    margin-bottom: 15px;
+  }
+
+  .post-body h1 { font-size: 1.8em; }
+  .post-body h2 { font-size: 1.5em; }
+  .post-body h3 { font-size: 1.3em; }
+  .post-body h4 { font-size: 1.1em; }
+
+  /* Code Blocks */
+  .highlight {
+    border-radius: 6px;
+    margin: 15px 0;
+  }
+
+  .highlight code {
+    font-size: 13px;
+  }
+
+  .highlight pre {
+    padding: 15px;
+    overflow-x: auto;
+  }
+
+  /* Tables */
+  table {
+    font-size: 13px;
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table th, table td {
+    padding: 8px 10px;
+  }
+
+  /* Images */
+  img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    display: none;
+  }
+
+  /* Pagination */
+  .pagination {
+    margin: 30px 0;
+  }
+
+  .pagination .prev, .pagination .next,
+  .pagination .page-number {
+    margin: 5px;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  /* Footer */
+  .footer {
+    padding: 20px 15px;
+    font-size: 13px;
+  }
+
+  /* Dark Mode Toggle - Mobile */
+  .dark-mode-toggle {
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+
+  /* Reading Progress Bar */
+  .reading-progress-bar {
+    height: 3px;
+  }
+
+  /* Related Posts */
+  .related-posts-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .related-post-card {
+    padding: 12px;
+  }
+
+  .related-post-title {
+    font-size: 14px;
+  }
+
+  /* About Page */
+  .about-page {
+    padding: 20px 15px;
+  }
+
+  .about-avatar {
+    width: 100px;
+    height: 100px;
+  }
+
+  .skills-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .skill-item {
+    padding: 10px;
+  }
+
+  .skill-name {
+    font-size: 13px;
+  }
+
+  .skill-level {
+    font-size: 11px;
+  }
+
+  /* Projects Page */
+  .projects-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .project-card {
+    padding: 20px;
+  }
+
+  .project-icon {
+    font-size: 30px;
+  }
+
+  .project-title {
+    font-size: 18px;
+  }
+
+  .project-description {
+    font-size: 14px;
+  }
+
+  .project-tech {
+    flex-wrap: wrap;
+  }
+
+  .project-tech span {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  /* Archive and Category Pages */
+  .archive .post-title,
+  .category .post-title {
+    font-size: 16px;
+  }
+
+  .archive .post-meta,
+  .category .post-meta {
+    font-size: 12px;
+  }
+
+  /* Tags Cloud */
+  .tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tag-cloud a {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  /* Comments */
+  .comments {
+    padding: 20px 15px;
+  }
+
+  /* Search */
+  .search-input {
+    padding: 10px 15px;
+    font-size: 14px;
+  }
+
+  /* Back to Top Button */
+  .back-to-top {
+    bottom: 80px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  /* Touch-Friendly Buttons */
+  button, a.button, input[type="button"],
+  input[type="submit"], .btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 10px 20px;
+  }
+
+  /* Form Elements */
+  input, textarea, select {
+    font-size: 16px;
+    padding: 12px;
+  }
+
+  /* Prevent zoom on focus for iOS */
+  input[type="text"], input[type="email"],
+  input[type="password"], input[type="tel"],
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Extra Small Screens */
+@media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+
+  .container {
+    padding: 0 10px;
+  }
+
+  .post-block {
+    padding: 12px;
+  }
+
+  .post-body {
+    font-size: 14px;
+  }
+
+  .post-body h1 { font-size: 1.5em; }
+  .post-body h2 { font-size: 1.3em; }
+  .post-body h3 { font-size: 1.2em; }
+
+  .highlight code {
+    font-size: 12px;
+  }
+
+  .highlight pre {
+    padding: 12px;
+  }
+
+  .skills-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about-avatar {
+    width: 80px;
+    height: 80px;
+  }
+
+  .dark-mode-toggle {
+    bottom: 15px;
+    right: 15px;
+    width: 45px;
+    height: 45px;
+    font-size: 18px;
+  }
+
+  .pagination .prev, .pagination .next,
+  .pagination .page-number {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .footer {
+    padding: 15px 10px;
+  }
+}
+
+/* Landscape Mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .header-inner {
+    padding: 5px 15px;
+  }
+
+  .post-block {
+    padding: 10px;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .sidebar, .dark-mode-toggle, .back-to-top,
+  .site-nav-toggle, .pagination, .reading-progress-bar {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  a {
+    text-decoration: none;
+    color: black !important;
+  }
+
+  .post-body a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+  }
+}
+
+/* High DPI Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .about-avatar, img {
+    image-rendering: -webkit-optimize-contrast;
+  }
+}
+
+/* Dark Mode Mobile Adjustments */
+@media (max-width: 768px) {
+  body.dark-mode .post-block {
+    background: #252525;
+  }
+
+  body.dark-mode .highlight {
+    background: #1e1e1e;
+  }
+
+  body.dark-mode table {
+    background: #252525;
+  }
+
+  body.dark-mode table th {
+    background: #333;
+  }
+
+  body.dark-mode .project-card {
+    background: #252525;
+    border-color: #333;
+  }
+
+  body.dark-mode .skill-item {
+    background: #252525;
+    border-color: #333;
+  }
+
+  body.dark-mode .related-post-card {
+    background: #252525;
+    border-color: #333;
+  }
+}
+
+/* Smooth Scrolling for Mobile */
+@media (max-width: 768px) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Prevent horizontal scroll on mobile */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+/* Better touch feedback */
+@media (max-width: 768px) {
+  a, button, .btn, input[type="button"],
+  input[type="submit"] {
+    -webkit-tap-highlight-color: rgba(252, 100, 35, 0.3);
+    tap-highlight-color: rgba(252, 100, 35, 0.3);
+  }
+
+  a:active, button:active, .btn:active {
+    opacity: 0.7;
+  }
+}

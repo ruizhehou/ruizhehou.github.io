@@ -1,0 +1,188 @@
+/**
+ * 代码块样式优化
+ */
+
+/* 代码块容器 */
+.highlight,
+pre {
+  background: #f6f8fa !important;
+  border-radius: 8px !important;
+  border: 1px solid #e1e4e8 !important;
+  margin: 20px 0 !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 代码块头部 */
+.highlight::before {
+  content: '';
+  display: block;
+  height: 30px;
+  background: linear-gradient(90deg, #fc6423, #ff8c61);
+  margin: -16px -16px 16px -16px;
+  border-radius: 8px 8px 0 0;
+}
+
+/* 代码块主体 */
+.highlight pre,
+pre {
+  margin: 0 !important;
+  padding: 16px !important;
+  font-family: 'FuraCode Nerd Font', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  overflow-x: auto !important;
+}
+
+/* 行号样式 */
+.highlight .gutter {
+  background: #f0f2f5 !important;
+  border-right: 1px solid #e1e4e8 !important;
+  padding-right: 12px !important;
+  color: #959da5 !important;
+  user-select: none !important;
+}
+
+.highlight .code {
+  padding-left: 12px !important;
+}
+
+/* 代码行样式 */
+.highlight .line {
+  min-height: 1.6em !important;
+}
+
+/* 语法高亮颜色优化 */
+.highlight .comment {
+  color: #6a737d !important;
+  font-style: italic !important;
+}
+
+.highlight .keyword {
+  color: #d73a49 !important;
+  font-weight: 600 !important;
+}
+
+.highlight .string {
+  color: #032f62 !important;
+}
+
+.highlight .number {
+  color: #005cc5 !important;
+}
+
+.highlight .function {
+  color: #6f42c1 !important;
+}
+
+.highlight .variable {
+  color: #e36209 !important;
+}
+
+.highlight .type {
+  color: #22863a !important;
+}
+
+.highlight .operator {
+  color: #d73a49 !important;
+}
+
+.highlight .title {
+  color: #6f42c1 !important;
+  font-weight: 600 !important;
+}
+
+.highlight .attribute {
+  color: #6f42c1 !important;
+}
+
+/* 内联代码样式 */
+code {
+  background: #f6f8fa !important;
+  border: 1px solid #e1e4e8 !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  font-family: 'FuraCode Nerd Font', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+  font-size: 0.9em !important;
+  color: #24292e !important;
+}
+
+/* 表格样式优化 */
+table {
+  border-collapse: collapse !important;
+  margin: 20px 0 !important;
+  width: 100% !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+table th,
+table td {
+  padding: 12px 16px !important;
+  border: 1px solid #e1e4e8 !important;
+  text-align: left !important;
+}
+
+table th {
+  background: linear-gradient(90deg, #fc6423, #ff8c61) !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+
+table tr:nth-child(even) {
+  background: #f6f8fa !important;
+}
+
+table tr:hover {
+  background: #fff5f0 !important;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .highlight,
+  pre {
+    border-radius: 6px !important;
+    margin: 15px 0 !important;
+  }
+
+  .highlight pre,
+  pre {
+    padding: 12px !important;
+    font-size: 13px !important;
+  }
+
+  table th,
+  table td {
+    padding: 8px 12px !important;
+    font-size: 14px !important;
+  }
+
+  code {
+    font-size: 0.85em !important;
+  }
+}
+
+/* 滚动条样式优化 */
+.highlight pre::-webkit-scrollbar,
+pre::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.highlight pre::-webkit-scrollbar-track,
+pre::-webkit-scrollbar-track {
+  background: #f0f2f5;
+  border-radius: 4px;
+}
+
+.highlight pre::-webkit-scrollbar-thumb,
+pre::-webkit-scrollbar-thumb {
+  background: #c1c9d2;
+  border-radius: 4px;
+}
+
+.highlight pre::-webkit-scrollbar-thumb:hover,
+pre::-webkit-scrollbar-thumb:hover {
+  background: #a0aab5;
+}
