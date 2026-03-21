@@ -247,3 +247,423 @@ body.dark-mode .footer-inner {
     font-size: 1.3em;
   }
 }
+
+/* 标题层级深色模式 */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+  color: #e0e0e0;
+}
+
+body.dark-mode h1 {
+  border-bottom-color: #333;
+}
+
+body.dark-mode h2 {
+  border-bottom-color: #333;
+}
+
+/* 列表深色模式 */
+body.dark-mode ul,
+body.dark-mode ol {
+  color: #d0d0d0;
+}
+
+body.dark-mode li {
+  color: #d0d0d0;
+}
+
+body.dark-mode li strong {
+  color: #e0e0e0;
+}
+
+/* 引用块深色模式 */
+body.dark-mode blockquote {
+  background: #2d2d2d;
+  border-left-color: #fc6423;
+  color: #d0d0d0;
+}
+
+/* 分隔线深色模式 */
+body.dark-mode hr {
+  border-color: #333;
+}
+
+/* 图片深色模式 */
+body.dark-mode img {
+  opacity: 0.9;
+}
+
+body.dark-mode img:hover {
+  opacity: 1;
+}
+
+/* 侧边栏深色模式 */
+body.dark-mode .sidebar {
+  background: #1a1a1a;
+  border-right-color: #333;
+}
+
+body.dark-mode .sidebar-inner {
+  background: #1a1a1a;
+}
+
+body.dark-mode .sidebar-nav {
+  border-bottom-color: #333;
+}
+
+body.dark-mode .sidebar-nav-toc,
+body.dark-mode .sidebar-nav-overview {
+  color: #999;
+}
+
+body.dark-mode .sidebar-nav-active {
+  color: #fc6423;
+  border-bottom-color: #fc6423;
+}
+
+/* 文章目录深色模式 */
+body.dark-mode .post-toc {
+  color: #d0d0d0;
+}
+
+body.dark-mode .post-toc .nav-link {
+  color: #b0b0b0;
+}
+
+body.dark-mode .post-toc .nav-link:hover {
+  color: #fc6423;
+}
+
+body.dark-mode .post-toc .nav-link.active {
+  color: #fc6423;
+}
+
+body.dark-mode .post-toc .nav-number {
+  color: #666;
+}
+
+body.dark-mode .post-toc .nav-text {
+  color: #d0d0d0;
+}
+
+/* 标签深色模式 */
+body.dark-mode .post-tags a {
+  background: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+body.dark-mode .post-tags a:hover {
+  background: #3d3d3d;
+  border-color: #fc6423;
+}
+
+/* 导航深色模式 */
+body.dark-mode .site-nav {
+  background: #1a1a1a;
+  border-bottom-color: #333;
+}
+
+body.dark-mode .main-menu {
+  background: #1a1a1a;
+}
+
+body.dark-mode .toggle-line {
+  background: #e0e0e0;
+}
+
+/* 搜索弹窗深色模式 */
+body.dark-mode .search-popup {
+  background: #242424;
+  border-color: #333;
+}
+
+body.dark-mode .search-header {
+  background: #2d2d2d;
+  border-bottom-color: #333;
+}
+
+body.dark-mode .search-icon {
+  color: #999;
+}
+
+body.dark-mode .popup-btn-close {
+  color: #999;
+}
+
+body.dark-mode .popup-btn-close:hover {
+  color: #e0e0e0;
+}
+
+body.dark-mode #no-result {
+  color: #999;
+}
+
+/* 文章导航深色模式 */
+body.dark-mode .post-nav-item a {
+  background: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+body.dark-mode .post-nav-item a:hover {
+  background: #3d3d3d;
+  border-color: #fc6423;
+}
+
+body.dark-mode .post-nav-divider {
+  background: #333;
+}
+
+/* 站点概览深色模式 */
+body.dark-mode .site-overview {
+  color: #d0d0d0;
+}
+
+body.dark-mode .site-author-name {
+  color: #e0e0e0;
+}
+
+body.dark-mode .site-description {
+  color: #999;
+}
+
+body.dark-mode .site-state-item {
+  border-color: #333;
+}
+
+body.dark-mode .site-state-item-name {
+  color: #999;
+}
+
+/* 回到顶部深色模式 */
+body.dark-mode .back-to-top {
+  background: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+body.dark-mode .back-to-top:hover {
+  background: #3d3d3d;
+  border-color: #fc6423;
+}
+
+/* 阅读进度条深色模式 */
+body.dark-mode .reading-progress-bar {
+  background: #fc6423;
+}
+
+/* 书签链接深色模式 */
+body.dark-mode .book-mark-link {
+  color: #666;
+}
+
+body.dark-mode .book-mark-link:hover {
+  color: #fc6423;
+}
+
+/* GitHub 角标深色模式 */
+body.dark-mode .github-corner path {
+  fill: #e0e0e0;
+}
+
+/* 内容包装深色模式 */
+body.dark-mode .content-wrap {
+  background: #1a1a1a;
+}
+
+/* 文章标题深色模式 */
+body.dark-mode .post-title-link {
+  color: #e0e0e0;
+}
+
+body.dark-mode .post-title-link:hover {
+  color: #fc6423;
+}
+
+/* 集合标题深色模式 */
+body.dark-mode .collection-header {
+  color: #e0e0e0;
+  border-bottom-color: #333;
+}
+
+/* 文章元信息深色模式 */
+body.dark-mode .post-meta time {
+  color: #999;
+}
+
+/* 集合年份深色模式 */
+body.dark-mode .collection-year {
+  border-bottom-color: #333;
+}
+
+/* 标签云深色模式 */
+body.dark-mode .tag-cloud-title {
+  color: #e0e0e0;
+}
+
+/* 文章卡片深色模式 */
+body.dark-mode .card {
+  background: #242424;
+  border-color: #333;
+}
+
+/* 按钮组深色模式 */
+body.dark-mode .btn-group {
+  border-color: #444;
+}
+
+/* 输入框深色模式 */
+body.dark-mode input[type="text"],
+body.dark-mode input[type="search"],
+body.dark-mode input[type="email"],
+body.dark-mode textarea {
+  background: #2d2d2d;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+body.dark-mode input[type="text"]:focus,
+body.dark-mode input[type="search"]:focus,
+body.dark-mode input[type="email"]:focus,
+body.dark-mode textarea:focus {
+  border-color: #fc6423;
+  outline-color: #fc6423;
+}
+
+/* 下拉菜单深色模式 */
+body.dark-mode .popup-menu {
+  background: #242424;
+  border-color: #333;
+}
+
+/* 滚动条深色模式 */
+body.dark-mode ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 5px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* 选中文本深色模式 */
+body.dark-mode ::selection {
+  background: #fc6423;
+  color: #fff;
+}
+
+/* 强调文本深色模式 */
+body.dark-mode strong {
+  color: #e0e0e0;
+}
+
+body.dark-mode b {
+  color: #e0e0e0;
+}
+
+/* 斜体文本深色模式 */
+body.dark-mode em {
+  color: #d0d0d0;
+}
+
+body.dark-mode i {
+  color: #d0d0d0;
+}
+
+/* 代码块语法高亮深色模式 */
+body.dark-mode .highlight .code .keyword {
+  color: #ff79c6;
+}
+
+body.dark-mode .highlight .code .string {
+  color: #f1fa8c;
+}
+
+body.dark-mode .highlight .code .number {
+  color: #bd93f9;
+}
+
+body.dark-mode .highlight .code .comment {
+  color: #6272a4;
+}
+
+body.dark-mode .highlight .code .function {
+  color: #50fa7b;
+}
+
+body.dark-mode .highlight .code .variable {
+  color: #ffb86c;
+}
+
+/* 代码语言标识深色模式 */
+body.dark-mode .highlight figcaption {
+  background: #1e1e1e;
+  color: #999;
+  border-bottom-color: #333;
+}
+
+/* 代码复制按钮深色模式 */
+body.dark-mode .copy-button {
+  background: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+body.dark-mode .copy-button:hover {
+  background: #3d3d3d;
+  border-color: #fc6423;
+}
+
+/* 文章底部容器深色模式 */
+body.dark-mode .post-footer-container {
+  border-top-color: #333;
+}
+
+/* 文章底部深色模式 */
+body.dark-mode .post-footer {
+  background: #242424;
+}
+
+/* 侧边栏切换深色模式 */
+body.dark-mode .toggle-line {
+  background: #e0e0e0;
+}
+
+/* 侧边栏遮罩深色模式 */
+body.dark-mode #sidebar-dimmer {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* Pace 加载条深色模式 */
+body.dark-mode .pace {
+  pointer-events: none;
+  user-select: none;
+}
+
+body.dark-mode .pace-inactive {
+  display: none;
+}
+
+body.dark-mode .pace-progress {
+  background: #fc6423;
+  position: fixed;
+  z-index: 2000;
+  top: 0;
+  right: 100%;
+  width: 100%;
+  height: 2px;
+}
