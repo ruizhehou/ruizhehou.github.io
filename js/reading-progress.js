@@ -6,7 +6,8 @@
   'use strict';
 
   // 检查是否为文章页面
-  if (!document.body.classList.contains('post-body')) {
+  var postBody = document.querySelector('.post-body');
+  if (!postBody) {
     return;
   }
 

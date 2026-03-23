@@ -170,7 +170,7 @@
           <div class="content page posts-expand">
 
 
-  <div class="post-block" itemscope itemtype="http://schema.org/Article" itemscope>
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
 
 
   <div class="post-header">
@@ -476,27 +476,64 @@ cudaStreamDestroy(stream2);
   <script src="/lib/velocity/velocity.ui.min.js"></script>
   <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
   <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
   <script src="/lib/reading-progress/reading-progress.js"></script>
   <script src="/js/utils.js"></script>
   <script src="/js/motion.js"></script>
   <script src="/js/schemes/pisces.js"></script>
   <script src="/js/next-boot.js"></script>
   <script src="/js/bookmark.js"></script>
-  <script src="/js/pjax.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
   <script src="/js/search/algolia-search.js"></script>
-  <script src="/js/reading-progress.js"></script>
-  <script src="/js/related-posts.js"></script>
-  <script src="/js/dark-mode-toggle.js"></script>
 
   <script src="/js/local-search.js"></script>
 
+  
 
 
 
+  
   <script src="/js/third-party/comments/gitalk.js"></script>
-  <script src="/js/reading-progress.js"></script>
-  <script src="/js/related-posts.js"></script>
-  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+
+  <script>
+  var pjax = new Pjax({
+    selectors: [
+      'head title',
+      '#page-configurations',
+      '.content-wrap',
+      '.post-toc-wrap',
+      '.languages',
+      '#pjax'
+    ],
+    switches: {
+      '.post-toc-wrap': Pjax.switches.innerHTML
+    },
+    analytics: false,
+    cacheBust: false,
+    scrollTo : !CONFIG.bookmark.enable
+  });
+
+  document.addEventListener('pjax:success', function () {
+    if (typeof $.fancybox !== 'undefined') {
+      $('.fancybox-img').fancybox();
+    }
+    if (typeof CONFIG !== 'undefined' && typeof CONFIG.motion !== 'undefined') {
+      CONFIG.motion.enable = true;
+    }
+    if (typeof NexT !== 'undefined' && typeof NexT.motion !== 'undefined') {
+      NexT.motion.integrator.init();
+      NexT.motion.integrator.run();
+    }
+    var sidebarPosition = document.querySelector('.sidebar-inner');
+    if (sidebarPosition) {
+      sidebarPosition.classList.add('motion-element');
+    }
+  });
+  </script>
 
     </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
 </html>
