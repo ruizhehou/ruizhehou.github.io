@@ -327,100 +327,21 @@
 
 
         
-    <div class="post-nav">
-      <div class="post-nav-item">
-    <a href="/2020/07/30/%E5%8C%BA%E9%97%B4%E6%A0%91/" rel="prev" title="区间树">
-      <i class="fa fa-chevron-left"></i> 区间树
-    </a></div>
-      <div class="post-nav-item">
-    <a href="/2020/08/01/leetcode-329-%E7%9F%A9%E9%98%B5%E4%B8%AD%E7%9A%84%E6%9C%80%E9%95%BF%E9%80%92%E5%A2%9E%E8%B7%AF%E5%BE%84/" rel="next" title="leetcode 329.矩阵中的最长递增路径">
-      leetcode 329.矩阵中的最长递增路径 <i class="fa fa-chevron-right"></i>
-    </a></div>
-    </div>
-      </footer>
-    
-  </article>
-  
-  
-  
-
-
-
-          </div>
-          
-    <div class="comments" id="valine-comments"></div>
-
-<script>
-  window.addEventListener('tabs:register', () => {
-    let { activeClass } = CONFIG.comments;
-    if (CONFIG.comments.storage) {
-      activeClass = localStorage.getItem('comments_active') || activeClass;
-    }
-    if (activeClass) {
-      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
-      if (activeTab) {
-        activeTab.click();
-      }
-    }
-  });
-  if (CONFIG.comments.storage) {
-    window.addEventListener('tabs:click', event => {
-      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
-      let commentClass = event.target.classList[1];
-      localStorage.setItem('comments_active', commentClass);
-    });
-  }
-</script>
-
+          <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+            <a href="/2020/08/01/leetcode-329-%E7%9F%A9%E9%98%B5%E4%B8%AD%E7%9A%84%E6%9C%80%E9%95%BF%E9%80%92%E5%A2%9E%E8%B7%AF%E5%BE%84/" rel="next" title="leetcode 329.矩阵中的最长递增路径">
+              leetcode 329.矩阵中的最长递增路径 <i class="fa fa-chevron-right"></i>
+            </a>
         </div>
-          
-  
-  <div class="toggle sidebar-toggle">
-    <span class="toggle-line toggle-line-first"></span>
-    <span class="toggle-line toggle-line-middle"></span>
-    <span class="toggle-line toggle-line-last"></span>
-  </div>
 
-  <aside class="sidebar">
-    <div class="sidebar-inner">
+        <span class="post-nav-divider"></span>
 
-      <ul class="sidebar-nav motion-element">
-        <li class="sidebar-nav-toc">
-          文章目录
-        </li>
-        <li class="sidebar-nav-overview">
-          站点概览
-        </li>
-      </ul>
-
-      <!--noindex-->
-      <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">1.</span> <span class="nav-text">参考</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9E%E9%99%85%E9%97%AE%E9%A2%98%E7%AE%80%E5%8D%95%E8%AE%B0%E6%83%B3%E5%BF%AB%E9%80%9F%E7%9F%A5%E9%81%93%E6%95%B0%E7%BB%84%E7%9A%84%E5%89%8D%E7%BC%80%E5%92%8C%E5%90%8C%E6%97%B6%E6%95%B0%E7%BB%84%E7%9A%84%E4%BF%AE%E6%94%B9%E9%A2%91%E7%B9%81%E7%94%A8%E6%A0%91%E7%8A%B6%E6%95%B0%E7%BB%84%E4%BD%BF%E5%BE%97%E8%BF%99%E4%B8%A4%E7%A7%8D%E6%93%8D%E4%BD%9C%E9%83%BD%E5%8F%98%E6%88%90ologn%E4%B8%A4%E8%BE%B9%E6%9F%A5%E8%AF%A2%E7%9A%84%E6%A0%91%E7%8A%B6%E6%95%B0%E7%BB%84%E5%8F%AF%E4%BB%A5%E7%9B%B8%E5%BD%93%E4%BA%8E%E7%BA%BF%E6%AE%B5%E6%A0%91%E7%9A%84%E5%8A%9F%E8%83%BD"><span class="nav-number">2.</span> <span class="nav-text">实际问题（简单记，想快速知道数组的前缀和，同时数组的修改频繁，用树状数组，使得这两种操作都变成O(logn)，两边查询的树状数组可以相当于线段树的功能）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B8%E5%9E%8B%E9%A2%98%E7%9B%AE"><span class="nav-number">3.</span> <span class="nav-text">典型题目</span></a></li></ol></div>
-      </div>
-      <!--/noindex-->
-
-      <div class="site-overview-wrap sidebar-panel">
-        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
-    <img class="site-author-image" itemprop="image" alt="侯瑞哲"
-      src="/images/avatar.jpg">
-  <p class="site-author-name" itemprop="name">侯瑞哲</p>
-  <div class="site-description" itemprop="description">记录我的工作与生活，分享一些想法</div>
-</div>
-<div class="site-state-wrap motion-element">
-  <nav class="site-state">
-      <div class="site-state-item site-state-posts">
-          <a href="/archives/">
-        
-          <span class="site-state-item-count">143</span>
-          <span class="site-state-item-name">日志</span>
-        </a>
-      </div>
-      <div class="site-state-item site-state-tags">
-            <a href="/tags/">
-        <span class="site-state-item-count">22</span>
-        <span class="site-state-item-name">标签</span></a>
-      </div>
-  </nav>
+        <div class="post-nav-prev post-nav-item">
+            <a href="/2020/07/30/%E5%8C%BA%E9%97%B4%E6%A0%91/" rel="prev" title="区间树">
+              <i class="fa fa-chevron-left"></i> 区间树
+            </a>
+        </div>
+      </nav>
 </div>
 
 

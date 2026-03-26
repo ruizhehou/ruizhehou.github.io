@@ -333,100 +333,21 @@
 
 
         
-    <div class="post-nav">
-      <div class="post-nav-item">
-    <a href="/2020/09/01/%E4%BB%8E%E7%BD%91%E7%BB%9C%E5%8E%9F%E7%90%86%E6%9D%A5%E7%9C%8BSSL%E5%AE%89%E5%85%A8%E5%8D%8F%E8%AE%AE/" rel="prev" title="从网络原理来看SSL安全协议">
-      <i class="fa fa-chevron-left"></i> 从网络原理来看SSL安全协议
-    </a></div>
-      <div class="post-nav-item">
-    <a href="/2020/09/01/%E6%B1%9F%E6%B9%96%E5%86%8D%E8%A7%81/" rel="next" title="江湖再见">
-      江湖再见 <i class="fa fa-chevron-right"></i>
-    </a></div>
-    </div>
-      </footer>
-    
-  </article>
-  
-  
-  
-
-
-
-          </div>
-          
-    <div class="comments" id="valine-comments"></div>
-
-<script>
-  window.addEventListener('tabs:register', () => {
-    let { activeClass } = CONFIG.comments;
-    if (CONFIG.comments.storage) {
-      activeClass = localStorage.getItem('comments_active') || activeClass;
-    }
-    if (activeClass) {
-      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
-      if (activeTab) {
-        activeTab.click();
-      }
-    }
-  });
-  if (CONFIG.comments.storage) {
-    window.addEventListener('tabs:click', event => {
-      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
-      let commentClass = event.target.classList[1];
-      localStorage.setItem('comments_active', commentClass);
-    });
-  }
-</script>
-
+          <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+            <a href="/2020/09/01/%E6%B1%9F%E6%B9%96%E5%86%8D%E8%A7%81/" rel="next" title="江湖再见">
+              江湖再见 <i class="fa fa-chevron-right"></i>
+            </a>
         </div>
-          
-  
-  <div class="toggle sidebar-toggle">
-    <span class="toggle-line toggle-line-first"></span>
-    <span class="toggle-line toggle-line-middle"></span>
-    <span class="toggle-line toggle-line-last"></span>
-  </div>
 
-  <aside class="sidebar">
-    <div class="sidebar-inner">
+        <span class="post-nav-divider"></span>
 
-      <ul class="sidebar-nav motion-element">
-        <li class="sidebar-nav-toc">
-          文章目录
-        </li>
-        <li class="sidebar-nav-overview">
-          站点概览
-        </li>
-      </ul>
-
-      <!--noindex-->
-      <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#mysql%E4%B8%AD%E5%B0%BD%E9%87%8F%E4%BD%BF%E7%94%A8%E6%99%AE%E9%80%9A%E7%B4%A2%E5%BC%95%E5%87%8F%E5%B0%91%E4%BD%BF%E7%94%A8%E5%94%AF%E4%B8%80%E7%B4%A2%E5%BC%95"><span class="nav-number">1.</span> <span class="nav-text">MySQL中尽量使用普通索引，减少使用唯一索引</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9F%A5%E8%AF%A2%E8%BF%87%E7%A8%8B"><span class="nav-number">1.1.</span> <span class="nav-text">查询过程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9B%B4%E6%96%B0%E8%BF%87%E7%A8%8B"><span class="nav-number">1.2.</span> <span class="nav-text">更新过程</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#change-buffer"><span class="nav-number">1.2.1.</span> <span class="nav-text">change buffer</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#change-buffer%E7%9A%84%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-number">1.2.2.</span> <span class="nav-text">change buffer的使用场景</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B4%A2%E5%BC%95%E8%AF%A5%E5%A6%82%E4%BD%95%E9%80%89%E6%8B%A9%E5%92%8C%E5%AE%9E%E8%B7%B5%E5%91%A2"><span class="nav-number">2.</span> <span class="nav-text">索引该如何选择和实践呢？</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#change-buffer%E5%92%8Credo-log"><span class="nav-number">2.1.</span> <span class="nav-text">change buffer和redo log</span></a></li></ol></li></ol></div>
-      </div>
-      <!--/noindex-->
-
-      <div class="site-overview-wrap sidebar-panel">
-        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
-    <img class="site-author-image" itemprop="image" alt="侯瑞哲"
-      src="/images/avatar.jpg">
-  <p class="site-author-name" itemprop="name">侯瑞哲</p>
-  <div class="site-description" itemprop="description">记录我的工作与生活，分享一些想法</div>
-</div>
-<div class="site-state-wrap motion-element">
-  <nav class="site-state">
-      <div class="site-state-item site-state-posts">
-          <a href="/archives/">
-        
-          <span class="site-state-item-count">143</span>
-          <span class="site-state-item-name">日志</span>
-        </a>
-      </div>
-      <div class="site-state-item site-state-tags">
-            <a href="/tags/">
-        <span class="site-state-item-count">22</span>
-        <span class="site-state-item-name">标签</span></a>
-      </div>
-  </nav>
+        <div class="post-nav-prev post-nav-item">
+            <a href="/2020/09/01/%E4%BB%8E%E7%BD%91%E7%BB%9C%E5%8E%9F%E7%90%86%E6%9D%A5%E7%9C%8BSSL%E5%AE%89%E5%85%A8%E5%8D%8F%E8%AE%AE/" rel="prev" title="从网络原理来看SSL安全协议">
+              <i class="fa fa-chevron-left"></i> 从网络原理来看SSL安全协议
+            </a>
+        </div>
+      </nav>
 </div>
 
 
