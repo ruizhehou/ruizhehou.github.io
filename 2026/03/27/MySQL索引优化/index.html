@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="索引是数据库优化中最重要的一环。本文将深入探讨 MySQL 索引的原理、类型、失效场景以及优化技巧，帮助你构建高效的数据库查询。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MySQL 索引优化">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/27/MySQL索引优化/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="索引是数据库优化中最重要的一环。本文将深入探讨 MySQL 索引的原理、类型、失效场景以及优化技巧，帮助你构建高效的数据库查询。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-27T00:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-27T00:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="MySQL">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="索引优化">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/27/MySQL索引优化/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MySQL 索引优化 | 侯瑞哲的博客</title>
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-03-27T00:00:00+08:00" content="2026-03-27">
+      03-27
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      MySQL 索引优化
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+    <p>索引是数据库优化中最重要的一环。本文将深入探讨 MySQL 索引的原理、类型、失效场景以及优化技巧，帮助你构建高效的数据库查询。</p>
+<h2 id="索引基础">索引基础</h2>
+<h3 id="什么是索引">什么是索引</h3>
+<p>索引是帮助 MySQL 高效获取数据的数据结构。就像书的目录一样，通过索引可以快速定位到数据的位置，而不需要扫描整张表。</p>
+<p><strong>索引的优势：</strong></p>
+<ul>
+<li>大大减少服务器需要扫描的数据量</li>
+<li>帮助服务器避免排序和临时表</li>
+<li>将随机 I/O 变为顺序 I/O</li>
+</ul>
+<p><strong>索引的代价：</strong></p>
+<ul>
+<li>占用额外的存储空间</li>
+<li>降低写入性能（INSERT、UPDATE、DELETE）</li>
+<li>需要维护索引结构</li>
+</ul>
+<h3 id="B-树索引原理">B+树索引原理</h3>
+<p>MySQL InnoDB 引擎使用 B+树作为索引结构。B+树具有以下特点：</p>
+<ul>
+<li><strong>多路平衡查找树</strong>：每个节点可以有多个子节点</li>
+<li><strong>所有数据存储在叶子节点</strong>：非叶子节点只存储索引值</li>
+<li><strong>叶子节点通过链表连接</strong>：支持范围查询</li>
+<li><strong>高度低</strong>：一般 3-4 层即可支持千万级数据</li>
+</ul>
+<p><strong>B+树查找过程：</strong></p>
+<ol>
+<li>从根节点开始，二分查找目标值</li>
+<li>根据比较结果，进入相应的子节点</li>
+<li>重复步骤 1-2，直到到达叶子节点</li>
+<li>在叶子节点中查找目标数据</li>
+</ol>
+<h2 id="索引类型">索引类型</h2>
+<h3 id="主键索引-Primary-Key">主键索引（Primary Key）</h3>
+<p>主键索引是特殊的唯一索引，不允许有空值。InnoDB 中主键索引是聚簇索引。</p>
+<pre><code class="language-sql">-- 创建表时指定主键
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100),
+    email VARCHAR(100)
+);
+
+-- 为已有表添加主键
+ALTER TABLE users ADD PRIMARY KEY (id);
+</code></pre>
+<h3 id="唯一索引-Unique-Index">唯一索引（Unique Index）</h3>
+<p>唯一索引保证索引列的值唯一，但允许有空值（可以有多个空值）。</p>
+<pre><code class="language-sql">-- 创建唯一索引
+CREATE UNIQUE INDEX idx_email ON users(email);
+
+-- 创建表时指定唯一索引
+CREATE TABLE users (
+    id INT PRIMARY KEY,
+    email VARCHAR(100) UNIQUE
+);
+</code></pre>
+<h3 id="普通索引-Normal-Index">普通索引（Normal Index）</h3>
+<p>最基本的索引类型，没有任何限制。</p>
+<pre><code class="language-sql">-- 创建普通索引
+CREATE INDEX idx_name ON users(name);
+
+-- 创建表时指定索引
+CREATE TABLE users (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    INDEX idx_name (name)
+);
+</code></pre>
+<h3 id="联合索引-Composite-Index">联合索引（Composite Index）</h3>
+<p>联合索引是在多个列上创建的索引，遵循<strong>最左前缀原则</strong>。</p>
+<pre><code class="language-sql">-- 创建联合索引
+CREATE INDEX idx_name_age ON users(name, age);
+
+-- 以下查询可以使用索引
+SELECT * FROM users WHERE name = '张三';
+SELECT * FROM users WHERE name = '张三' AND age = 25;
+
+-- 以下查询无法使用索引
+SELECT * FROM users WHERE age = 25;  -- 违反最左前缀原则
+</code></pre>
+<p><strong>最左前缀原则：</strong></p>
+<ul>
+<li>联合索引 (a, b, c) 可以支持：a、ab、abc 的查询</li>
+<li>不支持：b、c、bc、ac 等查询</li>
+<li>支持范围查询，但范围查询后的列无法使用索引</li>
+</ul>
+<h3 id="全文索引-Fulltext-Index">全文索引（Fulltext Index）</h3>
+<p>全文索引用于全文搜索，支持对文本内容进行高效的搜索。</p>
+<pre><code class="language-sql">-- 创建全文索引
+CREATE FULLTEXT INDEX idx_content ON articles(content);
+
+-- 使用全文搜索
+SELECT * FROM articles WHERE MATCH(content) AGAINST('MySQL 索引');
+</code></pre>
+<h2 id="聚簇索引与非聚簇索引">聚簇索引与非聚簇索引</h2>
+<h3 id="聚簇索引-Clustered-Index">聚簇索引（Clustered Index）</h3>
+<p>聚簇索引的索引结构和数据存储在一起。InnoDB 中，主键索引就是聚簇索引。</p>
+<p><strong>特点：</strong></p>
+<ul>
+<li>一张表只能有一个聚簇索引</li>
+<li>数据按照索引顺序物理存储</li>
+<li>主键查询效率最高</li>
+<li>插入速度依赖于主键顺序</li>
+</ul>
+<h3 id="非聚簇索引-Secondary-Index">非聚簇索引（Secondary Index）</h3>
+<p>非聚簇索引的索引结构和数据分开存储。InnoDB 中，除主键外的所有索引都是非聚簇索引。</p>
+<p><strong>特点：</strong></p>
+<ul>
+<li>一张表可以有多个非聚簇索引</li>
+<li>索引节点存储的是主键值</li>
+<li>查询需要<strong>回表</strong>：先查索引，再通过主键查数据</li>
+</ul>
+<pre><code class="language-sql">-- 假设有以下表结构
+CREATE TABLE users (
+    id INT PRIMARY KEY,        -- 聚簇索引
+    name VARCHAR(100),
+    email VARCHAR(100),
+    INDEX idx_name (name)      -- 非聚簇索引
+);
+
+-- 查询过程
+SELECT * FROM users WHERE name = '张三';
+-- 1. 通过 idx_name 找到 id
+-- 2. 通过 id 回表查询完整数据（回表）
+</code></pre>
+<h2 id="覆盖索引">覆盖索引</h2>
+<p>覆盖索引是指查询的列都包含在索引中，不需要回表查询数据。</p>
+<pre><code class="language-sql">-- 假设有联合索引 idx_name_age (name, age)
+
+-- 覆盖索引查询（不需要回表）
+SELECT name, age FROM users WHERE name = '张三';
+
+-- 非覆盖索引查询（需要回表）
+SELECT * FROM users WHERE name = '张三';
+</code></pre>
+<p><strong>覆盖索引的优势：</strong></p>
+<ul>
+<li>避免回表操作，提高查询效率</li>
+<li>减少 I/O 操作</li>
+<li>可以利用索引的有序性避免排序</li>
+</ul>
+<h2 id="索引失效场景">索引失效场景</h2>
+<h3 id="1-使用函数或表达式">1. 使用函数或表达式</h3>
+<pre><code class="language-sql">-- 索引失效
+SELECT * FROM users WHERE YEAR(create_time) = 2024;
+
+-- 优化后
+SELECT * FROM users WHERE create_time BETWEEN '2024-01-01' AND '2024-12-31';
+</code></pre>
+<h3 id="2-隐式类型转换">2. 隐式类型转换</h3>
+<pre><code class="language-sql">-- 假设 phone 是 VARCHAR 类型
+-- 索引失效（隐式类型转换）
+SELECT * FROM users WHERE phone = 123456;
+
+-- 优化后
+SELECT * FROM users WHERE phone = '123456';
+</code></pre>
+<h3 id="3-使用-OR-连接条件">3. 使用 OR 连接条件</h3>
+<pre><code class="language-sql">-- 索引失效
+SELECT * FROM users WHERE name = '张三' OR age = 25;
+
+-- 优化后（使用 UNION）
+SELECT * FROM users WHERE name = '张三'
+UNION
+SELECT * FROM users WHERE age = 25;
+</code></pre>
+<h3 id="4-LIKE-以通配符开头">4. LIKE 以通配符开头</h3>
+<pre><code class="language-sql">-- 索引失效
+SELECT * FROM users WHERE name LIKE '%张%';
+
+-- 部分失效（只有前缀可以使用索引）
+SELECT * FROM users WHERE name LIKE '张%';
+
+-- 优化方案：使用覆盖索引或全文索引
+SELECT id, name FROM users WHERE name LIKE '%张%';
+</code></pre>
+<h3 id="5-使用-NOT-、-、-、-">5. 使用 NOT、!=、&lt;&gt;</h3>
+<pre><code class="language-sql">-- 索引失效
+SELECT * FROM users WHERE status != 1;
+
+-- 优化后
+SELECT * FROM users WHERE status IN (0, 2, 3);
+</code></pre>
+<h3 id="6-违反最左前缀原则">6. 违反最左前缀原则</h3>
+<pre><code class="language-sql">-- 联合索引 idx_name_age_email (name, age, email)
+
+-- 索引失效
+SELECT * FROM users WHERE age = 25;
+SELECT * FROM users WHERE email = 'test@example.com';
+
+-- 索引有效
+SELECT * FROM users WHERE name = '张三';
+SELECT * FROM users WHERE name = '张三' AND age = 25;
+SELECT * FROM users WHERE name = '张三' AND age = 25 AND email = 'test@example.com';
+</code></pre>
+<h3 id="7-范围查询后的列">7. 范围查询后的列</h3>
+<pre><code class="language-sql">-- 联合索引 idx_name_age (name, age)
+
+-- 只有 name 使用索引，age 范围查询后的列无法使用索引
+SELECT * FROM users WHERE name = '张三' AND age > 20 AND age < 30;
+</code></pre>
+<h2 id="Explain-分析">Explain 分析</h2>
+<p>使用 EXPLAIN 命令可以分析 SQL 语句的执行计划，了解索引的使用情况。</p>
+<pre><code class="language-sql">EXPLAIN SELECT * FROM users WHERE name = '张三';
+</code></pre>
+<p><strong>关键列说明：</strong></p>
+<table>
+<thead>
+<tr>
+<th>列名</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td>查询的标识符</td>
+</tr>
+<tr>
+<td>select_type</td>
+<td>查询类型（SIMPLE、PRIMARY、SUBQUERY 等）</td>
+</tr>
+<tr>
+<td>table</td>
+<td>访问的表</td>
+</tr>
+<tr>
+<td>type</td>
+<td>访问类型（ALL、index、range、ref、eq_ref、const）</td>
+</tr>
+<tr>
+<td>possible_keys</td>
+<td>可能使用的索引</td>
+</tr>
+<tr>
+<td>key</td>
+<td>实际使用的索引</td>
+</tr>
+<tr>
+<td>key_len</td>
+<td>使用的索引长度</td>
+</tr>
+<tr>
+<td>rows</td>
+<td>预估扫描的行数</td>
+</tr>
+<tr>
+<td>Extra</td>
+<td>额外信息（Using index、Using filesort、Using temporary）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>type 列（从好到坏）：</strong></p>
+<ul>
+<li><strong>const</strong>：主键或唯一索引查询，最多返回一行</li>
+<li><strong>eq_ref</strong>：唯一索引扫描，对于每个索引键，表中只有一条记录匹配</li>
+<li><strong>ref</strong>：非唯一索引扫描，返回匹配某个单独值的所有行</li>
+<li><strong>range</strong>：索引范围扫描</li>
+<li><strong>index</strong>：索引全扫描</li>
+<li><strong>ALL</strong>：全表扫描（最差）</li>
+</ul>
+<p><strong>Extra 列：</strong></p>
+<ul>
+<li><strong>Using index</strong>：使用覆盖索引（好）</li>
+<li><strong>Using filesort</strong>：需要额外排序（坏）</li>
+<li><strong>Using temporary</strong>：使用临时表（坏）</li>
+<li><strong>Using where</strong>：使用 WHERE 过滤</li>
+</ul>
+<h2 id="索引优化技巧">索引优化技巧</h2>
+<h3 id="1-选择合适的索引列">1. 选择合适的索引列</h3>
+<ul>
+<li><strong>区分度高的列</strong>：选择区分度高的列作为索引（如手机号、身份证）</li>
+<li><strong>频繁查询的列</strong>：在 WHERE、ORDER BY、GROUP BY 中频繁使用的列</li>
+<li><strong>避免过多索引</strong>：索引不是越多越好，一般 3-5 个即可</li>
+</ul>
+<pre><code class="language-sql">-- 计算列的区分度
+SELECT COUNT(DISTINCT column_name) / COUNT(*) FROM table_name;
+-- 区分度越接近 1，越适合作为索引
+</code></pre>
+<h3 id="2-优化联合索引的顺序">2. 优化联合索引的顺序</h3>
+<ul>
+<li>将区分度高的列放在前面</li>
+<li>将经常单独查询的列放在前面</li>
+<li>考虑查询的频率和模式</li>
+</ul>
+<pre><code class="language-sql">-- 假设 name 区分度为 0.9，age 区分度为 0.3
+-- 创建联合索引时，name 应该放在前面
+CREATE INDEX idx_name_age ON users(name, age);
+</code></pre>
+<h3 id="3-使用覆盖索引">3. 使用覆盖索引</h3>
+<pre><code class="language-sql">-- 原始查询（需要回表）
+SELECT * FROM orders WHERE user_id = 100;
+
+-- 优化后（只查询需要的列）
+SELECT id, user_id, amount FROM orders WHERE user_id = 100;
+
+-- 创建覆盖索引
+CREATE INDEX idx_user_id_amount ON orders(user_id, amount);
+</code></pre>
+<h3 id="4-避免-SELECT-">4. 避免 SELECT *</h3>
+<pre><code class="language-sql">-- 避免
+SELECT * FROM users WHERE name = '张三';
+
+-- 推荐
+SELECT id, name, email FROM users WHERE name = '张三';
+</code></pre>
+<h3 id="5-优化-LIKE-查询">5. 优化 LIKE 查询</h3>
+<pre><code class="language-sql">-- 避免
+SELECT * FROM users WHERE name LIKE '%张%';
+
+-- 优化方案 1：使用覆盖索引
+SELECT id, name FROM users WHERE name LIKE '%张%';
+
+-- 优化方案 2：使用全文索引
+CREATE FULLTEXT INDEX idx_name ON users(name);
+SELECT * FROM users WHERE MATCH(name) AGAINST('张');
+</code></pre>
+<h3 id="6-优化排序">6. 优化排序</h3>
+<pre><code class="language-sql">-- 避免 filesort
+SELECT * FROM users ORDER BY age;
+
+-- 优化：创建索引
+CREATE INDEX idx_age ON users(age);
+
+-- 联合索引优化排序
+CREATE INDEX idx_name_age ON users(name, age);
+SELECT * FROM users WHERE name = '张三' ORDER BY age;
+</code></pre>
+<h3 id="7-使用索引提示">7. 使用索引提示</h3>
+<pre><code class="language-sql">-- 强制使用某个索引
+SELECT * FROM users USE INDEX(idx_name) WHERE name = '张三';
+
+-- 忽略某个索引
+SELECT * FROM users IGNORE INDEX(idx_age) WHERE name = '张三' AND age > 20;
+</code></pre>
+<h2 id="索引维护">索引维护</h2>
+<h3 id="索引碎片整理">索引碎片整理</h3>
+<p>随着数据的增删改，索引会产生碎片，影响查询性能。</p>
+<pre><code class="language-sql">-- 查看索引碎片
+SELECT
+    table_name,
+    index_name,
+    ROUND(data_length / 1024 / 1024, 2) AS data_mb,
+    ROUND(index_length / 1024 / 1024, 2) AS index_mb,
+    ROUND(data_free / 1024 / 1024, 2) AS data_free_mb
+FROM information_schema.tables
+WHERE table_schema = 'your_database';
+
+-- 重建表（整理碎片）
+ALTER TABLE users ENGINE=InnoDB;
+
+-- 优化表
+OPTIMIZE TABLE users;
+</code></pre>
+<h3 id="删除无用索引">删除无用索引</h3>
+<pre><code class="language-sql">-- 查看未使用的索引
+SELECT
+    object_schema,
+    object_name,
+    index_name
+FROM performance_schema.table_io_waits_summary_by_index_usage
+WHERE index_name IS NOT NULL
+AND count_star = 0
+AND object_schema = 'your_database';
+
+-- 删除索引
+DROP INDEX idx_unused ON users;
+</code></pre>
+<h2 id="实战案例">实战案例</h2>
+<h3 id="案例1：优化慢查询">案例1：优化慢查询</h3>
+<pre><code class="language-sql">-- 原始慢查询（执行时间 2.5s）
+SELECT * FROM orders
+WHERE user_id = 100
+AND status = 1
+AND create_time > '2024-01-01'
+ORDER BY create_time DESC
+LIMIT 20;
+
+-- Explain 分析
+-- type: ALL（全表扫描）
+-- Extra: Using filesort, Using where
+
+-- 优化方案：创建联合索引
+CREATE INDEX idx_user_status_time ON orders(user_id, status, create_time);
+
+-- 优化后查询（执行时间 0.05s）
+SELECT * FROM orders
+WHERE user_id = 100
+AND status = 1
+AND create_time > '2024-01-01'
+ORDER BY create_time DESC
+LIMIT 20;
+
+-- Explain 分析
+-- type: range
+-- key: idx_user_status_time
+-- Extra: Using where; Using index
+</code></pre>
+<h3 id="案例2：优化分页查询">案例2：优化分页查询</h3>
+<pre><code class="language-sql">-- 原始分页查询（深度分页很慢）
+SELECT * FROM articles
+ORDER BY create_time DESC
+LIMIT 100000, 10;
+
+-- 优化方案 1：使用覆盖索引
+SELECT id FROM articles
+ORDER BY create_time DESC
+LIMIT 100000, 10;
+
+SELECT * FROM articles
+WHERE id IN (SELECT id FROM articles ORDER BY create_time DESC LIMIT 100000, 10);
+
+-- 优化方案 2：使用游标分页（推荐）
+SELECT * FROM articles
+WHERE create_time < '2024-03-20 10:00:00'
+ORDER BY create_time DESC
+LIMIT 10;
+</code></pre>
+<h3 id="案例3：优化-JOIN-查询">案例3：优化 JOIN 查询</h3>
+<pre><code class="language-sql">-- 原始 JOIN 查询
+SELECT *
+FROM orders o
+LEFT JOIN users u ON o.user_id = u.id
+WHERE o.status = 1;
+
+-- 优化：确保 JOIN 字段有索引
+CREATE INDEX idx_user_id ON orders(user_id);
+CREATE INDEX idx_id ON users(id);
+
+-- 进一步优化：只查询需要的列
+SELECT o.id, o.amount, o.create_time, u.name, u.email
+FROM orders o
+LEFT JOIN users u ON o.user_id = u.id
+WHERE o.status = 1;
+</code></pre>
+<h2 id="最佳实践">最佳实践</h2>
+<ul>
+<li><strong>不要过度索引</strong>：索引越多，写入性能越差</li>
+<li><strong>定期分析慢查询</strong>：使用 slow_query_log 找出需要优化的查询</li>
+<li><strong>监控索引使用情况</strong>：定期检查未使用的索引并删除</li>
+<li><strong>考虑数据量</strong>：小表不需要索引，大表必须要有索引</li>
+<li><strong>使用 EXPLAIN</strong>：在上线前用 EXPLAIN 分析执行计划</li>
+<li><strong>选择合适的主键</strong>：使用自增 ID 或 UUID，避免频繁更新主键</li>
+<li><strong>定期维护</strong>：定期执行 OPTIMIZE TABLE 整理碎片</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>MySQL 索引优化是一个持续的过程，需要结合实际业务场景和数据特点来制定优化策略。本文介绍了索引的基本原理、类型、失效场景以及优化技巧，希望能够帮助你更好地理解和应用 MySQL 索引。</p>
+<p><strong>记住：</strong></p>
+<ul>
+<li>索引不是万能的，需要权衡读写性能</li>
+<li>使用 EXPLAIN 分析执行计划是优化的基础</li>
+<li>覆盖索引是提升查询性能的有效手段</li>
+<li>定期维护索引，删除无用索引</li>
+</ul>
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/MySQL/" rel="tag"><i class="fa fa-tag"></i> MySQL</a>
+          <a href="/tags/数据库/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/索引优化/" rel="tag"><i class="fa fa-tag"></i> 索引优化</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+            <a href="/2026/03/22/GPU并行计算原理/" rel="next" title="GPU 并行计算原理">
+              GPU 并行计算原理 <i class="fa fa-chevron-right"></i>
+            </a>
+        </div>
+
+        <span class="post-nav-divider"></span>
+
+        <div class="post-nav-prev post-nav-item">
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#索引基础"><span class="nav-number">1.</span> <span class="nav-text">索引基础</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#什么是索引"><span class="nav-number">1.1.</span> <span class="nav-text">什么是索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#B-树索引原理"><span class="nav-number">1.2.</span> <span class="nav-text">B+树索引原理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#索引类型"><span class="nav-number">2.</span> <span class="nav-text">索引类型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#主键索引-Primary-Key"><span class="nav-number">2.1.</span> <span class="nav-text">主键索引（Primary Key）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#唯一索引-Unique-Index"><span class="nav-number">2.2.</span> <span class="nav-text">唯一索引（Unique Index）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#普通索引-Normal-Index"><span class="nav-number">2.3.</span> <span class="nav-text">普通索引（Normal Index）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#联合索引-Composite-Index"><span class="nav-number">2.4.</span> <span class="nav-text">联合索引（Composite Index）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#全文索引-Fulltext-Index"><span class="nav-number">2.5.</span> <span class="nav-text">全文索引（Fulltext Index）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#聚簇索引与非聚簇索引"><span class="nav-number">3.</span> <span class="nav-text">聚簇索引与非聚簇索引</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#聚簇索引-Clustered-Index"><span class="nav-number">3.1.</span> <span class="nav-text">聚簇索引（Clustered Index）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#非聚簇索引-Secondary-Index"><span class="nav-number">3.2.</span> <span class="nav-text">非聚簇索引（Secondary Index）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#覆盖索引"><span class="nav-number">4.</span> <span class="nav-text">覆盖索引</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#索引失效场景"><span class="nav-number">5.</span> <span class="nav-text">索引失效场景</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-使用函数或表达式"><span class="nav-number">5.1.</span> <span class="nav-text">1. 使用函数或表达式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-隐式类型转换"><span class="nav-number">5.2.</span> <span class="nav-text">2. 隐式类型转换</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-使用-OR-连接条件"><span class="nav-number">5.3.</span> <span class="nav-text">3. 使用 OR 连接条件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-LIKE-以通配符开头"><span class="nav-number">5.4.</span> <span class="nav-text">4. LIKE 以通配符开头</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-使用-NOT-、-、-、-"><span class="nav-number">5.5.</span> <span class="nav-text">5. 使用 NOT、!=、&lt;&gt;</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-违反最左前缀原则"><span class="nav-number">5.6.</span> <span class="nav-text">6. 违反最左前缀原则</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-范围查询后的列"><span class="nav-number">5.7.</span> <span class="nav-text">7. 范围查询后的列</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Explain-分析"><span class="nav-number">6.</span> <span class="nav-text">Explain 分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#索引优化技巧"><span class="nav-number">7.</span> <span class="nav-text">索引优化技巧</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-选择合适的索引列"><span class="nav-number">7.1.</span> <span class="nav-text">1. 选择合适的索引列</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-优化联合索引的顺序"><span class="nav-number">7.2.</span> <span class="nav-text">2. 优化联合索引的顺序</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-使用覆盖索引"><span class="nav-number">7.3.</span> <span class="nav-text">3. 使用覆盖索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-避免-SELECT-"><span class="nav-number">7.4.</span> <span class="nav-text">4. 避免 SELECT *</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-优化-LIKE-查询"><span class="nav-number">7.5.</span> <span class="nav-text">5. 优化 LIKE 查询</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-优化排序"><span class="nav-number">7.6.</span> <span class="nav-text">6. 优化排序</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-使用索引提示"><span class="nav-number">7.7.</span> <span class="nav-text">7. 使用索引提示</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#索引维护"><span class="nav-number">8.</span> <span class="nav-text">索引维护</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#索引碎片整理"><span class="nav-number">8.1.</span> <span class="nav-text">索引碎片整理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#删除无用索引"><span class="nav-number">8.2.</span> <span class="nav-text">删除无用索引</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实战案例"><span class="nav-number">9.</span> <span class="nav-text">实战案例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#案例1：优化慢查询"><span class="nav-number">9.1.</span> <span class="nav-text">案例1：优化慢查询</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#案例2：优化分页查询"><span class="nav-number">9.2.</span> <span class="nav-text">案例2：优化分页查询</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#案例3：优化-JOIN-查询"><span class="nav-number">9.3.</span> <span class="nav-text">案例3：优化 JOIN 查询</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#最佳实践"><span class="nav-number">10.</span> <span class="nav-text">最佳实践</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">149</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">37</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+
+
+
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/03/27/MySQL索引优化/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
