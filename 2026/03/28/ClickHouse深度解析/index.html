@@ -1,56 +1,387 @@
----
-title: ClickHouse深度解析
-date: 2026-03-28 16:00:00
-tags:
-  - ClickHouse
-  - OLAP
-  - 列式数据库
-categories:
-  - 技术教程
----
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+  <meta name="theme-color" content="#222">
 
-# ClickHouse深度解析
+  <link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/fancybox/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+  <script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":true},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ClickHouse是一个面向列的OLAP（在线分析处理）数据库管理系统，由Yandex开源。它以高性能、低延迟、高压缩比著称，是实时数据分析领域的明星产品。">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="ClickHouse深度解析">
+  <meta property="og:url" content="https://ruizhehou.github.io/2026/03/28/ClickHouse深度解析/">
+  <meta property="og:site_name" content="Ruizhe's Blog">
+  <meta property="og:description" content="ClickHouse是一个面向列的OLAP（在线分析处理）数据库管理系统，由Yandex开源。它以高性能、低延迟、高压缩比著称，是实时数据分析领域的明星产品。">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="article:published_time" content="2026-03-28T16:00:00+08:00">
+  <meta property="article:modified_time" content="2026-03-28T16:00:00+08:00">
+  <meta property="article:author" content="Ruizhe Hou">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ClickHouse深度解析">
+  <meta name="twitter:description" content="ClickHouse是一个面向列的OLAP（在线分析处理）数据库管理系统，由Yandex开源。它以高性能、低延迟、高压缩比著称，是实时数据分析领域的明星产品。">
 
-## 一、ClickHouse概述
+  <link rel="canonical" href="https://ruizhehou.github.io/2026/03/28/ClickHouse深度解析/">
 
-ClickHouse是一个面向列的OLAP（在线分析处理）数据库管理系统，由Yandex开源。它以高性能、低延迟、高压缩比著称，是实时数据分析领域的明星产品。
 
-### 1.1 ClickHouse的核心特性
+  <script id="page-configurations">
+    CONFIG.page = {
+      sidebar: "",
+      isHome : false,
+      isPost : true,
+      lang   : 'zh-CN'
+    };
+  </script>
 
-- **高性能**：单表查询可达数十亿行/秒
-- **列式存储**：适合OLAP场景
-- **高压缩比**：数据压缩率可达10:1
-- **实时分析**：支持实时数据写入和查询
-- **SQL支持**：兼容标准SQL语法
-- **分布式**：支持水平扩展
-- **容错**：支持副本和分片
+  <title>ClickHouse深度解析 | Ruizhe's Blog</title>
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
 
-### 1.2 ClickHouse的应用场景
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
 
-- 用户行为分析
-- 日志分析
-- 监控数据分析
-- 商业智能(BI)
-- 实时报表
-- 广告投放分析
-- 金融风控
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
 
-## 二、核心概念
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+  </noscript>
 
-### 2.1 数据库引擎
+</head>
 
-ClickHouse支持多种数据库引擎：
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
 
-| 引擎 | 说明 |
-|------|------|
-| Ordinary | 默认引擎，支持所有表引擎 |
-| Lazy | 延迟加载，内存不足时卸载数据 |
-| MySQL | 映射到MySQL数据库 |
-| PostgreSQL | 映射到PostgreSQL数据库 |
-| MaterializedMySQL | 实时同步MySQL数据 |
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
 
-```sql
--- 创建数据库
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title" itemprop="name">Ruizhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+      </header>
+    </div>
+
+    <aside class="sidebar">
+  <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+    <ul class="sidebar-nav">
+      <li class="sidebar-nav-toc">
+        文章目录
+      </li>
+      <li class="sidebar-nav-overview">
+        站点概览
+      </li>
+    </ul>
+
+    <!--noindex-->
+    <section class="post-toc-wrap sidebar-panel">
+        <div class="post-toc-overview"><h2>站点概览</h2>
+          <div class="site-author-container">
+            <div class="site-author-item">
+              <p class="site-author-name">Ruizhe Hou</p>
+              <div class="site-description">技术博客</div>
+            </div>
+          </div>
+          <div class="site-state-item site-posts">
+            <a href="/archives/">
+              <span class="site-state-item-count">0</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+        </div>
+        <div class="post-toc"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#ClickHouse深度解析"><span class="nav-number">1.</span> <span class="nav-text">ClickHouse深度解析</span><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、ClickHouse概述"><span class="nav-number">1.1.</span> <span class="nav-text">一、ClickHouse概述</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-ClickHouse的核心特性"><span class="nav-number">1.1.1.</span> <span class="nav-text">1.1 ClickHouse的核心特性</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-ClickHouse的应用场景"><span class="nav-number">1.1.2.</span> <span class="nav-text">1.2 ClickHouse的应用场景</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、核心概念"><span class="nav-number">1.2.</span> <span class="nav-text">二、核心概念</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-数据库引擎"><span class="nav-number">1.2.1.</span> <span class="nav-text">2.1 数据库引擎</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-表引擎"><span class="nav-number">1.2.2.</span> <span class="nav-text">2.2 表引擎</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-数据类型"><span class="nav-number">1.2.3.</span> <span class="nav-text">2.3 数据类型</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-索引"><span class="nav-number">1.2.4.</span> <span class="nav-text">2.4 索引</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、数据操作"><span class="nav-number">1.3.</span> <span class="nav-text">三、数据操作</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-创建表"><span class="nav-number">1.3.1.</span> <span class="nav-text">3.1 创建表</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-插入数据"><span class="nav-number">1.3.2.</span> <span class="nav-text">3.2 插入数据</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-查询数据"><span class="nav-number">1.3.3.</span> <span class="nav-text">3.3 查询数据</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-更新和删除"><span class="nav-number">1.3.4.</span> <span class="nav-text">3.4 更新和删除</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、高级功能"><span class="nav-number">1.4.</span> <span class="nav-text">四、高级功能</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-物化视图"><span class="nav-number">1.4.1.</span> <span class="nav-text">4.1 物化视图</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-字典"><span class="nav-number">1.4.2.</span> <span class="nav-text">4.2 字典</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-外部表"><span class="nav-number">1.4.3.</span> <span class="nav-text">4.3 外部表</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-4-函数"><span class="nav-number">1.4.4.</span> <span class="nav-text">4.4 函数</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#五、集群部署"><span class="nav-number">1.5.</span> <span class="nav-text">五、集群部署</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-集群架构"><span class="nav-number">1.5.1.</span> <span class="nav-text">5.1 集群架构</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-配置文件"><span class="nav-number">1.5.2.</span> <span class="nav-text">5.2 配置文件</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-副本表"><span class="nav-number">1.5.3.</span> <span class="nav-text">5.3 副本表</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-分布式表"><span class="nav-number">1.5.4.</span> <span class="nav-text">5.4 分布式表</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#六、性能优化"><span class="nav-number">1.6.</span> <span class="nav-text">六、性能优化</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-表设计优化"><span class="nav-number">1.6.1.</span> <span class="nav-text">6.1 表设计优化</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-查询优化"><span class="nav-number">1.6.2.</span> <span class="nav-text">6.2 查询优化</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-配置优化"><span class="nav-number">1.6.3.</span> <span class="nav-text">6.3 配置优化</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-4-系统优化"><span class="nav-number">1.6.4.</span> <span class="nav-text">6.4 系统优化</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#七、监控与运维"><span class="nav-number">1.7.</span> <span class="nav-text">七、监控与运维</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-1-系统表"><span class="nav-number">1.7.1.</span> <span class="nav-text">7.1 系统表</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-2-性能监控"><span class="nav-number">1.7.2.</span> <span class="nav-text">7.2 性能监控</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-3-维护操作"><span class="nav-number">1.7.3.</span> <span class="nav-text">7.3 维护操作</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#八、实战案例"><span class="nav-number">1.8.</span> <span class="nav-text">八、实战案例</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#8-1-用户行为分析"><span class="nav-number">1.8.1.</span> <span class="nav-text">8.1 用户行为分析</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-2-实时监控"><span class="nav-number">1.8.2.</span> <span class="nav-text">8.2 实时监控</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-3-A-B测试分析"><span class="nav-number">1.8.3.</span> <span class="nav-text">8.3 A/B测试分析</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#九、最佳实践"><span class="nav-number">1.9.</span> <span class="nav-text">九、最佳实践</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#9-1-表设计"><span class="nav-number">1.9.1.</span> <span class="nav-text">9.1 表设计</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-2-查询优化"><span class="nav-number">1.9.2.</span> <span class="nav-text">9.2 查询优化</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-3-集群管理"><span class="nav-number">1.9.3.</span> <span class="nav-text">9.3 集群管理</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-4-安全配置"><span class="nav-number">1.9.4.</span> <span class="nav-text">9.4 安全配置</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#十、总结"><span class="nav-number">1.10.</span> <span class="nav-text">十、总结</span></li></ol></li></ol></div>
+    </section>
+    <!--/noindex-->
+
+  </div>
+</aside>
+
+    <div class="page-header">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title" itemprop="name">Ruizhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+      </header>
+    </div>
+
+    <div class="main-inner">
+      <div class="content-wrap">
+
+        <div class="content page posts-expand">
+
+  <div class="post-block" itemscope itemtype="http://schema.org/Article" itemid="https://ruizhehou.github.io/2026/03/28/ClickHouse深度解析/">
+
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/03/28/ClickHouse深度解析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Ruizhe Hou">
+      <meta itemprop="description" content="技术博客">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Ruizhe's Blog">
+      <meta itemprop="logo" content="/images/avatar.gif">
+    </span>
+      <header class="post-header">
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <time class="post-time" itemprop="dateCreated"
+          datetime="2026-03-28T16:00:00+08:00"
+          content="2026-03-28"
+          pubdate>
+      03-28
+    </time>
+
+  </div>
+
+        </div>
+        <h1 class="post-title" itemprop="name headline">
+          ClickHouse深度解析
+        </h1>
+
+      </header>
+
+      <div class="post-body" itemprop="articleBody">
+
+          <h2 id="一、ClickHouse概述">一、ClickHouse概述</h2>
+
+<p>ClickHouse是一个面向列的OLAP（在线分析处理）数据库管理系统，由Yandex开源。它以高性能、低延迟、高压缩比著称，是实时数据分析领域的明星产品。</p>
+
+<h3 id="1-1-ClickHouse的核心特性">1.1 ClickHouse的核心特性</h3>
+
+<ul>
+<li><strong>高性能</strong>：单表查询可达数十亿行/秒</li>
+<li><strong>列式存储</strong>：适合OLAP场景</li>
+<li><strong>高压缩比</strong>：数据压缩率可达10:1</li>
+<li><strong>实时分析</strong>：支持实时数据写入和查询</li>
+<li><strong>SQL支持</strong>：兼容标准SQL语法</li>
+<li><strong>分布式</strong>：支持水平扩展</li>
+<li><strong>容错</strong>：支持副本和分片</li>
+</ul>
+
+<h3 id="1-2-ClickHouse的应用场景">1.2 ClickHouse的应用场景</h3>
+
+<ul>
+<li>用户行为分析</li>
+<li>日志分析</li>
+<li>监控数据分析</li>
+<li>商业智能(BI)</li>
+<li>实时报表</li>
+<li>广告投放分析</li>
+<li>金融风控</li>
+</ul>
+
+<h2 id="二、核心概念">二、核心概念</h2>
+
+<h3 id="2-1-数据库引擎">2.1 数据库引擎</h3>
+
+<p>ClickHouse支持多种数据库引擎：</p>
+
+<table>
+<thead>
+<tr>
+<th>引擎</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ordinary</td>
+<td>默认引擎，支持所有表引擎</td>
+</tr>
+<tr>
+<td>Lazy</td>
+<td>延迟加载，内存不足时卸载数据</td>
+</tr>
+<tr>
+<td>MySQL</td>
+<td>映射到MySQL数据库</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>映射到PostgreSQL数据库</td>
+</tr>
+<tr>
+<td>MaterializedMySQL</td>
+<td>实时同步MySQL数据</td>
+</tr>
+</tbody>
+</table>
+
+<pre><code class="language-sql">-- 创建数据库
 CREATE DATABASE my_database;
 
 -- 使用Lazy引擎
@@ -58,26 +389,54 @@ CREATE DATABASE my_lazy_db ENGINE = Lazy;
 
 -- 映射MySQL数据库
 CREATE DATABASE mysql_db ENGINE = MySQL('localhost:3306', 'db', 'user', 'password');
-```
+</code></pre>
 
-### 2.2 表引擎
+<h3 id="2-2-表引擎">2.2 表引擎</h3>
 
-表引擎是ClickHouse最重要的概念，决定了数据的存储方式和查询性能。
+<p>表引擎是ClickHouse最重要的概念，决定了数据的存储方式和查询性能。</p>
 
-#### MergeTree系列
+<h4 id="MergeTree系列">MergeTree系列</h4>
 
-| 引擎 | 说明 |
-|------|------|
-| MergeTree | 基础引擎，支持索引和分区 |
-| ReplacingMergeTree | 去重引擎 |
-| SummingMergeTree | 聚合引擎 |
-| AggregatingMergeTree | 高级聚合引擎 |
-| CollapsingMergeTree | 折叠引擎 |
-| VersionedCollapsingMergeTree | 版本折叠引擎 |
-| GraphiteMergeTree | Graphite数据引擎 |
+<table>
+<thead>
+<tr>
+<th>引擎</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MergeTree</td>
+<td>基础引擎，支持索引和分区</td>
+</tr>
+<tr>
+<td>ReplacingMergeTree</td>
+<td>去重引擎</td>
+</tr>
+<tr>
+<td>SummingMergeTree</td>
+<td>聚合引擎</td>
+</tr>
+<tr>
+<td>AggregatingMergeTree</td>
+<td>高级聚合引擎</td>
+</tr>
+<tr>
+<td>CollapsingMergeTree</td>
+<td>折叠引擎</td>
+</tr>
+<tr>
+<td>VersionedCollapsingMergeTree</td>
+<td>版本折叠引擎</td>
+</tr>
+<tr>
+<td>GraphiteMergeTree</td>
+<td>Graphite数据引擎</td>
+</tr>
+</tbody>
+</table>
 
-```sql
--- 创建MergeTree表
+<pre><code class="language-sql">-- 创建MergeTree表
 CREATE TABLE my_table (
     id UInt32,
     date Date,
@@ -103,36 +462,74 @@ CREATE TABLE sum_table (
     value UInt32
 ) ENGINE = SummingMergeTree(value)
 ORDER BY (date, key);
-```
+</code></pre>
 
-#### Log系列
+<h4 id="Log系列">Log系列</h4>
 
-| 引擎 | 说明 |
-|------|------|
-| TinyLog | 最简单的引擎，不支持索引 |
-| StripeLog | 支持索引，性能优于TinyLog |
-| Log | 支持索引，读写分离 |
+<table>
+<thead>
+<tr>
+<th>引擎</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TinyLog</td>
+<td>最简单的引擎，不支持索引</td>
+</tr>
+<tr>
+<td>StripeLog</td>
+<td>支持索引，性能优于TinyLog</td>
+</tr>
+<tr>
+<td>Log</td>
+<td>支持索引，读写分离</td>
+</tr>
+</tbody>
+</table>
 
-```sql
--- 创建TinyLog表
+<pre><code class="language-sql">-- 创建TinyLog表
 CREATE TABLE tiny_log_table (
     id UInt32,
     name String
 ) ENGINE = TinyLog;
-```
+</code></pre>
 
-#### Integration系列
+<h4 id="Integration系列">Integration系列</h4>
 
-| 引擎 | 说明 |
-|------|------|
-| HDFS | 读取HDFS文件 |
-| S3 | 读取S3对象存储 |
-| MySQL | 读取MySQL表 |
-| PostgreSQL | 读取PostgreSQL表 |
-| Kafka | 读取Kafka消息 |
+<table>
+<thead>
+<tr>
+<th>引擎</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HDFS</td>
+<td>读取HDFS文件</td>
+</tr>
+<tr>
+<td>S3</td>
+<td>读取S3对象存储</td>
+</tr>
+<tr>
+<td>MySQL</td>
+<td>读取MySQL表</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>读取PostgreSQL表</td>
+</tr>
+<tr>
+<td>Kafka</td>
+<td>读取Kafka消息</td>
+</tr>
+</tbody>
+</table>
 
-```sql
--- 创建HDFS表
+<pre><code class="language-sql">-- 创建HDFS表
 CREATE TABLE hdfs_table (
     id UInt32,
     name String
@@ -143,41 +540,128 @@ CREATE TABLE kafka_table (
     id UInt32,
     name String
 ) ENGINE = Kafka('localhost:9092', 'topic', 'group', 'CSV');
-```
+</code></pre>
 
-### 2.3 数据类型
+<h3 id="2-3-数据类型">2.3 数据类型</h3>
 
-#### 基本类型
+<h4 id="基本类型">基本类型</h4>
 
-| 类型 | 说明 | 示例 |
-|------|------|------|
-| UInt8 | 无符号8位整数 | 0-255 |
-| UInt16 | 无符号16位整数 | 0-65535 |
-| UInt32 | 无符号32位整数 | 0-4294967295 |
-| UInt64 | 无符号64位整数 | 0-18446744073709551615 |
-| Int8 | 有符号8位整数 | -128-127 |
-| Int16 | 有符号16位整数 | -32768-32767 |
-| Int32 | 有符号32位整数 | -2147483648-2147483647 |
-| Int64 | 有符号64位整数 | -9223372036854775808-9223372036854775807 |
-| Float32 | 单精度浮点数 | 3.14 |
-| Float64 | 双精度浮点数 | 3.1415926535 |
-| String | 字符串 | "hello" |
-| FixedString(N) | 固定长度字符串 | "hello" |
-| Date | 日期 | 2023-01-01 |
-| DateTime | 日期时间 | 2023-01-01 12:00:00 |
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>说明</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UInt8</td>
+<td>无符号8位整数</td>
+<td>0-255</td>
+</tr>
+<tr>
+<td>UInt16</td>
+<td>无符号16位整数</td>
+<td>0-65535</td>
+</tr>
+<tr>
+<td>UInt32</td>
+<td>无符号32位整数</td>
+<td>0-4294967295</td>
+</tr>
+<tr>
+<td>UInt64</td>
+<td>无符号64位整数</td>
+<td>0-18446744073709551615</td>
+</tr>
+<tr>
+<td>Int8</td>
+<td>有符号8位整数</td>
+<td>-128-127</td>
+</tr>
+<tr>
+<td>Int16</td>
+<td>有符号16位整数</td>
+<td>-32768-32767</td>
+</tr>
+<tr>
+<td>Int32</td>
+<td>有符号32位整数</td>
+<td>-2147483648-2147483647</td>
+</tr>
+<tr>
+<td>Int64</td>
+<td>有符号64位整数</td>
+<td>-9223372036854775808-9223372036854775807</td>
+</tr>
+<tr>
+<td>Float32</td>
+<td>单精度浮点数</td>
+<td>3.14</td>
+</tr>
+<tr>
+<td>Float64</td>
+<td>双精度浮点数</td>
+<td>3.1415926535</td>
+</tr>
+<tr>
+<td>String</td>
+<td>字符串</td>
+<td>"hello"</td>
+</tr>
+<tr>
+<td>FixedString(N)</td>
+<td>固定长度字符串</td>
+<td>"hello"</td>
+</tr>
+<tr>
+<td>Date</td>
+<td>日期</td>
+<td>2023-01-01</td>
+</tr>
+<tr>
+<td>DateTime</td>
+<td>日期时间</td>
+<td>2023-01-01 12:00:00</td>
+</tr>
+</tbody>
+</table>
 
-#### 复杂类型
+<h4 id="复杂类型">复杂类型</h4>
 
-| 类型 | 说明 |
-|------|------|
-| Array | 数组 |
-| Map | 映射 |
-| Tuple | 元组 |
-| Nested | 嵌套结构 |
-| Enum | 枚举 |
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Array</td>
+<td>数组</td>
+</tr>
+<tr>
+<td>Map</td>
+<td>映射</td>
+</tr>
+<tr>
+<td>Tuple</td>
+<td>元组</td>
+</tr>
+<tr>
+<td>Nested</td>
+<td>嵌套结构</td>
+</tr>
+<tr>
+<td>Enum</td>
+<td>枚举</td>
+</tr>
+</tbody>
+</table>
 
-```sql
--- 创建包含复杂类型的表
+<pre><code class="language-sql">-- 创建包含复杂类型的表
 CREATE TABLE complex_table (
     id UInt32,
     tags Array(String),
@@ -209,14 +693,13 @@ SELECT
     user.name,
     user.age
 FROM complex_table;
-```
+</code></pre>
 
-### 2.4 索引
+<h3 id="2-4-索引">2.4 索引</h3>
 
-ClickHouse使用稀疏索引，索引粒度可配置。
+<p>ClickHouse使用稀疏索引，索引粒度可配置。</p>
 
-```sql
--- 创建表时设置索引粒度
+<pre><code class="language-sql">-- 创建表时设置索引粒度
 CREATE TABLE indexed_table (
     id UInt32,
     date Date,
@@ -241,14 +724,13 @@ SETTINGS
     secondary_index_name = value_index,
     secondary_index_type = minmax,
     secondary_index_granularity = 8192;
-```
+</code></pre>
 
-## 三、数据操作
+<h2 id="三、数据操作">三、数据操作</h2>
 
-### 3.1 创建表
+<h3 id="3-1-创建表">3.1 创建表</h3>
 
-```sql
--- 创建MergeTree表
+<pre><code class="language-sql">-- 创建MergeTree表
 CREATE TABLE events (
     event_id UInt64,
     event_time DateTime,
@@ -264,12 +746,11 @@ SETTINGS index_granularity = 8192;
 -- 创建分布式表
 CREATE TABLE distributed_events AS events
 ENGINE = Distributed(cluster_name, default, events, rand());
-```
+</code></pre>
 
-### 3.2 插入数据
+<h3 id="3-2-插入数据">3.2 插入数据</h3>
 
-```sql
--- 单条插入
+<pre><code class="language-sql">-- 单条插入
 INSERT INTO events VALUES (
     1,
     '2023-01-01 12:00:00',
@@ -298,12 +779,11 @@ SELECT
     properties,
     value
 FROM source_events;
-```
+</code></pre>
 
-### 3.3 查询数据
+<h3 id="3-3-查询数据">3.3 查询数据</h3>
 
-```sql
--- 基本查询
+<pre><code class="language-sql">-- 基本查询
 SELECT * FROM events LIMIT 10;
 
 -- 条件查询
@@ -333,12 +813,11 @@ SELECT
     value,
     SUM(value) OVER (PARTITION BY user_id ORDER BY event_time) as running_total
 FROM events;
-```
+</code></pre>
 
-### 3.4 更新和删除
+<h3 id="3-4-更新和删除">3.4 更新和删除</h3>
 
-```sql
--- 删除数据
+<pre><code class="language-sql">-- 删除数据
 ALTER TABLE events DELETE WHERE event_time < '2023-01-01';
 
 -- 更新数据
@@ -349,16 +828,15 @@ ALTER TABLE events DROP PARTITION '202301';
 
 -- 分区附加
 ALTER TABLE events ATTACH PARTITION '202301';
-```
+</code></pre>
 
-## 四、高级功能
+<h2 id="四、高级功能">四、高级功能</h2>
 
-### 4.1 物化视图
+<h3 id="4-1-物化视图">4.1 物化视图</h3>
 
-物化视图自动维护查询结果，提高查询性能。
+<p>物化视图自动维护查询结果，提高查询性能。</p>
 
-```sql
--- 创建物化视图
+<pre><code class="language-sql">-- 创建物化视图
 CREATE MATERIALIZED VIEW events_mv
 ENGINE = SummingMergeTree()
 ORDER BY (event_date, event_type)
@@ -375,14 +853,13 @@ SELECT * FROM events_mv WHERE event_date = '2023-01-01';
 
 -- 删除物化视图
 DROP TABLE events_mv;
-```
+</code></pre>
 
-### 4.2 字典
+<h3 id="4-2-字典">4.2 字典</h3>
 
-字典用于快速查找关联数据。
+<p>字典用于快速查找关联数据。</p>
 
-```sql
--- 创建字典
+<pre><code class="language-sql">-- 创建字典
 CREATE DICTIONARY user_dict (
     user_id UInt32,
     user_name String,
@@ -398,14 +875,13 @@ SELECT
     dictGet('user_dict', 'user_name', e.user_id) as user_name,
     dictGet('user_dict', 'user_level', e.user_id) as user_level
 FROM events e;
-```
+</code></pre>
 
-### 4.3 外部表
+<h3 id="4-3-外部表">4.3 外部表</h3>
 
-外部表用于查询外部数据源。
+<p>外部表用于查询外部数据源。</p>
 
-```sql
--- 查询CSV文件
+<pre><code class="language-sql">-- 查询CSV文件
 SELECT * FROM file('data.csv', 'CSV', 'id UInt32, name String');
 
 -- 查询JSON文件
@@ -413,14 +889,13 @@ SELECT * FROM file('data.json', 'JSONEachRow', 'id UInt32, name String');
 
 -- 查询URL
 SELECT * FROM url('http://example.com/data.csv', 'CSV');
-```
+</code></pre>
 
-### 4.4 函数
+<h3 id="4-4-函数">4.4 函数</h3>
 
-#### 聚合函数
+<h4 id="聚合函数">聚合函数</h4>
 
-```sql
--- 基本聚合
+<pre><code class="language-sql">-- 基本聚合
 SELECT
     COUNT(*) as count,
     SUM(value) as sum,
@@ -441,24 +916,22 @@ SELECT
     quantile(0.9)(value) as p90,
     quantile(0.99)(value) as p99
 FROM events;
-```
+</code></pre>
 
-#### 数组函数
+<h4 id="数组函数">数组函数</h4>
 
-```sql
--- 数组操作
+<pre><code class="language-sql">-- 数组操作
 SELECT
     arrayJoin([1, 2, 3]) as value,
     arraySum([1, 2, 3]) as sum,
     arrayAvg([1, 2, 3]) as avg,
     arrayDistinct([1, 2, 2, 3]) as distinct,
     arraySort([3, 1, 2]) as sorted;
-```
+</code></pre>
 
-#### 时间函数
+<h4 id="时间函数">时间函数</h4>
 
-```sql
--- 时间操作
+<pre><code class="language-sql">-- 时间操作
 SELECT
     now() as current_time,
     toYYYYMM(now()) as year_month,
@@ -466,12 +939,11 @@ SELECT
     toStartOfHour(now()) as start_of_hour,
     dateDiff('day', '2023-01-01', now()) as days_diff,
     addDays(now(), 7) as next_week;
-```
+</code></pre>
 
-#### 字符串函数
+<h4 id="字符串函数">字符串函数</h4>
 
-```sql
--- 字符串操作
+<pre><code class="language-sql">-- 字符串操作
 SELECT
     splitByChar(' ', 'hello world') as words,
     arrayJoin(splitByChar(' ', 'hello world')) as word,
@@ -480,75 +952,72 @@ SELECT
     lower('HELLO') as lower_str,
     upper('hello') as upper_str,
     replace('hello world', 'world', 'clickhouse') as replaced;
-```
+</code></pre>
 
-## 五、集群部署
+<h2 id="五、集群部署">五、集群部署</h2>
 
-### 5.1 集群架构
+<h3 id="5-1-集群架构">5.1 集群架构</h3>
 
-```
-┌─────────────────────────────────────┐
+<pre><code>┌─────────────────────────────────────┐
 │         ClickHouse Cluster          │
 │  ┌────────┐  ┌────────┐  ┌────────┐│
 │  │ Node 1 │  │ Node 2 │  │ Node 3 ││
 │  │Replica1│  │Replica2│  │Replica3││
 │  └────────┘  └────────┘  └────────┘│
 └─────────────────────────────────────┘
-```
+</code></pre>
 
-### 5.2 配置文件
+<h3 id="5-2-配置文件">5.2 配置文件</h3>
 
-```xml
-<!-- config.xml -->
-<clickhouse>
-    <listen_host>0.0.0.0</listen_host>
-    <http_port>8123</http_port>
-    <tcp_port>9000</tcp_port>
+<pre><code class="language-xml">&lt;!-- config.xml --&gt;
+&lt;clickhouse&gt;
+    &lt;listen_host&gt;0.0.0.0&lt;/listen_host&gt;
+    &lt;http_port&gt;8123&lt;/http_port&gt;
+    &lt;tcp_port&gt;9000&lt;/tcp_port&gt;
 
-    <remote_servers>
-        <cluster_name>
-            <shard>
-                <replica>
-                    <host>node1</host>
-                    <port>9000</port>
-                </replica>
-            </shard>
-            <shard>
-                <replica>
-                    <host>node2</host>
-                    <port>9000</port>
-                </replica>
-            </shard>
-            <shard>
-                <replica>
-                    <host>node3</host>
-                    <port>9000</port>
-                </replica>
-            </shard>
-        </cluster_name>
-    </remote_servers>
+    &lt;remote_servers&gt;
+        &lt;cluster_name&gt;
+            &lt;shard&gt;
+                &lt;replica&gt;
+                    &lt;host&gt;node1&lt;/host&gt;
+                    &lt;port&gt;9000&lt;/port&gt;
+                &lt;/replica&gt;
+            &lt;/shard&gt;
+            &lt;shard&gt;
+                &lt;replica&gt;
+                    &lt;host&gt;node2&lt;/host&gt;
+                    &lt;port&gt;9000&lt;/port&gt;
+                &lt;/replica&gt;
+            &lt;/shard&gt;
+            &lt;shard&gt;
+                &lt;replica&gt;
+                    &lt;host&gt;node3&lt;/host&gt;
+                    &lt;port&gt;9000&lt;/port&gt;
+                &lt;/replica&gt;
+            &lt;/shard&gt;
+        &lt;/cluster_name&gt;
+    &lt;/remote_servers&gt;
 
-    <zookeeper>
-        <node>
-            <host>zookeeper1</host>
-            <port>2181</port>
-        </node>
-        <node>
-            <host>zookeeper2</host>
-            <port>2181</port>
-        </node>
-        <node>
-            <host>zookeeper3</host>
-            <port>2181</port>
-        </node>
-    </zookeeper>
-</clickhouse>
-```
+    &lt;zookeeper&gt;
+        &lt;node&gt;
+            &lt;host&gt;zookeeper1&lt;/host&gt;
+            &lt;port&gt;2181&lt;/port&gt;
+        &lt;/node&gt;
+        &lt;node&gt;
+            &lt;host&gt;zookeeper2&lt;/host&gt;
+            &lt;port&gt;2181&lt;/port&gt;
+        &lt;/node&gt;
+        &lt;node&gt;
+            &lt;host&gt;zookeeper3&lt;/host&gt;
+            &lt;port&gt;2181&lt;/port&gt;
+        &lt;/node&gt;
+    &lt;/zookeeper&gt;
+&lt;/clickhouse&gt;
+</code></pre>
 
-### 5.3 副本表
+<h3 id="5-3-副本表">5.3 副本表</h3>
 
-```sql
--- 创建副本表
+<pre><code class="language-sql">-- 创建副本表
 CREATE TABLE events_replica (
     event_id UInt64,
     event_time DateTime,
@@ -562,12 +1031,11 @@ CREATE TABLE events_replica (
 )
 PARTITION BY toYYYYMM(event_time)
 ORDER BY (event_time, user_id);
-```
+</code></pre>
 
-### 5.4 分布式表
+<h3 id="5-4-分布式表">5.4 分布式表</h3>
 
-```sql
--- 创建分布式表
+<pre><code class="language-sql">-- 创建分布式表
 CREATE TABLE events_distributed (
     event_id UInt64,
     event_time DateTime,
@@ -581,14 +1049,13 @@ CREATE TABLE events_distributed (
     events_replica,
     rand()
 );
-```
+</code></pre>
 
-## 六、性能优化
+<h2 id="六、性能优化">六、性能优化</h2>
 
-### 6.1 表设计优化
+<h3 id="6-1-表设计优化">6.1 表设计优化</h3>
 
-```sql
--- 使用合适的数据类型
+<pre><code class="language-sql">-- 使用合适的数据类型
 CREATE TABLE optimized_table (
     id UInt32,              -- 使用UInt32而不是String
     date Date,               -- 使用Date而不是DateTime
@@ -615,12 +1082,11 @@ CREATE TABLE sorted_table (
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(date)
 ORDER BY (date, user_id, id);  -- 查询条件放在前面
-```
+</code></pre>
 
-### 6.2 查询优化
+<h3 id="6-2-查询优化">6.2 查询优化</h3>
 
-```sql
--- 使用物化视图
+<pre><code class="language-sql">-- 使用物化视图
 CREATE MATERIALIZED VIEW events_mv
 ENGINE = SummingMergeTree()
 ORDER BY (event_date, event_type)
@@ -642,37 +1108,35 @@ SELECT * FROM events LIMIT 1000;
 
 -- 使用PREWHERE
 SELECT * FROM events PREWHERE event_date = '2023-01-01' WHERE value > 100;
-```
+</code></pre>
 
-### 6.3 配置优化
+<h3 id="6-3-配置优化">6.3 配置优化</h3>
 
-```xml
-<!-- config.xml -->
-<clickhouse>
-    <max_memory_usage>10000000000</max_memory_usage>
-    <max_concurrent_queries>100</max_concurrent_queries>
-    <max_threads>8</max_threads>
+<pre><code class="language-xml">&lt;!-- config.xml --&gt;
+&lt;clickhouse&gt;
+    &lt;max_memory_usage&gt;10000000000&lt;/max_memory_usage&gt;
+    &lt;max_concurrent_queries&gt;100&lt;/max_concurrent_queries&gt;
+    &lt;max_threads&gt;8&lt;/max_threads&gt;
 
-    <merge_tree>
-        <max_suspicious_broken_parts>5</max_suspicious_broken_parts>
-        <parts_to_throw_insert>10000</parts_to_throw_insert>
-        <parts_to_delay_insert>15000</parts_to_delay_insert>
-    </merge_tree>
+    &lt;merge_tree&gt;
+        &lt;max_suspicious_broken_parts&gt;5&lt;/max_suspicious_broken_parts&gt;
+        &lt;parts_to_throw_insert&gt;10000&lt;/parts_to_throw_insert&gt;
+        &lt;parts_to_delay_insert&gt;15000&lt;/parts_to_delay_insert&gt;
+    &lt;/merge_tree&gt;
 
-    <compression>
-        <case>
-            <min_part_size>1000000000</min_part_size>
-            <min_part_size_ratio>0.01</min_part_size_ratio>
-            <method>zstd</method>
-        </case>
-    </compression>
-</clickhouse>
-```
+    &lt;compression&gt;
+        &lt;case&gt;
+            &lt;min_part_size&gt;1000000000&lt;/min_part_size&gt;
+            &lt;min_part_size_ratio&gt;0.01&lt;/min_part_size_ratio&gt;
+            &lt;method&gt;zstd&lt;/method&gt;
+        &lt;/case&gt;
+    &lt;/compression&gt;
+&lt;/clickhouse&gt;
+</code></pre>
 
-### 6.4 系统优化
+<h3 id="6-4-系统优化">6.4 系统优化</h3>
 
-```bash
-# 增加文件描述符限制
+<pre><code class="language-bash"># 增加文件描述符限制
 ulimit -n 65535
 
 # 调整内核参数
@@ -682,14 +1146,13 @@ sysctl -p
 
 # 使用SSD存储
 # 将数据目录挂载到SSD
-```
+</code></pre>
 
-## 七、监控与运维
+<h2 id="七、监控与运维">七、监控与运维</h2>
 
-### 7.1 系统表
+<h3 id="7-1-系统表">7.1 系统表</h3>
 
-```sql
--- 查看表信息
+<pre><code class="language-sql">-- 查看表信息
 SELECT * FROM system.tables WHERE database = 'default';
 
 -- 查看分区信息
@@ -715,12 +1178,11 @@ LIMIT 10;
 
 -- 查看进程信息
 SELECT * FROM system.processes;
-```
+</code></pre>
 
-### 7.2 性能监控
+<h3 id="7-2-性能监控">7.2 性能监控</h3>
 
-```sql
--- 查看集群信息
+<pre><code class="language-sql">-- 查看集群信息
 SELECT * FROM system.clusters;
 
 -- 查看副本信息
@@ -737,12 +1199,11 @@ SELECT
     total_space,
     keep_free_space
 FROM system.disks;
-```
+</code></pre>
 
-### 7.3 维护操作
+<h3 id="7-3-维护操作">7.3 维护操作</h3>
 
-```sql
--- 优化表
+<pre><code class="language-sql">-- 优化表
 OPTIMIZE TABLE events FINAL;
 
 -- 检查表
@@ -753,14 +1214,13 @@ ALTER TABLE events DROP PARTITION '202301';
 
 -- 修改表设置
 ALTER TABLE events MODIFY SETTING max_bytes_to_merge_at_once = 1073741824;
-```
+</code></pre>
 
-## 八、实战案例
+<h2 id="八、实战案例">八、实战案例</h2>
 
-### 8.1 用户行为分析
+<h3 id="8-1-用户行为分析">8.1 用户行为分析</h3>
 
-```sql
--- 创建用户行为表
+<pre><code class="language-sql">-- 创建用户行为表
 CREATE TABLE user_events (
     event_id UInt64,
     event_time DateTime,
@@ -807,12 +1267,11 @@ SELECT
     )) as retained_users
 FROM user_events
 GROUP BY date;
-```
+</code></pre>
 
-### 8.2 实时监控
+<h3 id="8-2-实时监控">8.2 实时监控</h3>
 
-```sql
--- 创建监控表
+<pre><code class="language-sql">-- 创建监控表
 CREATE TABLE metrics (
     timestamp DateTime,
     metric_name String,
@@ -847,12 +1306,11 @@ SELECT
 FROM metrics_5min_mv
 WHERE window_start >= now() - INTERVAL 1 HOUR
 ORDER BY window_start, metric_name;
-```
+</code></pre>
 
-### 8.3 A/B测试分析
+<h3 id="8-3-A-B测试分析">8.3 A/B测试分析</h3>
 
-```sql
--- 创建实验表
+<pre><code class="language-sql">-- 创建实验表
 CREATE TABLE experiments (
     experiment_id String,
     user_id UInt32,
@@ -903,54 +1361,118 @@ FROM (
     avg_values[2] as avg_b,
     var_values[2] as var_b,
     counts[2] as count_b;
-```
+</code></pre>
 
-## 九、最佳实践
+<h2 id="九、最佳实践">九、最佳实践</h2>
 
-### 9.1 表设计
+<h3 id="9-1-表设计">9.1 表设计</h3>
 
-1. **选择合适的引擎**：MergeTree系列适合大多数场景
-2. **合理分区**：按时间分区，避免过多分区
-3. **优化排序键**：查询条件放在前面
-4. **使用合适的数据类型**：避免浪费空间
-5. **使用物化视图**：预聚合常用查询
+<ol>
+<li><strong>选择合适的引擎</strong>：MergeTree系列适合大多数场景</li>
+<li><strong>合理分区</strong>：按时间分区，避免过多分区</li>
+<li><strong>优化排序键</strong>：查询条件放在前面</li>
+<li><strong>使用合适的数据类型</strong>：避免浪费空间</li>
+<li><strong>使用物化视图</strong>：预聚合常用查询</li>
+</ol>
 
-### 9.2 查询优化
+<h3 id="9-2-查询优化">9.2 查询优化</h3>
 
-1. **避免全表扫描**：使用分区和索引
-2. **使用物化视图**：预聚合结果
-3. **限制结果数量**：使用LIMIT
-4. **使用PREWHERE**：先过滤再处理
-5. **避免JOIN**：使用字典替代
+<ol>
+<li><strong>避免全表扫描</strong>：使用分区和索引</li>
+<li><strong>使用物化视图</strong>：预聚合结果</li>
+<li><strong>限制结果数量</strong>：使用LIMIT</li>
+<li><strong>使用PREWHERE</strong>：先过滤再处理</li>
+<li><strong>避免JOIN</strong>：使用字典替代</li>
+</ol>
 
-### 9.3 集群管理
+<h3 id="9-3-集群管理">9.3 集群管理</h3>
 
-1. **合理分片**：根据数据量和查询模式
-2. **使用副本**：提高可用性
-3. **监控集群**：及时发现异常
-4. **定期维护**：优化表和分区
-5. **备份重要数据**：防止数据丢失
+<ol>
+<li><strong>合理分片</strong>：根据数据量和查询模式</li>
+<li><strong>使用副本</strong>：提高可用性</li>
+<li><strong>监控集群</strong>：及时发现异常</li>
+<li><strong>定期维护</strong>：优化表和分区</li>
+<li><strong>备份重要数据</strong>：防止数据丢失</li>
+</ol>
 
-### 9.4 安全配置
+<h3 id="9-4-安全配置">9.4 安全配置</h3>
 
-1. **启用认证**：配置用户和权限
-2. **限制访问**：使用防火墙和网络隔离
-3. **加密传输**：使用SSL/TLS
-4. **审计日志**：记录操作日志
-5. **定期更新**：及时升级版本
+<ol>
+<li><strong>启用认证</strong>：配置用户和权限</li>
+<li><strong>限制访问</strong>：使用防火墙和网络隔离</li>
+<li><strong>加密传输</strong>：使用SSL/TLS</li>
+<li><strong>审计日志</strong>：记录操作日志</li>
+<li><strong>定期更新</strong>：及时升级版本</li>
+</ol>
 
-## 十、总结
+<h2 id="十、总结">十、总结</h2>
 
-ClickHouse是一个功能强大、性能卓越的列式数据库。通过本文的介绍，我们了解了：
+<p>ClickHouse是一个功能强大、性能卓越的列式数据库。通过本文的介绍，我们了解了：</p>
 
-1. ClickHouse概述：核心特性和应用场景
-2. 核心概念：数据库引擎、表引擎、数据类型、索引
-3. 数据操作：创建表、插入数据、查询数据、更新删除
-4. 高级功能：物化视图、字典、外部表、函数
-5. 集群部署：集群架构、配置文件、副本表、分布式表
-6. 性能优化：表设计、查询优化、配置优化、系统优化
-7. 监控运维：系统表、性能监控、维护操作
-8. 实战案例：用户行为分析、实时监控、A/B测试分析
-9. 最佳实践：表设计、查询优化、集群管理、安全配置
+<ol>
+<li>ClickHouse概述：核心特性和应用场景</li>
+<li>核心概念：数据库引擎、表引擎、数据类型、索引</li>
+<li>数据操作：创建表、插入数据、查询数据、更新删除</li>
+<li>高级功能：物化视图、字典、外部表、函数</li>
+<li>集群部署：集群架构、配置文件、副本表、分布式表</li>
+<li>性能优化：表设计、查询优化、配置优化、系统优化</li>
+<li>监控运维：系统表、性能监控、维护操作</li>
+<li>实战案例：用户行为分析、实时监控、A/B测试分析</li>
+<li>最佳实践：表设计、查询优化、集群管理、安全配置</li>
+</ol>
 
-掌握ClickHouse可以帮助我们构建高性能的实时数据分析系统，解决海量数据的快速查询和分析问题。在实际应用中，建议根据具体场景选择合适的表引擎和优化策略，以达到最佳的性能和用户体验。
+<p>掌握ClickHouse可以帮助我们构建高性能的实时数据分析系统，解决海量数据的快速查询和分析问题。在实际应用中，建议根据具体场景选择合适的表引擎和优化策略，以达到最佳的性能和用户体验。</p>
+
+      </div>
+
+      <footer class="post-footer">
+
+          <div class="post-tags">
+              <a href="/tags/ClickHouse/" rel="tag"><i class="fa fa-tag"></i> ClickHouse</a>
+              <a href="/tags/OLAP/" rel="tag"><i class="fa fa-tag"></i> OLAP</a>
+              <a href="/tags/%E5%88%97%E5%BC%8F%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"><i class="fa fa-tag"></i> 列式数据库</a>
+          </div>
+
+      </footer>
+
+    </div>
+  </div>
+
+        </div>
+      </div>
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Ruizhe Hou</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.js.org/Gemini.html" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/jquery.min.js"></script>
+  <script src="/lib/fancybox/jquery.fancybox.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/affix.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/js/local-search.js"></script>
+
+</body>
+</html>

@@ -1,67 +1,372 @@
----
-title: Kafka深度解析
-date: 2026-03-28 14:00:00
-tags:
-  - Kafka
-  - 消息队列
-  - 分布式系统
-categories:
-  - 技术教程
----
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+  <meta name="theme-color" content="#222">
 
-# Kafka深度解析
+  <link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/fancybox/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+  <script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":true},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Apache Kafka是一个分布式流处理平台，最初由LinkedIn开发，后开源给Apache基金会。它以高吞吐量、低延迟、可扩展性和持久性著称，是大数据生态系统中的核心组件。">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Kafka深度解析">
+  <meta property="og:url" content="https://ruizhehou.github.io/2026/03/28/Kafka深度解析/">
+  <meta property="og:site_name" content="Ruizhe's Blog">
+  <meta property="og:description" content="Apache Kafka是一个分布式流处理平台，最初由LinkedIn开发，后开源给Apache基金会。它以高吞吐量、低延迟、可扩展性和持久性著称，是大数据生态系统中的核心组件。">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="article:published_time" content="2026-03-28T14:00:00+08:00">
+  <meta property="article:modified_time" content="2026-03-28T14:00:00+08:00">
+  <meta property="article:author" content="Ruizhe Hou">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Kafka深度解析">
+  <meta name="twitter:description" content="Apache Kafka是一个分布式流处理平台，最初由LinkedIn开发，后开源给Apache基金会。它以高吞吐量、低延迟、可扩展性和持久性著称，是大数据生态系统中的核心组件。">
 
-## 一、Kafka概述
+  <link rel="canonical" href="https://ruizhehou.github.io/2026/03/28/Kafka深度解析/">
 
-Apache Kafka是一个分布式流处理平台，最初由LinkedIn开发，后开源给Apache基金会。它以高吞吐量、低延迟、可扩展性和持久性著称，是大数据生态系统中的核心组件。
 
-### 1.1 Kafka的核心特性
+  <script id="page-configurations">
+    CONFIG.page = {
+      sidebar: "",
+      isHome : false,
+      isPost : true,
+      lang   : 'zh-CN'
+    };
+  </script>
 
-- **高吞吐量**：每秒可处理百万级消息
-- **低延迟**：毫秒级的消息延迟
-- **持久性**：消息持久化到磁盘，支持数据回溯
-- **可扩展性**：支持水平扩展，可轻松扩展到数千个节点
-- **高可用性**：支持副本机制，确保数据不丢失
-- **流处理**：支持实时流处理
+  <title>Kafka深度解析 | Ruizhe's Blog</title>
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
 
-### 1.2 Kafka的应用场景
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
 
-- 日志收集
-- 流式数据处理
-- 消息队列
-- 事件溯源
-- 数据管道
-- 微服务通信
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
 
-## 二、核心概念
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+  </noscript>
 
-### 2.1 消息(Message)
+</head>
 
-消息是Kafka中传输的基本单位，由键、值、时间戳等组成。
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
 
-```java
-ProducerRecord<String, String> record = new ProducerRecord<>(
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title" itemprop="name">Ruizhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <aside class="sidebar">
+  <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+    <ul class="sidebar-nav">
+      <li class="sidebar-nav-toc">
+        文章目录
+      </li>
+      <li class="sidebar-nav-overview">
+        站点概览
+      </li>
+    </ul>
+
+    <!--noindex-->
+    <section class="post-toc-wrap sidebar-panel">
+        <div class="post-toc-overview"><h2>站点概览</h2>
+          <div class="site-author-container">
+            <div class="site-author-item">
+              <p class="site-author-name">Ruizhe Hou</p>
+              <div class="site-description">技术博客</div>
+            </div>
+          </div>
+          <div class="site-state-item site-posts">
+            <a href="/archives/">
+              <span class="site-state-item-count">0</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+        </div>
+        <div class="post-toc"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Kafka深度解析"><span class="nav-number">1.</span> <span class="nav-text">Kafka深度解析</span><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、Kafka概述"><span class="nav-number">1.1.</span> <span class="nav-text">一、Kafka概述</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-Kafka的核心特性"><span class="nav-number">1.1.1.</span> <span class="nav-text">1.1 Kafka的核心特性</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-Kafka的应用场景"><span class="nav-number">1.1.2.</span> <span class="nav-text">1.2 Kafka的应用场景</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、核心概念"><span class="nav-number">1.2.</span> <span class="nav-text">二、核心概念</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-消息-Message"><span class="nav-number">1.2.1.</span> <span class="nav-text">2.1 消息(Message)</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-主题-Topic"><span class="nav-number">1.2.2.</span> <span class="nav-text">2.2 主题(Topic)</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-分区-Partition"><span class="nav-number">1.2.3.</span> <span class="nav-text">2.3 分区(Partition)</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-副本-Replica"><span class="nav-number">1.2.4.</span> <span class="nav-text">2.4 副本(Replica)</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-5-消费者组-Consumer-Group"><span class="nav-number">1.2.5.</span> <span class="nav-text">2.5 消费者组(Consumer Group)</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-6-偏移量-Offset"><span class="nav-number">1.2.6.</span> <span class="nav-text">2.6 偏移量(Offset)</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、Kafka架构"><span class="nav-number">1.3.</span> <span class="nav-text">三、Kafka架构</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-整体架构"><span class="nav-number">1.3.1.</span> <span class="nav-text">3.1 整体架构</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-Broker"><span class="nav-number">1.3.2.</span> <span class="nav-text">3.2 Broker</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Zookeeper"><span class="nav-number">1.3.3.</span> <span class="nav-text">3.3 Zookeeper</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、生产者-Producer"><span class="nav-number">1.4.</span> <span class="nav-text">四、生产者(Producer)</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-基本使用"><span class="nav-number">1.4.1.</span> <span class="nav-text">4.1 基本使用</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-发送模式"><span class="nav-number">1.4.2.</span> <span class="nav-text">4.2 发送模式</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-分区策略"><span class="nav-number">1.4.3.</span> <span class="nav-text">4.3 分区策略</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-4-可靠性配置"><span class="nav-number">1.4.4.</span> <span class="nav-text">4.4 可靠性配置</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#五、消费者-Consumer"><span class="nav-number">1.5.</span> <span class="nav-text">五、消费者(Consumer)</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-基本使用"><span class="nav-number">1.5.1.</span> <span class="nav-text">5.1 基本使用</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-消费模式"><span class="nav-number">1.5.2.</span> <span class="nav-text">5.2 消费模式</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-偏移量管理"><span class="nav-number">1.5.3.</span> <span class="nav-text">5.3 偏移量管理</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-重平衡-Rebalance"><span class="nav-number">1.5.4.</span> <span class="nav-text">5.4 重平衡(Rebalance)</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#六、高级特性"><span class="nav-number">1.6.</span> <span class="nav-text">六、高级特性</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-事务"><span class="nav-number">1.6.1.</span> <span class="nav-text">6.1 事务</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-精确一次语义"><span class="nav-number">1.6.2.</span> <span class="nav-text">6.2 精确一次语义</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-压缩"><span class="nav-number">1.6.3.</span> <span class="nav-text">6.3 压缩</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-4-延迟消息"><span class="nav-number">1.6.4.</span> <span class="nav-text">6.4 延迟消息</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#七、性能优化"><span class="nav-number">1.7.</span> <span class="nav-text">七、性能优化</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-1-生产者优化"><span class="nav-number">1.7.1.</span> <span class="nav-text">7.1 生产者优化</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-2-消费者优化"><span class="nav-number">1.7.2.</span> <span class="nav-text">7.2 消费者优化</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-3-Broker优化"><span class="nav-number">1.7.3.</span> <span class="nav-text">7.3 Broker优化</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-4-分区规划"><span class="nav-number">1.7.4.</span> <span class="nav-text">7.4 分区规划</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#八、监控与运维"><span class="nav-number">1.8.</span> <span class="nav-text">八、监控与运维</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#8-1-关键指标"><span class="nav-number">1.8.1.</span> <span class="nav-text">8.1 关键指标</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-2-监控工具"><span class="nav-number">1.8.2.</span> <span class="nav-text">8.2 监控工具</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-3-运维操作"><span class="nav-number">1.8.3.</span> <span class="nav-text">8.3 运维操作</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#九、实战案例"><span class="nav-number">1.9.</span> <span class="nav-text">九、实战案例</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#9-1-日志收集系统"><span class="nav-number">1.9.1.</span> <span class="nav-text">9.1 日志收集系统</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-2-实时数据处理"><span class="nav-number">1.9.2.</span> <span class="nav-text">9.2 实时数据处理</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-3-事件溯源"><span class="nav-number">1.9.3.</span> <span class="nav-text">9.3 事件溯源</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#十、最佳实践"><span class="nav-number">1.10.</span> <span class="nav-text">十、最佳实践</span><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#10-1-生产者最佳实践"><span class="nav-number">1.10.1.</span> <span class="nav-text">10.1 生产者最佳实践</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#10-2-消费者最佳实践"><span class="nav-number">1.10.2.</span> <span class="nav-text">10.2 消费者最佳实践</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#10-3-主题设计"><span class="nav-number">1.10.3.</span> <span class="nav-text">10.3 主题设计</span></li><li class="nav-item nav-level-3"><a class="nav-link" href="#10-4-运维最佳实践"><span class="nav-number">1.10.4.</span> <span class="nav-text">10.4 运维最佳实践</span></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#十一、总结"><span class="nav-number">1.11.</span> <span class="nav-text">十一、总结</span></li></ol></li></ol></div>
+    </section>
+    <!--/noindex-->
+
+  </div>
+</aside>
+
+    <div class="page-header">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title" itemprop="name">Ruizhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+      </header>
+    </div>
+
+    <div class="main-inner">
+      <div class="content-wrap">
+
+        <div class="content page posts-expand">
+
+  <div class="post-block" itemscope itemtype="http://schema.org/Article" itemid="https://ruizhehou.github.io/2026/03/28/Kafka深度解析/">
+
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/03/28/Kafka深度解析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Ruizhe Hou">
+      <meta itemprop="description" content="技术博客">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Ruizhe's Blog">
+      <meta itemprop="logo" content="/images/avatar.gif">
+    </span>
+      <header class="post-header">
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <time class="post-time" itemprop="dateCreated"
+          datetime="2026-03-28T14:00:00+08:00"
+          content="2026-03-28"
+          pubdate>
+      03-28
+    </time>
+
+  </div>
+
+        </div>
+        <h1 class="post-title" itemprop="name headline">
+          Kafka深度解析
+        </h1>
+
+      </header>
+
+      <div class="post-body" itemprop="articleBody">
+
+          <h2 id="一、Kafka概述">一、Kafka概述</h2>
+
+<p>Apache Kafka是一个分布式流处理平台，最初由LinkedIn开发，后开源给Apache基金会。它以高吞吐量、低延迟、可扩展性和持久性著称，是大数据生态系统中的核心组件。</p>
+
+<h3 id="1-1-Kafka的核心特性">1.1 Kafka的核心特性</h3>
+
+<ul>
+<li><strong>高吞吐量</strong>：每秒可处理百万级消息</li>
+<li><strong>低延迟</strong>：毫秒级的消息延迟</li>
+<li><strong>持久性</strong>：消息持久化到磁盘，支持数据回溯</li>
+<li><strong>可扩展性</strong>：支持水平扩展，可轻松扩展到数千个节点</li>
+<li><strong>高可用性</strong>：支持副本机制，确保数据不丢失</li>
+<li><strong>流处理</strong>：支持实时流处理</li>
+</ul>
+
+<h3 id="1-2-Kafka的应用场景">1.2 Kafka的应用场景</h3>
+
+<ul>
+<li>日志收集</li>
+<li>流式数据处理</li>
+<li>消息队列</li>
+<li>事件溯源</li>
+<li>数据管道</li>
+<li>微服务通信</li>
+</ul>
+
+<h2 id="二、核心概念">二、核心概念</h2>
+
+<h3 id="2-1-消息-Message">2.1 消息(Message)</h3>
+
+<p>消息是Kafka中传输的基本单位，由键、值、时间戳等组成。</p>
+
+<pre><code class="language-java">ProducerRecord&lt;String, String&gt; record = new ProducerRecord&lt;&gt;(
     "topic-name",
     "key",
     "value"
 );
-```
+</code></pre>
 
-### 2.2 主题(Topic)
+<h3 id="2-2-主题-Topic">2.2 主题(Topic)</h3>
 
-主题是消息的逻辑分类，类似于数据库中的表。主题可以分为多个分区。
+<p>主题是消息的逻辑分类，类似于数据库中的表。主题可以分为多个分区。</p>
 
-```
-主题名：user-activity
+<pre><code>主题名：user-activity
 分区数：3
-```
+</code></pre>
 
-### 2.3 分区(Partition)
+<h3 id="2-3-分区-Partition">2.3 分区(Partition)</h3>
 
-分区是主题的物理分片，每个分区是一个有序的消息队列。
+<p>分区是主题的物理分片，每个分区是一个有序的消息队列。</p>
 
-```
-Topic: user-activity (3 partitions)
+<pre><code>Topic: user-activity (3 partitions)
 ├── Partition 0
 │   ├── Offset 0: Message A
 │   ├── Offset 1: Message B
@@ -71,56 +376,54 @@ Topic: user-activity (3 partitions)
 │   └── Offset 1: Message E
 └── Partition 2
     └── Offset 0: Message F
-```
+</code></pre>
 
-#### 分区的作用
+<h4 id="分区的作用">分区的作用</h4>
 
-- **负载均衡**：将消息分散到多个节点
-- **并行处理**：多个消费者可以并行消费不同分区
-- **有序性**：分区内消息有序，分区间无序
+<ul>
+<li><strong>负载均衡</strong>：将消息分散到多个节点</li>
+<li><strong>并行处理</strong>：多个消费者可以并行消费不同分区</li>
+<li><strong>有序性</strong>：分区内消息有序，分区间无序</li>
+</ul>
 
-### 2.4 副本(Replica)
+<h3 id="2-4-副本-Replica">2.4 副本(Replica)</h3>
 
-副本是分区的备份，用于提高可用性和数据安全性。
+<p>副本是分区的备份，用于提高可用性和数据安全性。</p>
 
-```
-Partition 0:
+<pre><code>Partition 0:
 ├── Leader Replica (Broker 1)
 ├── Follower Replica (Broker 2)
 └── Follower Replica (Broker 3)
-```
+</code></pre>
 
-#### ISR(In-Sync Replicas)
+<h4 id="ISR-In-Sync-Replicas">ISR(In-Sync Replicas)</h4>
 
-ISR是同步副本集合，包含Leader和所有与Leader保持同步的Follower。
+<p>ISR是同步副本集合，包含Leader和所有与Leader保持同步的Follower。</p>
 
-### 2.5 消费者组(Consumer Group)
+<h3 id="2-5-消费者组-Consumer-Group">2.5 消费者组(Consumer Group)</h3>
 
-消费者组是多个消费者的逻辑分组，用于实现消息的负载均衡。
+<p>消费者组是多个消费者的逻辑分组，用于实现消息的负载均衡。</p>
 
-```
-Consumer Group A:
+<pre><code>Consumer Group A:
 ├── Consumer 1 → Partition 0, 1
 └── Consumer 2 → Partition 2
-```
+</code></pre>
 
-### 2.6 偏移量(Offset)
+<h3 id="2-6-偏移量-Offset">2.6 偏移量(Offset)</h3>
 
-偏移量是分区中消息的唯一标识，表示消息在分区中的位置。
+<p>偏移量是分区中消息的唯一标识，表示消息在分区中的位置。</p>
 
-```
-Partition 0:
+<pre><code>Partition 0:
 Offset 0: Message A
 Offset 1: Message B
 Offset 2: Message C
-```
+</code></pre>
 
-## 三、Kafka架构
+<h2 id="三、Kafka架构">三、Kafka架构</h2>
 
-### 3.1 整体架构
+<h3 id="3-1-整体架构">3.1 整体架构</h3>
 
-```
-┌─────────────┐
+<pre><code>┌─────────────┐
 │   Producer  │
 └──────┬──────┘
        │
@@ -143,54 +446,53 @@ Offset 2: Message C
 │  │   1   │    │   2   │         │
 │  └───────┘    └───────┘         │
 └─────────────────────────────────┘
-```
+</code></pre>
 
-### 3.2 Broker
+<h3 id="3-2-Broker">3.2 Broker</h3>
 
-Broker是Kafka集群中的服务器节点，负责存储和处理消息。
+<p>Broker是Kafka集群中的服务器节点，负责存储和处理消息。</p>
 
-```properties
-# broker配置
+<pre><code># broker配置
 broker.id=1
 listeners=PLAINTEXT://localhost:9092
 log.dirs=/tmp/kafka-logs
 num.network.threads=3
 num.io.threads=8
-```
+</code></pre>
 
-### 3.3 Zookeeper
+<h3 id="3-3-Zookeeper">3.3 Zookeeper</h3>
 
-Zookeeper用于Kafka集群的协调和管理，包括：
+<p>Zookeeper用于Kafka集群的协调和管理，包括：</p>
 
-- Broker注册
-- 主题和分区管理
-- Leader选举
-- 配置管理
+<ul>
+<li>Broker注册</li>
+<li>主题和分区管理</li>
+<li>Leader选举</li>
+<li>配置管理</li>
+</ul>
 
-```
-Zookeeper树结构：
+<pre><code>Zookeeper树结构：
 /kafka
   ├── /brokers
   │   ├── /ids
   │   └── /topics
   ├── /controller
   └── /config
-```
+</code></pre>
 
-## 四、生产者(Producer)
+<h2 id="四、生产者-Producer">四、生产者(Producer)</h2>
 
-### 4.1 基本使用
+<h3 id="4-1-基本使用">4.1 基本使用</h3>
 
-```java
-Properties props = new Properties();
+<pre><code class="language-java">Properties props = new Properties();
 props.put("bootstrap.servers", "localhost:9092");
 props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 
-Producer<String, String> producer = new KafkaProducer<>(props);
+Producer&lt;String, String&gt; producer = new KafkaProducer&lt;&gt;(props);
 
 // 发送消息
-ProducerRecord<String, String> record = new ProducerRecord<>(
+ProducerRecord&lt;String, String&gt; record = new ProducerRecord&lt;&gt;(
     "my-topic",
     "key1",
     "Hello, Kafka!"
@@ -198,25 +500,23 @@ ProducerRecord<String, String> record = new ProducerRecord<>(
 producer.send(record);
 
 producer.close();
-```
+</code></pre>
 
-### 4.2 发送模式
+<h3 id="4-2-发送模式">4.2 发送模式</h3>
 
-#### 同步发送
+<h4 id="同步发送">同步发送</h4>
 
-```java
-try {
+<pre><code class="language-java">try {
     RecordMetadata metadata = producer.send(record).get();
     System.out.println("Offset: " + metadata.offset());
 } catch (Exception e) {
     e.printStackTrace();
 }
-```
+</code></pre>
 
-#### 异步发送
+<h4 id="异步发送">异步发送</h4>
 
-```java
-producer.send(record, new Callback() {
+<pre><code class="language-java">producer.send(record, new Callback() {
     @Override
     public void onCompletion(RecordMetadata metadata, Exception exception) {
         if (exception == null) {
@@ -226,26 +526,23 @@ producer.send(record, new Callback() {
         }
     }
 });
-```
+</code></pre>
 
-### 4.3 分区策略
+<h3 id="4-3-分区策略">4.3 分区策略</h3>
 
-#### 轮询策略
+<h4 id="轮询策略">轮询策略</h4>
 
-```properties
-partitioner.class=org.apache.kafka.clients.producer.RoundRobinPartitioner
-```
+<pre><code>partitioner.class=org.apache.kafka.clients.producer.RoundRobinPartitioner
+</code></pre>
 
-#### 哈希策略
+<h4 id="哈希策略">哈希策略</h4>
 
-```properties
-partitioner.class=org.apache.kafka.clients.producer.DefaultPartitioner
-```
+<pre><code>partitioner.class=org.apache.kafka.clients.producer.DefaultPartitioner
+</code></pre>
 
-#### 自定义分区策略
+<h4 id="自定义分区策略">自定义分区策略</h4>
 
-```java
-public class CustomPartitioner implements Partitioner {
+<pre><code class="language-java">public class CustomPartitioner implements Partitioner {
     @Override
     public int partition(String topic, Object key, byte[] keyBytes,
                         Object value, byte[] valueBytes, Cluster cluster) {
@@ -257,14 +554,13 @@ public class CustomPartitioner implements Partitioner {
     public void close() {}
 
     @Override
-    public void configure(Map<String, ?> configs) {}
+    public void configure(Map&lt;String, ?&gt; configs) {}
 }
-```
+</code></pre>
 
-### 4.4 可靠性配置
+<h3 id="4-4-可靠性配置">4.4 可靠性配置</h3>
 
-```properties
-# 确认级别
+<pre><code># 确认级别
 acks=0  # 不等待确认
 acks=1  # Leader确认
 acks=all  # 所有ISR副本确认
@@ -279,110 +575,103 @@ linger.ms=10
 
 # 缓冲区
 buffer.memory=33554432
-```
+</code></pre>
 
-## 五、消费者(Consumer)
+<h2 id="五、消费者-Consumer">五、消费者(Consumer)</h2>
 
-### 5.1 基本使用
+<h3 id="5-1-基本使用">5.1 基本使用</h3>
 
-```java
-Properties props = new Properties();
+<pre><code class="language-java">Properties props = new Properties();
 props.put("bootstrap.servers", "localhost:9092");
 props.put("group.id", "my-group");
 props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 
-KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
+KafkaConsumer&lt;String, String&gt; consumer = new KafkaConsumer&lt;&gt;(props);
 
 // 订阅主题
 consumer.subscribe(Collections.singletonList("my-topic"));
 
 while (true) {
-    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
-    for (ConsumerRecord<String, String> record : records) {
+    ConsumerRecords&lt;String, String&gt; records = consumer.poll(Duration.ofMillis(100));
+    for (ConsumerRecord&lt;String, String&gt; record : records) {
         System.out.printf("offset = %d, key = %s, value = %s%n",
             record.offset(), record.key(), record.value());
     }
 }
-```
+</code></pre>
 
-### 5.2 消费模式
+<h3 id="5-2-消费模式">5.2 消费模式</h3>
 
-#### 订阅模式(Subscribe)
+<h4 id="订阅模式-Subscribe">订阅模式(Subscribe)</h4>
 
-```java
-// 订阅多个主题
+<pre><code class="language-java">// 订阅多个主题
 consumer.subscribe(Arrays.asList("topic1", "topic2"));
 
 // 订阅模式匹配
 consumer.subscribe(Pattern.compile("topic-.*"));
-```
+</code></pre>
 
-#### 分配模式(Assign)
+<h4 id="分配模式-Assign">分配模式(Assign)</h4>
 
-```java
-// 手动分配分区
+<pre><code class="language-java">// 手动分配分区
 TopicPartition partition = new TopicPartition("my-topic", 0);
 consumer.assign(Collections.singletonList(partition));
-```
+</code></pre>
 
-### 5.3 偏移量管理
+<h3 id="5-3-偏移量管理">5.3 偏移量管理</h3>
 
-#### 自动提交
+<h4 id="自动提交">自动提交</h4>
 
-```properties
-enable.auto.commit=true
+<pre><code>enable.auto.commit=true
 auto.commit.interval.ms=1000
-```
+</code></pre>
 
-#### 手动提交
+<h4 id="手动提交">手动提交</h4>
 
-```java
-// 同步提交
+<pre><code class="language-java">// 同步提交
 consumer.commitSync();
 
 // 异步提交
 consumer.commitAsync();
 
 // 指定偏移量提交
-Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+Map&lt;TopicPartition, OffsetAndMetadata&gt; offsets = new HashMap&lt;&gt;();
 offsets.put(new TopicPartition("my-topic", 0),
     new OffsetAndMetadata(100));
 consumer.commitSync(offsets);
-```
+</code></pre>
 
-### 5.4 重平衡(Rebalance)
+<h3 id="5-4-重平衡-Rebalance">5.4 重平衡(Rebalance)</h3>
 
-重平衡是消费者组中消费者数量变化时的分区重新分配过程。
+<p>重平衡是消费者组中消费者数量变化时的分区重新分配过程。</p>
 
-```java
-// 重平衡监听器
+<pre><code class="language-java">// 重平衡监听器
 consumer.subscribe(Collections.singletonList("my-topic"),
     new ConsumerRebalanceListener() {
         @Override
-        public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+        public void onPartitionsRevoked(Collection&lt;TopicPartition&gt; partitions) {
             // 提交当前偏移量
             consumer.commitSync();
         }
 
         @Override
-        public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+        public void onPartitionsAssigned(Collection&lt;TopicPartition&gt; partitions) {
             // 重置偏移量或从指定位置开始消费
             for (TopicPartition partition : partitions) {
                 consumer.seekToBeginning(Collections.singletonList(partition));
             }
         }
     });
-```
+</code></pre>
 
-## 六、高级特性
+<h2 id="六、高级特性">六、高级特性</h2>
 
-### 6.1 事务
+<h3 id="6-1-事务">6.1 事务</h3>
 
-```java
-// 初始化事务性生产者
+<pre><code class="language-java">// 初始化事务性生产者
 props.put("transactional.id", "my-transactional-id");
-KafkaProducer<String, String> producer = new KafkaProducer<>(props);
+KafkaProducer&lt;String, String&gt; producer = new KafkaProducer&lt;&gt;(props);
 
 // 开启事务
 producer.initTransactions();
@@ -391,8 +680,8 @@ try {
     producer.beginTransaction();
 
     // 发送消息
-    producer.send(new ProducerRecord<>("topic1", "key1", "value1"));
-    producer.send(new ProducerRecord<>("topic2", "key2", "value2"));
+    producer.send(new ProducerRecord&lt;&gt;("topic1", "key1", "value1"));
+    producer.send(new ProducerRecord&lt;&gt;("topic2", "key2", "value2"));
 
     // 提交事务
     producer.commitTransaction();
@@ -400,33 +689,30 @@ try {
     // 回滚事务
     producer.abortTransaction();
 }
-```
+</code></pre>
 
-### 6.2 精确一次语义
+<h3 id="6-2-精确一次语义">6.2 精确一次语义</h3>
 
-精确一次语义确保消息既不丢失也不重复。
+<p>精确一次语义确保消息既不丢失也不重复。</p>
 
-```
-Producer → Kafka → Consumer
+<pre><code>Producer → Kafka → Consumer
    ↓          ↓         ↓
- 事务      幂等性    幂等性
-```
+  事务      幂等性    幂等性
+</code></pre>
 
-#### 生产者端
+<h4 id="生产者端">生产者端</h4>
 
-```properties
-# 启用幂等性
+<pre><code># 启用幂等性
 enable.idempotence=true
 
 # 配置事务
 transactional.id=my-transactional-id
-```
+</code></pre>
 
-#### 消费者端
+<h4 id="消费者端">消费者端</h4>
 
-```java
-// 消费者端幂等性处理
-public void processMessage(ConsumerRecord<String, String> record) {
+<pre><code class="language-java">// 消费者端幂等性处理
+public void processMessage(ConsumerRecord&lt;String, String&gt; record) {
     String messageId = record.key();
     if (!isProcessed(messageId)) {
         // 处理消息
@@ -435,58 +721,84 @@ public void processMessage(ConsumerRecord<String, String> record) {
         markAsProcessed(messageId);
     }
 }
-```
+</code></pre>
 
-### 6.3 压缩
+<h3 id="6-3-压缩">6.3 压缩</h3>
 
-Kafka支持多种压缩算法，可以减少网络传输和存储开销。
+<p>Kafka支持多种压缩算法，可以减少网络传输和存储开销。</p>
 
-```properties
-# 压缩算法
+<pre><code># 压缩算法
 compression.type=gzip  # gzip, snappy, lz4, zstd
 
 # 压缩级别（zstd）
 compression.level=3
-```
+</code></pre>
 
-#### 压缩算法对比
+<h4 id="压缩算法对比">压缩算法对比</h4>
 
-| 算法 | 压缩比 | 速度 | CPU消耗 |
-|------|--------|------|---------|
-| gzip | 高 | 慢 | 高 |
-| snappy | 中 | 快 | 低 |
-| lz4 | 中 | 很快 | 低 |
-| zstd | 很高 | 中 | 中 |
+<table>
+<thead>
+<tr>
+<th>算法</th>
+<th>压缩比</th>
+<th>速度</th>
+<th>CPU消耗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gzip</td>
+<td>高</td>
+<td>慢</td>
+<td>高</td>
+</tr>
+<tr>
+<td>snappy</td>
+<td>中</td>
+<td>快</td>
+<td>低</td>
+</tr>
+<tr>
+<td>lz4</td>
+<td>中</td>
+<td>很快</td>
+<td>低</td>
+</tr>
+<tr>
+<td>zstd</td>
+<td>很高</td>
+<td>中</td>
+<td>中</td>
+</tr>
+</tbody>
+</table>
 
-### 6.4 延迟消息
+<h3 id="6-4-延迟消息">6.4 延迟消息</h3>
 
-Kafka不直接支持延迟消息，但可以通过以下方式实现：
+<p>Kafka不直接支持延迟消息，但可以通过以下方式实现：</p>
 
-#### 方案1：基于时间戳
+<h4 id="方案1：基于时间戳">方案1：基于时间戳</h4>
 
-```java
-// 生产者发送时设置时间戳
-ProducerRecord<String, String> record = new ProducerRecord<>(
+<pre><code class="language-java">// 生产者发送时设置时间戳
+ProducerRecord&lt;String, String&gt; record = new ProducerRecord&lt;&gt;(
     "my-topic",
     null,
     System.currentTimeMillis() + delay,
     "key",
     "value"
 );
-```
+</code></pre>
 
-#### 方案2：使用延迟队列主题
+<h4 id="方案2：使用延迟队列主题">方案2：使用延迟队列主题</h4>
 
-```
-原始主题 → 延迟主题 → 消费者
-```
+<pre><code>原始主题 → 延迟主题 → 消费者
+</code></pre>
 
-## 七、性能优化
+<h2 id="七、性能优化">七、性能优化</h2>
 
-### 7.1 生产者优化
+<h3 id="7-1-生产者优化">7.1 生产者优化</h3>
 
-```properties
-# 批量发送
+<pre><code># 批量发送
 batch.size=32768
 linger.ms=10
 
@@ -498,12 +810,11 @@ compression.type=lz4
 
 # 网络参数
 max.in.flight.requests.per.connection=5
-```
+</code></pre>
 
-### 7.2 消费者优化
+<h3 id="7-2-消费者优化">7.2 消费者优化</h3>
 
-```properties
-# 拉取参数
+<pre><code># 拉取参数
 fetch.min.bytes=1
 fetch.max.bytes=52428800
 fetch.max.wait.ms=500
@@ -514,12 +825,11 @@ heartbeat.interval.ms=3000
 
 # 最大拉取记录数
 max.poll.records=500
-```
+</code></pre>
 
-### 7.3 Broker优化
+<h3 id="7-3-Broker优化">7.3 Broker优化</h3>
 
-```properties
-# 网络线程
+<pre><code># 网络线程
 num.network.threads=8
 
 # IO线程
@@ -532,68 +842,70 @@ log.flush.interval.ms=1000
 # 副本拉取
 num.replica.fetchers=4
 replica.fetch.max.bytes=1048576
-```
+</code></pre>
 
-### 7.4 分区规划
+<h3 id="7-4-分区规划">7.4 分区规划</h3>
 
-```
-分区数计算公式：
+<pre><code>分区数计算公式：
 目标吞吐量 / 单个分区吞吐量 = 分区数
 
 例如：
 目标吞吐量：100MB/s
 单个分区吞吐量：10MB/s
 分区数：100 / 10 = 10
-```
+</code></pre>
 
-## 八、监控与运维
+<h2 id="八、监控与运维">八、监控与运维</h2>
 
-### 8.1 关键指标
+<h3 id="8-1-关键指标">8.1 关键指标</h3>
 
-#### Broker指标
+<h4 id="Broker指标">Broker指标</h4>
 
-- **Bytes In/Out**：网络吞吐量
-- **Messages In/Out**：消息吞吐量
-- **Request Latency**：请求延迟
-- **Under Replicated Partitions**：未充分复制的分区数
-- **Active Controller Count**：活跃Controller数
+<ul>
+<li><strong>Bytes In/Out</strong>：网络吞吐量</li>
+<li><strong>Messages In/Out</strong>：消息吞吐量</li>
+<li><strong>Request Latency</strong>：请求延迟</li>
+<li><strong>Under Replicated Partitions</strong>：未充分复制的分区数</li>
+<li><strong>Active Controller Count</strong>：活跃Controller数</li>
+</ul>
 
-#### Topic指标
+<h4 id="Topic指标">Topic指标</h4>
 
-- **Messages Per Sec**：每秒消息数
-- **Bytes Per Sec**：每秒字节数
-- **Log Size**：日志大小
+<ul>
+<li><strong>Messages Per Sec</strong>：每秒消息数</li>
+<li><strong>Bytes Per Sec</strong>：每秒字节数</li>
+<li><strong>Log Size</strong>：日志大小</li>
+</ul>
 
-#### Consumer指标
+<h4 id="Consumer指标">Consumer指标</h4>
 
-- **Consumer Lag**：消费延迟
-- **Records Per Sec**：每秒记录数
-- **Fetch Rate**：拉取速率
+<ul>
+<li><strong>Consumer Lag</strong>：消费延迟</li>
+<li><strong>Records Per Sec</strong>：每秒记录数</li>
+<li><strong>Fetch Rate</strong>：拉取速率</li>
+</ul>
 
-### 8.2 监控工具
+<h3 id="8-2-监控工具">8.2 监控工具</h3>
 
-#### JMX
+<h4 id="JMX">JMX</h4>
 
-```bash
-# 启用JMX
+<pre><code># 启用JMX
 export JMX_PORT=9999
 bin/kafka-server-start.sh config/server.properties
 
 # 使用JConsole或JVisualVM连接
-```
+</code></pre>
 
-#### Kafka Manager
+<h4 id="Kafka-Manager">Kafka Manager</h4>
 
-```bash
-# 启动Kafka Manager
+<pre><code># 启动Kafka Manager
 bin/kafka-manager -Dconfig.file=conf/application.conf
-```
+</code></pre>
 
-#### Burrow
+<h4 id="Burrow">Burrow</h4>
 
-```bash
-# 配置Burrow
-cat > burrow.toml << EOF
+<pre><code># 配置Burrow
+cat &gt; burrow.toml &lt;&lt; EOF
 [zookeeper]
 servers=["localhost:2181"]
 timeout=6
@@ -601,14 +913,13 @@ EOF
 
 # 启动Burrow
 burrow -config burrow.toml
-```
+</code></pre>
 
-### 8.3 运维操作
+<h3 id="8-3-运维操作">8.3 运维操作</h3>
 
-#### 创建主题
+<h4 id="创建主题">创建主题</h4>
 
-```bash
-# 创建主题
+<pre><code># 创建主题
 kafka-topics.sh --create \
   --bootstrap-server localhost:9092 \
   --topic my-topic \
@@ -623,12 +934,11 @@ kafka-topics.sh --list \
 kafka-topics.sh --describe \
   --bootstrap-server localhost:9092 \
   --topic my-topic
-```
+</code></pre>
 
-#### 修改主题
+<h4 id="修改主题">修改主题</h4>
 
-```bash
-# 增加分区
+<pre><code># 增加分区
 kafka-topics.sh --alter \
   --bootstrap-server localhost:9092 \
   --topic my-topic \
@@ -640,21 +950,19 @@ kafka-configs.sh --alter \
   --entity-type topics \
   --entity-name my-topic \
   --add-config retention.ms=86400000
-```
+</code></pre>
 
-#### 删除主题
+<h4 id="删除主题">删除主题</h4>
 
-```bash
-# 删除主题
+<pre><code># 删除主题
 kafka-topics.sh --delete \
   --bootstrap-server localhost:9092 \
   --topic my-topic
-```
+</code></pre>
 
-#### 重平衡分区
+<h4 id="重平衡分区">重平衡分区</h4>
 
-```bash
-# 生成分区分配方案
+<pre><code># 生成分区分配方案
 kafka-reassign-partitions.sh \
   --bootstrap-server localhost:9092 \
   --topics-to-move-json-file topics.json \
@@ -672,20 +980,18 @@ kafka-reassign-partitions.sh \
   --bootstrap-server localhost:9092 \
   --reassignment-json-file reassign.json \
   --verify
-```
+</code></pre>
 
-## 九、实战案例
+<h2 id="九、实战案例">九、实战案例</h2>
 
-### 9.1 日志收集系统
+<h3 id="9-1-日志收集系统">9.1 日志收集系统</h3>
 
-```
-应用 → Kafka → Logstash → Elasticsearch → Kibana
-```
+<pre><code>应用 → Kafka → Logstash → Elasticsearch → Kibana
+</code></pre>
 
-```java
-// 日志生产者
+<pre><code class="language-java">// 日志生产者
 public class LogProducer {
-    private final KafkaProducer<String, String> producer;
+    private final KafkaProducer&lt;String, String&gt; producer;
 
     public LogProducer() {
         Properties props = new Properties();
@@ -693,72 +999,69 @@ public class LogProducer {
         props.put("key.serializer", StringSerializer.class.getName());
         props.put("value.serializer", StringSerializer.class.getName());
         props.put("compression.type", "gzip");
-        this.producer = new KafkaProducer<>(props);
+        this.producer = new KafkaProducer&lt;&gt;(props);
     }
 
     public void sendLog(String level, String message) {
         String key = UUID.randomUUID().toString();
         String value = String.format("[%s] %s", level, message);
-        ProducerRecord<String, String> record =
-            new ProducerRecord<>("application-logs", key, value);
+        ProducerRecord&lt;String, String&gt; record =
+            new ProducerRecord&lt;&gt;("application-logs", key, value);
         producer.send(record);
     }
 }
-```
+</code></pre>
 
-### 9.2 实时数据处理
+<h3 id="9-2-实时数据处理">9.2 实时数据处理</h3>
 
-```
-Kafka → Flink → Kafka
-```
+<pre><code>Kafka → Flink → Kafka
+</code></pre>
 
-```java
-// Flink消费Kafka
+<pre><code class="language-java">// Flink消费Kafka
 Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
 properties.setProperty("group.id", "flink-consumer");
 
-FlinkKafkaConsumer<String> kafkaSource = new FlinkKafkaConsumer<>(
+FlinkKafkaConsumer&lt;String&gt; kafkaSource = new FlinkKafkaConsumer&lt;&gt;(
     "input-topic",
     new SimpleStringSchema(),
     properties
 );
 
-DataStream<String> stream = env.addSource(kafkaSource);
+DataStream&lt;String&gt; stream = env.addSource(kafkaSource);
 
 // 处理数据
-DataStream<String> processed = stream
-    .map(message -> processMessage(message))
-    .filter(message -> isValid(message));
+DataStream&lt;String&gt; processed = stream
+    .map(message -&gt; processMessage(message))
+    .filter(message -&gt; isValid(message));
 
 // 写入Kafka
-FlinkKafkaProducer<String> kafkaSink = new FlinkKafkaProducer<>(
+FlinkKafkaProducer&lt;String&gt; kafkaSink = new FlinkKafkaProducer&lt;&gt;(
     "output-topic",
     new SimpleStringSchema(),
     properties
 );
 
 processed.addSink(kafkaSink);
-```
+</code></pre>
 
-### 9.3 事件溯源
+<h3 id="9-3-事件溯源">9.3 事件溯源</h3>
 
-```java
-// 事件生产者
+<pre><code class="language-java">// 事件生产者
 public class EventStore {
-    private final KafkaProducer<String, String> producer;
+    private final KafkaProducer&lt;String, String&gt; producer;
 
     public void storeEvent(String aggregateId, Event event) {
         String key = aggregateId;
         String value = serializeEvent(event);
 
-        ProducerRecord<String, String> record = new ProducerRecord<>(
+        ProducerRecord&lt;String, String&gt; record = new ProducerRecord&lt;&gt;(
             "events",
             key,
             value
         );
 
-        producer.send(record, (metadata, exception) -> {
+        producer.send(record, (metadata, exception) -&gt; {
             if (exception != null) {
                 // 处理失败
                 handleFailure(event, exception);
@@ -769,7 +1072,7 @@ public class EventStore {
 
 // 事件消费者
 public class EventReplayer {
-    private final KafkaConsumer<String, String> consumer;
+    private final KafkaConsumer&lt;String, String&gt; consumer;
 
     public void replayEvents(String aggregateId) {
         consumer.assign(Collections.singletonList(
@@ -780,8 +1083,8 @@ public class EventReplayer {
             new TopicPartition("events", getPartition(aggregateId))
         ));
 
-        ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
-        for (ConsumerRecord<String, String> record : records) {
+        ConsumerRecords&lt;String, String&gt; records = consumer.poll(Duration.ofMillis(1000));
+        for (ConsumerRecord&lt;String, String&gt; record : records) {
             if (record.key().equals(aggregateId)) {
                 Event event = deserializeEvent(record.value());
                 applyEvent(event);
@@ -789,54 +1092,118 @@ public class EventReplayer {
         }
     }
 }
-```
+</code></pre>
 
-## 十、最佳实践
+<h2 id="十、最佳实践">十、最佳实践</h2>
 
-### 10.1 生产者最佳实践
+<h3 id="10-1-生产者最佳实践">10.1 生产者最佳实践</h3>
 
-1. **使用批量发送**：提高吞吐量
-2. **选择合适的分区策略**：确保消息均匀分布
-3. **设置合理的acks**：根据可靠性要求选择
-4. **启用压缩**：减少网络传输和存储
-5. **处理异常**：妥善处理发送失败
+<ol>
+<li><strong>使用批量发送</strong>：提高吞吐量</li>
+<li><strong>选择合适的分区策略</strong>：确保消息均匀分布</li>
+<li><strong>设置合理的acks</strong>：根据可靠性要求选择</li>
+<li><strong>启用压缩</strong>：减少网络传输和存储</li>
+<li><strong>处理异常</strong>：妥善处理发送失败</li>
+</ol>
 
-### 10.2 消费者最佳实践
+<h3 id="10-2-消费者最佳实践">10.2 消费者最佳实践</h3>
 
-1. **使用消费者组**：实现负载均衡
-2. **手动提交偏移量**：确保消息处理完成后再提交
-3. **处理重平衡**：实现RebalanceListener
-4. **控制拉取频率**：避免频繁拉取
-5. **实现幂等性**：处理重复消息
+<ol>
+<li><strong>使用消费者组</strong>：实现负载均衡</li>
+<li><strong>手动提交偏移量</strong>：确保消息处理完成后再提交</li>
+<li><strong>处理重平衡</strong>：实现RebalanceListener</li>
+<li><strong>控制拉取频率</strong>：避免频繁拉取</li>
+<li><strong>实现幂等性</strong>：处理重复消息</li>
+</ol>
 
-### 10.3 主题设计
+<h3 id="10-3-主题设计">10.3 主题设计</h3>
 
-1. **合理设置分区数**：根据吞吐量需求
-2. **设置合适的副本数**：平衡可用性和性能
-3. **配置保留策略**：根据业务需求
-4. **使用主题命名规范**：便于管理
-5. **定期清理**：避免磁盘空间不足
+<ol>
+<li><strong>合理设置分区数</strong>：根据吞吐量需求</li>
+<li><strong>设置合适的副本数</strong>：平衡可用性和性能</li>
+<li><strong>配置保留策略</strong>：根据业务需求</li>
+<li><strong>使用主题命名规范</strong>：便于管理</li>
+<li><strong>定期清理</strong>：避免磁盘空间不足</li>
+</ol>
 
-### 10.4 运维最佳实践
+<h3 id="10-4-运维最佳实践">10.4 运维最佳实践</h3>
 
-1. **监控关键指标**：及时发现异常
-2. **定期备份**：保护重要数据
-3. **规划容量**：避免资源不足
-4. **测试故障恢复**：确保高可用
-5. **版本管理**：谨慎升级
+<ol>
+<li><strong>监控关键指标</strong>：及时发现异常</li>
+<li><strong>定期备份</strong>：保护重要数据</li>
+<li><strong>规划容量</strong>：避免资源不足</li>
+<li><strong>测试故障恢复</strong>：确保高可用</li>
+<li><strong>版本管理</strong>：谨慎升级</li>
+</ol>
 
-## 十一、总结
+<h2 id="十一、总结">十一、总结</h2>
 
-Kafka是一个功能强大、性能卓越的分布式消息系统。通过本文的介绍，我们了解了：
+<p>Kafka是一个功能强大、性能卓越的分布式消息系统。通过本文的介绍，我们了解了：</p>
 
-1. Kafka的核心概念：主题、分区、副本、消费者组
-2. Kafka架构：Broker、Zookeeper、生产者、消费者
-3. 生产者实现：发送模式、分区策略、可靠性配置
-4. 消费者实现：消费模式、偏移量管理、重平衡
-5. 高级特性：事务、精确一次语义、压缩、延迟消息
-6. 性能优化：生产者、消费者、Broker优化
-7. 监控运维：关键指标、监控工具、运维操作
-8. 实战案例：日志收集、实时处理、事件溯源
-9. 最佳实践：生产者、消费者、主题设计、运维
+<ol>
+<li>Kafka的核心概念：主题、分区、副本、消费者组</li>
+<li>Kafka架构：Broker、Zookeeper、生产者、消费者</li>
+<li>生产者实现：发送模式、分区策略、可靠性配置</li>
+<li>消费者实现：消费模式、偏移量管理、重平衡</li>
+<li>高级特性：事务、精确一次语义、压缩、延迟消息</li>
+<li>性能优化：生产者、消费者、Broker优化</li>
+<li>监控运维：关键指标、监控工具、运维操作</li>
+<li>实战案例：日志收集、实时处理、事件溯源</li>
+<li>最佳实践：生产者、消费者、主题设计、运维</li>
+</ol>
 
-掌握Kafka不仅可以帮助我们构建高性能的消息系统，还能为大数据处理、微服务架构等场景提供可靠的消息传输基础。在实际应用中，建议根据具体场景选择合适的配置和优化策略，以达到最佳的性能和可靠性。
+<p>掌握Kafka不仅可以帮助我们构建高性能的消息系统，还能为大数据处理、微服务架构等场景提供可靠的消息传输基础。在实际应用中，建议根据具体场景选择合适的配置和优化策略，以达到最佳的性能和可靠性。</p>
+
+      </div>
+
+      <footer class="post-footer">
+
+          <div class="post-tags">
+              <a href="/tags/Kafka/" rel="tag"><i class="fa fa-tag"></i> Kafka</a>
+              <a href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97/" rel="tag"><i class="fa fa-tag"></i> 消息队列</a>
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F/" rel="tag"><i class="fa fa-tag"></i> 分布式系统</a>
+          </div>
+
+      </footer>
+
+    </div>
+  </div>
+
+        </div>
+      </div>
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Ruizhe Hou</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.js.org/Gemini.html" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/jquery.min.js"></script>
+  <script src="/lib/fancybox/jquery.fancybox.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/affix.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/js/local-search.js"></script>
+
+</body>
+</html>
