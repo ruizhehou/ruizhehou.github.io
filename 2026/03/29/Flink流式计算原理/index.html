@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Flink 是新一代大数据流式计算引擎，以其低延迟、高吞吐、精确一次等特性著称。本文将深入剖析 Flink 的核心架构、运行时机制以及流式计算的关键技术。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Flink 流式计算原理">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/29/Flink流式计算原理/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="Flink 是新一代大数据流式计算引擎，以其低延迟、高吞吐、精确一次等特性著称。本文将深入剖析 Flink 的核心架构、运行时机制以及流式计算的关键技术。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-29T00:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-29T00:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="Flink">
+<meta property="article:tag" content="流式计算">
+<meta property="article:tag" content="大数据">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/29/Flink流式计算原理/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Flink 流式计算原理 | 侯瑞哲的博客</title>
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-03-29T00:00:00+08:00" content="2026-03-29">
+      03-29
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      Flink 流式计算原理
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+    <p>Flink（Apache Flink）是新一代大数据流式计算引擎，以其低延迟、高吞吐、精确一次（Exactly-Once）等特性著称。本文将深入剖析 Flink 的核心架构、运行时机制以及流式计算的关键技术。</p>
+<h2 id="Flink-简介">Flink 简介</h2>
+<p>Flink 是一个分布式、高性能、高可用的流处理框架，由 Apache 软件基金会顶级项目维护。它支持有界和无界数据流处理，能够以亚秒级的延迟处理大规模数据。</p>
+<p><strong>Flink 的核心特性：</strong></p>
+<ul>
+<li><strong>低延迟</strong>：毫秒级延迟，适合实时场景</li>
+<li><strong>高吞吐</strong>：每秒处理百万级事件</li>
+<li><strong>精确一次</strong>：保证数据处理的精确一次语义</li>
+<li><strong>状态管理</strong>：内置强大的状态后端支持</li>
+<li><strong>事件时间</strong>：支持基于事件时间的窗口计算</li>
+<li><strong>容错机制</strong>：基于 Checkpoint 的轻量级容错</li>
+</ul>
+<h2 id="核心架构">核心架构</h2>
+<h3 id="分层架构">分层架构</h3>
+<p>Flink 采用分层架构设计，从下到上依次为：</p>
+<ol>
+<li><strong>部署层</strong>：支持 Local、Standalone、YARN、Kubernetes 等多种部署模式</li>
+<li><strong>运行时层</strong>：负责作业的调度、执行和资源管理</li>
+<li><strong>API 层</strong>：提供 DataStream API、Table API、SQL 等多种编程接口</li>
+<li><strong>库层</strong>：提供 CEP（复杂事件处理）、ML（机器学习）、Gelly（图计算）等库</li>
+</ol>
+<h3 id="核心组件">核心组件</h3>
+<p><strong>JobManager：</strong></p>
+<ul>
+<li>负责作业的调度和协调</li>
+<li>管理 Checkpoint 和故障恢复</li>
+<li>维护作业的全局状态</li>
+<li>一个集群可以有多个 JobManager，通过 ZooKeeper 实现高可用</li>
+</ul>
+<p><strong>TaskManager：</strong></p>
+<ul>
+<li>实际执行作业的工作节点</li>
+<li>管理 Task Slots（任务槽）</li>
+<li>维护数据流和状态</li>
+<li>通过网络交换数据</li>
+</ul>
+<p><strong>Task Slot：</strong></p>
+<ul>
+<li>TaskManager 的资源隔离单位</li>
+<li>一个 Slot 可以运行多个 Subtask</li>
+<li>Slot 之间通过内存隔离，共享网络资源</li>
+</ul>
+<h2 id="数据流模型">数据流模型</h2>
+<h3 id="DataStream-API">DataStream API</h3>
+<p>DataStream API 是 Flink 最核心的流处理 API，提供了丰富的算子用于数据转换。</p>
+<pre><code class="language-java">// 创建执行环境
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+// 从 Kafka 读取数据
+DataStream&lt;String&gt; stream = env
+    .addSource(new FlinkKafkaConsumer&lt;&gt;("topic", deserializer, properties));
+
+// 数据转换
+DataStream&lt;Event&gt; events = stream
+    .map(this::parseEvent)           // 解析事件
+    .filter(event -> event.isValid()) // 过滤无效事件
+    .keyBy(Event::getUserId)          // 按 userId 分区
+    .window(TumblingEventTimeWindows.of(Time.minutes(5))) // 5分钟滚动窗口
+    .aggregate(new CountAggregator()); // 聚合统计
+
+// 输出结果
+events.addSink(new FlinkKafkaProducer&lt;&gt;("output-topic", serializer, properties));
+
+// 执行作业
+env.execute("Flink Streaming Job");
+</code></pre>
+<h3 id="常用算子">常用算子</h3>
+<table>
+<thead>
+<tr>
+<th>算子类型</th>
+<th>说明</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>map</td>
+<td>一对一转换</td>
+<td>stream.map(x -&gt; x * 2)</td>
+</tr>
+<tr>
+<td>filter</td>
+<td>过滤元素</td>
+<td>stream.filter(x -&gt; x &gt; 0)</td>
+</tr>
+<tr>
+<td>flatMap</td>
+<td>一对多转换</td>
+<td>stream.flatMap(x -&gt; Arrays.asList(x, x + 1))</td>
+</tr>
+<tr>
+<td>keyBy</td>
+<td>按键分区</td>
+<td>stream.keyBy(User::getId)</td>
+</tr>
+<tr>
+<td>reduce</td>
+<td>增量聚合</td>
+<td>stream.reduce((a, b) -&gt; a + b)</td>
+</tr>
+<tr>
+<td>aggregate</td>
+<td>窗口聚合</td>
+<td>window.aggregate(new MyAggregator())</td>
+</tr>
+<tr>
+<td>join</td>
+<td>流连接</td>
+<td>stream1.join(stream2)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="窗口机制">窗口机制</h2>
+<h3 id="窗口类型">窗口类型</h3>
+<p><strong>滚动窗口（Tumbling Window）：</strong></p>
+<pre><code class="language-java">// 5分钟滚动窗口
+.window(TumblingEventTimeWindows.of(Time.minutes(5)))
+
+// 时间对齐：[0:00, 0:05), [0:05, 0:10), ...
+</code></pre>
+<p><strong>滑动窗口（Sliding Window）：</strong></p>
+<pre><code class="language-java">// 窗口大小10分钟，滑动步长5分钟
+.window(SlidingEventTimeWindows.of(Time.minutes(10), Time.minutes(5)))
+
+// 时间重叠：[0:00, 0:10), [0:05, 0:15), [0:10, 0:20), ...
+</code></pre>
+<p><strong>会话窗口（Session Window）：</strong></p>
+<pre><code class="language-java">// 超时时间5分钟
+.window(EventTimeSessionWindows.withGap(Time.minutes(5)))
+
+// 根据数据间隔动态划分窗口
+</code></pre>
+<p><strong>全局窗口（Global Window）：</strong></p>
+<pre><code class="language-java">// 全局窗口，需要自定义触发器
+.window(GlobalWindows.create())
+.trigger(new MyTrigger())
+</code></pre>
+<h3 id="时间语义">时间语义</h3>
+<p>Flink 支持三种时间语义：</p>
+<ul>
+<li><strong>处理时间（Processing Time）</strong>：数据进入算子的时间</li>
+<li><strong>事件时间（Event Time）</strong>：数据本身携带的时间戳</li>
+<li><strong>摄入时间（Ingestion Time）</strong>：数据进入 Flink 的时间</li>
+</ul>
+<pre><code class="language-java">// 设置时间语义为事件时间
+env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+// 提取时间戳和生成水印
+DataStream&lt;Event&gt; events = stream
+    .assignTimestampsAndWatermarks(
+        WatermarkStrategy
+            .&lt;Event&gt;forBoundedOutOfOrderness(Duration.ofSeconds(5))
+            .withTimestampAssigner((event, timestamp) -&gt; event.getTimestamp())
+    );
+</code></pre>
+<h3 id="水印机制">水印机制</h3>
+<p>水印（Watermark）是事件时间处理的核心机制，用于处理乱序数据。</p>
+<p><strong>水印的作用：</strong></p>
+<ul>
+<li>标识事件时间的进度</li>
+<li>触发窗口计算</li>
+<li>处理迟到的数据</li>
+</ul>
+<p><strong>水印的生成策略：</strong></p>
+<pre><code class="language-java">// 固定延迟水印
+WatermarkStrategy
+    .&lt;Event&gt;forBoundedOutOfOrderness(Duration.ofSeconds(5))
+
+// 单调递增水印（数据有序）
+WatermarkStrategy.&lt;Event&gt;forMonotonousTimestamps()
+
+// 自定义水印生成器
+WatermarkStrategy
+    .&lt;Event&gt;new CustomWatermarkStrategy()
+</code></pre>
+<p><strong>迟到数据处理：</strong></p>
+<pre><code class="language-java">// 允许迟到数据
+.window(TumblingEventTimeWindows.of(Time.minutes(5)))
+.allowedLateness(Time.minutes(1))
+.sideOutputLateData(lateDataTag)
+
+// 获取迟到数据
+DataStream&lt;Event&gt; lateEvents = stream.getSideOutput(lateDataTag);
+</code></pre>
+<h2 id="状态管理">状态管理</h2>
+<h3 id="状态类型">状态类型</h3>
+<p><strong>Keyed State：</strong></p>
+<ul>
+<li>与 Key 绑定的状态</li>
+<li>只能用于 KeyedStream</li>
+<li>支持多种状态类型</li>
+</ul>
+<pre><code class="language-java">public class MyFunction extends KeyedProcessFunction&lt;String, Event, Result&gt; {
+    // ValueState：保存单个值
+    private ValueState&lt;Long&gt; countState;
+
+    // ListState：保存列表
+    private ListState&lt;Event&gt; eventListState;
+
+    // MapState：保存键值对
+    private MapState&lt;String, Integer&gt; mapState;
+
+    @Override
+    public void open(Configuration parameters) {
+        ValueStateDescriptor&lt;Long&gt; countDescriptor =
+            new ValueStateDescriptor&lt;&gt;("count", Long.class);
+        countState = getRuntimeContext().getState(countDescriptor);
+    }
+
+    @Override
+    public void processElement(Event event, Context ctx, Collector&lt;Result&gt; out) {
+        Long count = countState.value();
+        if (count == null) {
+            count = 0L;
+        }
+        countState.update(count + 1);
+        out.collect(new Result(event.getUserId(), count));
+    }
+}
+</code></pre>
+<p><strong>Operator State：</strong></p>
+<ul>
+<li>与算子绑定的状态</li>
+<li>可用于非 KeyedStream</li>
+<li>常用于 Source 算子（如 Kafka Offset）</li>
+</ul>
+<pre><code class="language-java">public class MySource extends SourceFunction&lt;Event&gt; implements CheckpointedFunction {
+    private ListState&lt;Long&gt; offsetState;
+    private long currentOffset = 0;
+
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) {
+        offsetState.clear();
+        offsetState.add(currentOffset);
+    }
+
+    @Override
+    public void initializeState(FunctionInitializationContext context) {
+        offsetState = context.getOperatorStateStore()
+            .getListState(new ListStateDescriptor&lt;&gt;("offset", Long.class));
+    }
+}
+</code></pre>
+<h3 id="状态后端">状态后端</h3>
+<p>Flink 提供多种状态后端实现：</p>
+<table>
+<thead>
+<tr>
+<th>状态后端</th>
+<th>存储位置</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MemoryStateBackend</td>
+<td>JVM 堆内存</td>
+<td>本地测试、小状态</td>
+</tr>
+<tr>
+<td>FsStateBackend</td>
+<td>本地内存 + 文件系统</td>
+<td>中等状态、生产环境</td>
+</tr>
+<tr>
+<td>RocksDBStateBackend</td>
+<td>本地 RocksDB + 文件系统</td>
+<td>大状态、生产环境</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-java">// 配置状态后端
+env.setStateBackend(new RocksDBStateBackend("hdfs:///flink/checkpoints"));
+
+// 设置状态过期时间
+stateTtlConfig = StateTtlConfig
+    .newBuilder(Time.hours(24))
+    .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+    .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+    .cleanupInRocksdbCompactFilter(1000)
+    .build();
+</code></pre>
+<h2 id="Checkpoint-与容错">Checkpoint 与容错</h2>
+<h3 id="Checkpoint-机制">Checkpoint 机制</h3>
+<p>Checkpoint 是 Flink 的容错机制核心，基于 Chandy-Lamport 算法实现。</p>
+<p><strong>Checkpoint 的作用：</strong></p>
+<ul>
+<li>定期保存作业的全局状态快照</li>
+<li>故障时从最近的 Checkpoint 恢复</li>
+<li>保证精确一次语义</li>
+</ul>
+<p><strong>Checkpoint 流程：</strong></p>
+<ol>
+<li>JobManager 触发 Checkpoint</li>
+<li>Source 算子保存状态和 Offset</li>
+<li>中间算子保存状态</li>
+<li>Sink 算子保存状态</li>
+<li>JobManager 收到所有确认，完成 Checkpoint</li>
+</ol>
+<pre><code class="language-java">// 启用 Checkpoint
+env.enableCheckpointing(60000); // 60秒一次
+
+// Checkpoint 配置
+CheckpointConfig checkpointConfig = env.getCheckpointConfig();
+checkpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+checkpointConfig.setMinPauseBetweenCheckpoints(500); // 最小间隔
+checkpointConfig.setCheckpointTimeout(60000); // 超时时间
+checkpointConfig.setMaxConcurrentCheckpoints(1); // 最大并发数
+checkpointConfig.enableExternalizedCheckpoints(
+    CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
+);
+</code></pre>
+<h3 id="Savepoint">Savepoint</h3>
+<p>Savepoint 是用户手动触发的 Checkpoint，用于作业升级或迁移。</p>
+<pre><code class="language-bash"># 触发 Savepoint
+flink savepoint &lt;jobId&gt; &lt;targetDirectory&gt;
+
+# 从 Savepoint 恢复作业
+flink run -s &lt;savepointPath&gt; &lt;jobJar&gt;
+</code></pre>
+<h2 id="精确一次语义">精确一次语义</h2>
+<h3 id="端到端精确一次">端到端精确一次</h3>
+<p>实现端到端精确一次需要满足三个条件：</p>
+<ol>
+<li><strong>内部精确一次</strong>：Flink 内部通过 Checkpoint 保证</li>
+<li><strong>Source 精确一次</strong>：Source 支持 Offset 提交</li>
+<li><strong>Sink 精确一次</strong>：Sink 支持幂等写入或事务</li>
+</ol>
+<h3 id="Two-Phase-Commit-两阶段提交">Two-Phase Commit（两阶段提交）</h3>
+<p>两阶段提交是实现 Sink 精确一次的常用方案。</p>
+<pre><code class="language-java">public class TwoPhaseCommitSink
+    extends TwoPhaseCommitSinkFunction&lt;Event, Transaction, Committer&gt; {
+
+    @Override
+    protected Transaction beginTransaction() {
+        // 开始事务
+        return externalSystem.beginTransaction();
+    }
+
+    @Override
+    protected void invoke(Transaction transaction, Event event) {
+        // 写入事务
+        externalSystem.write(transaction, event);
+    }
+
+    @Override
+    protected void preCommit(Transaction transaction) {
+        // 预提交
+        externalSystem.preCommit(transaction);
+    }
+
+    @Override
+    protected void commit(Transaction transaction) {
+        // 提交事务
+        externalSystem.commit(transaction);
+    }
+
+    @Override
+    protected void abort(Transaction transaction) {
+        // 回滚事务
+        externalSystem.rollback(transaction);
+    }
+}
+</code></pre>
+<h2 id="CEP-复杂事件处理">CEP 复杂事件处理</h2>
+<p>Flink CEP（Complex Event Processing）用于检测复杂的事件模式。</p>
+<pre><code class="language-java">// 定义事件模式
+Pattern&lt;Event, ?&gt; pattern = Pattern.&lt;Event&gt;begin("start")
+    .where(event -> event.getType().equals("A"))
+    .next("middle")
+    .where(event -> event.getType().equals("B"))
+    .within(Time.seconds(10));
+
+// 应用模式
+PatternStream&lt;Event&gt; patternStream = CEP.pattern(events, pattern);
+
+// 提取匹配结果
+DataStream&lt;Alert&gt; alerts = patternStream.select(pattern -&gt; {
+    Event start = pattern.get("start").get(0);
+    Event middle = pattern.get("middle").get(0);
+    return new Alert(start.getId(), middle.getId());
+});
+</code></pre>
+<h2 id="性能优化">性能优化</h2>
+<h3 id="并行度配置">并行度配置</h3>
+<pre><code class="language-java">// 设置全局并行度
+env.setParallelism(4);
+
+// 设置算子级并行度
+stream.map(...).setParallelism(2);
+
+// 设置 Slot 共享组
+stream.map(...).slotSharingGroup("group1");
+</code></pre>
+<h3 id="内存管理">内存管理</h3>
+<pre><code class="language-java">// 配置 TaskManager 内存
+taskmanager.memory.process.size: 4g
+taskmanager.memory.flink.size: 3g
+taskmanager.memory.managed.fraction: 0.4
+</code></pre>
+<h3 id="网络优化">网络优化</h3>
+<pre><code class="language-java">// 启用网络缓冲区
+taskmanager.network.numberOfBuffers: 2048
+taskmanager.memory.network.min: 512m
+taskmanager.memory.network.max: 1g
+</code></pre>
+<h2 id="最佳实践">最佳实践</h2>
+<ul>
+<li><strong>使用事件时间</strong>：处理乱序数据，保证结果的准确性</li>
+<li><strong>合理设置并行度</strong>：根据集群资源和数据量调整</li>
+<li><strong>选择合适的状态后端</strong>：大状态使用 RocksDB</li>
+<li><strong>定期清理过期状态</strong>：避免状态无限增长</li>
+<li><strong>监控 Checkpoint</strong>：确保 Checkpoint 完成时间合理</li>
+<li><strong>使用背压机制</strong>：防止数据积压</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>Flink 是一个强大的流式计算引擎，提供了丰富的 API 和完善的状态管理、容错机制。本文介绍了 Flink 的核心架构、数据流模型、窗口机制、状态管理、Checkpoint 以及精确一次语义等关键技术。掌握这些知识后，可以更好地应用 Flink 解决实时数据处理问题。</p>
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/Flink/" rel="tag"><i class="fa fa-tag"></i> Flink</a>
+          <a href="/tags/流式计算/" rel="tag"><i class="fa fa-tag"></i> 流式计算</a>
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+            <a href="/2026/03/29/Redis深度解析/" rel="next" title="Redis 深度解析">
+              Redis 深度解析 <i class="fa fa-chevron-right"></i>
+            </a>
+        </div>
+
+        <span class="post-nav-divider"></span>
+
+        <div class="post-nav-prev post-nav-item">
+            <a href="/2026/03/27/MySQL索引优化/" rel="prev" title="MySQL 索引优化">
+              <i class="fa fa-chevron-left"></i> MySQL 索引优化
+            </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Flink-简介"><span class="nav-number">1.</span> <span class="nav-text">Flink 简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#核心架构"><span class="nav-number">2.</span> <span class="nav-text">核心架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#分层架构"><span class="nav-number">2.1.</span> <span class="nav-text">分层架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#核心组件"><span class="nav-number">2.2.</span> <span class="nav-text">核心组件</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据流模型"><span class="nav-number">3.</span> <span class="nav-text">数据流模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#DataStream-API"><span class="nav-number">3.1.</span> <span class="nav-text">DataStream API</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#常用算子"><span class="nav-number">3.2.</span> <span class="nav-text">常用算子</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#窗口机制"><span class="nav-number">4.</span> <span class="nav-text">窗口机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#窗口类型"><span class="nav-number">4.1.</span> <span class="nav-text">窗口类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#时间语义"><span class="nav-number">4.2.</span> <span class="nav-text">时间语义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#水印机制"><span class="nav-number">4.3.</span> <span class="nav-text">水印机制</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#状态管理"><span class="nav-number">5.</span> <span class="nav-text">状态管理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#状态类型"><span class="nav-number">5.1.</span> <span class="nav-text">状态类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#状态后端"><span class="nav-number">5.2.</span> <span class="nav-text">状态后端</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Checkpoint-与容错"><span class="nav-number">6.</span> <span class="nav-text">Checkpoint 与容错</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Checkpoint-机制"><span class="nav-number">6.1.</span> <span class="nav-text">Checkpoint 机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Savepoint"><span class="nav-number">6.2.</span> <span class="nav-text">Savepoint</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#精确一次语义"><span class="nav-number">7.</span> <span class="nav-text">精确一次语义</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#端到端精确一次"><span class="nav-number">7.1.</span> <span class="nav-text">端到端精确一次</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Two-Phase-Commit-两阶段提交"><span class="nav-number">7.2.</span> <span class="nav-text">Two-Phase Commit（两阶段提交）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CEP-复杂事件处理"><span class="nav-number">8.</span> <span class="nav-text">CEP 复杂事件处理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能优化"><span class="nav-number">9.</span> <span class="nav-text">性能优化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#最佳实践"><span class="nav-number">10.</span> <span class="nav-text">最佳实践</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">151</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">39</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+
+
+
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/03/29/Flink流式计算原理/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
