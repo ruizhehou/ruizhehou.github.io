@@ -15,24 +15,21 @@
     var NexT = window.NexT || {};
     var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":true},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
-
   <meta name="description" content="智能体编程（Agentic Programming）是随着大语言模型（LLM）发展而兴起的一种编程范式。本文深入解析智能体编程的核心概念、架构设计、实战示例，并分析其优缺点和未来发展方向。">
-<meta property="og:type" content="article">
-<meta property="og:title" content="智能体编程深度解析">
-<meta property="og:url" content="https://ruizhehou.github.io/2026/03/28/智能体编程深度解析/">
-<meta property="og:site_name" content="Ruizhe's Blog">
-<meta property="og:description" content="智能体编程（Agentic Programming）是随着大语言模型（LLM）发展而兴起的一种编程范式。本文深入解析智能体编程的核心概念、架构设计、实战示例，并分析其优缺点和未来发展方向。">
-<meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2026-03-28T10:00:00+08:00">
-<meta property="article:modified_time" content="2026-03-28T10:00:00+08:00">
-<meta property="article:author" content="Ruizhe Hou">
-<meta property="article:tag" content="AI Agent">
-<meta property="article:tag" content="智能体编程">
-<meta property="article:tag" content="LLM">
-<meta property="article:tag" content="人工智能">
-<meta name="twitter:card" content="summary">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="智能体编程深度解析">
+  <meta property="og:url" content="https://ruizhehou.github.io/2026/03/28/智能体编程深度解析/">
+  <meta property="og:site_name" content="Ruizhe's Blog">
+  <meta property="og:description" content="智能体编程（Agentic Programming）是随着大语言模型（LLM）发展而兴起的一种编程范式。本文深入解析智能体编程的核心概念、架构设计、实战示例，并分析其优缺点和未来发展方向。">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="article:published_time" content="2026-03-28T10:00:00+08:00">
+  <meta property="article:modified_time" content="2026-03-28T10:00:00+08:00">
+  <meta property="article:author" content="Ruizhe Hou">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="智能体编程深度解析">
+  <meta name="twitter:description" content="智能体编程（Agentic Programming）是随着大语言模型（LLM）发展而兴起的一种编程范式。本文深入解析智能体编程的核心概念、架构设计、实战示例，并分析其优缺点和未来发展方向。">
 
-<link rel="canonical" href="https://ruizhehou.github.io/2026/03/28/智能体编程深度解析/">
+  <link rel="canonical" href="https://ruizhehou.github.io/2026/03/28/智能体编程深度解析/">
 
 
   <script id="page-configurations">
@@ -80,7 +77,7 @@
 
   <main class="main">
     <header class="header" itemscope itemtype="http://schema.org/WPHeader">
-      <div class="header-inner"><div class="site-brand-wrapper">
+      <div class="header-inner"><div class="site-brand-container">
   <div class="site-nav-toggle">
     <div class="toggle" aria-label="切换导航栏">
       <span class="toggle-line toggle-line-first"></span>
@@ -97,34 +94,50 @@
       <span class="logo-line-after"><i></i></span>
     </a>
   </div>
-  </div>
 
   <div class="site-nav-right">
     <div class="toggle popup-trigger">
-        <i class="fa fa-search fa-fw"></i>
+        <i class="fa fa-search fa-fw fa-lg"></i>
     </div>
   </div>
 </div>
 
-
 <nav class="site-nav">
-  <ul class="main-menu menu">
+  <ul id="menu" class="main-menu menu">
         <li class="menu-item menu-item-home">
-          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
-        </li>
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
         <li class="menu-item menu-item-about">
-          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
-        </li>
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
   </ul>
 </nav>
-        <div class="site-search">
-            <div class="popup search-popup">
-    <div class="search-header">
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
   <span class="search-icon">
     <i class="fa fa-search"></i>
   </span>
   <div class="search-input-container">
-    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
            placeholder="搜索..." spellcheck="false"
            type="search" class="search-input">
   </div>
@@ -132,20 +145,19 @@
     <i class="fa fa-times-circle"></i>
   </span>
 </div>
-<div id="search-result"></div>
-
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
 </div>
-        </div>
-    </nav>
+
+    </div>
   </div>
 
 </div>
     </header>
 
-    <div class="main-inner">
-      <div class="content-wrap">
-
-  <aside class="sidebar">
+    <aside class="sidebar">
   <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
     <ul class="sidebar-nav">
       <li class="sidebar-nav-toc">
@@ -179,8 +191,10 @@
   </div>
 </aside>
 
-        <div class="content-wrap">
-          <div class="content page posts-expand">
+    <div class="main-inner">
+      <div class="content-wrap">
+
+        <div class="content page posts-expand">
 
   <div class="post-block" itemscope itemtype="http://schema.org/Article" itemid="https://ruizhehou.github.io/2026/03/28/智能体编程深度解析/">
 
@@ -376,12 +390,12 @@
 
 <pre><code>Thought 1: 用户想要搜索信息
 Action 1: 调用搜索工具
-Observation 1: 获得搜索结果
-Thought 2: 分析搜索结果，提取关键信息
-Action 2: 调用分析工具
-Observation 2: 获得分析结果
-Thought 3: 综合信息，生成最终回答
-Action 3: 返回结果给用户
+-Observation 1: 获得搜索结果
+-Thought 2: 分析搜索结果，提取关键信息
+-Action 2: 调用分析工具
+-Observation 2: 获得分析结果
+-Thought 3: 综合信息，生成最终回答
+-Action 3: 返回结果给用户
 </code></pre>
 
 <h2 id="三、实战示例">三、实战示例</h2>
@@ -389,8 +403,8 @@ Action 3: 返回结果给用户
 <h3 id="3-1-简单的单智能体">3.1 简单的单智能体</h3>
 
 <pre><code class="language-python">from langchain.agents import initialize_agent, Tool, AgentType
-from langchain.llms import OpenAI
-from langchain.utilities import SerpAPIWrapper
+-from langchain.llms import OpenAI
+-from langchain.utilities import SerpAPIWrapper
 
 # 初始化LLM
 llm = OpenAI(temperature=0)
@@ -421,8 +435,8 @@ print(result)
 <h3 id="3-2-代码生成智能体">3.2 代码生成智能体</h3>
 
 <pre><code class="language-python">from langchain.agents import initialize_agent, Tool, AgentType
-from langchain.llms import OpenAI
-from langchain.tools import PythonREPL
+-from langchain.llms import OpenAI
+-from langchain.tools import PythonREPL
 
 # 初始化LLM
 llm = OpenAI(temperature=0)
@@ -459,9 +473,9 @@ print(result)
 <h3 id="3-3-多智能体协作系统">3.3 多智能体协作系统</h3>
 
 <pre><code class="language-python">from typing import List, Dict, Any
-from dataclasses import dataclass
-from langchain.chat_models import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+-from dataclasses import dataclass
+-from langchain.chat_models import ChatOpenAI
+-from langchain.prompts import ChatPromptTemplate
 
 @dataclass
 class Message:
@@ -564,10 +578,10 @@ if __name__ == "__main__":
 <h3 id="3-4-autogpt风格的自规划智能体">3.4 AutoGPT风格的自规划智能体</h3>
 
 <pre><code class="language-python">from typing import List, Optional
-from dataclasses import dataclass
-import json
-from langchain.chat_models import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+-from dataclasses import dataclass
+-import json
+-from langchain.chat_models import ChatOpenAI
+-from langchain.prompts import ChatPromptTemplate
 
 @dataclass
 class Task:
@@ -720,9 +734,9 @@ if __name__ == "__main__":
 <h3 id="3-5-具有工具使用能力的智能体">3.5 具有工具使用能力的智能体</h3>
 
 <pre><code class="language-python">from typing import Callable, Dict, Any
-from langchain.chat_models import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
-import json
+-from langchain.chat_models import ChatOpenAI
+-from langchain.prompts import ChatPromptTemplate
+-import json
 
 class Tool:
     def __init__(self, name: str, description: str, func: Callable):
@@ -943,7 +957,7 @@ if __name__ == "__main__":
 <p>智能体可以轻松集成各种工具：</p>
 
 <pre><code class="language-python"># 工具生态
-tools = {
+-tools = {
     "code_interpreter": PythonREPL(),
     "web_search": SerpAPIWrapper(),
     "file_manager": FileManager(),
@@ -953,8 +967,8 @@ tools = {
 }
 
 # 智能体根据需要选择工具
-agent = ToolUsingAgent(tools)
-agent.run("搜索最新的AI论文并总结")
+-agent = ToolUsingAgent(tools)
+-agent.run("搜索最新的AI论文并总结")
 </code></pre>
 
 <h3 id="4-2-缺点">4.2 缺点</h3>
@@ -1576,46 +1590,33 @@ class ResearchAssistant:
 
       </div>
 
-  </aside>
+      <footer class="post-footer">
 
-  </div>
+          <div class="post-tags">
+              <a href="/tags/AI-Agent/" rel="tag"><i class="fa fa-tag"></i> AI Agent</a>
 
-  <footer class="post-footer">
-    <div class="post-tags">
+              <a href="/tags/%E6%99%BA%E8%83%BD%E4%BD%93%E7%BC%96%E7%A8%8B/" rel="tag"><i class="fa fa-tag"></i> 智能体编程</a>
 
-    <a href="/tags/AI-Agent/" rel="tag"><i class="fa fa-tag"></i> AI Agent</a>
+              <a href="/tags/LLM/" rel="tag"><i class="fa fa-tag"></i> LLM</a>
 
-    <a href="/tags/%E6%99%BA%E8%83%BD%E4%BD%93%E7%BC%96%E7%A8%8B/" rel="tag"><i class="fa fa-tag"></i> 智能体编程</a>
+              <a href="/tags/%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD/" rel="tag"><i class="fa fa-tag"></i> 人工智能</a>
+          </div>
 
-    <a href="/tags/LLM/" rel="tag"><i class="fa fa-tag"></i> LLM</a>
+      </footer>
 
-    <a href="/tags/%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD/" rel="tag"><i class="fa fa-tag"></i> 人工智能</a>
-
-    </div>
-
-    <div class="post-nav">
-      <div class="post-nav-item post-nav-next">
-        <a href="/2026/03/28/%E5%88%86%E5%B8%83%E5%BC%8F%E4%B8%80%E8%87%B4%E6%80%A7%E7%AE%97%E6%B3%95/" rel="next" title="分布式一致性算法">
-          <i class="fa fa-chevron-left"></i> 分布式一致性算法
-        </a>
-      </div>
-      <div class="post-nav-item post-nav-prev">
-        <a href="/2026/03/28/Kafka%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/" rel="prev" title="Kafka深度解析">
-          Kafka深度解析 <i class="fa fa-chevron-right"></i>
-        </a>
-      </div>
-    </div>
-  </footer>
-
-      </div>
     </div>
   </div>
 
-  </main>
+        </div>
+      </div>
 
-    <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+    </main>
+
+    <footer class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy;
+        <div class="copyright">
+
+  &copy;
   <span itemprop="copyrightYear">2026</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
@@ -1627,7 +1628,6 @@ class ResearchAssistant:
 
       </div>
     </footer>
-
   </div>
 
   <script src="/lib/anime.min.js"></script>
