@@ -1,27 +1,224 @@
----
-title: 智能体编程深度解析
-date: 2026-03-28 18:00:00
-tags:
-  - AI Agent
-  - 智能体编程
-  - LLM
-  - 人工智能
-categories:
-  - 技术教程
----
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
 
-# 智能体编程深度解析
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
 
-## 一、智能体编程概述
+<link rel="stylesheet" href="/css/main.css">
 
-智能体编程（Agentic Programming）是随着大语言模型（LLM）发展而兴起的一种编程范式。它将AI模型视为能够自主思考、规划、执行任务的"智能体"，通过构建多智能体协作系统来解决复杂问题。
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
 
-### 1.1 什么是智能体
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {
+      hostname: 'ruizhehou.github.io',
+      root: '/',
+      scheme: 'Gemini',
+      version: '7.8.0',
+      exturl: true,
+      sidebar: {"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},
+      copycode: {"enable":false,"show_result":false,"style":null},
+      back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+      bookmark: {"enable":true,"color":"#222","save":"auto"},
+      fancybox: true,
+      mediumzoom: false,
+      lazyload: true,
+      pangu: true,
+      comments: {"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},
+      algolia: {"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},
+      localsearch: {"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},
+      motion: {"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+      path: 'search.xml'
+    };
+  </script>
 
-智能体（Agent）是一个能够感知环境、做出决策并执行动作的自主实体。在AI领域，智能体通常基于大语言模型，具备以下核心能力：
+  <meta name="description" content="智能体编程（Agentic Programming）是随着大语言模型（LLM）发展而兴起的一种编程范式。本文深入解析智能体编程的核心概念、架构设计、实战示例，并分析其优缺点和未来发展方向。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="智能体编程深度解析">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/28/智能体编程深度解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="智能体编程（Agentic Programming）是随着大语言模型（LLM）发展而兴起的一种编程范式。本文深入解析智能体编程的核心概念、架构设计、实战示例，并分析其优缺点和未来发展方向。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-28T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-28T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="AI Agent">
+<meta property="article:tag" content="智能体编程">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="人工智能">
+<meta name="twitter:card" content="summary">
 
-```
-┌─────────────────────────────────────┐
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/28/智能体编程深度解析/">
+
+
+  <title>智能体编程深度解析 | 侯瑞哲的博客</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">侯瑞哲的博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+
+        <p class="site-subtitle" itemprop="description">技术分享与思考</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+  </ul>
+</nav>
+        <div class="site-search">
+            <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result"></div>
+
+</div>
+        </div>
+    </nav></div>
+    </header>
+
+    <main class="main">
+      <div class="inner">
+        <div class="content-wrap">
+          <div class="content page-post-detail">
+    <div class="posts-expand">
+      <div class="post-block" itemscope itemtype="http://schema.org/Article" lang="zh-CN">
+  <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/03/28/智能体编程深度解析/">
+
+  <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <meta itemprop="name" content="侯瑞哲">
+    <meta itemprop="description" content="技术分享与思考">
+  </span>
+
+  <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+    <meta itemprop="name" content="侯瑞哲的博客">
+  </span>
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">
+      智能体编程深度解析
+    </h1>
+
+    <div class="post-meta">
+        <span class="post-meta-item">
+          <span class="post-meta-item-icon">
+            <i class="far fa-calendar"></i>
+          </span>
+          <span class="post-meta-item-text">发表于</span>
+
+          <time title="创建时间" itemprop="dateCreated datePublished" datetime="2026-03-28T18:00:00+08:00">
+            2026-03-28
+          </time>
+        </span>
+
+        <span class="post-meta-item">
+          <span class="post-meta-item-icon">
+            <i class="far fa-folder"></i>
+          </span>
+          <span class="post-meta-item-text">分类于</span>
+
+          <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+            <a href="/categories/%E6%8A%80%E6%9C%AF%E6%95%99%E7%A8%8B/" itemprop="url" rel="index"><span itemprop="name">技术教程</span></a>
+          </span>
+        </span>
+
+        <span class="post-meta-item">
+          <span class="post-meta-item-icon">
+            <i class="far fa-tags"></i>
+          </span>
+          <span class="post-meta-item-text">标签</span>
+
+          <span class="post-meta-item-text">|</span>
+          <span itemprop="keywords" itemscope itemtype="http://schema.org/Thing">
+            <a href="/tags/AI-Agent/" itemprop="url" rel="tag"><span itemprop="name">AI Agent</span></a>
+          </span>
+          <span class="post-meta-item-text">|</span>
+          <span itemprop="keywords" itemscope itemtype="http://schema.org/Thing">
+            <a href="/tags/%E6%99%BA%E8%83%BD%E4%BD%93%E7%BC%96%E7%A8%8B/" itemprop="url" rel="tag"><span itemprop="name">智能体编程</span></a>
+          </span>
+          <span class="post-meta-item-text">|</span>
+          <span itemprop="keywords" itemscope itemtype="http://schema.org/Thing">
+            <a href="/tags/LLM/" itemprop="url" rel="tag"><span itemprop="name">LLM</span></a>
+          </span>
+          <span class="post-meta-item-text">|</span>
+          <span itemprop="keywords" itemscope itemtype="http://schema.org/Thing">
+            <a href="/tags/%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD/" itemprop="url" rel="tag"><span itemprop="name">人工智能</span></a>
+          </span>
+    </div>
+  </header>
+
+  <div class="post-body" itemprop="articleBody">
+
+<h1 id="智能体编程深度解析">智能体编程深度解析</h1>
+
+<h2 id="一、智能体编程概述">一、智能体编程概述</h2>
+
+<p>智能体编程（Agentic Programming）是随着大语言模型（LLM）发展而兴起的一种编程范式。它将AI模型视为能够自主思考、规划、执行任务的"智能体"，通过构建多智能体协作系统来解决复杂问题。</p>
+
+<h3 id="1-1-什么是智能体">1.1 什么是智能体</h3>
+
+<p>智能体（Agent）是一个能够感知环境、做出决策并执行动作的自主实体。在AI领域，智能体通常基于大语言模型，具备以下核心能力：</p>
+
+<pre><code>┌─────────────────────────────────────┐
 │         AI Agent                   │
 │  ┌─────────────────────────────┐   │
 │  │  Perception (感知)         │   │
@@ -50,34 +247,64 @@ categories:
 │  │  - 经验学习                │   │
 │  └─────────────────────────────┘   │
 └─────────────────────────────────────┘
-```
+</code></pre>
 
-### 1.2 智能体编程的特点
+<h3 id="1-2-智能体编程的特点">1.2 智能体编程的特点</h3>
 
-| 特点 | 说明 | 传统编程对比 |
-|------|------|--------------|
-| 自主性 | 智能体可以自主决策 | 需要人工编写详细逻辑 |
-| 适应性 | 能根据环境变化调整 | 固定的程序逻辑 |
-| 推理能力 | 可以理解和推理 | 只能执行预设指令 |
-| 工具使用 | 可以调用各种工具 | 需要手动集成 |
-| 多智能体协作 | 多个智能体协同工作 | 单一程序 |
+<table>
+<thead>
+<tr>
+<th>特点</th>
+<th>说明</th>
+<th>传统编程对比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>自主性</td>
+<td>智能体可以自主决策</td>
+<td>需要人工编写详细逻辑</td>
+</tr>
+<tr>
+<td>适应性</td>
+<td>能根据环境变化调整</td>
+<td>固定的程序逻辑</td>
+</tr>
+<tr>
+<td>推理能力</td>
+<td>可以理解和推理</td>
+<td>只能执行预设指令</td>
+</tr>
+<tr>
+<td>工具使用</td>
+<td>可以调用各种工具</td>
+<td>需要手动集成</td>
+</tr>
+<tr>
+<td>多智能体协作</td>
+<td>多个智能体协同工作</td>
+<td>单一程序</td>
+</tr>
+</tbody>
+</table>
 
-### 1.3 应用场景
+<h3 id="1-3-应用场景">1.3 应用场景</h3>
 
-- 代码生成与重构
-- 自动化测试
-- 数据分析与报告
-- 客户服务与支持
-- 研究与知识发现
-- 创意内容生成
-- 决策支持系统
+<ul>
+<li>代码生成与重构</li>
+<li>自动化测试</li>
+<li>数据分析与报告</li>
+<li>客户服务与支持</li>
+<li>研究与知识发现</li>
+<li>创意内容生成</li>
+<li>决策支持系统</li>
+</ul>
 
-## 二、核心架构
+<h2 id="二、核心架构">二、核心架构</h2>
 
-### 2.1 单智能体架构
+<h3 id="2-1-单智能体架构">2.1 单智能体架构</h3>
 
-```
-用户请求
+<pre><code>用户请求
     │
     ▼
 ┌─────────────────┐
@@ -105,12 +332,11 @@ categories:
          │
          ▼
     用户响应
-```
+</code></pre>
 
-### 2.2 多智能体架构
+<h3 id="2-2-多智能体架构">2.2 多智能体架构</h3>
 
-```
-                    ┌─────────────┐
+<pre><code>                    ┌─────────────┐
                     │   User      │
                     └──────┬──────┘
                            │
@@ -134,14 +360,13 @@ categories:
          │   Shared Memory      │
          │   (共享记忆)          │
          └───────────────────────┘
-```
+</code></pre>
 
-### 2.3 ReAct模式
+<h3 id="2-3-react模式">2.3 ReAct模式</h3>
 
-ReAct（Reasoning + Acting）是最常用的智能体推理模式。
+<p>ReAct（Reasoning + Acting）是最常用的智能体推理模式。</p>
 
-```
-Thought 1: 用户想要搜索信息
+<pre><code>Thought 1: 用户想要搜索信息
 Action 1: 调用搜索工具
 Observation 1: 获得搜索结果
 Thought 2: 分析搜索结果，提取关键信息
@@ -149,14 +374,13 @@ Action 2: 调用分析工具
 Observation 2: 获得分析结果
 Thought 3: 综合信息，生成最终回答
 Action 3: 返回结果给用户
-```
+</code></pre>
 
-## 三、实战示例
+<h2 id="三、实战示例">三、实战示例</h2>
 
-### 3.1 简单的单智能体
+<h3 id="3-1-简单的单智能体">3.1 简单的单智能体</h3>
 
-```python
-from langchain.agents import initialize_agent, Tool, AgentType
+<pre><code class="language-python">from langchain.agents import initialize_agent, Tool, AgentType
 from langchain.llms import OpenAI
 from langchain.utilities import SerpAPIWrapper
 
@@ -184,12 +408,11 @@ agent = initialize_agent(
 # 执行任务
 result = agent.run("什么是量子计算？请用简单的话解释。")
 print(result)
-```
+</code></pre>
 
-### 3.2 代码生成智能体
+<h3 id="3-2-代码生成智能体">3.2 代码生成智能体</h3>
 
-```python
-from langchain.agents import initialize_agent, Tool, AgentType
+<pre><code class="language-python">from langchain.agents import initialize_agent, Tool, AgentType
 from langchain.llms import OpenAI
 from langchain.tools import PythonREPL
 
@@ -223,12 +446,11 @@ task = """
 
 result = code_agent.run(task)
 print(result)
-```
+</code></pre>
 
-### 3.3 多智能体协作系统
+<h3 id="3-3-多智能体协作系统">3.3 多智能体协作系统</h3>
 
-```python
-from typing import List, Dict, Any
+<pre><code class="language-python">from typing import List, Dict, Any
 from dataclasses import dataclass
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
@@ -329,12 +551,11 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
+</code></pre>
 
-### 3.4 AutoGPT风格的自规划智能体
+<h3 id="3-4-autogpt风格的自规划智能体">3.4 AutoGPT风格的自规划智能体</h3>
 
-```python
-from typing import List, Optional
+<pre><code class="language-python">from typing import List, Optional
 from dataclasses import dataclass
 import json
 from langchain.chat_models import ChatOpenAI
@@ -486,12 +707,11 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
+</code></pre>
 
-### 3.5 具有工具使用能力的智能体
+<h3 id="3-5-具有工具使用能力的智能体">3.5 具有工具使用能力的智能体</h3>
 
-```python
-from typing import Callable, Dict, Any
+<pre><code class="language-python">from typing import Callable, Dict, Any
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 import json
@@ -651,16 +871,15 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
+</code></pre>
 
-## 四、优缺点分析
+<h2 id="四、优缺点分析">四、优缺点分析</h2>
 
-### 4.1 优点
+<h3 id="4-1-优点">4.1 优点</h3>
 
-#### 4.1.1 灵活性强
+<h4 id="4-1-1-灵活性强">4.1.1 灵活性强</h4>
 
-```
-传统编程：固定逻辑
+<pre><code>传统编程：固定逻辑
 ┌─────────────────────────┐
 │  if (condition) {      │
 │      do_action_A();    │
@@ -676,14 +895,13 @@ if __name__ == "__main__":
 │  选择最优策略...       │
 │  执行并反馈...         │
 └─────────────────────────┘
-```
+</code></pre>
 
-#### 4.1.2 自主学习
+<h4 id="4-1-2-自主学习">4.1.2 自主学习</h4>
 
-智能体可以从执行过程中学习，不断改进：
+<p>智能体可以从执行过程中学习，不断改进：</p>
 
-```python
-class LearningAgent:
+<pre><code class="language-python">class LearningAgent:
     def __init__(self):
         self.experience = []
         self.success_patterns = []
@@ -710,14 +928,13 @@ class LearningAgent:
         successful = [e for e in self.experience if e["success"]]
         # 分析成功任务的特征
         # 更新决策策略
-```
+</code></pre>
 
-#### 4.1.3 工具扩展
+<h4 id="4-1-3-工具扩展">4.1.3 工具扩展</h4>
 
-智能体可以轻松集成各种工具：
+<p>智能体可以轻松集成各种工具：</p>
 
-```python
-# 工具生态
+<pre><code class="language-python"># 工具生态
 tools = {
     "code_interpreter": PythonREPL(),
     "web_search": SerpAPIWrapper(),
@@ -730,34 +947,53 @@ tools = {
 # 智能体根据需要选择工具
 agent = ToolUsingAgent(tools)
 agent.run("搜索最新的AI论文并总结")
-```
+</code></pre>
 
-### 4.2 缺点
+<h3 id="4-2-缺点">4.2 缺点</h3>
 
-#### 4.2.1 不可预测性
+<h4 id="4-2-1-不可预测性">4.2.1 不可预测性</h4>
 
-```
-传统程序：确定性输出
+<pre><code>传统程序：确定性输出
 输入A → 程序 → 输出A（总是相同）
 
 智能体：概率性输出
 输入A → 智能体 → 输出A（可能不同）
 输入A → 智能体 → 输出B（可能不同）
 输入A → 智能体 → 输出C（可能不同）
-```
+</code></pre>
 
-#### 4.2.2 成本高昂
+<h4 id="4-2-2-成本高昂">4.2.2 成本高昂</h4>
 
-| 成本类型 | 说明 | 影响 |
-|----------|------|------|
-| API调用成本 | 每次推理都需要调用LLM API | 按使用量计费 |
-| 延迟成本 | 多轮推理增加响应时间 | 用户体验下降 |
-| 资源消耗 | 需要维护多个智能体实例 | 基础设施成本 |
+<table>
+<thead>
+<tr>
+<th>成本类型</th>
+<th>说明</th>
+<th>影响</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API调用成本</td>
+<td>每次推理都需要调用LLM API</td>
+<td>按使用量计费</td>
+</tr>
+<tr>
+<td>延迟成本</td>
+<td>多轮推理增加响应时间</td>
+<td>用户体验下降</td>
+</tr>
+<tr>
+<td>资源消耗</td>
+<td>需要维护多个智能体实例</td>
+<td>基础设施成本</td>
+</tr>
+</tbody>
+</table>
 
-#### 4.2.3 调试困难
+<h4 id="4-2-3-调试困难">4.2.3 调试困难</h4>
 
-```python
-# 传统代码调试
+<pre><code class="language-python"># 传统代码调试
 def process_data(data):
     result = data * 2  # 断点在这里
     return result
@@ -769,14 +1005,13 @@ def agent_process(task):
     # 为什么调用这个工具？
     # 很难追踪内部推理过程
     pass
-```
+</code></pre>
 
-#### 4.2.4 幻觉问题
+<h4 id="4-2-4-幻觉问题">4.2.4 幻觉问题</h4>
 
-智能体可能会产生不真实的信息：
+<p>智能体可能会产生不真实的信息：</p>
 
-```
-用户：量子计算机的原理是什么？
+<pre><code>用户：量子计算机的原理是什么？
 
 智能体（幻觉）：
 量子计算机使用量子比特，每个量子比特可以同时处于0和1的状态，
@@ -785,26 +1020,62 @@ def agent_process(task):
 实际情况：
 量子计算机确实利用量子叠加和纠缠，但不能超光速通信，
 也不是万能的，只能解决特定类型的问题。
-```
+</code></pre>
 
-### 4.3 对比总结
+<h3 id="4-3-对比总结">4.3 对比总结</h3>
 
-| 维度 | 传统编程 | 智能体编程 |
-|------|----------|------------|
-| 确定性 | 高 | 低 |
-| 灵活性 | 低 | 高 |
-| 开发效率 | 慢 | 快 |
-| 执行效率 | 高 | 低 |
-| 成本 | 低 | 高 |
-| 可维护性 | 高 | 低 |
-| 创新性 | 低 | 高 |
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>传统编程</th>
+<th>智能体编程</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>确定性</td>
+<td>高</td>
+<td>低</td>
+</tr>
+<tr>
+<td>灵活性</td>
+<td>低</td>
+<td>高</td>
+</tr>
+<tr>
+<td>开发效率</td>
+<td>慢</td>
+<td>快</td>
+</tr>
+<tr>
+<td>执行效率</td>
+<td>高</td>
+<td>低</td>
+</tr>
+<tr>
+<td>成本</td>
+<td>低</td>
+<td>高</td>
+</tr>
+<tr>
+<td>可维护性</td>
+<td>高</td>
+<td>低</td>
+</tr>
+<tr>
+<td>创新性</td>
+<td>低</td>
+<td>高</td>
+</tr>
+</tbody>
+</table>
 
-## 五、未来发展方向
+<h2 id="五、未来发展方向">五、未来发展方向</h2>
 
-### 5.1 更强大的推理能力
+<h3 id="5-1-更强大的推理能力">5.1 更强大的推理能力</h3>
 
-```
-当前智能体推理：
+<pre><code>当前智能体推理：
 ┌─────────────────────────┐
 │  简单链式推理          │
 │  Step 1 → Step 2 → ... │
@@ -821,12 +1092,11 @@ def agent_process(task):
 │        │          │   │
 │      综合决策        │
 └─────────────────────────┘
-```
+</code></pre>
 
-### 5.2 多模态智能体
+<h3 id="5-2-多模态智能体">5.2 多模态智能体</h3>
 
-```python
-class MultimodalAgent:
+<pre><code class="language-python">class MultimodalAgent:
     """多模态智能体"""
 
     def process(self, input_data):
@@ -851,12 +1121,11 @@ class MultimodalAgent:
         )
 
         return result
-```
+</code></pre>
 
-### 5.3 持续学习智能体
+<h3 id="5-3-持续学习智能体">5.3 持续学习智能体</h3>
 
-```
-┌─────────────────────────────────────┐
+<pre><code>┌─────────────────────────────────────┐
 │     持续学习循环                   │
 │                                     │
 │  ┌─────────┐    ┌─────────┐      │
@@ -870,12 +1139,11 @@ class MultimodalAgent:
 │       │                           │
 │       └───→ 改进模型 ─────→       │
 └─────────────────────────────────────┘
-```
+</code></pre>
 
-### 5.4 自我进化智能体
+<h3 id="5-4-自我进化智能体">5.4 自我进化智能体</h3>
 
-```python
-class SelfEvolvingAgent:
+<pre><code class="language-python">class SelfEvolvingAgent:
     """自我进化智能体"""
 
     def __init__(self):
@@ -910,12 +1178,11 @@ class SelfEvolvingAgent:
             })
         else:
             self.rollback_improvements(improvement_plan)
-```
+</code></pre>
 
-### 5.5 智能体社会
+<h3 id="5-5-智能体社会">5.5 智能体社会</h3>
 
-```
-智能体社会架构：
+<pre><code>智能体社会架构：
 
 ┌─────────────────────────────────────────┐
 │          智能体社会                     │
@@ -943,14 +1210,13 @@ class SelfEvolvingAgent:
 │  3. 贡献者获得奖励                     │
 │  4. 违规者受到惩罚                     │
 └─────────────────────────────────────────┘
-```
+</code></pre>
 
-## 六、如何提升自己
+<h2 id="六、如何提升自己">六、如何提升自己</h2>
 
-### 6.1 学习路径
+<h3 id="6-1-学习路径">6.1 学习路径</h3>
 
-```
-┌─────────────────────────────────────┐
+<pre><code>┌─────────────────────────────────────┐
 │      智能体编程学习路径             │
 └─────────────────────────────────────┘
 
@@ -977,12 +1243,11 @@ class SelfEvolvingAgent:
 ├── 性能优化技巧
 ├── 安全和可靠性
 └── 创新应用探索
-```
+</code></pre>
 
-### 6.2 技能树
+<h3 id="6-2-技能树">6.2 技能树</h3>
 
-```
-智能体编程技能树：
+<pre><code>智能体编程技能树：
 
 核心技术
 ├── 编程语言
@@ -1025,14 +1290,13 @@ class SelfEvolvingAgent:
     ├── Docker
     ├── Kubernetes
     └── CI/CD
-```
+</code></pre>
 
-### 6.3 实践项目
+<h3 id="6-3-实践项目">6.3 实践项目</h3>
 
-#### 项目1：个人助理智能体
+<h4 id="项目1：个人助理智能体">项目1：个人助理智能体</h4>
 
-```python
-"""
+<pre><code class="language-python">"""
 目标：构建一个能够帮助管理日常事务的个人助理智能体
 
 功能需求：
@@ -1063,12 +1327,11 @@ class PersonalAssistant:
             return self.handle_search(user_request)
         elif intent == "advice":
             return self.handle_advice(user_request)
-```
+</code></pre>
 
-#### 项目2：代码审查智能体
+<h4 id="项目2：代码审查智能体">项目2：代码审查智能体</h4>
 
-```python
-"""
+<pre><code class="language-python">"""
 目标：构建一个能够自动审查代码的智能体
 
 功能需求：
@@ -1103,12 +1366,11 @@ class CodeReviewAgent:
         })
 
         return report
-```
+</code></pre>
 
-#### 项目3：研究助手智能体
+<h4 id="项目3：研究助手智能体">项目3：研究助手智能体</h4>
 
-```python
-"""
+<pre><code class="language-python">"""
 目标：构建一个能够辅助学术研究的智能体
 
 功能需求：
@@ -1147,93 +1409,231 @@ class ResearchAssistant:
             "directions": research_directions,
             "suggestions": suggestions
         }
-```
+</code></pre>
 
-### 6.4 学习资源
+<h3 id="6-4-学习资源">6.4 学习资源</h3>
 
-#### 在线课程
+<h4 id="在线课程">在线课程</h4>
 
-1. **Andrew Ng的机器学习课程** - Coursera
-2. **CS224N：自然语言处理** - Stanford
-3. **LangChain官方教程** - langchain.com
-4. **OpenAI API文档** - platform.openai.com
+<ol>
+<li><strong>Andrew Ng的机器学习课程</strong> - Coursera</li>
+<li><strong>CS224N：自然语言处理</strong> - Stanford</li>
+<li><strong>LangChain官方教程</strong> - langchain.com</li>
+<li><strong>OpenAI API文档</strong> - platform.openai.com</li>
+</ol>
 
-#### 书籍推荐
+<h4 id="书籍推荐">书籍推荐</h4>
 
-1. 《人工智能：一种现代方法》
-2. 《深度学习》- Ian Goodfellow
-3. 《机器学习实战》
-4. 《Prompt Engineering Guide》
+<ol>
+<li>《人工智能：一种现代方法》</li>
+<li>《深度学习》- Ian Goodfellow</li>
+<li>《机器学习实战》</li>
+<li>《Prompt Engineering Guide》</li>
+</ol>
 
-#### 开源项目
+<h4 id="开源项目">开源项目</h4>
 
-1. **LangChain** - 智能体框架
-2. **AutoGPT** - 自主智能体
-3. **CrewAI** - 多智能体协作
-4. **BabyAGI** - 任务管理智能体
+<ol>
+<li><strong>LangChain</strong> - 智能体框架</li>
+<li><strong>AutoGPT</strong> - 自主智能体</li>
+<li><strong>CrewAI</strong> - 多智能体协作</li>
+<li><strong>BabyAGI</strong> - 任务管理智能体</li>
+</ol>
 
-#### 社区资源
+<h4 id="社区资源">社区资源</h4>
 
-1. **LangChain Discord** - 实时交流
-2. **Hugging Face** - 模型和数据集
-3. **GitHub** - 开源项目
-4. **Twitter/X** - 最新动态
+<ol>
+<li><strong>LangChain Discord</strong> - 实时交流</li>
+<li><strong>Hugging Face</strong> - 模型和数据集</li>
+<li><strong>GitHub</strong> - 开源项目</li>
+<li><strong>Twitter/X</strong> - 最新动态</li>
+</ol>
 
-### 6.5 职业发展
+<h3 id="6-5-职业发展">6.5 职业发展</h3>
 
-#### 就业方向
+<h4 id="就业方向">就业方向</h4>
 
-| 方向 | 职位 | 技能要求 |
-|------|------|----------|
-| AI应用开发 | AI工程师 | 编程、LLM应用、系统集成 |
-| 智能体研究 | 研究科学家 | 算法、数学、研究能力 |
-| 产品设计 | AI产品经理 | 产品思维、技术理解、用户洞察 |
-| 解决方案 | 解决方案架构师 | 系统设计、业务理解、技术整合 |
+<table>
+<thead>
+<tr>
+<th>方向</th>
+<th>职位</th>
+<th>技能要求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI应用开发</td>
+<td>AI工程师</td>
+<td>编程、LLM应用、系统集成</td>
+</tr>
+<tr>
+<td>智能体研究</td>
+<td>研究科学家</td>
+<td>算法、数学、研究能力</td>
+</tr>
+<tr>
+<td>产品设计</td>
+<td>AI产品经理</td>
+<td>产品思维、技术理解、用户洞察</td>
+</tr>
+<tr>
+<td>解决方案</td>
+<td>解决方案架构师</td>
+<td>系统设计、业务理解、技术整合</td>
+</tr>
+</tbody>
+</table>
 
-#### 薪资水平
+<h4 id="薪资水平">薪资水平</h4>
 
-| 职位 | 初级 | 中级 | 高级 |
-|------|------|------|------|
-| AI工程师 | 20-40K | 40-70K | 70-100K+ |
-| 研究科学家 | 30-50K | 50-80K | 80-120K+ |
-| AI产品经理 | 25-45K | 45-75K | 75-110K+ |
-*注：薪资因地区和公司而异*
+<table>
+<thead>
+<tr>
+<th>职位</th>
+<th>初级</th>
+<th>中级</th>
+<th>高级</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI工程师</td>
+<td>20-40K</td>
+<td>40-70K</td>
+<td>70-100K+</td>
+</tr>
+<tr>
+<td>研究科学家</td>
+<td>30-50K</td>
+<td>50-80K</td>
+<td>80-120K+</td>
+</tr>
+<tr>
+<td>AI产品经理</td>
+<td>25-45K</td>
+<td>45-75K</td>
+<td>75-110K+</td>
+</tr>
+</tbody>
+</table>
+<p><em>注：薪资因地区和公司而异</em></p>
 
-#### 技能认证
+<h4 id="技能认证">技能认证</h4>
 
-1. **AWS AI/ML认证**
-2. **Google AI认证**
-3. **Microsoft Azure AI认证**
-4. **OpenAI开发者认证**（未来可能）
+<ol>
+<li><strong>AWS AI/ML认证</strong></li>
+<li><strong>Google AI认证</strong></li>
+<li><strong>Microsoft Azure AI认证</strong></li>
+<li><strong>OpenAI开发者认证</strong>（未来可能）</li>
+</ol>
 
-## 七、总结
+<h2 id="七、总结">七、总结</h2>
 
-智能体编程是AI应用开发的重要范式，它将大语言模型从简单的"问答工具"提升为能够自主思考和行动的"智能助手"。
+<p>智能体编程是AI应用开发的重要范式，它将大语言模型从简单的"问答工具"提升为能够自主思考和行动的"智能助手"。</p>
 
-### 7.1 核心要点
+<h3 id="7-1-核心要点">7.1 核心要点</h3>
 
-1. **理解智能体**：智能体具备感知、推理、行动、记忆四大核心能力
-2. **掌握架构**：从单智能体到多智能体，从简单到复杂
-3. **实践应用**：通过项目实践积累经验
-4. **持续学习**：跟上快速发展的技术节奏
-5. **平衡创新**：在创新和实用性之间找到平衡
+<ol>
+<li><strong>理解智能体</strong>：智能体具备感知、推理、行动、记忆四大核心能力</li>
+<li><strong>掌握架构</strong>：从单智能体到多智能体，从简单到复杂</li>
+<li><strong>实践应用</strong>：通过项目实践积累经验</li>
+<li><strong>持续学习</strong>：跟上快速发展的技术节奏</li>
+<li><strong>平衡创新</strong>：在创新和实用性之间找到平衡</li>
+</ol>
 
-### 7.2 未来展望
+<h3 id="7-2-未来展望">7.2 未来展望</h3>
 
-智能体编程将在以下领域产生深远影响：
+<p>智能体编程将在以下领域产生深远影响：</p>
 
-- **软件开发**：自动化编码、测试、部署
-- **科学研究**：加速科学发现和创新
-- **教育领域**：个性化学习和辅导
-- **医疗健康**：辅助诊断和治疗
-- **创意产业**：内容创作和设计
+<ul>
+<li><strong>软件开发</strong>：自动化编码、测试、部署</li>
+<li><strong>科学研究</strong>：加速科学发现和创新</li>
+<li><strong>教育领域</strong>：个性化学习和辅导</li>
+<li><strong>医疗健康</strong>：辅助诊断和治疗</li>
+<li><strong>创意产业</strong>：内容创作和设计</li>
+</ul>
 
-### 7.3 给初学者的建议
+<h3 id="7-3-给初学者的建议">7.3 给初学者的建议</h3>
 
-1. **从小处开始**：不要一开始就追求复杂系统
-2. **多实践**：理论结合实践，动手做项目
-3. **保持好奇**：探索新的技术和应用
-4. **加入社区**：与他人交流学习
-5. **关注安全**：考虑AI安全和伦理问题
+<ol>
+<li><strong>从小处开始</strong>：不要一开始就追求复杂系统</li>
+<li><strong>多实践</strong>：理论结合实践，动手做项目</li>
+<li><strong>保持好奇</strong>：探索新的技术和应用</li>
+<li><strong>加入社区</strong>：与他人交流学习</li>
+<li><strong>关注安全</strong>：考虑AI安全和伦理问题</li>
+</ol>
 
-智能体编程正在重塑软件开发的方式，掌握这项技能将让你在AI时代保持竞争力。现在就开始学习，构建你的第一个智能体吧！
+<p>智能体编程正在重塑软件开发的方式，掌握这项技能将让你在AI时代保持竞争力。现在就开始学习，构建你的第一个智能体吧！</p>
+
+  </div>
+
+  <footer class="post-footer">
+    <div class="post-tags">
+
+    <a href="/tags/AI-Agent/" rel="tag"><i class="fa fa-tag"></i> AI Agent</a>
+
+    <a href="/tags/%E6%99%BA%E8%83%BD%E4%BD%93%E7%BC%96%E7%A8%8B/" rel="tag"><i class="fa fa-tag"></i> 智能体编程</a>
+
+    <a href="/tags/LLM/" rel="tag"><i class="fa fa-tag"></i> LLM</a>
+
+    <a href="/tags/%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD/" rel="tag"><i class="fa fa-tag"></i> 人工智能</a>
+
+    </div>
+
+    <div class="post-nav">
+      <div class="post-nav-item post-nav-next">
+        <a href="/2026/03/28/%E5%88%86%E5%B8%83%E5%BC%8F%E4%B8%80%E8%87%B4%E6%80%A7%E7%AE%97%E6%B3%95/" rel="next" title="分布式一致性算法">
+          <i class="fa fa-chevron-left"></i> 分布式一致性算法
+        </a>
+      </div>
+      <div class="post-nav-item post-nav-prev">
+        <a href="/2026/03/28/Kafka%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/" rel="prev" title="Kafka深度解析">
+          Kafka深度解析 <i class="fa fa-chevron-right"></i>
+        </a>
+      </div>
+    </div>
+  </footer>
+
+      </div>
+    </div>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+
+<div class="powered-by">
+  由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/gemini/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+
+  </div>
+
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+
+  <script src="/js/third-party/search/local-search.js"></script>
+  <script src="/js/third-party/fancybox.js"></script>
+  <script src="/js/third-party/pace.js"></script>
+  <script src="/js/third-party/pangu.js"></script>
+
+  <script src="/lib/gitalk/gitalk.min.js"></script>
+  <script src="/js/third-party/comments/gitalk.js"></script>
+
+</body>
+</html>
