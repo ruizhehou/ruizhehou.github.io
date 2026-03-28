@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Spark 是当今最流行的分布式计算框架之一。本文将深入探讨 Spark 的核心架构、RDD 原理、DAG 调度、内存管理以及性能优化策略。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spark 分布式计算原理">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/28/Spark分布式计算原理/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="Spark 是当今最流行的分布式计算框架之一。本文将深入探讨 Spark 的核心架构、RDD 原理、DAG 调度、内存管理以及性能优化策略。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-28T00:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-28T00:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="Spark">
+<meta property="article:tag" content="分布式计算">
+<meta property="article:tag" content="大数据">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/28/Spark分布式计算原理/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Spark 分布式计算原理 | 侯瑞哲的博客</title>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-03-28T00:00:00+08:00" content="2026-03-28">
+      03-28
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      Spark 分布式计算原理
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+    <p>Spark 是当今最流行的分布式计算框架之一。本文将深入探讨 Spark 的核心架构、RDD 原理、DAG 调度、内存管理以及性能优化策略。</p>
+<h2 id="Spark-架构概览">Spark 架构概览</h2>
+<p>Spark 采用主从架构，由以下几个核心组件组成：</p>
+<h3 id="Driver-程序">Driver 程序</h3>
+<p>Driver 是 Spark 应用程序的控制中心，负责：</p>
+<ul>
+<li>创建 SparkContext，与集群管理器通信</li>
+<li>构建 DAG（有向无环图）</li>
+<li>将 DAG 拆分为 Stage</li>
+<li>调度 Task 到 Executor 执行</li>
+<li>监控 Task 执行状态</li>
+</ul>
+<h3 id="Executor-执行器">Executor（执行器）</h3>
+<p>Executor 是运行在 Worker 节点上的进程，负责：</p>
+<ul>
+<li>运行分配的 Task</li>
+<li>存储 RDD 的数据分区</li>
+<li>向 Driver 报告执行状态</li>
+<li>提供内存管理</li>
+</ul>
+<h3 id="集群管理器">集群管理器</h3>
+<p>Spark 支持多种集群管理器：</p>
+<ul>
+<li><strong>Standalone</strong>：Spark 自带的独立集群管理器</li>
+<li><strong>YARN</strong>：Hadoop 的资源管理器</li>
+<li><strong>Mesos</strong>：通用的集群管理器</li>
+<li><strong>Kubernetes</strong>：容器编排平台</li>
+</ul>
+<h3 id="执行流程">执行流程</h3>
+<pre><code class="language-text">1. 用户提交 Spark 应用
+2. Driver 启动，创建 SparkContext
+3. Driver 向集群管理器申请资源
+4. 集群管理器启动 Executor
+5. Executor 向 Driver 注册
+6. Driver 构建并调度 Task
+7. Executor 执行 Task 并返回结果
+</code></pre>
+<h2 id="RDD-弹性分布式数据集">RDD（弹性分布式数据集）</h2>
+<p>RDD（Resilient Distributed Dataset）是 Spark 最核心的抽象，代表一个不可变、可分区、里面的元素可并行计算的集合。</p>
+<h3 id="RDD-的五大特性">RDD 的五大特性</h3>
+<ol>
+<li><strong>分区列表</strong>：数据被分割成多个分区，每个分区是一个数据集的片段</li>
+<li><strong>计算函数</strong>：每个分区都有一个计算函数</li>
+<li><strong>依赖关系</strong>：RDD 保存对父 RDD 的依赖关系</li>
+<li><strong>分区器</strong>：可选的分区策略（如 HashPartitioner、RangePartitioner）</li>
+<li><strong>最佳位置</strong>：可选的数据本地性偏好</li>
+</ol>
+<h3 id="RDD-的创建方式">RDD 的创建方式</h3>
+<pre><code class="language-scala">// 1. 从集合创建
+val rdd1 = sc.parallelize(1 to 10)
+
+// 2. 从外部存储创建
+val rdd2 = sc.textFile("hdfs://path/to/file")
+
+// 3. 从已有 RDD 转换
+val rdd3 = rdd1.map(_ * 2)
+</code></pre>
+<h3 id="RDD-的操作类型">RDD 的操作类型</h3>
+<h4 id="Transformation-转换操作">Transformation（转换操作）</h4>
+<p>Transformation 是懒执行的，不会立即触发计算，只是记录 DAG：</p>
+<pre><code class="language-scala">// map：对每个元素应用函数
+val rdd = sc.parallelize(1 to 5).map(_ * 2)
+
+// filter：过滤元素
+val filtered = rdd.filter(_ > 5)
+
+// flatMap：将每个元素映射为多个元素
+val words = sc.parallelize(List("hello world", "spark rdd"))
+  .flatMap(_.split(" "))
+
+// reduceByKey：按 Key 聚合
+val pairs = sc.parallelize(List(("a", 1), ("b", 1), ("a", 1)))
+val counts = pairs.reduceByKey(_ + _)
+
+// join：连接两个 RDD
+val rdd1 = sc.parallelize(List(("a", 1), ("b", 2)))
+val rdd2 = sc.parallelize(List(("a", 3), ("b", 4)))
+val joined = rdd1.join(rdd2)
+</code></pre>
+<h4 id="Action-动作操作">Action（动作操作）</h4>
+<p>Action 会触发实际的计算：</p>
+<pre><code class="language-scala">// collect：将所有元素返回到 Driver
+val result = rdd.collect()
+
+// count：返回元素个数
+val count = rdd.count()
+
+// reduce：聚合元素
+val sum = rdd.reduce(_ + _)
+
+// take：返回前 N 个元素
+val first10 = rdd.take(10)
+
+// foreach：对每个元素执行操作
+rdd.foreach(println)
+
+// saveAsTextFile：保存到文件系统
+rdd.saveAsTextFile("hdfs://path/to/output")
+</code></pre>
+<h3 id="RDD-的依赖关系">RDD 的依赖关系</h3>
+<h4 id="窄依赖-Narrow-Dependency">窄依赖（Narrow Dependency）</h4>
+<p>父 RDD 的每个分区最多被子 RDD 的一个分区使用：</p>
+<pre><code class="language-text">RDD A: [Partition 1] [Partition 2] [Partition 3]
+           ↓         ↓         ↓
+RDD B: [Partition 1] [Partition 2] [Partition 3]
+</code></pre>
+<p>窄依赖的算子：map、filter、union、flatMap 等</p>
+<h4 id="宽依赖-Wide-Dependency">宽依赖（Wide Dependency）</h4>
+<p>父 RDD 的每个分区被子 RDD 的多个分区使用（Shuffle）：</p>
+<pre><code class="language-text">RDD A: [Partition 1] [Partition 2] [Partition 3]
+           ↓    ↓    ↓    ↓    ↓    ↓
+RDD B: [Partition 1] [Partition 2] [Partition 3]
+</code></pre>
+<p>宽依赖的算子：groupByKey、reduceByKey、join、sortByKey 等</p>
+<h3 id="RDD-的容错机制">RDD 的容错机制</h3>
+<p>RDD 通过 Lineage（血统）实现容错：</p>
+<ul>
+<li><strong>记录依赖关系</strong>：RDD 记录了它如何从父 RDD 计算而来</li>
+<li><strong>重新计算</strong>：当分区丢失时，根据依赖关系重新计算</li>
+<li><strong>检查点</strong>：对于长 Lineage，可以设置检查点避免重新计算</li>
+</ul>
+<pre><code class="language-scala">// 设置检查点
+sc.setCheckpointDir("hdfs://path/to/checkpoint")
+
+// 对 RDD 进行检查点
+rdd.checkpoint()
+</code></pre>
+<h2 id="DAG-调度器">DAG 调度器</h2>
+<p>DAG 调度器负责将 RDD 的依赖关系转换为可执行的 Stage。</p>
+<h3 id="Stage-的划分">Stage 的划分</h3>
+<p>Stage 划分的基本规则：</p>
+<ul>
+<li>根据宽依赖划分 Stage</li>
+<li>每个 Stage 内部只包含窄依赖</li>
+<li>Stage 之间通过 Shuffle 边界连接</li>
+</ul>
+<pre><code class="language-text">Stage 1: map -> filter -> map
+    ↓ (Shuffle)
+Stage 2: groupByKey -> map
+    ↓ (Shuffle)
+Stage 3: reduceByKey
+</code></pre>
+<h3 id="Task-调度">Task 调度</h3>
+<p>Task 调度器负责将 Stage 中的 Task 分配到 Executor：</p>
+<ol>
+<li><strong>TaskSet 提交</strong>：DAG 调度器提交 TaskSet 给 Task 调度器</li>
+<li><strong>本地性调度</strong>：优先调度到数据所在的节点</li>
+<li><strong>推测执行</strong>：对于慢的 Task，启动备份 Task</li>
+<li><strong>结果收集</strong>：收集 Task 执行结果</li>
+</ol>
+<h3 id="数据本地性">数据本地性</h3>
+<p>Spark 优先将 Task 调度到数据所在的节点，减少网络传输：</p>
+<ul>
+<li><strong>PROCESS_LOCAL</strong>：数据和计算在同一个进程</li>
+<li><strong>NODE_LOCAL</strong>：数据和计算在同一个节点</li>
+<li><strong>RACK_LOCAL</strong>：数据和计算在同一个机架</li>
+<li><strong>ANY</strong>：数据可能在任意位置</li>
+</ul>
+<h2 id="内存管理">内存管理</h2>
+<p>Spark 的内存管理是其高性能的关键之一。</p>
+<h3 id="堆内内存和堆外内存">堆内内存和堆外内存</h3>
+<h4 id="堆内内存-Heap-Memory">堆内内存（Heap Memory）</h4>
+<ul>
+<li>由 JVM 管理</li>
+<li>受 GC 影响</li>
+<li>存储对象和序列化数据</li>
+</ul>
+<h4 id="堆外内存-Off-Heap-Memory">堆外内存（Off-Heap Memory）</h4>
+<ul>
+<li>由 Spark 直接管理</li>
+<li>不受 GC 影响</li>
+<li>存储二进制数据</li>
+<li>通过 <code>spark.memory.offHeap.enabled</code> 启用</li>
+</ul>
+<h3 id="内存区域划分">内存区域划分</h3>
+<pre><code class="language-text">总内存
+├── Execution Memory (执行内存)
+│   ├── Shuffle Join
+│   ├── Shuffle Sort
+│   └── Shuffle Aggregation
+└── Storage Memory (存储内存)
+    ├── Cache
+    └── Broadcast Variables
+</code></pre>
+<h3 id="内存配置">内存配置</h3>
+<pre><code class="language-properties"># 执行内存占比
+spark.memory.fraction 0.6
+
+# 存储内存占比
+spark.memory.storageFraction 0.5
+
+# 堆外内存大小
+spark.memory.offHeap.size 1g
+
+# 堆外内存启用
+spark.memory.offHeap.enabled true
+</code></pre>
+<h3 id="内存溢出处理">内存溢出处理</h3>
+<h4 id="1-增加执行内存">1. 增加执行内存</h4>
+<pre><code class="language-properties">spark.executor.memory 4g
+spark.memory.fraction 0.8
+</code></pre>
+<h4 id="2-减少-Shuffle-数据量">2. 减少 Shuffle 数据量</h4>
+<pre><code class="language-scala">// 在 Shuffle 前进行聚合
+val reduced = rdd.map(x => (x._1, (x._2, 1)))
+  .reduceByKey((a, b) => (a._1 + b._1, a._2 + b._2))
+</code></pre>
+<h4 id="3-使用-广播变量">3. 使用广播变量</h4>
+<pre><code class="language-scala">// 广播小表
+val broadcastVar = sc.broadcast(smallData)
+val result = largeData.map(x => (x, broadcastVar.value))
+</code></pre>
+<h2 id="Shuffle-机制">Shuffle 机制</h2>
+<p>Shuffle 是 Spark 中最昂贵的操作，涉及跨节点的数据重分布。</p>
+<h3 id="Shuffle-过程">Shuffle 过程</h3>
+<pre><code class="language-text">Map Phase:
+  1. Partitioning：根据分区器将数据分配到不同分区
+  2. Sorting：对每个分区的数据进行排序
+  3. Spilling：内存不足时溢写到磁盘
+
+Reduce Phase:
+  1. Fetching：从各个节点拉取数据
+  2. Merging：合并拉取的数据
+  3. Aggregation：执行聚合操作
+</code></pre>
+<h3 id="Shuffle-实现方式">Shuffle 实现方式</h3>
+<h4 id="HashShuffle">HashShuffle</h4>
+<ul>
+<li>Spark 1.2 之前的默认方式</li>
+<li>为每个 Reduce Task 创建一个文件</li>
+<li>文件数量：Map Task × Reduce Task</li>
+<li>优点：不需要排序</li>
+<li>缺点：文件数量过多</li>
+</ul>
+<h4 id="SortShuffle">SortShuffle</h4>
+<ul>
+<li>Spark 1.2 之后的默认方式</li>
+<li>为每个 Map Task 创建一个数据文件和一个索引文件</li>
+<li>文件数量：2 × Map Task</li>
+<li>优点：文件数量少，支持排序</li>
+<li>缺点：需要排序</li>
+</ul>
+<h4 id="Tungsten-SortShuffle">Tungsten SortShuffle</h4>
+<ul>
+<li>使用堆外内存和二进制格式</li>
+<li>优化的排序算法</li>
+<li>减少序列化和反序列化开销</li>
+</ul>
+<h3 id="Shuffle-优化">Shuffle 优化</h3>
+<pre><code class="language-properties"># 启用 Tungsten Shuffle
+spark.sql.shuffle.partitions 200
+
+# 增加 Shuffle 缓冲区大小
+spark.shuffle.file.buffer 64k
+
+# 增加 Shuffle Sort 缓冲区大小
+spark.shuffle.sort.initialBufferFactor 0.2
+
+# 启用 Shuffle Spill 压缩
+spark.shuffle.compress true
+
+# 启用 Shuffle Spill 合并
+spark.shuffle.spill.numElementsForceSpillThreshold 52428800
+</code></pre>
+<h2 id="性能优化">性能优化</h2>
+<h3 id="1-并行度优化">1. 并行度优化</h3>
+<pre><code class="language-scala">// 设置并行度
+val rdd = sc.parallelize(1 to 1000000, 100)
+
+// 重新分区
+val repartitioned = rdd.repartition(100)
+
+// 增加分区数
+val increased = rdd.coalesce(200, shuffle = true)
+</code></pre>
+<h3 id="2-数据序列化">2. 数据序列化</h3>
+<pre><code class="language-properties"># 使用 Kryo 序列化
+spark.serializer org.apache.spark.serializer.KryoSerializer
+
+# 注册 Kryo 类
+spark.kryo.registrationRequired true
+
+# Kryo 缓冲区大小
+spark.kryoserializer.buffer.max 512m
+</code></pre>
+<h3 id="3-广播变量">3. 广播变量</h3>
+<pre><code class="language-scala">// 广播大变量
+val lookupTable = sc.broadcast(Map(1 -> "a", 2 -> "b"))
+
+// 在 Task 中使用
+val result = rdd.map(x => lookupTable.value.getOrElse(x, "unknown"))
+</code></pre>
+<h3 id="4-累加器">4. 累加器</h3>
+<pre><code class="language-scala">// 创建累加器
+val counter = sc.longAccumulator("counter")
+
+// 在 Task 中使用
+rdd.foreach(x => counter.add(1))
+
+// 获取结果
+println(counter.value)
+</code></pre>
+<h3 id="5-持久化策略">5. 持久化策略</h3>
+<pre><code class="language-scala">// MEMORY_ONLY：只存储在内存
+rdd.persist(StorageLevel.MEMORY_ONLY)
+
+// MEMORY_AND_DISK：内存不足时溢写到磁盘
+rdd.persist(StorageLevel.MEMORY_AND_DISK)
+
+// DISK_ONLY：只存储在磁盘
+rdd.persist(StorageLevel.DISK_ONLY)
+
+// MEMORY_ONLY_SER：序列化后存储在内存
+rdd.persist(StorageLevel.MEMORY_ONLY_SER)
+
+// OFF_HEAP：存储在堆外内存
+rdd.persist(StorageLevel.OFF_HEAP)
+</code></pre>
+<h3 id="6-避免创建过多-RDD">6. 避免创建过多 RDD</h3>
+<pre><code class="language-scala">// 避免：创建多个 RDD
+val rdd1 = sc.textFile("data.txt")
+val rdd2 = rdd1.filter(_.length > 10)
+val rdd3 = rdd2.map(_.toUpperCase)
+val rdd4 = rdd3.count()
+
+// 推荐：链式调用
+val count = sc.textFile("data.txt")
+  .filter(_.length > 10)
+  .map(_.toUpperCase)
+  .count()
+</code></pre>
+<h3 id="7-使用-DataFrame-Dataset">7. 使用 DataFrame/Dataset</h3>
+<pre><code class="language-scala">// 使用 DataFrame（Catalyst 优化）
+val df = spark.read.json("data.json")
+val result = df.filter($"age" > 18)
+  .groupBy("department")
+  .count()
+
+// 使用 Dataset（类型安全）
+case class Person(name: String, age: Int)
+val ds = spark.read.json("data.json").as[Person]
+val filtered = ds.filter(_.age > 18)
+</code></pre>
+<h2 id="Spark-SQL-优化">Spark SQL 优化</h2>
+<h3 id="Catalyst-优化器">Catalyst 优化器</h3>
+<p>Catalyst 是 Spark SQL 的查询优化器，提供以下优化：</p>
+<ul>
+<li><strong>逻辑优化</strong>：谓词下推、列剪裁、常量折叠</li>
+<li><strong>物理优化</strong>：选择最优的物理执行计划</li>
+<li><strong>代码生成</strong>：生成高效的 Java 字节码</li>
+</ul>
+<h3 id="谓词下推-Predicate-Pushdown">谓词下推（Predicate Pushdown）</h3>
+<pre><code class="language-scala">// 自动谓词下推
+val df = spark.read.parquet("data.parquet")
+val result = df.filter($"age" > 18)
+  .select("name", "email")
+
+// 等价于
+// SELECT name, email FROM data WHERE age > 18
+</code></pre>
+<h3 id="列剪裁-Column-Pruning">列剪裁（Column Pruning）</h3>
+<pre><code class="language-scala">// 只读取需要的列
+val df = spark.read.parquet("data.parquet")
+val result = df.select("name", "email")
+
+// 只读取 name 和 email 列，不读取其他列
+</code></pre>
+<h3 id="Join-优化">Join 优化</h3>
+<h4 id="Broadcast-Hash-Join">Broadcast Hash Join</h4>
+<pre><code class="language-scala">// 小表广播
+val smallDF = spark.read.parquet("small.parquet")
+val largeDF = spark.read.parquet("large.parquet")
+
+// 使用提示强制广播
+val result = largeDF.join(broadcast(smallDF), "key")
+</code></pre>
+<h4 id="Sort-Merge-Join">Sort Merge Join</h4>
+<pre><code class="language-scala">// 大表连接
+val df1 = spark.read.parquet("large1.parquet")
+val df2 = spark.read.parquet("large2.parquet")
+
+// 自动选择 Sort Merge Join
+val result = df1.join(df2, "key")
+</code></pre>
+<h2 id="实战案例">实战案例</h2>
+<h3 id="案例1：词频统计">案例1：词频统计</h3>
+<pre><code class="language-scala">import org.apache.spark.{SparkConf, SparkContext}
+
+object WordCount {
+  def main(args: Array[String]): Unit = {
+    val conf = new SparkConf()
+      .setAppName("WordCount")
+      .setMaster("local[*]")
+
+    val sc = new SparkContext(conf)
+
+    // 读取文件
+    val textFile = sc.textFile("hdfs://path/to/input")
+
+    // 词频统计
+    val wordCounts = textFile
+      .flatMap(line => line.split("\\s+"))
+      .map(word => (word, 1))
+      .reduceByKey(_ + _)
+      .sortBy(_._2, ascending = false)
+
+    // 保存结果
+    wordCounts.saveAsTextFile("hdfs://path/to/output")
+
+    sc.stop()
+  }
+}
+</code></pre>
+<h3 id="案例2：用户行为分析">案例2：用户行为分析</h3>
+<pre><code class="language-scala">import org.apache.spark.sql.SparkSession
+
+object UserBehaviorAnalysis {
+  def main(args: Array[String]): Unit = {
+    val spark = SparkSession.builder()
+      .appName("UserBehaviorAnalysis")
+      .getOrCreate()
+
+    import spark.implicits._
+
+    // 读取用户行为数据
+    val behaviorDF = spark.read.json("user_behavior.json")
+
+    // 计算每日活跃用户数
+    val dailyActiveUsers = behaviorDF
+      .groupBy($"date")
+      .agg(countDistinct("user_id").as("active_users"))
+
+    // 计算用户留存率
+    val retentionRate = behaviorDF
+      .filter($"date" === "2024-03-27")
+      .join(
+        behaviorDF.filter($"date" === "2024-03-28"),
+        "user_id"
+      )
+      .agg(count("user_id") / countDistinct("user_id"))
+
+    // 计算用户行为转化漏斗
+    val funnel = behaviorDF
+      .groupBy("user_id")
+      .agg(
+        sum(when($"action" === "view", 1).otherwise(0)).as("views"),
+        sum(when($"action" === "click", 1).otherwise(0)).as("clicks"),
+        sum(when($"action" === "purchase", 1).otherwise(0)).as("purchases")
+      )
+      .agg(
+        sum("views").as("total_views"),
+        sum("clicks").as("total_clicks"),
+        sum("purchases").as("total_purchases")
+      )
+
+    // 保存结果
+    dailyActiveUsers.write.parquet("output/daily_active_users")
+    retentionRate.write.parquet("output/retention_rate")
+    funnel.write.parquet("output/funnel")
+
+    spark.stop()
+  }
+}
+</code></pre>
+<h3 id="案例3：实时流处理">案例3：实时流处理</h3>
+<pre><code class="language-scala">import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.streaming.Trigger
+
+object RealTimeProcessing {
+  def main(args: Array[String]): Unit = {
+    val spark = SparkSession.builder()
+      .appName("RealTimeProcessing")
+      .getOrCreate()
+
+    import spark.implicits._
+
+    // 读取实时数据流
+    val streamDF = spark.readStream
+      .format("kafka")
+      .option("kafka.bootstrap.servers", "localhost:9092")
+      .option("subscribe", "events")
+      .load()
+      .selectExpr("CAST(value AS STRING)")
+      .as[String]
+      .select(from_json($"value", eventSchema).as("event"))
+      .select("event.*")
+
+    // 实时统计
+    val countByType = streamDF
+      .groupBy($"event_type")
+      .count()
+
+    // 输出结果
+    val query = countByType.writeStream
+      .outputMode("complete")
+      .format("console")
+      .trigger(Trigger.ProcessingTime("5 seconds"))
+      .start()
+
+    query.awaitTermination()
+  }
+}
+</code></pre>
+<h2 id="最佳实践">最佳实践</h2>
+<ul>
+<li><strong>合理设置并行度</strong>：根据集群资源和数据量设置合适的并行度</li>
+<li><strong>避免数据倾斜</strong>：通过加盐、扩容等方式解决数据倾斜问题</li>
+<li><strong>使用广播变量</strong>：对于小表使用广播变量减少 Shuffle</li>
+<li><strong>合理持久化</strong>：对需要多次使用的 RDD 进行持久化</li>
+<li><strong>监控和调优</strong>：使用 Spark UI 监控作业执行情况</li>
+<li><strong>使用 DataFrame/Dataset</strong>：优先使用 DataFrame/Dataset 获得更好的性能</li>
+<li><strong>资源隔离</strong>：使用动态资源分配和资源队列</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>Spark 作为强大的分布式计算框架，其核心优势在于内存计算和 DAG 调度。通过深入理解 RDD 原理、DAG 调度、内存管理和 Shuffle 机制，我们可以编写出高效的 Spark 应用程序。</p>
+<p><strong>记住：</strong></p>
+<ul>
+<li>RDD 是 Spark 的核心抽象，理解其五大特性至关重要</li>
+<li>DAG 调度器负责将作业划分为可执行的 Stage</li>
+<li>内存管理是 Spark 高性能的关键</li>
+<li>Shuffle 是最昂贵的操作，需要重点优化</li>
+<li>使用 DataFrame/Dataset 可以获得更好的性能</li>
+</ul>
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/Spark/" rel="tag"><i class="fa fa-tag"></i> Spark</a>
+          <a href="/tags/分布式计算/" rel="tag"><i class="fa fa-tag"></i> 分布式计算</a>
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+
+        <span class="post-nav-divider"></span>
+
+        <div class="post-nav-prev post-nav-item">
+            <a href="/2026/03/27/MySQL索引优化/" rel="prev" title="MySQL 索引优化">
+              <i class="fa fa-chevron-left"></i> MySQL 索引优化
+            </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Spark-架构概览"><span class="nav-number">1.</span> <span class="nav-text">Spark 架构概览</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Driver-程序"><span class="nav-number">1.1.</span> <span class="nav-text">Driver 程序</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Executor-执行器"><span class="nav-number">1.2.</span> <span class="nav-text">Executor（执行器）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#集群管理器"><span class="nav-number">1.3.</span> <span class="nav-text">集群管理器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#执行流程"><span class="nav-number">1.4.</span> <span class="nav-text">执行流程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RDD-弹性分布式数据集"><span class="nav-number">2.</span> <span class="nav-text">RDD（弹性分布式数据集）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#RDD-的五大特性"><span class="nav-number">2.1.</span> <span class="nav-text">RDD 的五大特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RDD-的创建方式"><span class="nav-number">2.2.</span> <span class="nav-text">RDD 的创建方式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RDD-的操作类型"><span class="nav-number">2.3.</span> <span class="nav-text">RDD 的操作类型</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Transformation-转换操作"><span class="nav-number">2.3.1.</span> <span class="nav-text">Transformation（转换操作）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Action-动作操作"><span class="nav-number">2.3.2.</span> <span class="nav-text">Action（动作操作）</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RDD-的依赖关系"><span class="nav-number">2.4.</span> <span class="nav-text">RDD 的依赖关系</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#窄依赖-Narrow-Dependency"><span class="nav-number">2.4.1.</span> <span class="nav-text">窄依赖（Narrow Dependency）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#宽依赖-Wide-Dependency"><span class="nav-number">2.4.2.</span> <span class="nav-text">宽依赖（Wide Dependency）</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RDD-的容错机制"><span class="nav-number">2.5.</span> <span class="nav-text">RDD 的容错机制</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#DAG-调度器"><span class="nav-number">3.</span> <span class="nav-text">DAG 调度器</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Stage-的划分"><span class="nav-number">3.1.</span> <span class="nav-text">Stage 的划分</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Task-调度"><span class="nav-number">3.2.</span> <span class="nav-text">Task 调度</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数据本地性"><span class="nav-number">3.3.</span> <span class="nav-text">数据本地性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#内存管理"><span class="nav-number">4.</span> <span class="nav-text">内存管理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#堆内内存和堆外内存"><span class="nav-number">4.1.</span> <span class="nav-text">堆内内存和堆外内存</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#堆内内存-Heap-Memory"><span class="nav-number">4.1.1.</span> <span class="nav-text">堆内内存（Heap Memory）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#堆外内存-Off-Heap-Memory"><span class="nav-number">4.1.2.</span> <span class="nav-text">堆外内存（Off-Heap Memory）</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存区域划分"><span class="nav-number">4.2.</span> <span class="nav-text">内存区域划分</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存配置"><span class="nav-number">4.3.</span> <span class="nav-text">内存配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存溢出处理"><span class="nav-number">4.4.</span> <span class="nav-text">内存溢出处理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-增加执行内存"><span class="nav-number">4.4.1.</span> <span class="nav-text">1. 增加执行内存</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-减少-Shuffle-数据量"><span class="nav-number">4.4.2.</span> <span class="nav-text">2. 减少 Shuffle 数据量</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-使用-广播变量"><span class="nav-number">4.4.3.</span> <span class="nav-text">3. 使用广播变量</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Shuffle-机制"><span class="nav-number">5.</span> <span class="nav-text">Shuffle 机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Shuffle-过程"><span class="nav-number">5.1.</span> <span class="nav-text">Shuffle 过程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Shuffle-实现方式"><span class="nav-number">5.2.</span> <span class="nav-text">Shuffle 实现方式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#HashShuffle"><span class="nav-number">5.2.1.</span> <span class="nav-text">HashShuffle</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#SortShuffle"><span class="nav-number">5.2.2.</span> <span class="nav-text">SortShuffle</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Tungsten-SortShuffle"><span class="nav-number">5.2.3.</span> <span class="nav-text">Tungsten SortShuffle</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Shuffle-优化"><span class="nav-number">5.3.</span> <span class="nav-text">Shuffle 优化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能优化"><span class="nav-number">6.</span> <span class="nav-text">性能优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-并行度优化"><span class="nav-number">6.1.</span> <span class="nav-text">1. 并行度优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-数据序列化"><span class="nav-number">6.2.</span> <span class="nav-text">2. 数据序列化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-广播变量"><span class="nav-number">6.3.</span> <span class="nav-text">3. 广播变量</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-累加器"><span class="nav-number">6.4.</span> <span class="nav-text">4. 累加器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-持久化策略"><span class="nav-number">6.5.</span> <span class="nav-text">5. 持久化策略</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-避免创建过多-RDD"><span class="nav-number">6.6.</span> <span class="nav-text">6. 避免创建过多 RDD</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-使用-DataFrame-Dataset"><span class="nav-number">6.7.</span> <span class="nav-text">7. 使用 DataFrame/Dataset</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Spark-SQL-优化"><span class="nav-number">7.</span> <span class="nav-text">Spark SQL 优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Catalyst-优化器"><span class="nav-number">7.1.</span> <span class="nav-text">Catalyst 优化器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#谓词下推-Predicate-Pushdown"><span class="nav-number">7.2.</span> <span class="nav-text">谓词下推（Predicate Pushdown）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#列剪裁-Column-Pruning"><span class="nav-number">7.3.</span> <span class="nav-text">列剪裁（Column Pruning）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Join-优化"><span class="nav-number">7.4.</span> <span class="nav-text">Join 优化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Broadcast-Hash-Join"><span class="nav-number">7.4.1.</span> <span class="nav-text">Broadcast Hash Join</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Sort-Merge-Join"><span class="nav-number">7.4.2.</span> <span class="nav-text">Sort Merge Join</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实战案例"><span class="nav-number">8.</span> <span class="nav-text">实战案例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#案例1：词频统计"><span class="nav-number">8.1.</span> <span class="nav-text">案例1：词频统计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#案例2：用户行为分析"><span class="nav-number">8.2.</span> <span class="nav-text">案例2：用户行为分析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#案例3：实时流处理"><span class="nav-number">8.3.</span> <span class="nav-text">案例3：实时流处理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#最佳实践"><span class="nav-number">9.</span> <span class="nav-text">最佳实践</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">10.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">150</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">40</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+
+
+
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/03/28/Spark分布式计算原理/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
