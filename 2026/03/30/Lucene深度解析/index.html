@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Apache Lucene 是一个高性能、全功能的全文搜索引擎库，采用 Java 编写，为众多搜索引擎（如 ElasticSearch、Solr）提供核心检索能力。本文将深入剖析 Lucene 的核心概念、索引结构、查询语法以及性能优化。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Lucene 深度解析">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/30/Lucene深度解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="Apache Lucene 是一个高性能、全功能的全文搜索引擎库，采用 Java 编写，为众多搜索引擎（如 ElasticSearch、Solr）提供核心检索能力。本文将深入剖析 Lucene 的核心概念、索引结构、查询语法以及性能优化。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-30T00:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-30T00:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="Lucene">
+<meta property="article:tag" content="搜索引擎">
+<meta property="article:tag" content="全文检索">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/30/Lucene深度解析/">
+
+
+<script id="page-configurations">
+    // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Lucene 深度解析 | 侯瑞哲的博客</title>
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-03-30T00:00:00+08:00" content="2026-03-30">
+      03-30
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      Lucene 深度解析
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+    <p>Apache Lucene 是一个高性能、全功能的全文搜索引擎库，采用 Java 编写，为众多搜索引擎（如 ElasticSearch、Solr）提供核心检索能力。本文将深入剖析 Lucene 的核心概念、索引结构、查询语法以及性能优化。</p>
+<h2 id="Lucene-简介">Lucene 简介</h2>
+<p>Lucene 是 Apache 软件基金会的一个开源项目，是一个高性能、全功能的全文搜索引擎库。它不是一个完整的搜索应用程序，而是一个可以嵌入到应用程序中的搜索引擎库。</p>
+<p><strong>Lucene 的核心特性：</strong></p>
+<ul>
+<li><strong>高性能</strong>：基于倒排索引，支持海量数据快速检索</li>
+<li><strong>可扩展</strong>：支持分布式索引和搜索</li>
+<li><strong>全文检索</strong>：支持中文分词、同义词、拼音搜索</li>
+<li><strong>丰富的查询</strong>：支持布尔查询、范围查询、模糊查询等</li>
+<li><strong>高亮显示</strong>：支持搜索结果高亮</li>
+<li><strong>跨平台</strong>：基于 Java，可运行在任何支持 JVM 的平台</li>
+<li><strong>多语言支持</strong>：提供 Java、.NET 等多种语言的 API</li>
+</ul>
+<h2 id="核心概念">核心概念</h2>
+<h3 id="Document-文档">Document（文档）</h3>
+<p>Document 是 Lucene 索引和搜索的基本单元，由多个 Field 组成。</p>
+<pre><code class="language-java">// 创建文档
+Document doc = new Document();
+doc.add(new TextField("title", "Lucene 入门教程", Field.Store.YES));
+doc.add(new TextField("content", "Apache Lucene 是一个高性能的全文搜索引擎", Field.Store.YES));
+doc.add(new IntPoint("price", 99));
+doc.add(new StoredField("author", "张三"));
+</code></pre>
+<h3 id="Field-字段">Field（字段）</h3>
+<p>Field 是 Document 的组成部分，包含字段名和字段值。</p>
+<table>
+<thead>
+<tr>
+<th>字段类型</th>
+<th>说明</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TextField</td>
+<td>全文检索字段，分词索引</td>
+<td>"content": "文章内容"</td>
+</tr>
+<tr>
+<td>StringField</td>
+<td>字符串字段，不分词</td>
+<td>"id": "12345"</td>
+</tr>
+<tr>
+<td>IntPoint</td>
+<td>整数范围查询</td>
+<td>"price": 99</td>
+</tr>
+<tr>
+<td>LongPoint</td>
+<td>长整型范围查询</td>
+<td>"timestamp": 1234567890</td>
+</tr>
+<tr>
+<td>DoublePoint</td>
+<td>浮点数范围查询</td>
+<td>"score": 95.5</td>
+</tr>
+<tr>
+<td>StoredField</td>
+<td>仅存储，不索引</td>
+<td>"author": "张三"</td>
+</tr>
+<tr>
+<td>BinaryDocValuesField</td>
+<td>二进制字段</td>
+<td>图片、文件等</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Index-索引">Index（索引）</h3>
+<p>Index 是 Lucene 的核心数据结构，采用倒排索引实现。</p>
+<pre><code>倒排索引结构：
+├── Term（词项）
+│   ├── Document Frequency（文档频率）
+│   └── Postings List（倒排表）
+│       ├── Document ID（文档编号）
+│       ├── Term Frequency（词频）
+│       └── Position（位置信息）
+└── Field（字段）
+    └── Term（词项）
+</code></pre>
+<h3 id="Segment-段">Segment（段）</h3>
+<p>Segment 是索引的子单元，每个 Segment 是一个独立的倒排索引。</p>
+<ul>
+<li><strong>写操作</strong>：新文档写入新的 Segment</li>
+<li><strong>读操作</strong>：搜索时合并所有 Segment</li>
+<li><strong>段合并</strong>：定期合并多个 Segment</li>
+</ul>
+<h3 id="Directory-目录">Directory（目录）</h3>
+<p>Directory 是 Lucene 索引的存储位置。</p>
+<table>
+<thead>
+<tr>
+<th>Directory 类型</th>
+<th>说明</th>
+<th>使用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FSDirectory</td>
+<td>文件系统目录</td>
+<td>本地存储</td>
+</tr>
+<tr>
+<td>RAMDirectory</td>
+<td>内存目录</td>
+<td>临时索引、测试</td>
+</tr>
+<tr>
+<td>NIOFSDirectory</td>
+<td>NIO 文件目录</td>
+<td>高性能 I/O</td>
+</tr>
+<tr>
+<td>MMapDirectory</td>
+<td>内存映射目录</td>
+<td>大索引读取</td>
+</tr>
+</tbody>
+</table>
+<h2 id="索引过程">索引过程</h2>
+<h3 id="分析-Analysis">分析（Analysis）</h3>
+<p>分析是将文本转换为索引词项的过程，包含三个步骤。</p>
+<pre><code>分析流程：
+├── 字符过滤器（CharFilter）
+│   └── 处理原始字符（如 HTML 标签去除）
+├── 分词器（Tokenizer）
+│   └── 将文本分割为词项
+└── 词元过滤器（TokenFilter）
+    ├── 小写化（LowercaseFilter）
+    ├── 停用词去除（StopFilter）
+    ├── 词干提取（PorterStemFilter）
+    └── 同义词扩展（SynonymFilter）
+</code></pre>
+<h3 id="内置分析器">内置分析器</h3>
+<table>
+<thead>
+<tr>
+<th>分析器</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>StandardAnalyzer</td>
+<td>标准分析器，按词分隔</td>
+</tr>
+<tr>
+<td>WhitespaceAnalyzer</td>
+<td>按空白字符分隔</td>
+</tr>
+<tr>
+<td>SimpleAnalyzer</td>
+<td>简单分析器，按非字母字符分隔</td>
+</tr>
+<tr>
+<td>StopAnalyzer</td>
+<td>去除停用词</td>
+</tr>
+<tr>
+<td>KeywordAnalyzer</td>
+<td>不分词，整个字符串作为一个词</td>
+</tr>
+<tr>
+<td>SmartChineseAnalyzer</td>
+<td>智能中文分析器</td>
+</tr>
+</tbody>
+</table>
+<h3 id="自定义分析器">自定义分析器</h3>
+<pre><code class="language-java">// 自定义分析器
+public class CustomAnalyzer extends Analyzer {
+    @Override
+    protected TokenStreamComponents createComponents(String fieldName) {
+        Tokenizer source = new StandardTokenizer();
+        TokenFilter filter = new LowerCaseFilter(source);
+        filter = new StopFilter(filter, StandardAnalyzer.STOP_WORDS_SET);
+        return new TokenStreamComponents(source, filter);
+    }
+}
+
+// 使用自定义分析器
+Analyzer analyzer = new CustomAnalyzer();
+IndexWriterConfig config = new IndexWriterConfig(analyzer);
+</code></pre>
+<h2 id="查询语法">查询语法</h2>
+<h3 id="基本查询">基本查询</h3>
+<pre><code class="language-java">// TermQuery（精确查询）
+Query query = new TermQuery(new Term("title", "Lucene"));
+
+// TermRangeQuery（范围查询）
+Query query = IntPoint.newRangeQuery("price", 50, 100);
+
+// PrefixQuery（前缀查询）
+Query query = new PrefixQuery(new Term("title", "Java"));
+
+// WildcardQuery（通配符查询）
+Query query = new WildcardQuery(new Term("title", "Luc*"));
+
+// FuzzyQuery（模糊查询）
+Query query = new FuzzyQuery(new Term("title", "Lcene"), 1);
+</code></pre>
+<h3 id="布尔查询">布尔查询</h3>
+<pre><code class="language-java">// BooleanQuery（组合查询）
+BooleanQuery.Builder builder = new BooleanQuery.Builder();
+
+// MUST（必须匹配）
+builder.add(new TermQuery(new Term("title", "Lucene")), BooleanClause.Occur.MUST);
+
+// SHOULD（应该匹配）
+builder.add(new TermQuery(new Term("content", "教程")), BooleanClause.Occur.SHOULD);
+
+// MUST_NOT（必须不匹配）
+builder.add(new TermQuery(new Term("category", "Java")), BooleanClause.Occur.MUST_NOT);
+
+// FILTER（过滤）
+builder.add(IntPoint.newRangeQuery("price", 0, 100), BooleanClause.Occur.FILTER);
+
+Query query = builder.build();
+</code></pre>
+<h3 id="短语查询">短语查询</h3>
+<pre><code class="language-java">// PhraseQuery（短语查询）
+Query query = new PhraseQuery("content", new String[]{"全文", "搜索"});
+
+// MultiPhraseQuery（多字段短语查询）
+MultiPhraseQuery query = new MultiPhraseQuery.Builder()
+    .add(new Term("title", "Lucene"))
+    .add(new Term("content", "教程"))
+    .build();
+</code></pre>
+<h3 id="多字段查询">多字段查询</h3>
+<pre><code class="language-java">// MultiFieldQueryParser（多字段查询）
+String[] fields = {"title", "content"};
+Map&lt;String, Float&gt; boosts = new HashMap&lt;&gt;();
+boosts.put("title", 2.0f);  // title 字段权重更高
+
+MultiFieldQueryParser parser = new MultiFieldQueryParser(fields, analyzer);
+parser.setFieldsBoost(boosts);
+Query query = parser.parse("Lucene 教程");
+</code></pre>
+<h3 id="解析查询">解析查询</h3>
+<pre><code class="language-java">// QueryParser（查询解析器）
+QueryParser parser = new QueryParser("content", analyzer);
+Query query = parser.parse("title:Lucene AND content:教程");
+
+// MultiFieldQueryParser（多字段查询解析器）
+String[] fields = {"title", "content"};
+QueryParser parser = new MultiFieldQueryParser(fields, analyzer);
+Query query = parser.parse("Lucene");
+</code></pre>
+<h2 id="搜索过程">搜索过程</h2>
+<h3 id="IndexSearcher-搜索器">IndexSearcher（搜索器）</h3>
+<pre><code class="language-java">// 创建搜索器
+Directory directory = FSDirectory.open(Paths.get("/path/to/index"));
+IndexReader reader = DirectoryReader.open(directory);
+IndexSearcher searcher = new IndexSearcher(reader);
+
+// 执行搜索
+Query query = new TermQuery(new Term("title", "Lucene"));
+TopDocs topDocs = searcher.search(query, 10);
+
+// 处理结果
+for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
+    Document doc = searcher.doc(scoreDoc.doc);
+    System.out.println("Title: " + doc.get("title"));
+    System.out.println("Score: " + scoreDoc.score);
+}
+</code></pre>
+<h3 id="分页">分页</h3>
+<pre><code class="language-java">// 使用 searchAfter 实现深度分页
+int pageSize = 10;
+Query query = new TermQuery(new Term("title", "Lucene"));
+Sort sort = new Sort(SortField.FIELD_SCORE);
+
+// 第一页
+TopDocs topDocs = searcher.search(query, pageSize);
+for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
+    // 处理第一页
+}
+
+// 第二页（使用最后一条的 sortValue）
+ScoreDoc lastDoc = topDocs.scoreDocs[topDocs.scoreDocs.length - 1];
+TopDocs nextPage = searcher.searchAfter(lastDoc, query, pageSize, sort);
+</code></pre>
+<h3 id="高亮显示">高亮显示</h3>
+<pre><code class="language-java">// 使用 Highlighter 高亮显示
+Query query = new TermQuery(new Term("content", "Lucene"));
+Highlighter highlighter = new Highlighter(
+    new QueryScorer(query),
+    new SimpleHTMLFormatter("&lt;b&gt;", "&lt;/b&gt;")
+);
+
+// 获取高亮文本
+String text = "Apache Lucene 是一个高性能的全文搜索引擎";
+TokenStream tokenStream = analyzer.tokenStream("content", text);
+String highlighted = highlighter.getBestFragment(tokenStream, text);
+// 输出: Apache &lt;b&gt;Lucene&lt;/b&gt; 是一个高性能的全文搜索引擎
+</code></pre>
+<h3 id="排序">排序</h3>
+<pre><code class="language-java">// 按分数排序（默认）
+TopDocs topDocs = searcher.search(query, 10);
+
+// 按字段排序
+Sort sort = new Sort(new SortField("price", SortField.Type.INT, false));
+TopDocs topDocs = searcher.search(query, 10, sort);
+
+// 多字段排序
+Sort sort = new Sort(
+    new SortField("score", SortField.Type.SCORE, false),
+    new SortField("price", SortField.Type.INT, true)
+);
+TopDocs topDocs = searcher.search(query, 10, sort);
+</code></pre>
+<h2 id="索引管理">索引管理</h2>
+<h3 id="IndexWriter-索引写入器">IndexWriter（索引写入器）</h3>
+<pre><code class="language-java">// 创建 IndexWriter
+Directory directory = FSDirectory.open(Paths.get("/path/to/index"));
+Analyzer analyzer = new StandardAnalyzer();
+IndexWriterConfig config = new IndexWriterConfig(analyzer);
+IndexWriter writer = new IndexWriter(directory, config);
+
+// 添加文档
+Document doc = new Document();
+doc.add(new TextField("title", "Lucene 教程", Field.Store.YES));
+writer.addDocument(doc);
+
+// 批量添加
+for (int i = 0; i < 1000; i++) {
+    Document doc = createDocument(i);
+    writer.addDocument(doc);
+}
+
+// 提交更改
+writer.commit();
+
+// 关闭写入器
+writer.close();
+</code></pre>
+<h3 id="更新文档">更新文档</h3>
+<pre><code class="language-java">// 更新文档（先删除后添加）
+Document doc = new Document();
+doc.add(new StringField("id", "123", Field.Store.YES));
+doc.add(new TextField("title", "新标题", Field.Store.YES));
+
+writer.updateDocument(new Term("id", "123"), doc);
+</code></pre>
+<h3 id="删除文档">删除文档</h3>
+<pre><code class="language-java">// 删除单个文档
+writer.deleteDocuments(new Term("id", "123"));
+
+// 删除多个文档
+writer.deleteDocuments(new Term("category", "Java"));
+
+// 删除所有文档
+writer.deleteAll();
+
+// 提交删除
+writer.commit();
+</code></pre>
+<h3 id="段合并">段合并</h3>
+<pre><code class="language-java">// 强制合并段
+writer.forceMerge(1);  // 合并为一个段
+
+// 带条件的合并
+writer.maybeMerge();
+</code></pre>
+<h2 id="性能优化">性能优化</h2>
+<h3 id="索引优化">索引优化</h3>
+<ul>
+<li><strong>批量索引</strong>：使用 addDocuments 批量添加</li>
+<li><strong>合理设置 RAMBufferSize</strong>：根据内存调整缓冲区大小</li>
+<li><strong>使用合适的 Directory</strong>：大索引使用 MMapDirectory</li>
+<li><strong>定期合并段</strong>：控制段数量</li>
+<li><strong>禁用不需要的字段索引</strong>：减少索引大小</li>
+</ul>
+<pre><code class="language-java">// 设置 RAM 缓冲区大小
+IndexWriterConfig config = new IndexWriterConfig(analyzer);
+config.setRAMBufferSizeMB(256);  // 256MB
+
+// 批量索引
+List&lt;Document&gt; docs = new ArrayList&lt;&gt;();
+for (int i = 0; i < 10000; i++) {
+    docs.add(createDocument(i));
+    if (docs.size() >= 1000) {
+        writer.addDocuments(docs);
+        docs.clear();
+    }
+}
+</code></pre>
+<h3 id="查询优化">查询优化</h3>
+<ul>
+<li><strong>使用 Filter</strong>：过滤不需要评分的条件</li>
+<li><strong>限制返回字段</strong>：只获取需要的字段</li>
+<li><strong>使用缓存</strong>：缓存常用查询结果</li>
+<li><strong>合理设置 maxDocs</strong>：限制返回结果数量</li>
+</ul>
+<pre><code class="language-java">// 使用 Filter
+Query query = new TermQuery(new Term("title", "Lucene"));
+Filter filter = IntPoint.newRangeQuery("price", 0, 100);
+TopDocs topDocs = searcher.search(query, filter, 10);
+
+// 使用缓存
+QueryCache queryCache = new LRUQueryCache(1000);
+FilterCache filterCache = new LRUFilterCache(1000);
+Query cachedQuery = queryCache.doCache(query, searcher);
+</code></pre>
+<h3 id="并发控制">并发控制</h3>
+<pre><code class="language-java">// 使用 NRTManager 实现近实时搜索
+NRTManager nrtManager = new NRTManager(writer);
+SearcherManager searcherManager = new SearcherManager(nrtManager);
+
+// 获取搜索器
+IndexSearcher searcher = searcherManager.acquire();
+try {
+    TopDocs topDocs = searcher.search(query, 10);
+} finally {
+    searcherManager.release(searcher);
+}
+
+// 提交后刷新
+nrtManager.maybeRefresh();
+</code></pre>
+<h2 id="高级特性">高级特性</h2>
+<h3 id="相似度评分">相似度评分</h3>
+<pre><code class="language-java">// 自定义 Similarity
+public class CustomSimilarity extends TFIDFSimilarity {
+    @Override
+    public float tf(float freq) {
+        return (float)Math.sqrt(freq);  // 使用平方根
+    }
+
+    @Override
+    public float idf(long docFreq, long docCount) {
+        return (float)(Math.log((docCount + 1) / (double)(docFreq + 1)) + 1.0);
+    }
+}
+
+// 使用自定义 Similarity
+Similarity similarity = new CustomSimilarity();
+IndexWriterConfig config = new IndexWriterConfig(analyzer);
+config.setSimilarity(similarity);
+</code></pre>
+<h3 id="文档值">文档值</h3>
+<pre><code class="language-java">// 使用 DocValues 进行排序和聚合
+doc.add(new NumericDocValuesField("price", 99));
+
+// 按文档值排序
+Sort sort = new Sort(new SortField("price", SortField.Type.LONG));
+TopDocs topDocs = searcher.search(query, 10, sort);
+</code></pre>
+<h3 id="存储字段">存储字段</h3>
+<pre><code class="language-java">// StoredField（仅存储不索引）
+doc.add(new StoredField("author", "张三"));
+
+// 获取存储字段
+Document doc = searcher.doc(docId);
+String author = doc.get("author");
+</code></pre>
+<h2 id="最佳实践">最佳实践</h2>
+<ul>
+<li><strong>合理设计字段</strong>：根据查询需求选择字段类型</li>
+<li><strong>使用合适的分析器</strong>：中文使用 IK、HanLP 等分词器</li>
+<li><strong>控制索引大小</strong>：定期清理和合并索引</li>
+<li><strong>监控性能</strong>：使用 Luke 等工具分析索引</li>
+<li><strong>备份索引</strong>：定期备份索引文件</li>
+<li><strong>使用 NRTManager</strong>：实现近实时搜索</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>Lucene 是一个强大的全文搜索引擎库，为 ElasticSearch、Solr 等搜索引擎提供核心能力。本文介绍了 Lucene 的核心概念、索引过程、查询语法、搜索过程、索引管理、性能优化以及高级特性。掌握这些知识后，可以更好地应用 Lucene 构建高性能的搜索应用。</p>
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/Lucene/" rel="tag"><i class="fa fa-tag"></i> Lucene</a>
+          <a href="/tags/搜索引擎/" rel="tag"><i class="fa fa-tag"></i> 搜索引擎</a>
+          <a href="/tags/全文检索/" rel="tag"><i class="fa fa-tag"></i> 全文检索</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+
+        <span class="post-nav-divider"></span>
+
+        <div class="post-nav-prev post-nav-item">
+            <a href="/2026/03/30/Rust深度解析/" rel="prev" title="Rust 深度解析">
+              <i class="fa fa-chevron-left"></i> Rust 深度解析
+            </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+
+  </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/03/30/Lucene深度解析/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
