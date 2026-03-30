@@ -11,7 +11,10 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Lucene deep dive article\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git mv:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nMove Lucene article to March 28th\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(lsof:*)",
+      "Bash(python3 -m html.parser:*)",
+      "Bash(python3:*)"
     ]
   }
 }
