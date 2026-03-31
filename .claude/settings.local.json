@@ -16,7 +16,9 @@
       "Bash(python3 -m html.parser:*)",
       "Bash(python3:*)",
       "Bash(gh api:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git push:*)",
+      "Bash(mc:*)"
     ]
   }
 }
