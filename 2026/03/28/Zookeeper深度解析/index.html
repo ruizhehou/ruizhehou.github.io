@@ -28,12 +28,12 @@
     var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="Apache Zookeeper是一个开源的分布式协调服务，为分布式应用提供一致性服务。本文深入解析Zookeeper的核心概念、数据模型、Watch机制以及集群架构。">
+  <meta name="description" content="Apache Zookeeper 是一个开源的分布式协调服务，为分布式应用提供一致性服务。本文深入解析 Zookeeper 的核心概念、数据模型、Watch 机制以及集群架构。">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Zookeeper深度解析">
+<meta property="og:title" content="Zookeeper 深度解析">
 <meta property="og:url" content="https://ruizhehou.github.io/2026/03/28/Zookeeper深度解析/index.html">
 <meta property="og:site_name" content="侯瑞哲的博客">
-<meta property="og:description" content="Apache Zookeeper是一个开源的分布式协调服务，为分布式应用提供一致性服务。本文深入解析Zookeeper的核心概念、数据模型、Watch机制以及集群架构。">
+<meta property="og:description" content="Apache Zookeeper 是一个开源的分布式协调服务，为分布式应用提供一致性服务。本文深入解析 Zookeeper 的核心概念、数据模型、Watch 机制以及集群架构。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2026-03-28T08:00:00.000Z">
 <meta property="article:modified_time" content="2026-03-28T08:00:00.000Z">
@@ -56,7 +56,7 @@
   };
 </script>
 
-  <title>Zookeeper深度解析 | 侯瑞哲的博客</title>
+  <title>Zookeeper 深度解析 | 侯瑞哲的博客</title>
 
 
 
@@ -174,7 +174,7 @@
   <div class="post-header">
       <div class="post-meta-container">
   <div class="post-meta">
-    <time itemprop="dateCreated" datetime="2026-03-28T15:00:00+08:00" content="2026-03-28">
+    <time itemprop="dateCreated" datetime="2026-03-28T08:00:00+08:00" content="2026-03-28">
       03-28
     </time>
   </div>
@@ -183,36 +183,27 @@
   </div>
 
   <h1 class="post-title" itemprop="name headline">
-      Zookeeper深度解析
+      Zookeeper 深度解析
   </h1>
 
   </div>
 
   <div class="post-body" itemprop="articleBody">
-<h2 id="Zookeeper概述">Zookeeper概述</h2>
-<p>Apache Zookeeper是一个开源的分布式协调服务，为分布式应用提供一致性服务。它最初由Yahoo开发，后成为Apache顶级项目。Zookeeper以简单、高效、可靠著称，是很多分布式系统的基石。</p>
-<h3 id="Zookeeper的核心特性">Zookeeper的核心特性</h3>
+
+    <p>Apache Zookeeper 是一个开源的分布式协调服务，为分布式应用提供一致性服务。它最初由 Yahoo 开发，后成为 Apache 顶级项目。本文将深入剖析 Zookeeper 的核心概念、数据模型、Watch 机制以及集群架构。</p>
+<h2 id="Zookeeper-简介">Zookeeper 简介</h2>
+<p>Zookeeper 是一个分布式的、开放源码的分布式应用程序协调服务，是 Google Chubby 的开源实现。它提供了配置维护、命名服务、分布式同步、组服务等功能。</p>
+<p><strong>Zookeeper 的核心特性：</strong></p>
 <ul>
-<li><strong>一致性</strong>：保证数据的一致性</li>
-<li><strong>原子性</strong>：操作要么成功要么失败</li>
-<li><strong>可靠性</strong>：数据持久化，不丢失</li>
-<li><strong>实时性</strong>：客户端能及时获取最新数据</li>
-<li><strong>顺序性</strong>：操作保持顺序</li>
-<li><strong>简单性</strong>：提供简单的API</li>
-</ul>
-<h3 id="Zookeeper的应用场景">Zookeeper的应用场景</h3>
-<ul>
-<li>配置管理</li>
-<li>命名服务</li>
-<li>分布式锁</li>
-<li>集群管理</li>
-<li>Leader选举</li>
-<li>队列管理</li>
-<li>发布订阅</li>
+<li><strong>一致性</strong>：所有节点在同一时刻看到相同的数据</li>
+<li><strong>原子性</strong>：操作要么成功要么失败，不存在中间状态</li>
+<li><strong>可靠性</strong>：数据持久化，不因单点故障丢失</li>
+<li><strong>实时性</strong>：客户端能在一定时间内获取最新数据</li>
+<li><strong>顺序性</strong>：来自同一客户端的更新按发送顺序执行</li>
 </ul>
 <h2 id="数据模型">数据模型</h2>
-<h3 id="ZNode结构">ZNode结构</h3>
-<p>Zookeeper的数据模型类似于文件系统，由ZNode（节点）组成。</p>
+<h3 id="ZNode-结构">ZNode 结构</h3>
+<p>Zookeeper 的数据模型类似于文件系统，由 ZNode（节点）组成树形结构。每个 ZNode 都可以存储数据，也可以有子节点。</p>
 <pre><code>/
 ├── config
 │   ├── database.properties
@@ -224,8 +215,7 @@
     ├── lock1
     └── lock2
 </code></pre>
-
-<h3 id="ZNode类型">ZNode类型</h3>
+<h3 id="ZNode-类型">ZNode 类型</h3>
 <table>
 <thead>
 <tr>
@@ -236,22 +226,22 @@
 </thead>
 <tbody>
 <tr>
-<td>持久节点</td>
+<td>持久节点（PERSISTENT）</td>
 <td>创建后一直存在</td>
 <td>除非显式删除</td>
 </tr>
 <tr>
-<td>临时节点</td>
+<td>临时节点（EPHEMERAL）</td>
 <td>与会话绑定</td>
 <td>会话结束自动删除</td>
 </tr>
 <tr>
-<td>持久顺序节点</td>
+<td>持久顺序节点（PERSISTENT_SEQUENTIAL）</td>
 <td>持久节点 + 顺序编号</td>
 <td>名称自动追加数字</td>
 </tr>
 <tr>
-<td>临时顺序节点</td>
+<td>临时顺序节点（EPHEMERAL_SEQUENTIAL）</td>
 <td>临时节点 + 顺序编号</td>
 <td>会话结束自动删除</td>
 </tr>
@@ -273,64 +263,74 @@ zk.create("/persistent-seq", "data".getBytes(),
 zk.create("/ephemeral-seq", "data".getBytes(),
     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 </code></pre>
-
-<h3 id="ZNode属性">ZNode属性</h3>
-<p>每个ZNode包含以下属性：</p>
+<h3 id="ZNode-属性">ZNode 属性</h3>
+<p>每个 ZNode 包含以下元数据（Stat 结构）：</p>
 <ul>
-<li><strong>数据</strong>：存储的数据（最大1MB）</li>
-<li><strong>版本</strong>：数据版本号</li>
-<li><strong>ACL</strong>：访问控制列表</li>
-<li><strong>时间戳</strong>：创建时间、修改时间</li>
-<li><strong>子节点数量</strong>：直接子节点数</li>
+<li><strong>czxid</strong>：节点创建时的事务 ID</li>
+<li><strong>mzxid</strong>：节点最后修改时的事务 ID</li>
+<li><strong>ctime</strong>：节点创建时间</li>
+<li><strong>mtime</strong>：节点最后修改时间</li>
+<li><strong>version</strong>：数据版本号</li>
+<li><strong>cversion</strong>：子节点版本号</li>
+<li><strong>aversion</strong>：ACL 版本号</li>
+<li><strong>dataLength</strong>：数据长度（最大 1MB）</li>
+<li><strong>numChildren</strong>：直接子节点数量</li>
 </ul>
-<pre><code class="language-java">// 获取ZNode数据
+<pre><code class="language-java">// 获取 ZNode 数据和元数据
+Stat stat = new Stat();
 byte[] data = zk.getData("/path", false, stat);
 System.out.println("Version: " + stat.getVersion());
 System.out.println("Ctime: " + stat.getCtime());
 System.out.println("Mtime: " + stat.getMtime());
+System.out.println("DataLength: " + stat.getDataLength());
 </code></pre>
-
-<h2 id="Watcher机制">Watcher机制</h2>
-<p>Watcher是Zookeeper的核心机制，用于监听ZNode的变化。</p>
-<h3 id="Watcher类型">Watcher类型</h3>
+<h2 id="Watcher-机制">Watcher 机制</h2>
+<p>Watcher 是 Zookeeper 的核心机制，用于监听 ZNode 的变化并异步通知客户端。</p>
+<h3 id="Watcher-类型">Watcher 类型</h3>
 <table>
 <thead>
 <tr>
 <th>事件类型</th>
-<th>说明</th>
+<th>触发条件</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>NodeCreated</td>
-<td>节点创建</td>
+<td>节点被创建</td>
 </tr>
 <tr>
 <td>NodeDeleted</td>
-<td>节点删除</td>
+<td>节点被删除</td>
 </tr>
 <tr>
 <td>NodeDataChanged</td>
-<td>节点数据变化</td>
+<td>节点数据发生变化</td>
 </tr>
 <tr>
 <td>NodeChildrenChanged</td>
-<td>子节点变化</td>
+<td>子节点列表发生变化</td>
 </tr>
 <tr>
 <td>None</td>
-<td>连接状态变化</td>
+<td>连接状态发生变化</td>
 </tr>
 </tbody>
 </table>
-<h3 id="Watcher使用">Watcher使用</h3>
-<pre><code class="language-java">// 创建Watcher
+<h3 id="Watcher-使用">Watcher 使用</h3>
+<pre><code class="language-java">// 创建 Watcher
 Watcher watcher = new Watcher() {
     @Override
     public void process(WatchedEvent event) {
-        System.out.println("Event: " + event.getType());
-        System.out.println("Path: " + event.getPath());
-        System.out.println("State: " + event.getState());
+        System.out.println("Event type: " + event.getType());
+        System.out.println("Event path: " + event.getPath());
+        System.out.println("Keeper state: " + event.getState());
+        // 重新注册 Watcher（Watcher 是一次性的）
+        try {
+            zk.getData(event.getPath(), this, null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 };
 
@@ -339,19 +339,24 @@ zk.getData("/path", watcher, stat);
 
 // 监听子节点变化
 zk.getChildren("/path", watcher);
-</code></pre>
 
-<h3 id="Watcher特点">Watcher特点</h3>
+// 监听节点是否存在
+zk.exists("/path", watcher);
+</code></pre>
+<h3 id="Watcher-特点">Watcher 特点</h3>
 <ul>
-<li><strong>一次性</strong>：触发后自动失效</li>
-<li><strong>异步</strong>：异步通知客户端</li>
-<li><strong>有序</strong>：保证事件的顺序</li>
+<li><strong>一次性</strong>：Watcher 触发后自动失效，需要重新注册</li>
+<li><strong>异步通知</strong>：服务端异步通知客户端，不阻塞</li>
+<li><strong>轻量级</strong>：只通知发生了变化，不携带变化的具体内容</li>
+<li><strong>顺序性</strong>：同一客户端的 Watcher 按顺序触发</li>
 </ul>
-<h2 id="会话机制">会话机制</h2>
+<h2 id="会话管理">会话管理</h2>
 <h3 id="会话生命周期">会话生命周期</h3>
-<pre><code>连接中 → 已连接 → 正在关闭 → 已关闭
+<p>客户端与 Zookeeper 服务器之间的连接即为一个会话（Session）。会话状态转换如下：</p>
+<pre><code>CONNECTING → CONNECTED → CLOSED
+                ↓
+           CONNECTING（重连）
 </code></pre>
-
 <h3 id="会话状态">会话状态</h3>
 <table>
 <thead>
@@ -362,40 +367,48 @@ zk.getChildren("/path", watcher);
 </thead>
 <tbody>
 <tr>
-<td>Connecting</td>
-<td>正在连接</td>
+<td>CONNECTING</td>
+<td>正在连接服务器</td>
 </tr>
 <tr>
-<td>Connected</td>
-<td>已连接</td>
+<td>CONNECTED</td>
+<td>已成功连接</td>
 </tr>
 <tr>
-<td>Closed</td>
-<td>已关闭</td>
+<td>RECONNECTING</td>
+<td>连接断开，正在重连</td>
 </tr>
 <tr>
-<td>AuthFailed</td>
+<td>RECONNECTED</td>
+<td>重连成功</td>
+</tr>
+<tr>
+<td>CLOSED</td>
+<td>会话已关闭</td>
+</tr>
+<tr>
+<td>AUTH_FAILED</td>
 <td>认证失败</td>
 </tr>
 </tbody>
 </table>
-<h3 id="会话超时">会话超时</h3>
-<pre><code class="language-java">// 创建会话，设置超时时间
-int sessionTimeout = 30000; // 30秒
+<pre><code class="language-java">// 创建会话，设置超时时间（毫秒）
+int sessionTimeout = 30000; // 30 秒
 ZooKeeper zk = new ZooKeeper("localhost:2181", sessionTimeout, watcher);
 
-// 获取会话ID和超时时间
+// 获取会话 ID 和超时时间
 long sessionId = zk.getSessionId();
 int timeout = zk.getSessionTimeout();
+System.out.println("Session ID: " + sessionId);
+System.out.println("Session timeout: " + timeout);
 </code></pre>
-
-<h2 id="ACL权限控制">ACL权限控制</h2>
-<h3 id="ACL组成">ACL组成</h3>
-<p>ACL由三部分组成：</p>
+<h2 id="ACL-权限控制">ACL 权限控制</h2>
+<h3 id="ACL-组成">ACL 组成</h3>
+<p>ACL（Access Control List）由三部分组成：</p>
 <ul>
-<li><strong>scheme</strong>：权限模式</li>
-<li><strong>id</strong>：权限对象</li>
-<li><strong>permission</strong>：权限类型</li>
+<li><strong>scheme</strong>：权限模式，定义认证方式</li>
+<li><strong>id</strong>：权限对象，具体的认证信息</li>
+<li><strong>permission</strong>：权限类型，允许的操作</li>
 </ul>
 <h3 id="权限模式">权限模式</h3>
 <table>
@@ -408,23 +421,23 @@ int timeout = zk.getSessionTimeout();
 <tbody>
 <tr>
 <td>world</td>
-<td>开放模式</td>
+<td>开放模式，所有人可访问</td>
 </tr>
 <tr>
 <td>auth</td>
-<td>认证模式</td>
+<td>认证模式，已认证用户可访问</td>
 </tr>
 <tr>
 <td>digest</td>
-<td>用户名密码模式</td>
+<td>用户名密码认证模式</td>
 </tr>
 <tr>
 <td>ip</td>
-<td>IP地址模式</td>
+<td>IP 地址认证模式</td>
 </tr>
 <tr>
 <td>x509</td>
-<td>证书模式</td>
+<td>证书认证模式</td>
 </tr>
 </tbody>
 </table>
@@ -433,66 +446,54 @@ int timeout = zk.getSessionTimeout();
 <thead>
 <tr>
 <th>权限</th>
-<th>说明</th>
 <th>缩写</th>
+<th>说明</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>CREATE</td>
-<td>创建子节点</td>
 <td>c</td>
+<td>创建子节点</td>
 </tr>
 <tr>
 <td>READ</td>
-<td>读取节点数据</td>
 <td>r</td>
+<td>读取节点数据和子节点列表</td>
 </tr>
 <tr>
 <td>WRITE</td>
-<td>写入节点数据</td>
 <td>w</td>
+<td>修改节点数据</td>
 </tr>
 <tr>
 <td>DELETE</td>
-<td>删除子节点</td>
 <td>d</td>
+<td>删除子节点</td>
 </tr>
 <tr>
 <td>ADMIN</td>
-<td>设置ACL</td>
 <td>a</td>
-</tr>
-<tr>
-<td>ALL</td>
-<td>所有权限</td>
-<td>ALL</td>
+<td>设置 ACL</td>
 </tr>
 </tbody>
 </table>
-<pre><code class="language-java">// 创建ACL
-List<ACL> acls = new ArrayList<>();
-acls.add(new ACL(ZooDefs.Perms.ALL,
-    new Id("digest", DigestAuthenticationProvider.generateDigest("user:password"))));
+<pre><code class="language-java">// 设置 world 权限（所有人可读写）
+zk.create("/open", data, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
-// 设置ACL
-zk.create("/secure", "data".getBytes(), acls, CreateMode.PERSISTENT);
+// 设置 digest 权限
+List&lt;ACL&gt; acls = new ArrayList&lt;&gt;();
+ACL acl = new ACL(ZooDefs.Perms.ALL,
+    new Id("digest", DigestAuthenticationProvider.generateDigest("user:password")));
+acls.add(acl);
+zk.create("/secure", data, acls, CreateMode.PERSISTENT);
 
-// 获取ACL
-List<ACL> existingAcls = zk.getACL("/secure", stat);
+// 添加认证信息
+zk.addAuthInfo("digest", "user:password".getBytes());
 </code></pre>
-
 <h2 id="集群架构">集群架构</h2>
 <h3 id="集群角色">集群角色</h3>
-<pre><code>┌─────────────────────────────────────┐
-│         Zookeeper Cluster           │
-│  ┌────────┐  ┌────────┐  ┌────────┐│
-│  │ Leader │  │Follower│  │Follower││
-│  │  (1)   │  │  (2)   │  │  (3)   ││
-│  └────────┘  └────────┘  └────────┘│
-└─────────────────────────────────────┘
-</code></pre>
-
+<p>Zookeeper 集群采用 Leader-Follower 架构，通常部署奇数个节点以保证选举成功。</p>
 <table>
 <thead>
 <tr>
@@ -503,405 +504,29 @@ List<ACL> existingAcls = zk.getACL("/secure", stat);
 <tbody>
 <tr>
 <td>Leader</td>
-<td>处理写请求，协调集群</td>
+<td>处理所有写请求，协调集群，发起投票</td>
 </tr>
 <tr>
 <td>Follower</td>
-<td>处理读请求，参与投票</td>
+<td>处理读请求，转发写请求给 Leader，参与选举投票</td>
 </tr>
 <tr>
 <td>Observer</td>
-<td>处理读请求，不参与投票</td>
+<td>处理读请求，不参与选举投票，用于扩展读性能</td>
 </tr>
 </tbody>
 </table>
-<h3 id="Leader选举">Leader选举</h3>
-<p>Zookeeper使用ZAB协议进行Leader选举。</p>
-<h4>选举状态</h4>
-<table>
-<thead>
-<tr>
-<th>状态</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>LOOKING</td>
-<td>正在选举</td>
-</tr>
-<tr>
-<td>FOLLOWING</td>
-<td>跟随者</td>
-</tr>
-<tr>
-<td>LEADING</td>
-<td>领导者</td>
-</tr>
-<tr>
-<td>OBSERVING</td>
-<td>观察者</td>
-</tr>
-</tbody>
-</table>
-<h4>选举过程</h4>
-<pre><code>1. 集群启动，所有节点处于LOOKING状态
-2. 节点发起投票，投票给自己（myid, zxid）
-3. 节点交换投票信息
-4. 节点根据规则更新投票：
-   - zxid大的优先
-   - zxid相同，myid大的优先
-5. 超过半数节点投票给同一节点，该节点成为Leader
-6. 其他节点成为Follower
-</code></pre>
-
+<h3 id="Leader-选举">Leader 选举</h3>
+<p>Zookeeper 使用 ZAB（ZooKeeper Atomic Broadcast）协议进行 Leader 选举。选举过程：</p>
+<ol>
+<li>集群启动或 Leader 崩溃，所有节点进入 LOOKING 状态</li>
+<li>每个节点发起投票，初始投票给自己（myid, zxid）</li>
+<li>节点之间交换投票信息</li>
+<li>根据规则更新投票：优先选 zxid 大的，zxid 相同则选 myid 大的</li>
+<li>超过半数节点投票给同一节点，该节点成为 Leader</li>
+<li>其他节点成为 Follower 或 Observer</li>
+</ol>
 <h3 id="集群配置">集群配置</h3>
-<pre><code class="language-properties"># zoo.cfg
-tickTime=2000
-initLimit=10
-syncLimit=5
-dataDir=/tmp/zookeeper
-clientPort=2181
-
-# 集群配置
-server.1=127.0.0.1:2888:3888
-server.2=127.0.0.1:2889:3889
-server.3=127.0.0.1:2890:3890
-</code></pre>
-
-<pre><code class="language-bash"># 创建myid文件
-echo "1" > /tmp/zookeeper/myid
-echo "2" > /tmp/zookeeper2/myid
-echo "3" > /tmp/zookeeper3/myid
-</code></pre>
-
-<h2 id="ZAB协议">ZAB协议</h2>
-<h3 id="ZAB协议概述">ZAB协议概述</h3>
-<p>ZAB（ZooKeeper Atomic Broadcast）是Zookeeper的原子广播协议，用于保证数据一致性。</p>
-<h3 id="ZAB协议模式">ZAB协议模式</h3>
-<h4>恢复模式</h4>
-<pre><code>1. 集群启动或Leader崩溃
-2. 选举新的Leader
-3. Follower与Leader同步
-4. 进入广播模式
-</code></pre>
-
-<h4>广播模式</h4>
-<pre><code>1. Leader接收写请求
-2. Leader生成Proposal
-3. Leader广播Proposal给Follower
-4. Follower回复ACK
-5. Leader收到过半ACK，提交Proposal
-6. Leader广播COMMIT消息
-7. Follower提交Proposal
-</code></pre>
-
-<h3 id="消息类型">消息类型</h3>
-<table>
-<thead>
-<tr>
-<th>消息类型</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>PROPOSAL</td>
-<td>提议消息</td>
-</tr>
-<tr>
-<td>ACK</td>
-<td>确认消息</td>
-</tr>
-<tr>
-<td>COMMIT</td>
-<td>提交消息</td>
-</tr>
-<tr>
-<td>PING</td>
-<td>心跳消息</td>
-</tr>
-<tr>
-<td>NEWLEADER</td>
-<td>新Leader通知</td>
-</tr>
-</tbody>
-</table>
-<h2 id="典型应用场景">典型应用场景</h2>
-<h3 id="配置中心">配置中心</h3>
-<pre><code class="language-java">// 配置中心实现
-public class ConfigCenter {
-    private final ZooKeeper zk;
-    private final String configPath = "/config";
-
-    public ConfigCenter(String connectString) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, event -> {
-            if (event.getType() == Event.EventType.NodeDataChanged) {
-                reloadConfig();
-            }
-        });
-        initConfig();
-    }
-
-    private void initConfig() throws Exception {
-        if (zk.exists(configPath, false) == null) {
-            zk.create(configPath, "default".getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        }
-    }
-
-    public void setConfig(String key, String value) throws Exception {
-        String path = configPath + "/" + key;
-        if (zk.exists(path, false) == null) {
-            zk.create(path, value.getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        } else {
-            zk.setData(path, value.getBytes(), -1);
-        }
-    }
-
-    public String getConfig(String key) throws Exception {
-        String path = configPath + "/" + key;
-        byte[] data = zk.getData(path, true, null);
-        return new String(data);
-    }
-
-    private void reloadConfig() {
-        // 重新加载配置
-        System.out.println("Config changed, reloading...");
-    }
-}
-</code></pre>
-
-<h3 id="分布式锁">分布式锁</h3>
-<pre><code class="language-java">// 分布式锁实现
-public class DistributedLock {
-    private final ZooKeeper zk;
-    private final String lockPath = "/locks";
-    private String currentLockPath;
-    private String lockName;
-
-    public DistributedLock(String connectString, String lockName) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, null);
-        this.lockName = lockName;
-        initLockPath();
-    }
-
-    private void initLockPath() throws Exception {
-        if (zk.exists(lockPath, false) == null) {
-            zk.create(lockPath, new byte[0],
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        }
-    }
-
-    public boolean tryLock() throws Exception {
-        // 创建临时顺序节点
-        currentLockPath = zk.create(lockPath + "/" + lockName + "-",
-            new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-
-        // 获取所有锁节点
-        List<String> children = zk.getChildren(lockPath, false);
-        Collections.sort(children);
-
-        // 检查是否是最小的节点
-        String currentNode = currentLockPath.substring(lockPath.length() + 1);
-        int currentIndex = children.indexOf(currentNode);
-
-        if (currentIndex == 0) {
-            return true; // 获得锁
-        }
-
-        // 监听前一个节点
-        String previousNode = children.get(currentIndex - 1);
-        String previousPath = lockPath + "/" + previousNode;
-
-        CountDownLatch latch = new CountDownLatch(1);
-        Watcher watcher = event -> {
-            if (event.getType() == Event.EventType.NodeDeleted) {
-                latch.countDown();
-            }
-        };
-
-        zk.exists(previousPath, watcher);
-        latch.await(); // 等待前一个节点删除
-
-        return true;
-    }
-
-    public void unlock() throws Exception {
-        if (currentLockPath != null) {
-            zk.delete(currentLockPath, -1);
-            currentLockPath = null;
-        }
-    }
-}
-</code></pre>
-
-<h3 id="Leader选举">Leader选举</h3>
-<pre><code class="language-java">// Leader选举实现
-public class LeaderElection {
-    private final ZooKeeper zk;
-    private final String electionPath = "/election";
-    private String currentNode;
-    private boolean isLeader = false;
-
-    public LeaderElection(String connectString, String nodeId) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, event -> {
-            if (event.getType() == Event.EventType.NodeDeleted) {
-                checkLeadership();
-            }
-        });
-        this.currentNode = electionPath + "/node-" + nodeId;
-        elect();
-    }
-
-    public void elect() throws Exception {
-        // 创建临时节点
-        zk.create(currentNode, new byte[0],
-            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-
-        // 获取所有节点
-        List<String> children = zk.getChildren(electionPath, false);
-        Collections.sort(children);
-
-        // 检查是否是最小的节点
-        String currentId = currentNode.substring(electionPath.length() + 1);
-        if (children.get(0).equals(currentId)) {
-            becomeLeader();
-        } else {
-            watchPreviousNode(children);
-        }
-    }
-
-    private void watchPreviousNode(List<String> children) throws Exception {
-        String currentId = currentNode.substring(electionPath.length() + 1);
-        int currentIndex = children.indexOf(currentId);
-        String previousNode = children.get(currentIndex - 1);
-        String previousPath = electionPath + "/" + previousNode;
-
-        zk.exists(previousPath, event -> {
-            if (event.getType() == Event.EventType.NodeDeleted) {
-                try {
-                    elect();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-    }
-
-    private void becomeLeader() {
-        isLeader = true;
-        System.out.println("I am the leader!");
-    }
-
-    public boolean isLeader() {
-        return isLeader;
-    }
-}
-</code></pre>
-
-<h3 id="服务注册与发现">服务注册与发现</h3>
-<pre><code class="language-java">// 服务注册
-public class ServiceRegistry {
-    private final ZooKeeper zk;
-    private final String registryPath = "/services";
-    private String servicePath;
-
-    public ServiceRegistry(String connectString) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, null);
-        initRegistry();
-    }
-
-    private void initRegistry() throws Exception {
-        if (zk.exists(registryPath, false) == null) {
-            zk.create(registryPath, new byte[0],
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        }
-    }
-
-    public void register(String serviceName, String address) throws Exception {
-        String servicePath = registryPath + "/" + serviceName;
-        if (zk.exists(servicePath, false) == null) {
-            zk.create(servicePath, new byte[0],
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        }
-
-        this.servicePath = servicePath + "/" + UUID.randomUUID().toString();
-        zk.create(this.servicePath, address.getBytes(),
-            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-    }
-
-    public void unregister() throws Exception {
-        if (servicePath != null) {
-            zk.delete(servicePath, -1);
-        }
-    }
-}
-
-// 服务发现
-public class ServiceDiscovery {
-    private final ZooKeeper zk;
-    private final String registryPath = "/services";
-    private List<String> services = new ArrayList<>();
-
-    public ServiceDiscovery(String connectString) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, event -> {
-            if (event.getType() == Event.EventType.NodeChildrenChanged) {
-                discoverServices();
-            }
-        });
-        discoverServices();
-    }
-
-    private void discoverServices() throws Exception {
-        services.clear();
-        List<String> serviceNames = zk.getChildren(registryPath, true);
-        for (String serviceName : serviceNames) {
-            String servicePath = registryPath + "/" + serviceName;
-            List<String> instances = zk.getChildren(servicePath, true);
-            for (String instance : instances) {
-                String instancePath = servicePath + "/" + instance;
-                byte[] data = zk.getData(instancePath, false, null);
-                services.add(new String(data));
-            }
-        }
-    }
-
-    public List<String> getServices() {
-        return services;
-    }
-
-    public String getRandomService() {
-        if (services.isEmpty()) {
-            return null;
-        }
-        return services.get(ThreadLocalRandom.current().nextInt(services.size()));
-    }
-}
-</code></pre>
-
-<h2 id="性能优化">性能优化</h2>
-<h3 id="JVM优化">JVM优化</h3>
-<pre><code class="language-bash"># JVM参数
--Xms2g
--Xmx2g
--XX:+UseG1GC
--XX:MaxGCPauseMillis=200
--XX:+HeapDumpOnOutOfMemoryError
-</code></pre>
-
-<h3 id="系统参数优化">系统参数优化</h3>
-<pre><code class="language-bash"># 增加文件描述符限制
-ulimit -n 65535
-
-# 调整TCP参数
-echo "net.ipv4.tcp_tw_reuse = 1" >> /etc/sysctl.conf
-echo "net.ipv4.tcp_fin_timeout = 30" >> /etc/sysctl.conf
-sysctl -p
-</code></pre>
-
-<h3 id="配置优化">配置优化</h3>
 <pre><code class="language-properties"># zoo.cfg
 tickTime=2000
 initLimit=10
@@ -911,96 +536,310 @@ dataLogDir=/var/lib/zookeeper/log
 clientPort=2181
 maxClientCnxns=1000
 
-# 集群配置
+# 集群节点配置（格式：server.id=host:quorumPort:leaderElectionPort）
 server.1=192.168.1.1:2888:3888
 server.2=192.168.1.2:2888:3888
 server.3=192.168.1.3:2888:3888
-
-# 性能配置
-preAllocSize=65536
-snapCount=100000
-skipACL=yes
-forceSync=no
 </code></pre>
+<pre><code class="language-bash"># 在各节点 dataDir 目录下创建 myid 文件
+echo "1" > /var/lib/zookeeper/myid  # 节点1
+echo "2" > /var/lib/zookeeper/myid  # 节点2
+echo "3" > /var/lib/zookeeper/myid  # 节点3
+</code></pre>
+<h2 id="ZAB-协议">ZAB 协议</h2>
+<h3 id="ZAB-概述">ZAB 概述</h3>
+<p>ZAB（ZooKeeper Atomic Broadcast）是 Zookeeper 专门设计的原子广播协议，用于保证分布式数据的一致性。ZAB 包含两种模式：</p>
+<ul>
+<li><strong>崩溃恢复模式</strong>：集群启动或 Leader 崩溃时，选举新 Leader</li>
+<li><strong>消息广播模式</strong>：正常工作时，Leader 将写请求广播给所有 Follower</li>
+</ul>
+<h3 id="消息广播流程">消息广播流程</h3>
+<ol>
+<li>客户端发送写请求给 Leader（或由 Follower 转发给 Leader）</li>
+<li>Leader 为请求分配全局唯一递增的 ZXID</li>
+<li>Leader 向所有 Follower 发送 Proposal（提案）</li>
+<li>Follower 将 Proposal 写入本地事务日志，返回 ACK</li>
+<li>Leader 收到超过半数 ACK 后，发送 Commit 消息</li>
+<li>Leader 和 Follower 提交事务，更新内存数据</li>
+</ol>
+<h3 id="ZXID-结构">ZXID 结构</h3>
+<p>ZXID 是 64 位整数，分为两部分：</p>
+<ul>
+<li><strong>高 32 位</strong>：epoch（纪元），每次 Leader 选举后递增</li>
+<li><strong>低 32 位</strong>：counter（计数器），每次事务递增，新 epoch 时重置为 0</li>
+</ul>
+<h2 id="典型应用场景">典型应用场景</h2>
+<h3 id="配置中心">配置中心</h3>
+<p>利用 Zookeeper 的 Watcher 机制实现配置的动态推送：</p>
+<pre><code class="language-java">public class ConfigCenter {
+    private ZooKeeper zk;
+    private static final String CONFIG_PATH = "/config";
 
+    public void watchConfig(String key, ConfigChangeListener listener) throws Exception {
+        String path = CONFIG_PATH + "/" + key;
+        byte[] data = zk.getData(path, event -> {
+            if (event.getType() == EventType.NodeDataChanged) {
+                try {
+                    byte[] newData = zk.getData(path, null, null);
+                    listener.onChange(new String(newData));
+                    // 重新注册 Watcher
+                    watchConfig(key, listener);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }, null);
+        listener.onChange(new String(data));
+    }
+}
+</code></pre>
+<h3 id="分布式锁">分布式锁</h3>
+<p>利用临时顺序节点实现公平的分布式锁：</p>
+<pre><code class="language-java">public class DistributedLock {
+    private ZooKeeper zk;
+    private static final String LOCK_PATH = "/locks";
+    private String currentNode;
+
+    public void lock() throws Exception {
+        // 创建临时顺序节点
+        currentNode = zk.create(LOCK_PATH + "/lock-", null,
+            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+
+        while (true) {
+            // 获取所有子节点并排序
+            List&lt;String&gt; children = zk.getChildren(LOCK_PATH, false);
+            Collections.sort(children);
+
+            String nodeName = currentNode.substring(LOCK_PATH.length() + 1);
+            int index = children.indexOf(nodeName);
+
+            if (index == 0) {
+                // 当前节点是最小节点，获得锁
+                return;
+            }
+
+            // 监听前一个节点
+            String prevNode = LOCK_PATH + "/" + children.get(index - 1);
+            CountDownLatch latch = new CountDownLatch(1);
+            Stat stat = zk.exists(prevNode, event -> {
+                if (event.getType() == EventType.NodeDeleted) {
+                    latch.countDown();
+                }
+            });
+
+            if (stat != null) {
+                latch.await(); // 等待前一个节点释放
+            }
+        }
+    }
+
+    public void unlock() throws Exception {
+        zk.delete(currentNode, -1);
+    }
+}
+</code></pre>
+<h3 id="服务注册与发现">服务注册与发现</h3>
+<pre><code class="language-java">public class ServiceRegistry {
+    private ZooKeeper zk;
+    private static final String REGISTRY_PATH = "/services";
+
+    // 服务注册（创建临时节点，服务下线自动删除）
+    public void register(String serviceName, String address) throws Exception {
+        String servicePath = REGISTRY_PATH + "/" + serviceName;
+        if (zk.exists(servicePath, false) == null) {
+            zk.create(servicePath, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        }
+        zk.create(servicePath + "/" + address, address.getBytes(),
+            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+    }
+
+    // 服务发现（获取所有可用实例）
+    public List&lt;String&gt; discover(String serviceName) throws Exception {
+        String servicePath = REGISTRY_PATH + "/" + serviceName;
+        return zk.getChildren(servicePath, event -> {
+            // 监听服务列表变化，自动刷新
+            try {
+                discover(serviceName);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+}
+</code></pre>
+<h3 id="Leader-选举实现">Leader 选举实现</h3>
+<pre><code class="language-java">public class LeaderElection {
+    private ZooKeeper zk;
+    private static final String ELECTION_PATH = "/election";
+    private String currentNode;
+
+    public boolean isLeader() throws Exception {
+        List&lt;String&gt; children = zk.getChildren(ELECTION_PATH, false);
+        Collections.sort(children);
+        String nodeName = currentNode.substring(ELECTION_PATH.length() + 1);
+        return children.get(0).equals(nodeName);
+    }
+
+    public void participate() throws Exception {
+        currentNode = zk.create(ELECTION_PATH + "/node-", null,
+            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+
+        if (isLeader()) {
+            System.out.println("I am the leader: " + currentNode);
+        } else {
+            watchPreviousNode();
+        }
+    }
+
+    private void watchPreviousNode() throws Exception {
+        List&lt;String&gt; children = zk.getChildren(ELECTION_PATH, false);
+        Collections.sort(children);
+        String nodeName = currentNode.substring(ELECTION_PATH.length() + 1);
+        int index = children.indexOf(nodeName);
+        String prevNode = ELECTION_PATH + "/" + children.get(index - 1);
+
+        zk.exists(prevNode, event -> {
+            if (event.getType() == EventType.NodeDeleted) {
+                try {
+                    if (isLeader()) {
+                        System.out.println("I am the new leader: " + currentNode);
+                    } else {
+                        watchPreviousNode();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+}
+</code></pre>
+<h2 id="性能优化">性能优化</h2>
+<h3 id="JVM-参数优化">JVM 参数优化</h3>
+<pre><code class="language-bash"># 推荐 JVM 参数
+-Xms4g
+-Xmx4g
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/zookeeper/heap.hprof
+</code></pre>
+<h3 id="系统参数优化">系统参数优化</h3>
+<pre><code class="language-bash"># 增加文件描述符限制
+ulimit -n 65535
+
+# 调整 TCP 参数
+echo "net.ipv4.tcp_tw_reuse = 1" >> /etc/sysctl.conf
+echo "net.ipv4.tcp_fin_timeout = 30" >> /etc/sysctl.conf
+echo "net.core.somaxconn = 65535" >> /etc/sysctl.conf
+sysctl -p
+</code></pre>
+<h3 id="配置参数优化">配置参数优化</h3>
+<pre><code class="language-properties"># zoo.cfg 性能相关配置
+tickTime=2000
+# 数据快照间隔（事务数）
+snapCount=100000
+# 预分配日志文件大小（KB）
+preAllocSize=65536
+# 最大客户端连接数
+maxClientCnxns=1000
+# 跳过 ACL 检查（提升性能，牺牲安全）
+skipACL=yes
+# 强制同步写磁盘
+forceSync=no
+# 自动清理快照
+autopurge.snapRetainCount=3
+autopurge.purgeInterval=1
+</code></pre>
 <h3 id="监控指标">监控指标</h3>
 <table>
 <thead>
 <tr>
 <th>指标</th>
 <th>说明</th>
+<th>告警阈值</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>延迟</td>
-<td>请求响应时间</td>
+<td>avg_latency</td>
+<td>平均请求延迟</td>
+<td>&gt; 100ms</td>
 </tr>
 <tr>
-<td>吞吐量</td>
-<td>每秒请求数</td>
+<td>max_latency</td>
+<td>最大请求延迟</td>
+<td>&gt; 1000ms</td>
 </tr>
 <tr>
-<td>连接数</td>
-<td>客户端连接数</td>
+<td>outstanding_requests</td>
+<td>待处理请求数</td>
+<td>&gt; 100</td>
 </tr>
 <tr>
-<td>Watch数量</td>
-<td>注册的Watcher数</td>
+<td>num_alive_connections</td>
+<td>活跃连接数</td>
+<td>接近 maxClientCnxns</td>
 </tr>
 <tr>
-<td>数据大小</td>
-<td>数据存储大小</td>
+<td>watch_count</td>
+<td>注册的 Watcher 数量</td>
+<td>&gt; 100000</td>
+</tr>
+<tr>
+<td>znode_count</td>
+<td>ZNode 总数</td>
+<td>&gt; 1000000</td>
 </tr>
 </tbody>
 </table>
+<pre><code class="language-bash"># 通过 4 字命令查看监控信息
+echo "mntr" | nc localhost 2181  # 监控信息
+echo "stat" | nc localhost 2181  # 状态信息
+echo "ruok" | nc localhost 2181  # 健康检查
+echo "dump" | nc localhost 2181  # 会话和临时节点
+</code></pre>
 <h2 id="最佳实践">最佳实践</h2>
 <h3 id="节点设计">节点设计</h3>
-<ol>
-<li><strong>节点路径不宜过深</strong>：影响性能</li>
-<li><strong>节点名称简洁</strong>：便于管理</li>
-<li><strong>合理使用临时节点</strong>：自动清理</li>
-<li><strong>控制数据大小</strong>：不超过1MB</li>
-<li><strong>批量操作</strong>：使用multi操作</li>
-</ol>
-<h3 id="Watcher使用">Watcher使用</h3>
-<ol>
-<li><strong>避免频繁注册Watcher</strong>：一次性失效</li>
-<li><strong>处理异常</strong>：连接断开重新注册</li>
-<li><strong>合理设置超时</strong>：避免长时间阻塞</li>
-<li><strong>异步处理</strong>：避免阻塞Watcher线程</li>
-</ol>
+<ul>
+<li><strong>节点路径不宜过深</strong>：层级过深影响性能，建议不超过 5 层</li>
+<li><strong>控制数据大小</strong>：单个 ZNode 数据不超过 1MB，建议 1KB 以内</li>
+<li><strong>合理使用临时节点</strong>：利用临时节点实现自动清理</li>
+<li><strong>批量操作</strong>：使用 multi 接口批量执行操作，保证原子性</li>
+</ul>
+<h3 id="Watcher-最佳实践">Watcher 最佳实践</h3>
+<ul>
+<li><strong>及时重新注册</strong>：Watcher 触发后立即重新注册，避免遗漏事件</li>
+<li><strong>异步处理</strong>：Watcher 回调中避免耗时操作，防止阻塞</li>
+<li><strong>幂等处理</strong>：Watcher 回调应设计为幂等，防止重复执行</li>
+<li><strong>控制数量</strong>：避免注册过多 Watcher，影响服务端性能</li>
+</ul>
 <h3 id="集群部署">集群部署</h3>
-<ol>
-<li><strong>奇数个节点</strong>：避免脑裂</li>
-<li><strong>跨机房部署</strong>：提高可用性</li>
-<li><strong>定期备份</strong>：保护数据</li>
-<li><strong>监控告警</strong>：及时发现问题</li>
-</ol>
+<ul>
+<li><strong>奇数个节点</strong>：3、5、7 个节点，避免脑裂，保证选举成功</li>
+<li><strong>跨机架部署</strong>：节点分布在不同机架，提高容灾能力</li>
+<li><strong>独立磁盘</strong>：事务日志和数据快照使用独立磁盘，避免 IO 竞争</li>
+<li><strong>定期备份</strong>：定期备份数据快照，防止数据丢失</li>
+</ul>
 <h3 id="安全配置">安全配置</h3>
-<ol>
-<li><strong>启用认证</strong>：使用digest或auth模式</li>
-<li><strong>设置ACL</strong>：控制访问权限</li>
-<li><strong>使用SSL</strong>：加密通信</li>
-<li><strong>网络隔离</strong>：限制访问</li>
-</ol>
+<ul>
+<li><strong>启用认证</strong>：生产环境使用 digest 或 Kerberos 认证</li>
+<li><strong>设置 ACL</strong>：对敏感路径设置严格的访问控制</li>
+<li><strong>启用 TLS</strong>：加密客户端与服务端通信</li>
+<li><strong>网络隔离</strong>：限制 Zookeeper 端口的访问来源</li>
+</ul>
 <h2 id="总结">总结</h2>
-<p>Zookeeper是一个功能强大、简单易用的分布式协调服务。通过本文的介绍，我们了解了：</p>
+<p>Zookeeper 是构建分布式系统的重要基础设施，提供了简单而强大的协调原语。本文介绍了 Zookeeper 的核心知识：</p>
 <ol>
-<li>Zookeeper概述：核心特性和应用场景</li>
-<li>数据模型：ZNode结构和类型</li>
-<li>Watcher机制：事件监听和通知</li>
-<li>会话机制：会话生命周期和状态</li>
-<li>ACL权限控制：权限模式和类型</li>
-<li>集群架构：角色和Leader选举</li>
-<li>ZAB协议：恢复模式和广播模式</li>
-<li>典型应用：配置中心、分布式锁、Leader选举、服务发现</li>
-<li>性能优化：JVM、系统参数、配置优化</li>
-<li>最佳实践：节点设计、Watcher使用、集群部署、安全配置</li>
+<li><strong>数据模型</strong>：树形 ZNode 结构，支持持久和临时两类节点</li>
+<li><strong>Watcher 机制</strong>：一次性、异步的事件通知机制</li>
+<li><strong>会话管理</strong>：客户端与服务端的连接生命周期</li>
+<li><strong>ACL 权限控制</strong>：灵活的访问控制机制</li>
+<li><strong>集群架构</strong>：Leader-Follower 架构，ZAB 协议保证一致性</li>
+<li><strong>典型应用</strong>：配置中心、分布式锁、服务注册与发现、Leader 选举</li>
+<li><strong>性能优化</strong>：JVM、系统参数、配置调优</li>
 </ol>
-<p>掌握Zookeeper可以帮助我们构建可靠的分布式系统，解决分布式环境下的协调问题。在实际应用中，建议根据具体场景选择合适的应用模式，并遵循最佳实践，以达到最佳的性能和可靠性。</p>
-
-  
+<p>掌握 Zookeeper 可以帮助我们构建可靠的分布式系统，解决分布式环境下的协调难题。在实际应用中，建议根据具体场景选择合适的使用模式，并遵循最佳实践以达到最佳效果。</p>
 
   </div>
 
@@ -1050,7 +889,7 @@ forceSync=no
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Zookeeper概述"><span class="nav-number">1.</span> <span class="nav-text">Zookeeper概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Zookeeper的核心特性"><span class="nav-number">1.1.</span> <span class="nav-text">Zookeeper的核心特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Zookeeper的应用场景"><span class="nav-number">1.2.</span> <span class="nav-text">Zookeeper的应用场景</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据模型"><span class="nav-number">2.</span> <span class="nav-text">数据模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ZNode结构"><span class="nav-number">2.1.</span> <span class="nav-text">ZNode结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZNode类型"><span class="nav-number">2.2.</span> <span class="nav-text">ZNode类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZNode属性"><span class="nav-number">2.3.</span> <span class="nav-text">ZNode属性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Watcher机制"><span class="nav-number">3.</span> <span class="nav-text">Watcher机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher类型"><span class="nav-number">3.1.</span> <span class="nav-text">Watcher类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher使用"><span class="nav-number">3.2.</span> <span class="nav-text">Watcher使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher特点"><span class="nav-number">3.3.</span> <span class="nav-text">Watcher特点</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#会话机制"><span class="nav-number">4.</span> <span class="nav-text">会话机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#会话生命周期"><span class="nav-number">4.1.</span> <span class="nav-text">会话生命周期</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#会话状态"><span class="nav-number">4.2.</span> <span class="nav-text">会话状态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#会话超时"><span class="nav-number">4.3.</span> <span class="nav-text">会话超时</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ACL权限控制"><span class="nav-number">5.</span> <span class="nav-text">ACL权限控制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ACL组成"><span class="nav-number">5.1.</span> <span class="nav-text">ACL组成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#权限模式"><span class="nav-number">5.2.</span> <span class="nav-text">权限模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#权限类型"><span class="nav-number">5.3.</span> <span class="nav-text">权限类型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#集群架构"><span class="nav-number">6.</span> <span class="nav-text">集群架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#集群角色"><span class="nav-number">6.1.</span> <span class="nav-text">集群角色</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Leader选举"><span class="nav-number">6.2.</span> <span class="nav-text">Leader选举</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#集群配置"><span class="nav-number">6.3.</span> <span class="nav-text">集群配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ZAB协议"><span class="nav-number">7.</span> <span class="nav-text">ZAB协议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ZAB协议概述"><span class="nav-number">7.1.</span> <span class="nav-text">ZAB协议概述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZAB协议模式"><span class="nav-number">7.2.</span> <span class="nav-text">ZAB协议模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#消息类型"><span class="nav-number">7.3.</span> <span class="nav-text">消息类型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#典型应用场景"><span class="nav-number">8.</span> <span class="nav-text">典型应用场景</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#配置中心"><span class="nav-number">8.1.</span> <span class="nav-text">配置中心</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#分布式锁"><span class="nav-number">8.2.</span> <span class="nav-text">分布式锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Leader选举"><span class="nav-number">8.3.</span> <span class="nav-text">Leader选举</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#服务注册与发现"><span class="nav-number">8.4.</span> <span class="nav-text">服务注册与发现</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能优化"><span class="nav-number">9.</span> <span class="nav-text">性能优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#JVM优化"><span class="nav-number">9.1.</span> <span class="nav-text">JVM优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#系统参数优化"><span class="nav-number">9.2.</span> <span class="nav-text">系统参数优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#配置优化"><span class="nav-number">9.3.</span> <span class="nav-text">配置优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#监控指标"><span class="nav-number">9.4.</span> <span class="nav-text">监控指标</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#最佳实践"><span class="nav-number">10.</span> <span class="nav-text">最佳实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#节点设计"><span class="nav-number">10.1.</span> <span class="nav-text">节点设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher使用"><span class="nav-number">10.2.</span> <span class="nav-text">Watcher使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#集群部署"><span class="nav-number">10.3.</span> <span class="nav-text">集群部署</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#安全配置"><span class="nav-number">10.4.</span> <span class="nav-text">安全配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">总结</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Zookeeper-简介"><span class="nav-number">1.</span> <span class="nav-text">Zookeeper 简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据模型"><span class="nav-number">2.</span> <span class="nav-text">数据模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ZNode-结构"><span class="nav-number">2.1.</span> <span class="nav-text">ZNode 结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZNode-类型"><span class="nav-number">2.2.</span> <span class="nav-text">ZNode 类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZNode-属性"><span class="nav-number">2.3.</span> <span class="nav-text">ZNode 属性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Watcher-机制"><span class="nav-number">3.</span> <span class="nav-text">Watcher 机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher-类型"><span class="nav-number">3.1.</span> <span class="nav-text">Watcher 类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher-使用"><span class="nav-number">3.2.</span> <span class="nav-text">Watcher 使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher-特点"><span class="nav-number">3.3.</span> <span class="nav-text">Watcher 特点</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#会话管理"><span class="nav-number">4.</span> <span class="nav-text">会话管理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#会话生命周期"><span class="nav-number">4.1.</span> <span class="nav-text">会话生命周期</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#会话状态"><span class="nav-number">4.2.</span> <span class="nav-text">会话状态</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ACL-权限控制"><span class="nav-number">5.</span> <span class="nav-text">ACL 权限控制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ACL-组成"><span class="nav-number">5.1.</span> <span class="nav-text">ACL 组成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#权限模式"><span class="nav-number">5.2.</span> <span class="nav-text">权限模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#权限类型"><span class="nav-number">5.3.</span> <span class="nav-text">权限类型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#集群架构"><span class="nav-number">6.</span> <span class="nav-text">集群架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#集群角色"><span class="nav-number">6.1.</span> <span class="nav-text">集群角色</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Leader-选举"><span class="nav-number">6.2.</span> <span class="nav-text">Leader 选举</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#集群配置"><span class="nav-number">6.3.</span> <span class="nav-text">集群配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ZAB-协议"><span class="nav-number">7.</span> <span class="nav-text">ZAB 协议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ZAB-概述"><span class="nav-number">7.1.</span> <span class="nav-text">ZAB 概述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#消息广播流程"><span class="nav-number">7.2.</span> <span class="nav-text">消息广播流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZXID-结构"><span class="nav-number">7.3.</span> <span class="nav-text">ZXID 结构</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#典型应用场景"><span class="nav-number">8.</span> <span class="nav-text">典型应用场景</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#配置中心"><span class="nav-number">8.1.</span> <span class="nav-text">配置中心</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#分布式锁"><span class="nav-number">8.2.</span> <span class="nav-text">分布式锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#服务注册与发现"><span class="nav-number">8.3.</span> <span class="nav-text">服务注册与发现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Leader-选举实现"><span class="nav-number">8.4.</span> <span name="nav-text">Leader 选举实现</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能优化"><span class="nav-number">9.</span> <span class="nav-text">性能优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#JVM-参数优化"><span class="nav-number">9.1.</span> <span class="nav-text">JVM 参数优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#系统参数优化"><span class="nav-number">9.2.</span> <span class="nav-text">系统参数优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#配置参数优化"><span class="nav-number">9.3.</span> <span class="nav-text">配置参数优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#监控指标"><span class="nav-number">9.4.</span> <span class="nav-text">监控指标</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#最佳实践"><span class="nav-number">10.</span> <span class="nav-text">最佳实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#节点设计"><span class="nav-number">10.1.</span> <span class="nav-text">节点设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher-最佳实践"><span class="nav-number">10.2.</span> <span class="nav-text">Watcher 最佳实践</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#集群部署"><span class="nav-number">10.3.</span> <span class="nav-text">集群部署</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#安全配置"><span class="nav-number">10.4.</span> <span class="nav-text">安全配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">总结</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
