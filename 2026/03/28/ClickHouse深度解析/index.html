@@ -191,11 +191,11 @@
 
   <div class="post-body" itemprop="articleBody">
 
-          <h2 id="一、ClickHouse概述">一、ClickHouse概述</h2>
+          <h2 id="一、ClickHouse概述">ClickHouse概述</h2>
 
 <p>ClickHouse是一个面向列的OLAP（在线分析处理）数据库管理系统，由Yandex开源。它以高性能、低延迟、高压缩比著称，是实时数据分析领域的明星产品。</p>
 
-<h3 id="1-1-ClickHouse的核心特性">1.1 ClickHouse的核心特性</h3>
+<h3 id="1-1-ClickHouse的核心特性">ClickHouse的核心特性</h3>
 
 <ul>
 <li><strong>高性能</strong>：单表查询可达数十亿行/秒</li>
@@ -207,7 +207,7 @@
 <li><strong>容错</strong>：支持副本和分片</li>
 </ul>
 
-<h3 id="1-2-ClickHouse的应用场景">1.2 ClickHouse的应用场景</h3>
+<h3 id="1-2-ClickHouse的应用场景">ClickHouse的应用场景</h3>
 
 <ul>
 <li>用户行为分析</li>
@@ -219,9 +219,9 @@
 <li>金融风控</li>
 </ul>
 
-<h2 id="二、核心概念">二、核心概念</h2>
+<h2 id="二、核心概念">核心概念</h2>
 
-<h3 id="2-1-数据库引擎">2.1 数据库引擎</h3>
+<h3 id="2-1-数据库引擎">数据库引擎</h3>
 
 <p>ClickHouse支持多种数据库引擎：</p>
 
@@ -266,7 +266,7 @@ CREATE DATABASE my_lazy_db ENGINE = Lazy;
 CREATE DATABASE mysql_db ENGINE = MySQL('localhost:3306', 'db', 'user', 'password');
 </code></pre>
 
-<h3 id="2-2-表引擎">2.2 表引擎</h3>
+<h3 id="2-2-表引擎">表引擎</h3>
 
 <p>表引擎是ClickHouse最重要的概念，决定了数据的存储方式和查询性能。</p>
 
@@ -417,7 +417,7 @@ CREATE TABLE kafka_table (
 ) ENGINE = Kafka('localhost:9092', 'topic', 'group', 'CSV');
 </code></pre>
 
-<h3 id="2-3-数据类型">2.3 数据类型</h3>
+<h3 id="2-3-数据类型">数据类型</h3>
 
 <h4 id="基本类型">基本类型</h4>
 
@@ -570,7 +570,7 @@ SELECT
 FROM complex_table;
 </code></pre>
 
-<h3 id="2-4-索引">2.4 索引</h3>
+<h3 id="2-4-索引">索引</h3>
 
 <p>ClickHouse使用稀疏索引，索引粒度可配置。</p>
 
@@ -601,9 +601,9 @@ SETTINGS
     secondary_index_granularity = 8192;
 </code></pre>
 
-<h2 id="三、数据操作">三、数据操作</h2>
+<h2 id="三、数据操作">数据操作</h2>
 
-<h3 id="3-1-创建表">3.1 创建表</h3>
+<h3 id="3-1-创建表">创建表</h3>
 
 <pre><code class="language-sql">-- 创建MergeTree表
 CREATE TABLE events (
@@ -623,7 +623,7 @@ CREATE TABLE distributed_events AS events
 ENGINE = Distributed(cluster_name, default, events, rand());
 </code></pre>
 
-<h3 id="3-2-插入数据">3.2 插入数据</h3>
+<h3 id="3-2-插入数据">插入数据</h3>
 
 <pre><code class="language-sql">-- 单条插入
 INSERT INTO events VALUES (
@@ -656,7 +656,7 @@ SELECT
 FROM source_events;
 </code></pre>
 
-<h3 id="3-3-查询数据">3.3 查询数据</h3>
+<h3 id="3-3-查询数据">查询数据</h3>
 
 <pre><code class="language-sql">-- 基本查询
 SELECT * FROM events LIMIT 10;
@@ -690,7 +690,7 @@ SELECT
 FROM events;
 </code></pre>
 
-<h3 id="3-4-更新和删除">3.4 更新和删除</h3>
+<h3 id="3-4-更新和删除">更新和删除</h3>
 
 <pre><code class="language-sql">-- 删除数据
 ALTER TABLE events DELETE WHERE event_time < '2023-01-01';
@@ -705,9 +705,9 @@ ALTER TABLE events DROP PARTITION '202301';
 ALTER TABLE events ATTACH PARTITION '202301';
 </code></pre>
 
-<h2 id="四、高级功能">四、高级功能</h2>
+<h2 id="四、高级功能">高级功能</h2>
 
-<h3 id="4-1-物化视图">4.1 物化视图</h3>
+<h3 id="4-1-物化视图">物化视图</h3>
 
 <p>物化视图自动维护查询结果，提高查询性能。</p>
 
@@ -730,7 +730,7 @@ SELECT * FROM events_mv WHERE event_date = '2023-01-01';
 DROP TABLE events_mv;
 </code></pre>
 
-<h3 id="4-2-字典">4.2 字典</h3>
+<h3 id="4-2-字典">字典</h3>
 
 <p>字典用于快速查找关联数据。</p>
 
@@ -752,7 +752,7 @@ SELECT
 FROM events e;
 </code></pre>
 
-<h3 id="4-3-外部表">4.3 外部表</h3>
+<h3 id="4-3-外部表">外部表</h3>
 
 <p>外部表用于查询外部数据源。</p>
 
@@ -766,7 +766,7 @@ SELECT * FROM file('data.json', 'JSONEachRow', 'id UInt32, name String');
 SELECT * FROM url('http://example.com/data.csv', 'CSV');
 </code></pre>
 
-<h3 id="4-4-函数">4.4 函数</h3>
+<h3 id="4-4-函数">函数</h3>
 
 <h4 id="聚合函数">聚合函数</h4>
 
@@ -829,9 +829,9 @@ SELECT
     replace('hello world', 'world', 'clickhouse') as replaced;
 </code></pre>
 
-<h2 id="五、集群部署">五、集群部署</h2>
+<h2 id="五、集群部署">集群部署</h2>
 
-<h3 id="5-1-集群架构">5.1 集群架构</h3>
+<h3 id="5-1-集群架构">集群架构</h3>
 
 <pre><code>┌─────────────────────────────────────┐
 │         ClickHouse Cluster          │
@@ -842,7 +842,7 @@ SELECT
 └─────────────────────────────────────┘
 </code></pre>
 
-<h3 id="5-2-配置文件">5.2 配置文件</h3>
+<h3 id="5-2-配置文件">配置文件</h3>
 
 <pre><code class="language-xml">&lt;!-- config.xml --&gt;
 &lt;clickhouse&gt;
@@ -890,7 +890,7 @@ SELECT
 &lt;/clickhouse&gt;
 </code></pre>
 
-<h3 id="5-3-副本表">5.3 副本表</h3>
+<h3 id="5-3-副本表">副本表</h3>
 
 <pre><code class="language-sql">-- 创建副本表
 CREATE TABLE events_replica (
@@ -908,7 +908,7 @@ PARTITION BY toYYYYMM(event_time)
 ORDER BY (event_time, user_id);
 </code></pre>
 
-<h3 id="5-4-分布式表">5.4 分布式表</h3>
+<h3 id="5-4-分布式表">分布式表</h3>
 
 <pre><code class="language-sql">-- 创建分布式表
 CREATE TABLE events_distributed (
@@ -926,9 +926,9 @@ CREATE TABLE events_distributed (
 );
 </code></pre>
 
-<h2 id="六、性能优化">六、性能优化</h2>
+<h2 id="六、性能优化">性能优化</h2>
 
-<h3 id="6-1-表设计优化">6.1 表设计优化</h3>
+<h3 id="6-1-表设计优化">表设计优化</h3>
 
 <pre><code class="language-sql">-- 使用合适的数据类型
 CREATE TABLE optimized_table (
@@ -959,7 +959,7 @@ PARTITION BY toYYYYMM(date)
 ORDER BY (date, user_id, id);  -- 查询条件放在前面
 </code></pre>
 
-<h3 id="6-2-查询优化">6.2 查询优化</h3>
+<h3 id="6-2-查询优化">查询优化</h3>
 
 <pre><code class="language-sql">-- 使用物化视图
 CREATE MATERIALIZED VIEW events_mv
@@ -985,7 +985,7 @@ SELECT * FROM events LIMIT 1000;
 SELECT * FROM events PREWHERE event_date = '2023-01-01' WHERE value > 100;
 </code></pre>
 
-<h3 id="6-3-配置优化">6.3 配置优化</h3>
+<h3 id="6-3-配置优化">配置优化</h3>
 
 <pre><code class="language-xml">&lt;!-- config.xml --&gt;
 &lt;clickhouse&gt;
@@ -1009,7 +1009,7 @@ SELECT * FROM events PREWHERE event_date = '2023-01-01' WHERE value > 100;
 &lt;/clickhouse&gt;
 </code></pre>
 
-<h3 id="6-4-系统优化">6.4 系统优化</h3>
+<h3 id="6-4-系统优化">系统优化</h3>
 
 <pre><code class="language-bash"># 增加文件描述符限制
 ulimit -n 65535
@@ -1023,9 +1023,9 @@ sysctl -p
 # 将数据目录挂载到SSD
 </code></pre>
 
-<h2 id="七、监控与运维">七、监控与运维</h2>
+<h2 id="七、监控与运维">监控与运维</h2>
 
-<h3 id="7-1-系统表">7.1 系统表</h3>
+<h3 id="7-1-系统表">系统表</h3>
 
 <pre><code class="language-sql">-- 查看表信息
 SELECT * FROM system.tables WHERE database = 'default';
@@ -1055,7 +1055,7 @@ LIMIT 10;
 SELECT * FROM system.processes;
 </code></pre>
 
-<h3 id="7-2-性能监控">7.2 性能监控</h3>
+<h3 id="7-2-性能监控">性能监控</h3>
 
 <pre><code class="language-sql">-- 查看集群信息
 SELECT * FROM system.clusters;
@@ -1076,7 +1076,7 @@ SELECT
 FROM system.disks;
 </code></pre>
 
-<h3 id="7-3-维护操作">7.3 维护操作</h3>
+<h3 id="7-3-维护操作">维护操作</h3>
 
 <pre><code class="language-sql">-- 优化表
 OPTIMIZE TABLE events FINAL;
@@ -1091,9 +1091,9 @@ ALTER TABLE events DROP PARTITION '202301';
 ALTER TABLE events MODIFY SETTING max_bytes_to_merge_at_once = 1073741824;
 </code></pre>
 
-<h2 id="八、实战案例">八、实战案例</h2>
+<h2 id="八、实战案例">实战案例</h2>
 
-<h3 id="8-1-用户行为分析">8.1 用户行为分析</h3>
+<h3 id="8-1-用户行为分析">用户行为分析</h3>
 
 <pre><code class="language-sql">-- 创建用户行为表
 CREATE TABLE user_events (
@@ -1144,7 +1144,7 @@ FROM user_events
 GROUP BY date;
 </code></pre>
 
-<h3 id="8-2-实时监控">8.2 实时监控</h3>
+<h3 id="8-2-实时监控">实时监控</h3>
 
 <pre><code class="language-sql">-- 创建监控表
 CREATE TABLE metrics (
@@ -1183,7 +1183,7 @@ WHERE window_start >= now() - INTERVAL 1 HOUR
 ORDER BY window_start, metric_name;
 </code></pre>
 
-<h3 id="8-3-A-B测试分析">8.3 A/B测试分析</h3>
+<h3 id="8-3-A-B测试分析">A/B测试分析</h3>
 
 <pre><code class="language-sql">-- 创建实验表
 CREATE TABLE experiments (
@@ -1238,9 +1238,9 @@ FROM (
     counts[2] as count_b;
 </code></pre>
 
-<h2 id="九、最佳实践">九、最佳实践</h2>
+<h2 id="九、最佳实践">最佳实践</h2>
 
-<h3 id="9-1-表设计">9.1 表设计</h3>
+<h3 id="9-1-表设计">表设计</h3>
 
 <ol>
 <li><strong>选择合适的引擎</strong>：MergeTree系列适合大多数场景</li>
@@ -1250,7 +1250,7 @@ FROM (
 <li><strong>使用物化视图</strong>：预聚合常用查询</li>
 </ol>
 
-<h3 id="9-2-查询优化">9.2 查询优化</h3>
+<h3 id="9-2-查询优化">查询优化</h3>
 
 <ol>
 <li><strong>避免全表扫描</strong>：使用分区和索引</li>
@@ -1260,7 +1260,7 @@ FROM (
 <li><strong>避免JOIN</strong>：使用字典替代</li>
 </ol>
 
-<h3 id="9-3-集群管理">9.3 集群管理</h3>
+<h3 id="9-3-集群管理">集群管理</h3>
 
 <ol>
 <li><strong>合理分片</strong>：根据数据量和查询模式</li>
@@ -1270,7 +1270,7 @@ FROM (
 <li><strong>备份重要数据</strong>：防止数据丢失</li>
 </ol>
 
-<h3 id="9-4-安全配置">9.4 安全配置</h3>
+<h3 id="9-4-安全配置">安全配置</h3>
 
 <ol>
 <li><strong>启用认证</strong>：配置用户和权限</li>
@@ -1280,7 +1280,7 @@ FROM (
 <li><strong>定期更新</strong>：及时升级版本</li>
 </ol>
 
-<h2 id="十、总结">十、总结</h2>
+<h2 id="十、总结">总结</h2>
 
 <p>ClickHouse是一个功能强大、性能卓越的列式数据库。通过本文的介绍，我们了解了：</p>
 
@@ -1351,7 +1351,7 @@ FROM (
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、ClickHouse概述"><span class="nav-number">1.</span> <span class="nav-text">一、ClickHouse概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-ClickHouse的核心特性"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 ClickHouse的核心特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-ClickHouse的应用场景"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 ClickHouse的应用场景</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、核心概念"><span class="nav-number">2.</span> <span class="nav-text">二、核心概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-数据库引擎"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 数据库引擎</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-表引擎"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 表引擎</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-数据类型"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 数据类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-索引"><span class="nav-number">2.4.</span> <span class="nav-text">2.4 索引</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、数据操作"><span class="nav-number">3.</span> <span class="nav-text">三、数据操作</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-创建表"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 创建表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-插入数据"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 插入数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-查询数据"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 查询数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-更新和删除"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 更新和删除</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、高级功能"><span class="nav-number">4.</span> <span class="nav-text">四、高级功能</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-物化视图"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 物化视图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-字典"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 字典</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-外部表"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 外部表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-4-函数"><span class="nav-number">4.4.</span> <span class="nav-text">4.4 函数</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#五、集群部署"><span class="nav-number">5.</span> <span class="nav-text">五、集群部署</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-集群架构"><span class="nav-number">5.1.</span> <span class="nav-text">5.1 集群架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-配置文件"><span class="nav-number">5.2.</span> <span class="nav-text">5.2 配置文件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-副本表"><span class="nav-number">5.3.</span> <span class="nav-text">5.3 副本表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-分布式表"><span class="nav-number">5.4.</span> <span class="nav-text">5.4 分布式表</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#六、性能优化"><span class="nav-number">6.</span> <span class="nav-text">六、性能优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-表设计优化"><span class="nav-number">6.1.</span> <span class="nav-text">6.1 表设计优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-查询优化"><span class="nav-number">6.2.</span> <span class="nav-text">6.2 查询优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-配置优化"><span class="nav-number">6.3.</span> <span class="nav-text">6.3 配置优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-4-系统优化"><span class="nav-number">6.4.</span> <span class="nav-text">6.4 系统优化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#七、监控与运维"><span class="nav-number">7.</span> <span class="nav-text">七、监控与运维</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-1-系统表"><span class="nav-number">7.1.</span> <span class="nav-text">7.1 系统表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-2-性能监控"><span class="nav-number">7.2.</span> <span class="nav-text">7.2 性能监控</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-3-维护操作"><span class="nav-number">7.3.</span> <span class="nav-text">7.3 维护操作</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#八、实战案例"><span class="nav-number">8.</span> <span class="nav-text">八、实战案例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#8-1-用户行为分析"><span class="nav-number">8.1.</span> <span class="nav-text">8.1 用户行为分析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-2-实时监控"><span class="nav-number">8.2.</span> <span class="nav-text">8.2 实时监控</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-3-A-B测试分析"><span class="nav-number">8.3.</span> <span class="nav-text">8.3 A/B测试分析</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#九、最佳实践"><span class="nav-number">9.</span> <span class="nav-text">九、最佳实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#9-1-表设计"><span class="nav-number">9.1.</span> <span class="nav-text">9.1 表设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-2-查询优化"><span class="nav-number">9.2.</span> <span class="nav-text">9.2 查询优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-3-集群管理"><span class="nav-number">9.3.</span> <span class="nav-text">9.3 集群管理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-4-安全配置"><span class="nav-number">9.4.</span> <span class="nav-text">9.4 安全配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#十、总结"><span class="nav-number">10.</span> <span class="nav-text">十、总结</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、ClickHouse概述"><span class="nav-number">1.</span> <span class="nav-text">ClickHouse概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-ClickHouse的核心特性"><span class="nav-number">1.1.</span> <span class="nav-text">ClickHouse的核心特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-ClickHouse的应用场景"><span class="nav-number">1.2.</span> <span class="nav-text">ClickHouse的应用场景</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、核心概念"><span class="nav-number">2.</span> <span class="nav-text">核心概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-数据库引擎"><span class="nav-number">2.1.</span> <span class="nav-text">数据库引擎</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-表引擎"><span class="nav-number">2.2.</span> <span class="nav-text">表引擎</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-数据类型"><span class="nav-number">2.3.</span> <span class="nav-text">数据类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-索引"><span class="nav-number">2.4.</span> <span class="nav-text">索引</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、数据操作"><span class="nav-number">3.</span> <span class="nav-text">数据操作</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-创建表"><span class="nav-number">3.1.</span> <span class="nav-text">创建表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-插入数据"><span class="nav-number">3.2.</span> <span class="nav-text">插入数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-查询数据"><span class="nav-number">3.3.</span> <span class="nav-text">查询数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-更新和删除"><span class="nav-number">3.4.</span> <span class="nav-text">更新和删除</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、高级功能"><span class="nav-number">4.</span> <span class="nav-text">高级功能</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-物化视图"><span class="nav-number">4.1.</span> <span class="nav-text">物化视图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-字典"><span class="nav-number">4.2.</span> <span class="nav-text">字典</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-外部表"><span class="nav-number">4.3.</span> <span class="nav-text">外部表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-4-函数"><span class="nav-number">4.4.</span> <span class="nav-text">函数</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#五、集群部署"><span class="nav-number">5.</span> <span class="nav-text">集群部署</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-集群架构"><span class="nav-number">5.1.</span> <span class="nav-text">集群架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-配置文件"><span class="nav-number">5.2.</span> <span class="nav-text">配置文件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-副本表"><span class="nav-number">5.3.</span> <span class="nav-text">副本表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-分布式表"><span class="nav-number">5.4.</span> <span class="nav-text">分布式表</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#六、性能优化"><span class="nav-number">6.</span> <span class="nav-text">性能优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-表设计优化"><span class="nav-number">6.1.</span> <span class="nav-text">表设计优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-查询优化"><span class="nav-number">6.2.</span> <span class="nav-text">查询优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-配置优化"><span class="nav-number">6.3.</span> <span class="nav-text">配置优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-4-系统优化"><span class="nav-number">6.4.</span> <span class="nav-text">系统优化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#七、监控与运维"><span class="nav-number">7.</span> <span class="nav-text">监控与运维</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-1-系统表"><span class="nav-number">7.1.</span> <span class="nav-text">系统表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-2-性能监控"><span class="nav-number">7.2.</span> <span class="nav-text">性能监控</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-3-维护操作"><span class="nav-number">7.3.</span> <span class="nav-text">维护操作</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#八、实战案例"><span class="nav-number">8.</span> <span class="nav-text">实战案例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#8-1-用户行为分析"><span class="nav-number">8.1.</span> <span class="nav-text">用户行为分析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-2-实时监控"><span class="nav-number">8.2.</span> <span class="nav-text">实时监控</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-3-A-B测试分析"><span class="nav-number">8.3.</span> <span class="nav-text">A/B测试分析</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#九、最佳实践"><span class="nav-number">9.</span> <span class="nav-text">最佳实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#9-1-表设计"><span class="nav-number">9.1.</span> <span class="nav-text">表设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-2-查询优化"><span class="nav-number">9.2.</span> <span class="nav-text">查询优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-3-集群管理"><span class="nav-number">9.3.</span> <span class="nav-text">集群管理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-4-安全配置"><span class="nav-number">9.4.</span> <span class="nav-text">安全配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#十、总结"><span class="nav-number">10.</span> <span class="nav-text">总结</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
