@@ -189,9 +189,9 @@
   </div>
 
   <div class="post-body" itemprop="articleBody">
-<h2 id="一、Zookeeper概述">一、Zookeeper概述</h2>
+<h2 id="Zookeeper概述">Zookeeper概述</h2>
 <p>Apache Zookeeper是一个开源的分布式协调服务，为分布式应用提供一致性服务。它最初由Yahoo开发，后成为Apache顶级项目。Zookeeper以简单、高效、可靠著称，是很多分布式系统的基石。</p>
-<h3 id="1-1-Zookeeper的核心特性">1.1 Zookeeper的核心特性</h3>
+<h3 id="Zookeeper的核心特性">Zookeeper的核心特性</h3>
 <ul>
 <li><strong>一致性</strong>：保证数据的一致性</li>
 <li><strong>原子性</strong>：操作要么成功要么失败</li>
@@ -200,7 +200,7 @@
 <li><strong>顺序性</strong>：操作保持顺序</li>
 <li><strong>简单性</strong>：提供简单的API</li>
 </ul>
-<h3 id="1-2-Zookeeper的应用场景">1.2 Zookeeper的应用场景</h3>
+<h3 id="Zookeeper的应用场景">Zookeeper的应用场景</h3>
 <ul>
 <li>配置管理</li>
 <li>命名服务</li>
@@ -210,8 +210,8 @@
 <li>队列管理</li>
 <li>发布订阅</li>
 </ul>
-<h2 id="二、数据模型">二、数据模型</h2>
-<h3 id="2-1-ZNode结构">2.1 ZNode结构</h3>
+<h2 id="数据模型">数据模型</h2>
+<h3 id="ZNode结构">ZNode结构</h3>
 <p>Zookeeper的数据模型类似于文件系统，由ZNode（节点）组成。</p>
 <pre><code>/
 ├── config
@@ -225,7 +225,7 @@
     └── lock2
 </code></pre>
 
-<h3 id="2-2-ZNode类型">2.2 ZNode类型</h3>
+<h3 id="ZNode类型">ZNode类型</h3>
 <table>
 <thead>
 <tr>
@@ -274,7 +274,7 @@ zk.create("/ephemeral-seq", "data".getBytes(),
     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 </code></pre>
 
-<h3 id="2-3-ZNode属性">2.3 ZNode属性</h3>
+<h3 id="ZNode属性">ZNode属性</h3>
 <p>每个ZNode包含以下属性：</p>
 <ul>
 <li><strong>数据</strong>：存储的数据（最大1MB）</li>
@@ -290,9 +290,9 @@ System.out.println("Ctime: " + stat.getCtime());
 System.out.println("Mtime: " + stat.getMtime());
 </code></pre>
 
-<h2 id="三、Watcher机制">三、Watcher机制</h2>
+<h2 id="Watcher机制">Watcher机制</h2>
 <p>Watcher是Zookeeper的核心机制，用于监听ZNode的变化。</p>
-<h3 id="3-1-Watcher类型">3.1 Watcher类型</h3>
+<h3 id="Watcher类型">Watcher类型</h3>
 <table>
 <thead>
 <tr>
@@ -323,7 +323,7 @@ System.out.println("Mtime: " + stat.getMtime());
 </tr>
 </tbody>
 </table>
-<h3 id="3-2-Watcher使用">3.2 Watcher使用</h3>
+<h3 id="Watcher使用">Watcher使用</h3>
 <pre><code class="language-java">// 创建Watcher
 Watcher watcher = new Watcher() {
     @Override
@@ -341,18 +341,18 @@ zk.getData("/path", watcher, stat);
 zk.getChildren("/path", watcher);
 </code></pre>
 
-<h3 id="3-3-Watcher特点">3.3 Watcher特点</h3>
+<h3 id="Watcher特点">Watcher特点</h3>
 <ul>
 <li><strong>一次性</strong>：触发后自动失效</li>
 <li><strong>异步</strong>：异步通知客户端</li>
 <li><strong>有序</strong>：保证事件的顺序</li>
 </ul>
-<h2 id="四、会话机制">四、会话机制</h2>
-<h3 id="4-1-会话生命周期">4.1 会话生命周期</h3>
+<h2 id="会话机制">会话机制</h2>
+<h3 id="会话生命周期">会话生命周期</h3>
 <pre><code>连接中 → 已连接 → 正在关闭 → 已关闭
 </code></pre>
 
-<h3 id="4-2-会话状态">4.2 会话状态</h3>
+<h3 id="会话状态">会话状态</h3>
 <table>
 <thead>
 <tr>
@@ -379,7 +379,7 @@ zk.getChildren("/path", watcher);
 </tr>
 </tbody>
 </table>
-<h3 id="4-3-会话超时">4.3 会话超时</h3>
+<h3 id="会话超时">会话超时</h3>
 <pre><code class="language-java">// 创建会话，设置超时时间
 int sessionTimeout = 30000; // 30秒
 ZooKeeper zk = new ZooKeeper("localhost:2181", sessionTimeout, watcher);
@@ -389,15 +389,15 @@ long sessionId = zk.getSessionId();
 int timeout = zk.getSessionTimeout();
 </code></pre>
 
-<h2 id="五、ACL权限控制">五、ACL权限控制</h2>
-<h3 id="5-1-ACL组成">5.1 ACL组成</h3>
+<h2 id="ACL权限控制">ACL权限控制</h2>
+<h3 id="ACL组成">ACL组成</h3>
 <p>ACL由三部分组成：</p>
 <ul>
 <li><strong>scheme</strong>：权限模式</li>
 <li><strong>id</strong>：权限对象</li>
 <li><strong>permission</strong>：权限类型</li>
 </ul>
-<h3 id="5-2-权限模式">5.2 权限模式</h3>
+<h3 id="权限模式">权限模式</h3>
 <table>
 <thead>
 <tr>
@@ -428,7 +428,7 @@ int timeout = zk.getSessionTimeout();
 </tr>
 </tbody>
 </table>
-<h3 id="5-3-权限类型">5.3 权限类型</h3>
+<h3 id="权限类型">权限类型</h3>
 <table>
 <thead>
 <tr>
@@ -482,8 +482,8 @@ zk.create("/secure", "data".getBytes(), acls, CreateMode.PERSISTENT);
 List<ACL> existingAcls = zk.getACL("/secure", stat);
 </code></pre>
 
-<h2 id="六、集群架构">六、集群架构</h2>
-<h3 id="6-1-集群角色">6.1 集群角色</h3>
+<h2 id="集群架构">集群架构</h2>
+<h3 id="集群角色">集群角色</h3>
 <pre><code>┌─────────────────────────────────────┐
 │         Zookeeper Cluster           │
 │  ┌────────┐  ┌────────┐  ┌────────┐│
@@ -515,7 +515,7 @@ List<ACL> existingAcls = zk.getACL("/secure", stat);
 </tr>
 </tbody>
 </table>
-<h3 id="6-2-Leader选举">6.2 Leader选举</h3>
+<h3 id="Leader选举">Leader选举</h3>
 <p>Zookeeper使用ZAB协议进行Leader选举。</p>
 <h4>选举状态</h4>
 <table>
@@ -555,7 +555,7 @@ List<ACL> existingAcls = zk.getACL("/secure", stat);
 6. 其他节点成为Follower
 </code></pre>
 
-<h3 id="6-3-集群配置">6.3 集群配置</h3>
+<h3 id="集群配置">集群配置</h3>
 <pre><code class="language-properties"># zoo.cfg
 tickTime=2000
 initLimit=10
@@ -575,10 +575,10 @@ echo "2" > /tmp/zookeeper2/myid
 echo "3" > /tmp/zookeeper3/myid
 </code></pre>
 
-<h2 id="七、ZAB协议">七、ZAB协议</h2>
-<h3 id="7-1-ZAB协议概述">7.1 ZAB协议概述</h3>
+<h2 id="ZAB协议">ZAB协议</h2>
+<h3 id="ZAB协议概述">ZAB协议概述</h3>
 <p>ZAB（ZooKeeper Atomic Broadcast）是Zookeeper的原子广播协议，用于保证数据一致性。</p>
-<h3 id="7-2-ZAB协议模式">7.2 ZAB协议模式</h3>
+<h3 id="ZAB协议模式">ZAB协议模式</h3>
 <h4>恢复模式</h4>
 <pre><code>1. 集群启动或Leader崩溃
 2. 选举新的Leader
@@ -596,7 +596,7 @@ echo "3" > /tmp/zookeeper3/myid
 7. Follower提交Proposal
 </code></pre>
 
-<h3 id="7-3-消息类型">7.3 消息类型</h3>
+<h3 id="消息类型">消息类型</h3>
 <table>
 <thead>
 <tr>
@@ -627,8 +627,8 @@ echo "3" > /tmp/zookeeper3/myid
 </tr>
 </tbody>
 </table>
-<h2 id="八、典型应用场景">八、典型应用场景</h2>
-<h3 id="8-1-配置中心">8.1 配置中心</h3>
+<h2 id="典型应用场景">典型应用场景</h2>
+<h3 id="配置中心">配置中心</h3>
 <pre><code class="language-java">// 配置中心实现
 public class ConfigCenter {
     private final ZooKeeper zk;
@@ -673,7 +673,7 @@ public class ConfigCenter {
 }
 </code></pre>
 
-<h3 id="8-2-分布式锁">8.2 分布式锁</h3>
+<h3 id="分布式锁">分布式锁</h3>
 <pre><code class="language-java">// 分布式锁实现
 public class DistributedLock {
     private final ZooKeeper zk;
@@ -737,7 +737,7 @@ public class DistributedLock {
 }
 </code></pre>
 
-<h3 id="8-3-Leader选举">8.3 Leader选举</h3>
+<h3 id="Leader选举">Leader选举</h3>
 <pre><code class="language-java">// Leader选举实现
 public class LeaderElection {
     private final ZooKeeper zk;
@@ -801,7 +801,7 @@ public class LeaderElection {
 }
 </code></pre>
 
-<h3 id="8-4-服务注册与发现">8.4 服务注册与发现</h3>
+<h3 id="服务注册与发现">服务注册与发现</h3>
 <pre><code class="language-java">// 服务注册
 public class ServiceRegistry {
     private final ZooKeeper zk;
@@ -881,8 +881,8 @@ public class ServiceDiscovery {
 }
 </code></pre>
 
-<h2 id="九、性能优化">九、性能优化</h2>
-<h3 id="9-1-JVM优化">9.1 JVM优化</h3>
+<h2 id="性能优化">性能优化</h2>
+<h3 id="JVM优化">JVM优化</h3>
 <pre><code class="language-bash"># JVM参数
 -Xms2g
 -Xmx2g
@@ -891,7 +891,7 @@ public class ServiceDiscovery {
 -XX:+HeapDumpOnOutOfMemoryError
 </code></pre>
 
-<h3 id="9-2-系统参数优化">9.2 系统参数优化</h3>
+<h3 id="系统参数优化">系统参数优化</h3>
 <pre><code class="language-bash"># 增加文件描述符限制
 ulimit -n 65535
 
@@ -901,7 +901,7 @@ echo "net.ipv4.tcp_fin_timeout = 30" >> /etc/sysctl.conf
 sysctl -p
 </code></pre>
 
-<h3 id="9-3-配置优化">9.3 配置优化</h3>
+<h3 id="配置优化">配置优化</h3>
 <pre><code class="language-properties"># zoo.cfg
 tickTime=2000
 initLimit=10
@@ -923,7 +923,7 @@ skipACL=yes
 forceSync=no
 </code></pre>
 
-<h3 id="9-4-监控指标">9.4 监控指标</h3>
+<h3 id="监控指标">监控指标</h3>
 <table>
 <thead>
 <tr>
@@ -954,8 +954,8 @@ forceSync=no
 </tr>
 </tbody>
 </table>
-<h2 id="十、最佳实践">十、最佳实践</h2>
-<h3 id="10-1-节点设计">10.1 节点设计</h3>
+<h2 id="最佳实践">最佳实践</h2>
+<h3 id="节点设计">节点设计</h3>
 <ol>
 <li><strong>节点路径不宜过深</strong>：影响性能</li>
 <li><strong>节点名称简洁</strong>：便于管理</li>
@@ -963,28 +963,28 @@ forceSync=no
 <li><strong>控制数据大小</strong>：不超过1MB</li>
 <li><strong>批量操作</strong>：使用multi操作</li>
 </ol>
-<h3 id="10-2-Watcher使用">10.2 Watcher使用</h3>
+<h3 id="Watcher使用">Watcher使用</h3>
 <ol>
 <li><strong>避免频繁注册Watcher</strong>：一次性失效</li>
 <li><strong>处理异常</strong>：连接断开重新注册</li>
 <li><strong>合理设置超时</strong>：避免长时间阻塞</li>
 <li><strong>异步处理</strong>：避免阻塞Watcher线程</li>
 </ol>
-<h3 id="10-3-集群部署">10.3 集群部署</h3>
+<h3 id="集群部署">集群部署</h3>
 <ol>
 <li><strong>奇数个节点</strong>：避免脑裂</li>
 <li><strong>跨机房部署</strong>：提高可用性</li>
 <li><strong>定期备份</strong>：保护数据</li>
 <li><strong>监控告警</strong>：及时发现问题</li>
 </ol>
-<h3 id="10-4-安全配置">10.4 安全配置</h3>
+<h3 id="安全配置">安全配置</h3>
 <ol>
 <li><strong>启用认证</strong>：使用digest或auth模式</li>
 <li><strong>设置ACL</strong>：控制访问权限</li>
 <li><strong>使用SSL</strong>：加密通信</li>
 <li><strong>网络隔离</strong>：限制访问</li>
 </ol>
-<h2 id="十一、总结">十一、总结</h2>
+<h2 id="总结">总结</h2>
 <p>Zookeeper是一个功能强大、简单易用的分布式协调服务。通过本文的介绍，我们了解了：</p>
 <ol>
 <li>Zookeeper概述：核心特性和应用场景</li>
@@ -1050,7 +1050,7 @@ forceSync=no
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、Zookeeper概述"><span class="nav-number">1.</span> <span class="nav-text">一、Zookeeper概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-Zookeeper的核心特性"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 Zookeeper的核心特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-Zookeeper的应用场景"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 Zookeeper的应用场景</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、数据模型"><span class="nav-number">2.</span> <span class="nav-text">二、数据模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-ZNode结构"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 ZNode结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-ZNode类型"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 ZNode类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-ZNode属性"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 ZNode属性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、Watcher机制"><span class="nav-number">3.</span> <span class="nav-text">三、Watcher机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-Watcher类型"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 Watcher类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-Watcher使用"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 Watcher使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Watcher特点"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 Watcher特点</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、会话机制"><span class="nav-number">4.</span> <span class="nav-text">四、会话机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-会话生命周期"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 会话生命周期</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-会话状态"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 会话状态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-会话超时"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 会话超时</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#五、ACL权限控制"><span class="nav-number">5.</span> <span class="nav-text">五、ACL权限控制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-ACL组成"><span class="nav-number">5.1.</span> <span class="nav-text">5.1 ACL组成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-权限模式"><span class="nav-number">5.2.</span> <span class="nav-text">5.2 权限模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-权限类型"><span class="nav-number">5.3.</span> <span class="nav-text">5.3 权限类型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#六、集群架构"><span class="nav-number">6.</span> <span class="nav-text">六、集群架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-集群角色"><span class="nav-number">6.1.</span> <span class="nav-text">6.1 集群角色</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-Leader选举"><span class="nav-number">6.2.</span> <span class="nav-text">6.2 Leader选举</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-集群配置"><span class="nav-number">6.3.</span> <span class="nav-text">6.3 集群配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#七、ZAB协议"><span class="nav-number">7.</span> <span class="nav-text">七、ZAB协议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-1-ZAB协议概述"><span class="nav-number">7.1.</span> <span class="nav-text">7.1 ZAB协议概述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-2-ZAB协议模式"><span class="nav-number">7.2.</span> <span class="nav-text">7.2 ZAB协议模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-3-消息类型"><span class="nav-number">7.3.</span> <span class="nav-text">7.3 消息类型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#八、典型应用场景"><span class="nav-number">8.</span> <span class="nav-text">八、典型应用场景</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#8-1-配置中心"><span class="nav-number">8.1.</span> <span class="nav-text">8.1 配置中心</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-2-分布式锁"><span class="nav-number">8.2.</span> <span class="nav-text">8.2 分布式锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-3-Leader选举"><span class="nav-number">8.3.</span> <span class="nav-text">8.3 Leader选举</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-4-服务注册与发现"><span class="nav-number">8.4.</span> <span class="nav-text">8.4 服务注册与发现</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#九、性能优化"><span class="nav-number">9.</span> <span class="nav-text">九、性能优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#9-1-JVM优化"><span class="nav-number">9.1.</span> <span class="nav-text">9.1 JVM优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-2-系统参数优化"><span class="nav-number">9.2.</span> <span class="nav-text">9.2 系统参数优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-3-配置优化"><span class="nav-number">9.3.</span> <span class="nav-text">9.3 配置优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-4-监控指标"><span class="nav-number">9.4.</span> <span class="nav-text">9.4 监控指标</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#十、最佳实践"><span class="nav-number">10.</span> <span class="nav-text">十、最佳实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#10-1-节点设计"><span class="nav-number">10.1.</span> <span class="nav-text">10.1 节点设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#10-2-Watcher使用"><span class="nav-number">10.2.</span> <span class="nav-text">10.2 Watcher使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#10-3-集群部署"><span class="nav-number">10.3.</span> <span class="nav-text">10.3 集群部署</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#10-4-安全配置"><span class="nav-number">10.4.</span> <span class="nav-text">10.4 安全配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#十一、总结"><span class="nav-number">11.</span> <span class="nav-text">十一、总结</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Zookeeper概述"><span class="nav-number">1.</span> <span class="nav-text">Zookeeper概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Zookeeper的核心特性"><span class="nav-number">1.1.</span> <span class="nav-text">Zookeeper的核心特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Zookeeper的应用场景"><span class="nav-number">1.2.</span> <span class="nav-text">Zookeeper的应用场景</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据模型"><span class="nav-number">2.</span> <span class="nav-text">数据模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ZNode结构"><span class="nav-number">2.1.</span> <span class="nav-text">ZNode结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZNode类型"><span class="nav-number">2.2.</span> <span class="nav-text">ZNode类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZNode属性"><span class="nav-number">2.3.</span> <span class="nav-text">ZNode属性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Watcher机制"><span class="nav-number">3.</span> <span class="nav-text">Watcher机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher类型"><span class="nav-number">3.1.</span> <span class="nav-text">Watcher类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher使用"><span class="nav-number">3.2.</span> <span class="nav-text">Watcher使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher特点"><span class="nav-number">3.3.</span> <span class="nav-text">Watcher特点</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#会话机制"><span class="nav-number">4.</span> <span class="nav-text">会话机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#会话生命周期"><span class="nav-number">4.1.</span> <span class="nav-text">会话生命周期</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#会话状态"><span class="nav-number">4.2.</span> <span class="nav-text">会话状态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#会话超时"><span class="nav-number">4.3.</span> <span class="nav-text">会话超时</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ACL权限控制"><span class="nav-number">5.</span> <span class="nav-text">ACL权限控制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ACL组成"><span class="nav-number">5.1.</span> <span class="nav-text">ACL组成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#权限模式"><span class="nav-number">5.2.</span> <span class="nav-text">权限模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#权限类型"><span class="nav-number">5.3.</span> <span class="nav-text">权限类型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#集群架构"><span class="nav-number">6.</span> <span class="nav-text">集群架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#集群角色"><span class="nav-number">6.1.</span> <span class="nav-text">集群角色</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Leader选举"><span class="nav-number">6.2.</span> <span class="nav-text">Leader选举</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#集群配置"><span class="nav-number">6.3.</span> <span class="nav-text">集群配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ZAB协议"><span class="nav-number">7.</span> <span class="nav-text">ZAB协议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ZAB协议概述"><span class="nav-number">7.1.</span> <span class="nav-text">ZAB协议概述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZAB协议模式"><span class="nav-number">7.2.</span> <span class="nav-text">ZAB协议模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#消息类型"><span class="nav-number">7.3.</span> <span class="nav-text">消息类型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#典型应用场景"><span class="nav-number">8.</span> <span class="nav-text">典型应用场景</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#配置中心"><span class="nav-number">8.1.</span> <span class="nav-text">配置中心</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#分布式锁"><span class="nav-number">8.2.</span> <span class="nav-text">分布式锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Leader选举"><span class="nav-number">8.3.</span> <span class="nav-text">Leader选举</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#服务注册与发现"><span class="nav-number">8.4.</span> <span class="nav-text">服务注册与发现</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能优化"><span class="nav-number">9.</span> <span class="nav-text">性能优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#JVM优化"><span class="nav-number">9.1.</span> <span class="nav-text">JVM优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#系统参数优化"><span class="nav-number">9.2.</span> <span class="nav-text">系统参数优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#配置优化"><span class="nav-number">9.3.</span> <span class="nav-text">配置优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#监控指标"><span class="nav-number">9.4.</span> <span class="nav-text">监控指标</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#最佳实践"><span class="nav-number">10.</span> <span class="nav-text">最佳实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#节点设计"><span class="nav-number">10.1.</span> <span class="nav-text">节点设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher使用"><span class="nav-number">10.2.</span> <span class="nav-text">Watcher使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#集群部署"><span class="nav-number">10.3.</span> <span class="nav-text">集群部署</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#安全配置"><span class="nav-number">10.4.</span> <span class="nav-text">安全配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">总结</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
