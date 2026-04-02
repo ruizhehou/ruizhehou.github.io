@@ -258,19 +258,19 @@
 </tbody>
 </table>
 <pre><code class="language-java">// 创建持久节点
-zk.create(&quot;/persistent&quot;, &quot;data&quot;.getBytes(),
+zk.create("/persistent", "data".getBytes(),
     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
 // 创建临时节点
-zk.create(&quot;/ephemeral&quot;, &quot;data&quot;.getBytes(),
+zk.create("/ephemeral", "data".getBytes(),
     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 
 // 创建持久顺序节点
-zk.create(&quot;/persistent-seq&quot;, &quot;data&quot;.getBytes(),
+zk.create("/persistent-seq", "data".getBytes(),
     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT_SEQUENTIAL);
 
 // 创建临时顺序节点
-zk.create(&quot;/ephemeral-seq&quot;, &quot;data&quot;.getBytes(),
+zk.create("/ephemeral-seq", "data".getBytes(),
     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 </code></pre>
 
@@ -284,10 +284,10 @@ zk.create(&quot;/ephemeral-seq&quot;, &quot;data&quot;.getBytes(),
 <li><strong>子节点数量</strong>：直接子节点数</li>
 </ul>
 <pre><code class="language-java">// 获取ZNode数据
-byte[] data = zk.getData(&quot;/path&quot;, false, stat);
-System.out.println(&quot;Version: &quot; + stat.getVersion());
-System.out.println(&quot;Ctime: &quot; + stat.getCtime());
-System.out.println(&quot;Mtime: &quot; + stat.getMtime());
+byte[] data = zk.getData("/path", false, stat);
+System.out.println("Version: " + stat.getVersion());
+System.out.println("Ctime: " + stat.getCtime());
+System.out.println("Mtime: " + stat.getMtime());
 </code></pre>
 
 <h2 id="三、Watcher机制">三、Watcher机制</h2>
@@ -328,17 +328,17 @@ System.out.println(&quot;Mtime: &quot; + stat.getMtime());
 Watcher watcher = new Watcher() {
     @Override
     public void process(WatchedEvent event) {
-        System.out.println(&quot;Event: &quot; + event.getType());
-        System.out.println(&quot;Path: &quot; + event.getPath());
-        System.out.println(&quot;State: &quot; + event.getState());
+        System.out.println("Event: " + event.getType());
+        System.out.println("Path: " + event.getPath());
+        System.out.println("State: " + event.getState());
     }
 };
 
 // 监听节点数据变化
-zk.getData(&quot;/path&quot;, watcher, stat);
+zk.getData("/path", watcher, stat);
 
 // 监听子节点变化
-zk.getChildren(&quot;/path&quot;, watcher);
+zk.getChildren("/path", watcher);
 </code></pre>
 
 <h3 id="3-3-Watcher特点">3.3 Watcher特点</h3>
@@ -382,7 +382,7 @@ zk.getChildren(&quot;/path&quot;, watcher);
 <h3 id="4-3-会话超时">4.3 会话超时</h3>
 <pre><code class="language-java">// 创建会话，设置超时时间
 int sessionTimeout = 30000; // 30秒
-ZooKeeper zk = new ZooKeeper(&quot;localhost:2181&quot;, sessionTimeout, watcher);
+ZooKeeper zk = new ZooKeeper("localhost:2181", sessionTimeout, watcher);
 
 // 获取会话ID和超时时间
 long sessionId = zk.getSessionId();
@@ -471,15 +471,15 @@ int timeout = zk.getSessionTimeout();
 </tbody>
 </table>
 <pre><code class="language-java">// 创建ACL
-List&lt;ACL&gt; acls = new ArrayList&lt;&gt;();
+List<ACL> acls = new ArrayList<>();
 acls.add(new ACL(ZooDefs.Perms.ALL,
-    new Id(&quot;digest&quot;, DigestAuthenticationProvider.generateDigest(&quot;user:password&quot;))));
+    new Id("digest", DigestAuthenticationProvider.generateDigest("user:password"))));
 
 // 设置ACL
-zk.create(&quot;/secure&quot;, &quot;data&quot;.getBytes(), acls, CreateMode.PERSISTENT);
+zk.create("/secure", "data".getBytes(), acls, CreateMode.PERSISTENT);
 
 // 获取ACL
-List&lt;ACL&gt; existingAcls = zk.getACL(&quot;/secure&quot;, stat);
+List<ACL> existingAcls = zk.getACL("/secure", stat);
 </code></pre>
 
 <h2 id="六、集群架构">六、集群架构</h2>
@@ -570,9 +570,9 @@ server.3=127.0.0.1:2890:3890
 </code></pre>
 
 <pre><code class="language-bash"># 创建myid文件
-echo &quot;1&quot; &gt; /tmp/zookeeper/myid
-echo &quot;2&quot; &gt; /tmp/zookeeper2/myid
-echo &quot;3&quot; &gt; /tmp/zookeeper3/myid
+echo "1" > /tmp/zookeeper/myid
+echo "2" > /tmp/zookeeper2/myid
+echo "3" > /tmp/zookeeper3/myid
 </code></pre>
 
 <h2 id="七、ZAB协议">七、ZAB协议</h2>
@@ -632,10 +632,10 @@ echo &quot;3&quot; &gt; /tmp/zookeeper3/myid
 <pre><code class="language-java">// 配置中心实现
 public class ConfigCenter {
     private final ZooKeeper zk;
-    private final String configPath = &quot;/config&quot;;
+    private final String configPath = "/config";
 
     public ConfigCenter(String connectString) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, event -&gt; {
+        this.zk = new ZooKeeper(connectString, 30000, event -> {
             if (event.getType() == Event.EventType.NodeDataChanged) {
                 reloadConfig();
             }
@@ -645,13 +645,13 @@ public class ConfigCenter {
 
     private void initConfig() throws Exception {
         if (zk.exists(configPath, false) == null) {
-            zk.create(configPath, &quot;default&quot;.getBytes(),
+            zk.create(configPath, "default".getBytes(),
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
     }
 
     public void setConfig(String key, String value) throws Exception {
-        String path = configPath + &quot;/&quot; + key;
+        String path = configPath + "/" + key;
         if (zk.exists(path, false) == null) {
             zk.create(path, value.getBytes(),
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
@@ -661,14 +661,14 @@ public class ConfigCenter {
     }
 
     public String getConfig(String key) throws Exception {
-        String path = configPath + &quot;/&quot; + key;
+        String path = configPath + "/" + key;
         byte[] data = zk.getData(path, true, null);
         return new String(data);
     }
 
     private void reloadConfig() {
         // 重新加载配置
-        System.out.println(&quot;Config changed, reloading...&quot;);
+        System.out.println("Config changed, reloading...");
     }
 }
 </code></pre>
@@ -677,7 +677,7 @@ public class ConfigCenter {
 <pre><code class="language-java">// 分布式锁实现
 public class DistributedLock {
     private final ZooKeeper zk;
-    private final String lockPath = &quot;/locks&quot;;
+    private final String lockPath = "/locks";
     private String currentLockPath;
     private String lockName;
 
@@ -696,11 +696,11 @@ public class DistributedLock {
 
     public boolean tryLock() throws Exception {
         // 创建临时顺序节点
-        currentLockPath = zk.create(lockPath + &quot;/&quot; + lockName + &quot;-&quot;,
+        currentLockPath = zk.create(lockPath + "/" + lockName + "-",
             new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 
         // 获取所有锁节点
-        List&lt;String&gt; children = zk.getChildren(lockPath, false);
+        List<String> children = zk.getChildren(lockPath, false);
         Collections.sort(children);
 
         // 检查是否是最小的节点
@@ -713,10 +713,10 @@ public class DistributedLock {
 
         // 监听前一个节点
         String previousNode = children.get(currentIndex - 1);
-        String previousPath = lockPath + &quot;/&quot; + previousNode;
+        String previousPath = lockPath + "/" + previousNode;
 
         CountDownLatch latch = new CountDownLatch(1);
-        Watcher watcher = event -&gt; {
+        Watcher watcher = event -> {
             if (event.getType() == Event.EventType.NodeDeleted) {
                 latch.countDown();
             }
@@ -741,17 +741,17 @@ public class DistributedLock {
 <pre><code class="language-java">// Leader选举实现
 public class LeaderElection {
     private final ZooKeeper zk;
-    private final String electionPath = &quot;/election&quot;;
+    private final String electionPath = "/election";
     private String currentNode;
     private boolean isLeader = false;
 
     public LeaderElection(String connectString, String nodeId) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, event -&gt; {
+        this.zk = new ZooKeeper(connectString, 30000, event -> {
             if (event.getType() == Event.EventType.NodeDeleted) {
                 checkLeadership();
             }
         });
-        this.currentNode = electionPath + &quot;/node-&quot; + nodeId;
+        this.currentNode = electionPath + "/node-" + nodeId;
         elect();
     }
 
@@ -761,7 +761,7 @@ public class LeaderElection {
             ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 
         // 获取所有节点
-        List&lt;String&gt; children = zk.getChildren(electionPath, false);
+        List<String> children = zk.getChildren(electionPath, false);
         Collections.sort(children);
 
         // 检查是否是最小的节点
@@ -773,13 +773,13 @@ public class LeaderElection {
         }
     }
 
-    private void watchPreviousNode(List&lt;String&gt; children) throws Exception {
+    private void watchPreviousNode(List<String> children) throws Exception {
         String currentId = currentNode.substring(electionPath.length() + 1);
         int currentIndex = children.indexOf(currentId);
         String previousNode = children.get(currentIndex - 1);
-        String previousPath = electionPath + &quot;/&quot; + previousNode;
+        String previousPath = electionPath + "/" + previousNode;
 
-        zk.exists(previousPath, event -&gt; {
+        zk.exists(previousPath, event -> {
             if (event.getType() == Event.EventType.NodeDeleted) {
                 try {
                     elect();
@@ -792,7 +792,7 @@ public class LeaderElection {
 
     private void becomeLeader() {
         isLeader = true;
-        System.out.println(&quot;I am the leader!&quot;);
+        System.out.println("I am the leader!");
     }
 
     public boolean isLeader() {
@@ -805,7 +805,7 @@ public class LeaderElection {
 <pre><code class="language-java">// 服务注册
 public class ServiceRegistry {
     private final ZooKeeper zk;
-    private final String registryPath = &quot;/services&quot;;
+    private final String registryPath = "/services";
     private String servicePath;
 
     public ServiceRegistry(String connectString) throws Exception {
@@ -821,13 +821,13 @@ public class ServiceRegistry {
     }
 
     public void register(String serviceName, String address) throws Exception {
-        String servicePath = registryPath + &quot;/&quot; + serviceName;
+        String servicePath = registryPath + "/" + serviceName;
         if (zk.exists(servicePath, false) == null) {
             zk.create(servicePath, new byte[0],
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
 
-        this.servicePath = servicePath + &quot;/&quot; + UUID.randomUUID().toString();
+        this.servicePath = servicePath + "/" + UUID.randomUUID().toString();
         zk.create(this.servicePath, address.getBytes(),
             ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
     }
@@ -842,11 +842,11 @@ public class ServiceRegistry {
 // 服务发现
 public class ServiceDiscovery {
     private final ZooKeeper zk;
-    private final String registryPath = &quot;/services&quot;;
-    private List&lt;String&gt; services = new ArrayList&lt;&gt;();
+    private final String registryPath = "/services";
+    private List<String> services = new ArrayList<>();
 
     public ServiceDiscovery(String connectString) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, event -&gt; {
+        this.zk = new ZooKeeper(connectString, 30000, event -> {
             if (event.getType() == Event.EventType.NodeChildrenChanged) {
                 discoverServices();
             }
@@ -856,19 +856,19 @@ public class ServiceDiscovery {
 
     private void discoverServices() throws Exception {
         services.clear();
-        List&lt;String&gt; serviceNames = zk.getChildren(registryPath, true);
+        List<String> serviceNames = zk.getChildren(registryPath, true);
         for (String serviceName : serviceNames) {
-            String servicePath = registryPath + &quot;/&quot; + serviceName;
-            List&lt;String&gt; instances = zk.getChildren(servicePath, true);
+            String servicePath = registryPath + "/" + serviceName;
+            List<String> instances = zk.getChildren(servicePath, true);
             for (String instance : instances) {
-                String instancePath = servicePath + &quot;/&quot; + instance;
+                String instancePath = servicePath + "/" + instance;
                 byte[] data = zk.getData(instancePath, false, null);
                 services.add(new String(data));
             }
         }
     }
 
-    public List&lt;String&gt; getServices() {
+    public List<String> getServices() {
         return services;
     }
 
@@ -896,8 +896,8 @@ public class ServiceDiscovery {
 ulimit -n 65535
 
 # 调整TCP参数
-echo &quot;net.ipv4.tcp_tw_reuse = 1&quot; &gt;&gt; /etc/sysctl.conf
-echo &quot;net.ipv4.tcp_fin_timeout = 30&quot; &gt;&gt; /etc/sysctl.conf
+echo "net.ipv4.tcp_tw_reuse = 1" >> /etc/sysctl.conf
+echo "net.ipv4.tcp_fin_timeout = 30" >> /etc/sysctl.conf
 sysctl -p
 </code></pre>
 
