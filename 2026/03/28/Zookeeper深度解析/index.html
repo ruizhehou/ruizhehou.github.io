@@ -1,47 +1,221 @@
----
-title: Zookeeper深度解析
-date: 2026-03-28 15:00:00
-tags:
-  - Zookeeper
-  - 分布式协调
-  - 分布式系统
-categories:
-  - 技术教程
----
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
 
-# Zookeeper深度解析
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
 
-## 一、Zookeeper概述
+<link rel="stylesheet" href="/css/main.css">
 
-Apache Zookeeper是一个开源的分布式协调服务，为分布式应用提供一致性服务。它最初由Yahoo开发，后成为Apache顶级项目。Zookeeper以简单、高效、可靠著称，是很多分布式系统的基石。
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
 
-### 1.1 Zookeeper的核心特性
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
 
-- **一致性**：保证数据的一致性
-- **原子性**：操作要么成功要么失败
-- **可靠性**：数据持久化，不丢失
-- **实时性**：客户端能及时获取最新数据
-- **顺序性**：操作保持顺序
-- **简单性**：提供简单的API
+  <meta name="description" content="Apache Zookeeper是一个开源的分布式协调服务，为分布式应用提供一致性服务。它最初由Yahoo开发，后成为Apache顶级项目。本文深入解析Zookeeper的核心概念、数据模型、Watch机制以及集群架构。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Zookeeper深度解析">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/28/Zookeeper深度解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="Apache Zookeeper是一个开源的分布式协调服务，为分布式应用提供一致性服务。它最初由Yahoo开发，后成为Apache顶级项目。本文深入解析Zookeeper的核心概念、数据模型、Watch机制以及集群架构。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-28T08:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-28T08:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="Zookeeper">
+<meta property="article:tag" content="分布式系统">
+<meta property="article:tag" content="协调服务">
+<meta name="twitter:card" content="summary">
 
-### 1.2 Zookeeper的应用场景
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/28/Zookeeper深度解析/">
 
-- 配置管理
-- 命名服务
-- 分布式锁
-- 集群管理
-- Leader选举
-- 队列管理
-- 发布订阅
 
-## 二、数据模型
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
 
-### 2.1 ZNode结构
+  <title>Zookeeper深度解析 | 侯瑞哲的博客</title>
 
-Zookeeper的数据模型类似于文件系统，由ZNode（节点）组成。
 
-```
-/
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-03-28 15:00:00+08:00" content="2026-03-28 15:00:00">
+      03-28
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      Zookeeper深度解析
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+    <h1>Zookeeper深度解析</h1>
+<h2 id="一、Zookeeper概述">一、Zookeeper概述</h2>
+<p>Apache Zookeeper是一个开源的分布式协调服务，为分布式应用提供一致性服务。它最初由Yahoo开发，后成为Apache顶级项目。Zookeeper以简单、高效、可靠著称，是很多分布式系统的基石。</p>
+<h3 id="1.1-Zookeeper的核心特性">1.1 Zookeeper的核心特性</h3>
+<ul>
+<li><strong>一致性</strong>：保证数据的一致性</li>
+<li><strong>原子性</strong>：操作要么成功要么失败</li>
+<li><strong>可靠性</strong>：数据持久化，不丢失</li>
+<li><strong>实时性</strong>：客户端能及时获取最新数据</li>
+<li><strong>顺序性</strong>：操作保持顺序</li>
+<li><strong>简单性</strong>：提供简单的API</li>
+</ul>
+<h3 id="1.2-Zookeeper的应用场景">1.2 Zookeeper的应用场景</h3>
+<ul>
+<li>配置管理</li>
+<li>命名服务</li>
+<li>分布式锁</li>
+<li>集群管理</li>
+<li>Leader选举</li>
+<li>队列管理</li>
+<li>发布订阅</li>
+</ul>
+<h2 id="二、数据模型">二、数据模型</h2>
+<h3 id="2.1-ZNode结构">2.1 ZNode结构</h3>
+<p>Zookeeper的数据模型类似于文件系统，由ZNode（节点）组成。</p>
+<pre class="codehilite"><code>/
 ├── config
 │   ├── database.properties
 │   └── cache.properties
@@ -51,203 +225,329 @@ Zookeeper的数据模型类似于文件系统，由ZNode（节点）组成。
 └── locks
     ├── lock1
     └── lock2
-```
+</code></pre>
 
-### 2.2 ZNode类型
-
-| 类型 | 说明 | 特点 |
-|------|------|------|
-| 持久节点 | 创建后一直存在 | 除非显式删除 |
-| 临时节点 | 与会话绑定 | 会话结束自动删除 |
-| 持久顺序节点 | 持久节点 + 顺序编号 | 名称自动追加数字 |
-| 临时顺序节点 | 临时节点 + 顺序编号 | 会话结束自动删除 |
-
-```java
-// 创建持久节点
-zk.create("/persistent", "data".getBytes(),
+<h3 id="2.2-ZNode类型">2.2 ZNode类型</h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>说明</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>持久节点</td>
+<td>创建后一直存在</td>
+<td>除非显式删除</td>
+</tr>
+<tr>
+<td>临时节点</td>
+<td>与会话绑定</td>
+<td>会话结束自动删除</td>
+</tr>
+<tr>
+<td>持久顺序节点</td>
+<td>持久节点 + 顺序编号</td>
+<td>名称自动追加数字</td>
+</tr>
+<tr>
+<td>临时顺序节点</td>
+<td>临时节点 + 顺序编号</td>
+<td>会话结束自动删除</td>
+</tr>
+</tbody>
+</table>
+<pre class="codehilite"><code class="language-java">// 创建持久节点
+zk.create(&quot;/persistent&quot;, &quot;data&quot;.getBytes(),
     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
 // 创建临时节点
-zk.create("/ephemeral", "data".getBytes(),
+zk.create(&quot;/ephemeral&quot;, &quot;data&quot;.getBytes(),
     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 
 // 创建持久顺序节点
-zk.create("/persistent-seq", "data".getBytes(),
+zk.create(&quot;/persistent-seq&quot;, &quot;data&quot;.getBytes(),
     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT_SEQUENTIAL);
 
 // 创建临时顺序节点
-zk.create("/ephemeral-seq", "data".getBytes(),
+zk.create(&quot;/ephemeral-seq&quot;, &quot;data&quot;.getBytes(),
     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-```
+</code></pre>
 
-### 2.3 ZNode属性
+<h3 id="2.3-ZNode属性">2.3 ZNode属性</h3>
+<p>每个ZNode包含以下属性：</p>
+<ul>
+<li><strong>数据</strong>：存储的数据（最大1MB）</li>
+<li><strong>版本</strong>：数据版本号</li>
+<li><strong>ACL</strong>：访问控制列表</li>
+<li><strong>时间戳</strong>：创建时间、修改时间</li>
+<li><strong>子节点数量</strong>：直接子节点数</li>
+</ul>
+<pre class="codehilite"><code class="language-java">// 获取ZNode数据
+byte[] data = zk.getData(&quot;/path&quot;, false, stat);
+System.out.println(&quot;Version: &quot; + stat.getVersion());
+System.out.println(&quot;Ctime: &quot; + stat.getCtime());
+System.out.println(&quot;Mtime: &quot; + stat.getMtime());
+</code></pre>
 
-每个ZNode包含以下属性：
-
-- **数据**：存储的数据（最大1MB）
-- **版本**：数据版本号
-- **ACL**：访问控制列表
-- **时间戳**：创建时间、修改时间
-- **子节点数量**：直接子节点数
-
-```java
-// 获取ZNode数据
-byte[] data = zk.getData("/path", false, stat);
-System.out.println("Version: " + stat.getVersion());
-System.out.println("Ctime: " + stat.getCtime());
-System.out.println("Mtime: " + stat.getMtime());
-```
-
-## 三、Watcher机制
-
-Watcher是Zookeeper的核心机制，用于监听ZNode的变化。
-
-### 3.1 Watcher类型
-
-| 事件类型 | 说明 |
-|----------|------|
-| NodeCreated | 节点创建 |
-| NodeDeleted | 节点删除 |
-| NodeDataChanged | 节点数据变化 |
-| NodeChildrenChanged | 子节点变化 |
-| None | 连接状态变化 |
-
-### 3.2 Watcher使用
-
-```java
-// 创建Watcher
+<h2 id="三、Watcher机制">三、Watcher机制</h2>
+<p>Watcher是Zookeeper的核心机制，用于监听ZNode的变化。</p>
+<h3 id="3.1-Watcher类型">3.1 Watcher类型</h3>
+<table>
+<thead>
+<tr>
+<th>事件类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NodeCreated</td>
+<td>节点创建</td>
+</tr>
+<tr>
+<td>NodeDeleted</td>
+<td>节点删除</td>
+</tr>
+<tr>
+<td>NodeDataChanged</td>
+<td>节点数据变化</td>
+</tr>
+<tr>
+<td>NodeChildrenChanged</td>
+<td>子节点变化</td>
+</tr>
+<tr>
+<td>None</td>
+<td>连接状态变化</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3.2-Watcher使用">3.2 Watcher使用</h3>
+<pre class="codehilite"><code class="language-java">// 创建Watcher
 Watcher watcher = new Watcher() {
     @Override
     public void process(WatchedEvent event) {
-        System.out.println("Event: " + event.getType());
-        System.out.println("Path: " + event.getPath());
-        System.out.println("State: " + event.getState());
+        System.out.println(&quot;Event: &quot; + event.getType());
+        System.out.println(&quot;Path: &quot; + event.getPath());
+        System.out.println(&quot;State: &quot; + event.getState());
     }
 };
 
 // 监听节点数据变化
-zk.getData("/path", watcher, stat);
+zk.getData(&quot;/path&quot;, watcher, stat);
 
 // 监听子节点变化
-zk.getChildren("/path", watcher);
-```
+zk.getChildren(&quot;/path&quot;, watcher);
+</code></pre>
 
-### 3.3 Watcher特点
+<h3 id="3.3-Watcher特点">3.3 Watcher特点</h3>
+<ul>
+<li><strong>一次性</strong>：触发后自动失效</li>
+<li><strong>异步</strong>：异步通知客户端</li>
+<li><strong>有序</strong>：保证事件的顺序</li>
+</ul>
+<h2 id="四、会话机制">四、会话机制</h2>
+<h3 id="4.1-会话生命周期">4.1 会话生命周期</h3>
+<pre class="codehilite"><code>连接中 → 已连接 → 正在关闭 → 已关闭
+</code></pre>
 
-- **一次性**：触发后自动失效
-- **异步**：异步通知客户端
-- **有序**：保证事件的顺序
-
-## 四、会话机制
-
-### 4.1 会话生命周期
-
-```
-连接中 → 已连接 → 正在关闭 → 已关闭
-```
-
-### 4.2 会话状态
-
-| 状态 | 说明 |
-|------|------|
-| Connecting | 正在连接 |
-| Connected | 已连接 |
-| Closed | 已关闭 |
-| AuthFailed | 认证失败 |
-
-### 4.3 会话超时
-
-```java
-// 创建会话，设置超时时间
+<h3 id="4.2-会话状态">4.2 会话状态</h3>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Connecting</td>
+<td>正在连接</td>
+</tr>
+<tr>
+<td>Connected</td>
+<td>已连接</td>
+</tr>
+<tr>
+<td>Closed</td>
+<td>已关闭</td>
+</tr>
+<tr>
+<td>AuthFailed</td>
+<td>认证失败</td>
+</tr>
+</tbody>
+</table>
+<h3 id="4.3-会话超时">4.3 会话超时</h3>
+<pre class="codehilite"><code class="language-java">// 创建会话，设置超时时间
 int sessionTimeout = 30000; // 30秒
-ZooKeeper zk = new ZooKeeper("localhost:2181", sessionTimeout, watcher);
+ZooKeeper zk = new ZooKeeper(&quot;localhost:2181&quot;, sessionTimeout, watcher);
 
 // 获取会话ID和超时时间
 long sessionId = zk.getSessionId();
 int timeout = zk.getSessionTimeout();
-```
+</code></pre>
 
-## 五、ACL权限控制
-
-### 5.1 ACL组成
-
-ACL由三部分组成：
-
-- **scheme**：权限模式
-- **id**：权限对象
-- **permission**：权限类型
-
-### 5.2 权限模式
-
-| 模式 | 说明 |
-|------|------|
-| world | 开放模式 |
-| auth | 认证模式 |
-| digest | 用户名密码模式 |
-| ip | IP地址模式 |
-| x509 | 证书模式 |
-
-### 5.3 权限类型
-
-| 权限 | 说明 | 缩写 |
-|------|------|------|
-| CREATE | 创建子节点 | c |
-| READ | 读取节点数据 | r |
-| WRITE | 写入节点数据 | w |
-| DELETE | 删除子节点 | d |
-| ADMIN | 设置ACL | a |
-| ALL | 所有权限 | ALL |
-
-```java
-// 创建ACL
-List<ACL> acls = new ArrayList<>();
+<h2 id="五、ACL权限控制">五、ACL权限控制</h2>
+<h3 id="5.1-ACL组成">5.1 ACL组成</h3>
+<p>ACL由三部分组成：</p>
+<ul>
+<li><strong>scheme</strong>：权限模式</li>
+<li><strong>id</strong>：权限对象</li>
+<li><strong>permission</strong>：权限类型</li>
+</ul>
+<h3 id="5.2-权限模式">5.2 权限模式</h3>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>world</td>
+<td>开放模式</td>
+</tr>
+<tr>
+<td>auth</td>
+<td>认证模式</td>
+</tr>
+<tr>
+<td>digest</td>
+<td>用户名密码模式</td>
+</tr>
+<tr>
+<td>ip</td>
+<td>IP地址模式</td>
+</tr>
+<tr>
+<td>x509</td>
+<td>证书模式</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5.3-权限类型">5.3 权限类型</h3>
+<table>
+<thead>
+<tr>
+<th>权限</th>
+<th>说明</th>
+<th>缩写</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CREATE</td>
+<td>创建子节点</td>
+<td>c</td>
+</tr>
+<tr>
+<td>READ</td>
+<td>读取节点数据</td>
+<td>r</td>
+</tr>
+<tr>
+<td>WRITE</td>
+<td>写入节点数据</td>
+<td>w</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td>删除子节点</td>
+<td>d</td>
+</tr>
+<tr>
+<td>ADMIN</td>
+<td>设置ACL</td>
+<td>a</td>
+</tr>
+<tr>
+<td>ALL</td>
+<td>所有权限</td>
+<td>ALL</td>
+</tr>
+</tbody>
+</table>
+<pre class="codehilite"><code class="language-java">// 创建ACL
+List&lt;ACL&gt; acls = new ArrayList&lt;&gt;();
 acls.add(new ACL(ZooDefs.Perms.ALL,
-    new Id("digest", DigestAuthenticationProvider.generateDigest("user:password"))));
+    new Id(&quot;digest&quot;, DigestAuthenticationProvider.generateDigest(&quot;user:password&quot;))));
 
 // 设置ACL
-zk.create("/secure", "data".getBytes(), acls, CreateMode.PERSISTENT);
+zk.create(&quot;/secure&quot;, &quot;data&quot;.getBytes(), acls, CreateMode.PERSISTENT);
 
 // 获取ACL
-List<ACL> existingAcls = zk.getACL("/secure", stat);
-```
+List&lt;ACL&gt; existingAcls = zk.getACL(&quot;/secure&quot;, stat);
+</code></pre>
 
-## 六、集群架构
-
-### 6.1 集群角色
-
-```
-┌─────────────────────────────────────┐
+<h2 id="六、集群架构">六、集群架构</h2>
+<h3 id="6.1-集群角色">6.1 集群角色</h3>
+<pre class="codehilite"><code>┌─────────────────────────────────────┐
 │         Zookeeper Cluster           │
 │  ┌────────┐  ┌────────┐  ┌────────┐│
 │  │ Leader │  │Follower│  │Follower││
 │  │  (1)   │  │  (2)   │  │  (3)   ││
 │  └────────┘  └────────┘  └────────┘│
 └─────────────────────────────────────┘
-```
+</code></pre>
 
-| 角色 | 职责 |
-|------|------|
-| Leader | 处理写请求，协调集群 |
-| Follower | 处理读请求，参与投票 |
-| Observer | 处理读请求，不参与投票 |
-
-### 6.2 Leader选举
-
-Zookeeper使用ZAB协议进行Leader选举。
-
-#### 选举状态
-
-| 状态 | 说明 |
-|------|------|
-| LOOKING | 正在选举 |
-| FOLLOWING | 跟随者 |
-| LEADING | 领导者 |
-| OBSERVING | 观察者 |
-
-#### 选举过程
-
-```
-1. 集群启动，所有节点处于LOOKING状态
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Leader</td>
+<td>处理写请求，协调集群</td>
+</tr>
+<tr>
+<td>Follower</td>
+<td>处理读请求，参与投票</td>
+</tr>
+<tr>
+<td>Observer</td>
+<td>处理读请求，不参与投票</td>
+</tr>
+</tbody>
+</table>
+<h3 id="6.2-Leader选举">6.2 Leader选举</h3>
+<p>Zookeeper使用ZAB协议进行Leader选举。</p>
+<h4>选举状态</h4>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LOOKING</td>
+<td>正在选举</td>
+</tr>
+<tr>
+<td>FOLLOWING</td>
+<td>跟随者</td>
+</tr>
+<tr>
+<td>LEADING</td>
+<td>领导者</td>
+</tr>
+<tr>
+<td>OBSERVING</td>
+<td>观察者</td>
+</tr>
+</tbody>
+</table>
+<h4>选举过程</h4>
+<pre class="codehilite"><code>1. 集群启动，所有节点处于LOOKING状态
 2. 节点发起投票，投票给自己（myid, zxid）
 3. 节点交换投票信息
 4. 节点根据规则更新投票：
@@ -255,12 +555,10 @@ Zookeeper使用ZAB协议进行Leader选举。
    - zxid相同，myid大的优先
 5. 超过半数节点投票给同一节点，该节点成为Leader
 6. 其他节点成为Follower
-```
+</code></pre>
 
-### 6.3 集群配置
-
-```properties
-# zoo.cfg
+<h3 id="6.3-集群配置">6.3 集群配置</h3>
+<pre class="codehilite"><code class="language-properties"># zoo.cfg
 tickTime=2000
 initLimit=10
 syncLimit=5
@@ -271,66 +569,75 @@ clientPort=2181
 server.1=127.0.0.1:2888:3888
 server.2=127.0.0.1:2889:3889
 server.3=127.0.0.1:2890:3890
-```
+</code></pre>
 
-```bash
-# 创建myid文件
-echo "1" > /tmp/zookeeper/myid
-echo "2" > /tmp/zookeeper2/myid
-echo "3" > /tmp/zookeeper3/myid
-```
+<pre class="codehilite"><code class="language-bash"># 创建myid文件
+echo &quot;1&quot; &gt; /tmp/zookeeper/myid
+echo &quot;2&quot; &gt; /tmp/zookeeper2/myid
+echo &quot;3&quot; &gt; /tmp/zookeeper3/myid
+</code></pre>
 
-## 七、ZAB协议
-
-### 7.1 ZAB协议概述
-
-ZAB（ZooKeeper Atomic Broadcast）是Zookeeper的原子广播协议，用于保证数据一致性。
-
-### 7.2 ZAB协议模式
-
-#### 恢复模式
-
-```
-1. 集群启动或Leader崩溃
+<h2 id="七、ZAB协议">七、ZAB协议</h2>
+<h3 id="7.1-ZAB协议概述">7.1 ZAB协议概述</h3>
+<p>ZAB（ZooKeeper Atomic Broadcast）是Zookeeper的原子广播协议，用于保证数据一致性。</p>
+<h3 id="7.2-ZAB协议模式">7.2 ZAB协议模式</h3>
+<h4>恢复模式</h4>
+<pre class="codehilite"><code>1. 集群启动或Leader崩溃
 2. 选举新的Leader
 3. Follower与Leader同步
 4. 进入广播模式
-```
+</code></pre>
 
-#### 广播模式
-
-```
-1. Leader接收写请求
+<h4>广播模式</h4>
+<pre class="codehilite"><code>1. Leader接收写请求
 2. Leader生成Proposal
 3. Leader广播Proposal给Follower
 4. Follower回复ACK
 5. Leader收到过半ACK，提交Proposal
 6. Leader广播COMMIT消息
 7. Follower提交Proposal
-```
+</code></pre>
 
-### 7.3 消息类型
-
-| 消息类型 | 说明 |
-|----------|------|
-| PROPOSAL | 提议消息 |
-| ACK | 确认消息 |
-| COMMIT | 提交消息 |
-| PING | 心跳消息 |
-| NEWLEADER | 新Leader通知 |
-
-## 八、典型应用场景
-
-### 8.1 配置中心
-
-```java
-// 配置中心实现
+<h3 id="7.3-消息类型">7.3 消息类型</h3>
+<table>
+<thead>
+<tr>
+<th>消息类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PROPOSAL</td>
+<td>提议消息</td>
+</tr>
+<tr>
+<td>ACK</td>
+<td>确认消息</td>
+</tr>
+<tr>
+<td>COMMIT</td>
+<td>提交消息</td>
+</tr>
+<tr>
+<td>PING</td>
+<td>心跳消息</td>
+</tr>
+<tr>
+<td>NEWLEADER</td>
+<td>新Leader通知</td>
+</tr>
+</tbody>
+</table>
+<h2 id="八、典型应用场景">八、典型应用场景</h2>
+<h3 id="8.1-配置中心">8.1 配置中心</h3>
+<pre class="codehilite"><code class="language-java">// 配置中心实现
 public class ConfigCenter {
     private final ZooKeeper zk;
-    private final String configPath = "/config";
+    private final String configPath = &quot;/config&quot;;
 
     public ConfigCenter(String connectString) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, event -> {
+        this.zk = new ZooKeeper(connectString, 30000, event -&gt; {
             if (event.getType() == Event.EventType.NodeDataChanged) {
                 reloadConfig();
             }
@@ -340,13 +647,13 @@ public class ConfigCenter {
 
     private void initConfig() throws Exception {
         if (zk.exists(configPath, false) == null) {
-            zk.create(configPath, "default".getBytes(),
+            zk.create(configPath, &quot;default&quot;.getBytes(),
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
     }
 
     public void setConfig(String key, String value) throws Exception {
-        String path = configPath + "/" + key;
+        String path = configPath + &quot;/&quot; + key;
         if (zk.exists(path, false) == null) {
             zk.create(path, value.getBytes(),
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
@@ -356,25 +663,23 @@ public class ConfigCenter {
     }
 
     public String getConfig(String key) throws Exception {
-        String path = configPath + "/" + key;
+        String path = configPath + &quot;/&quot; + key;
         byte[] data = zk.getData(path, true, null);
         return new String(data);
     }
 
     private void reloadConfig() {
         // 重新加载配置
-        System.out.println("Config changed, reloading...");
+        System.out.println(&quot;Config changed, reloading...&quot;);
     }
 }
-```
+</code></pre>
 
-### 8.2 分布式锁
-
-```java
-// 分布式锁实现
+<h3 id="8.2-分布式锁">8.2 分布式锁</h3>
+<pre class="codehilite"><code class="language-java">// 分布式锁实现
 public class DistributedLock {
     private final ZooKeeper zk;
-    private final String lockPath = "/locks";
+    private final String lockPath = &quot;/locks&quot;;
     private String currentLockPath;
     private String lockName;
 
@@ -393,11 +698,11 @@ public class DistributedLock {
 
     public boolean tryLock() throws Exception {
         // 创建临时顺序节点
-        currentLockPath = zk.create(lockPath + "/" + lockName + "-",
+        currentLockPath = zk.create(lockPath + &quot;/&quot; + lockName + &quot;-&quot;,
             new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 
         // 获取所有锁节点
-        List<String> children = zk.getChildren(lockPath, false);
+        List&lt;String&gt; children = zk.getChildren(lockPath, false);
         Collections.sort(children);
 
         // 检查是否是最小的节点
@@ -410,10 +715,10 @@ public class DistributedLock {
 
         // 监听前一个节点
         String previousNode = children.get(currentIndex - 1);
-        String previousPath = lockPath + "/" + previousNode;
+        String previousPath = lockPath + &quot;/&quot; + previousNode;
 
         CountDownLatch latch = new CountDownLatch(1);
-        Watcher watcher = event -> {
+        Watcher watcher = event -&gt; {
             if (event.getType() == Event.EventType.NodeDeleted) {
                 latch.countDown();
             }
@@ -432,25 +737,23 @@ public class DistributedLock {
         }
     }
 }
-```
+</code></pre>
 
-### 8.3 Leader选举
-
-```java
-// Leader选举实现
+<h3 id="8.3-Leader选举">8.3 Leader选举</h3>
+<pre class="codehilite"><code class="language-java">// Leader选举实现
 public class LeaderElection {
     private final ZooKeeper zk;
-    private final String electionPath = "/election";
+    private final String electionPath = &quot;/election&quot;;
     private String currentNode;
     private boolean isLeader = false;
 
     public LeaderElection(String connectString, String nodeId) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, event -> {
+        this.zk = new ZooKeeper(connectString, 30000, event -&gt; {
             if (event.getType() == Event.EventType.NodeDeleted) {
                 checkLeadership();
             }
         });
-        this.currentNode = electionPath + "/node-" + nodeId;
+        this.currentNode = electionPath + &quot;/node-&quot; + nodeId;
         elect();
     }
 
@@ -460,7 +763,7 @@ public class LeaderElection {
             ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 
         // 获取所有节点
-        List<String> children = zk.getChildren(electionPath, false);
+        List&lt;String&gt; children = zk.getChildren(electionPath, false);
         Collections.sort(children);
 
         // 检查是否是最小的节点
@@ -472,13 +775,13 @@ public class LeaderElection {
         }
     }
 
-    private void watchPreviousNode(List<String> children) throws Exception {
+    private void watchPreviousNode(List&lt;String&gt; children) throws Exception {
         String currentId = currentNode.substring(electionPath.length() + 1);
         int currentIndex = children.indexOf(currentId);
         String previousNode = children.get(currentIndex - 1);
-        String previousPath = electionPath + "/" + previousNode;
+        String previousPath = electionPath + &quot;/&quot; + previousNode;
 
-        zk.exists(previousPath, event -> {
+        zk.exists(previousPath, event -&gt; {
             if (event.getType() == Event.EventType.NodeDeleted) {
                 try {
                     elect();
@@ -491,22 +794,20 @@ public class LeaderElection {
 
     private void becomeLeader() {
         isLeader = true;
-        System.out.println("I am the leader!");
+        System.out.println(&quot;I am the leader!&quot;);
     }
 
     public boolean isLeader() {
         return isLeader;
     }
 }
-```
+</code></pre>
 
-### 8.4 服务注册与发现
-
-```java
-// 服务注册
+<h3 id="8.4-服务注册与发现">8.4 服务注册与发现</h3>
+<pre class="codehilite"><code class="language-java">// 服务注册
 public class ServiceRegistry {
     private final ZooKeeper zk;
-    private final String registryPath = "/services";
+    private final String registryPath = &quot;/services&quot;;
     private String servicePath;
 
     public ServiceRegistry(String connectString) throws Exception {
@@ -522,13 +823,13 @@ public class ServiceRegistry {
     }
 
     public void register(String serviceName, String address) throws Exception {
-        String servicePath = registryPath + "/" + serviceName;
+        String servicePath = registryPath + &quot;/&quot; + serviceName;
         if (zk.exists(servicePath, false) == null) {
             zk.create(servicePath, new byte[0],
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
 
-        this.servicePath = servicePath + "/" + UUID.randomUUID().toString();
+        this.servicePath = servicePath + &quot;/&quot; + UUID.randomUUID().toString();
         zk.create(this.servicePath, address.getBytes(),
             ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
     }
@@ -543,11 +844,11 @@ public class ServiceRegistry {
 // 服务发现
 public class ServiceDiscovery {
     private final ZooKeeper zk;
-    private final String registryPath = "/services";
-    private List<String> services = new ArrayList<>();
+    private final String registryPath = &quot;/services&quot;;
+    private List&lt;String&gt; services = new ArrayList&lt;&gt;();
 
     public ServiceDiscovery(String connectString) throws Exception {
-        this.zk = new ZooKeeper(connectString, 30000, event -> {
+        this.zk = new ZooKeeper(connectString, 30000, event -&gt; {
             if (event.getType() == Event.EventType.NodeChildrenChanged) {
                 discoverServices();
             }
@@ -557,19 +858,19 @@ public class ServiceDiscovery {
 
     private void discoverServices() throws Exception {
         services.clear();
-        List<String> serviceNames = zk.getChildren(registryPath, true);
+        List&lt;String&gt; serviceNames = zk.getChildren(registryPath, true);
         for (String serviceName : serviceNames) {
-            String servicePath = registryPath + "/" + serviceName;
-            List<String> instances = zk.getChildren(servicePath, true);
+            String servicePath = registryPath + &quot;/&quot; + serviceName;
+            List&lt;String&gt; instances = zk.getChildren(servicePath, true);
             for (String instance : instances) {
-                String instancePath = servicePath + "/" + instance;
+                String instancePath = servicePath + &quot;/&quot; + instance;
                 byte[] data = zk.getData(instancePath, false, null);
                 services.add(new String(data));
             }
         }
     }
 
-    public List<String> getServices() {
+    public List&lt;String&gt; getServices() {
         return services;
     }
 
@@ -580,37 +881,30 @@ public class ServiceDiscovery {
         return services.get(ThreadLocalRandom.current().nextInt(services.size()));
     }
 }
-```
+</code></pre>
 
-## 九、性能优化
-
-### 9.1 JVM优化
-
-```bash
-# JVM参数
+<h2 id="九、性能优化">九、性能优化</h2>
+<h3 id="9.1-JVM优化">9.1 JVM优化</h3>
+<pre class="codehilite"><code class="language-bash"># JVM参数
 -Xms2g
 -Xmx2g
 -XX:+UseG1GC
 -XX:MaxGCPauseMillis=200
 -XX:+HeapDumpOnOutOfMemoryError
-```
+</code></pre>
 
-### 9.2 系统参数优化
-
-```bash
-# 增加文件描述符限制
+<h3 id="9.2-系统参数优化">9.2 系统参数优化</h3>
+<pre class="codehilite"><code class="language-bash"># 增加文件描述符限制
 ulimit -n 65535
 
 # 调整TCP参数
-echo "net.ipv4.tcp_tw_reuse = 1" >> /etc/sysctl.conf
-echo "net.ipv4.tcp_fin_timeout = 30" >> /etc/sysctl.conf
+echo &quot;net.ipv4.tcp_tw_reuse = 1&quot; &gt;&gt; /etc/sysctl.conf
+echo &quot;net.ipv4.tcp_fin_timeout = 30&quot; &gt;&gt; /etc/sysctl.conf
 sysctl -p
-```
+</code></pre>
 
-### 9.3 配置优化
-
-```properties
-# zoo.cfg
+<h3 id="9.3-配置优化">9.3 配置优化</h3>
+<pre class="codehilite"><code class="language-properties"># zoo.cfg
 tickTime=2000
 initLimit=10
 syncLimit=5
@@ -629,62 +923,289 @@ preAllocSize=65536
 snapCount=100000
 skipACL=yes
 forceSync=no
-```
+</code></pre>
 
-### 9.4 监控指标
+<h3 id="9.4-监控指标">9.4 监控指标</h3>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>延迟</td>
+<td>请求响应时间</td>
+</tr>
+<tr>
+<td>吞吐量</td>
+<td>每秒请求数</td>
+</tr>
+<tr>
+<td>连接数</td>
+<td>客户端连接数</td>
+</tr>
+<tr>
+<td>Watch数量</td>
+<td>注册的Watcher数</td>
+</tr>
+<tr>
+<td>数据大小</td>
+<td>数据存储大小</td>
+</tr>
+</tbody>
+</table>
+<h2 id="十、最佳实践">十、最佳实践</h2>
+<h3 id="10.1-节点设计">10.1 节点设计</h3>
+<ol>
+<li><strong>节点路径不宜过深</strong>：影响性能</li>
+<li><strong>节点名称简洁</strong>：便于管理</li>
+<li><strong>合理使用临时节点</strong>：自动清理</li>
+<li><strong>控制数据大小</strong>：不超过1MB</li>
+<li><strong>批量操作</strong>：使用multi操作</li>
+</ol>
+<h3 id="10.2-Watcher使用">10.2 Watcher使用</h3>
+<ol>
+<li><strong>避免频繁注册Watcher</strong>：一次性失效</li>
+<li><strong>处理异常</strong>：连接断开重新注册</li>
+<li><strong>合理设置超时</strong>：避免长时间阻塞</li>
+<li><strong>异步处理</strong>：避免阻塞Watcher线程</li>
+</ol>
+<h3 id="10.3-集群部署">10.3 集群部署</h3>
+<ol>
+<li><strong>奇数个节点</strong>：避免脑裂</li>
+<li><strong>跨机房部署</strong>：提高可用性</li>
+<li><strong>定期备份</strong>：保护数据</li>
+<li><strong>监控告警</strong>：及时发现问题</li>
+</ol>
+<h3 id="10.4-安全配置">10.4 安全配置</h3>
+<ol>
+<li><strong>启用认证</strong>：使用digest或auth模式</li>
+<li><strong>设置ACL</strong>：控制访问权限</li>
+<li><strong>使用SSL</strong>：加密通信</li>
+<li><strong>网络隔离</strong>：限制访问</li>
+</ol>
+<h2 id="十一、总结">十一、总结</h2>
+<p>Zookeeper是一个功能强大、简单易用的分布式协调服务。通过本文的介绍，我们了解了：</p>
+<ol>
+<li>Zookeeper概述：核心特性和应用场景</li>
+<li>数据模型：ZNode结构和类型</li>
+<li>Watcher机制：事件监听和通知</li>
+<li>会话机制：会话生命周期和状态</li>
+<li>ACL权限控制：权限模式和类型</li>
+<li>集群架构：角色和Leader选举</li>
+<li>ZAB协议：恢复模式和广播模式</li>
+<li>典型应用：配置中心、分布式锁、Leader选举、服务发现</li>
+<li>性能优化：JVM、系统参数、配置优化</li>
+<li>最佳实践：节点设计、Watcher使用、集群部署、安全配置</li>
+</ol>
+<p>掌握Zookeeper可以帮助我们构建可靠的分布式系统，解决分布式环境下的协调问题。在实际应用中，建议根据具体场景选择合适的应用模式，并遵循最佳实践，以达到最佳的性能和可靠性。</p>
 
-| 指标 | 说明 |
-|------|------|
-| 延迟 | 请求响应时间 |
-| 吞吐量 | 每秒请求数 |
-| 连接数 | 客户端连接数 |
-| Watch数量 | 注册的Watcher数 |
-| 数据大小 | 数据存储大小 |
+  </div>
 
-## 十、最佳实践
 
-### 10.1 节点设计
+  <div class="post-footer-container">
+    <div class="post-footer">
 
-1. **节点路径不宜过深**：影响性能
-2. **节点名称简洁**：便于管理
-3. **合理使用临时节点**：自动清理
-4. **控制数据大小**：不超过1MB
-5. **批量操作**：使用multi操作
+      <div class="post-tags">
 
-### 10.2 Watcher使用
+          </div>
 
-1. **避免频繁注册Watcher**：一次性失效
-2. **处理异常**：连接断开重新注册
-3. **合理设置超时**：避免长时间阻塞
-4. **异步处理**：避免阻塞Watcher线程
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
 
-### 10.3 集群部署
+        <span class="post-nav-divider"></span>
 
-1. **奇数个节点**：避免脑裂
-2. **跨机房部署**：提高可用性
-4. **定期备份**：保护数据
-5. **监控告警**：及时发现问题
+        <div class="post-nav-prev post-nav-item">
+            <a href="/2026/03/29/Redis深度解析/" rel="prev" title="Redis 深度解析">
+              <i class="fa fa-chevron-left"></i> Redis 深度解析
+            </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
 
-### 10.4 安全配置
+  </div>
 
-1. **启用认证**：使用digest或auth模式
-2. **设置ACL**：控制访问权限
-3. **使用SSL**：加密通信
-4. **网络隔离**：限制访问
 
-## 十一、总结
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
 
-Zookeeper是一个功能强大、简单易用的分布式协调服务。通过本文的介绍，我们了解了：
+  <aside class="sidebar">
+    <div class="sidebar-inner">
 
-1. Zookeeper概述：核心特性和应用场景
-2. 数据模型：ZNode结构和类型
-3. Watcher机制：事件监听和通知
-4. 会话机制：会话生命周期和状态
-5. ACL权限控制：权限模式和类型
-6. 集群架构：角色和Leader选举
-7. ZAB协议：恢复模式和广播模式
-8. 典型应用：配置中心、分布式锁、Leader选举、服务发现
-9. 性能优化：JVM、系统参数、配置优化
-10. 最佳实践：节点设计、Watcher使用、集群部署、安全配置
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
 
-掌握Zookeeper可以帮助我们构建可靠的分布式系统，解决分布式环境下的协调问题。在实际应用中，建议根据具体场景选择合适的应用模式，并遵循最佳实践，以达到最佳的性能和可靠性。
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#ElasticSearch-简介"><span class="nav-number">1.</span> <span class="nav-text">ElasticSearch 简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#核心概念"><span class="nav-number">2.</span> <span class="nav-text">核心概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Index-索引"><span class="nav-number">2.1.</span> <span class="nav-text">Index（索引）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Type-类型"><span class="nav-number">2.2.</span> <span class="nav-text">Type（类型）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Document-文档"><span class="nav-number">2.3.</span> <span class="nav-text">Document（文档）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Node-节点"><span class="nav-number">2.4.</span> <span class="nav-text">Node（节点）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Cluster-集群"><span class="nav-number">2.5.</span> <span class="nav-text">Cluster（集群）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Shard-分片"><span class="nav-number">2.6.</span> <span class="nav-text">Shard（分片）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据类型"><span class="nav-number">3.</span> <span class="nav-text">数据类型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#核心数据类型"><span class="nav-number">3.1.</span> <span class="nav-text">核心数据类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#复杂数据类型"><span class="nav-number">3.2.</span> <span class="nav-text">复杂数据类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#地理数据类型"><span class="nav-number">3.3.</span> <span class="nav-text">地理数据类型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Mapping-映射"><span class="nav-number">4.</span> <span class="nav-text">Mapping（映射）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#动态映射"><span class="nav-number">4.1.</span> <span class="nav-text">动态映射</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#显式映射"><span class="nav-number">4.2.</span> <span class="nav-text">显式映射</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#映射参数"><span class="nav-number">4.3.</span> <span class="nav-text">映射参数</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#分词器"><span class="nav-number">5.</span> <span class="nav-text">分词器</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#内置分词器"><span class="nav-number">5.1.</span> <span class="nav-text">内置分词器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#中文分词器"><span class="nav-number">5.2.</span> <span class="nav-text">中文分词器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#自定义分词器"><span class="nav-number">5.3.</span> <span class="nav-text">自定义分词器</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#查询-DSL"><span class="nav-number">6.</span> <span class="nav-text">查询 DSL</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#基本查询"><span class="nav-number">6.1.</span> <span class="nav-text">基本查询</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#全文查询"><span class="nav-number">6.2.</span> <span class="nav-text">全文查询</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#精确查询"><span class="nav-number">6.3.</span> <span class="nav-text">精确查询</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#布尔查询"><span class="nav-number">6.4.</span> <span class="nav-text">布尔查询</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#聚合分析"><span class="nav-number">7.</span> <span class="nav-text">聚合分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#指标聚合"><span class="nav-number">7.1.</span> <span class="nav-text">指标聚合</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#桶聚合"><span class="nav-number">7.2.</span> <span class="nav-text">桶聚合</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#嵌套聚合"><span class="nav-number">7.3.</span> <span class="nav-text">嵌套聚合</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#集群架构"><span class="nav-number">8.</span> <span class="nav-text">集群架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#节点类型"><span class="nav-number">8.1.</span> <span class="nav-text">节点类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#分片策略"><span class="nav-number">8.2.</span> <span class="nav-text">分片策略</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#集群健康"><span class="nav-number">8.3.</span> <span class="nav-text">集群健康</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能优化"><span class="nav-number">9.</span> <span class="nav-text">性能优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#索引优化"><span class="nav-number">9.1.</span> <span class="nav-text">索引优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查询优化"><span class="nav-number">9.2.</span> <span class="nav-text">查询优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#硬件优化"><span class="nav-number">9.3.</span> <span class="nav-text">硬件优化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#最佳实践"><span class="nav-number">10.</span> <span class="nav-text">最佳实践</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">153</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">41</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+
+
+
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/03/29/ElasticSearch深度解析/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
