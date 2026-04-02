@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Docker是一个开源的容器化平台，通过将应用程序打包到轻量级容器中实现跨平台部署。本文深入解析Docker的核心原理、Dockerfile编写、网络存储配置和最佳实践。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Docker深度解析">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/03/28/Docker深度解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="Docker是一个开源的容器化平台，通过将应用程序打包到轻量级容器中实现跨平台部署。本文深入解析Docker的核心原理、Dockerfile编写、网络存储配置和最佳实践。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-28T09:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-28T09:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="Docker">
+<meta property="article:tag" content="容器">
+<meta property="article:tag" content="DevOps">
+<meta property="article:tag" content="云原生">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://ruizhehou.github.io/2026/03/28/Docker深度解析/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Docker深度解析 | 侯瑞哲的博客</title>
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-03-28T17:00:00+08:00" content="2026-03-28">
+      03-28
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      Docker深度解析
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+    <p>Docker是一个开源的容器化平台，通过将应用程序及其依赖打包到轻量级、可移植的容器中，实现了"一次构建，随处运行"的目标。本文将深入解析Docker的核心原理、架构设计和最佳实践。</p>
+
+<h2 id="Docker简介">Docker简介</h2>
+<p>Docker是基于Linux容器技术（LXC）发展而来的容器化平台，利用Linux内核的Namespace和Cgroups特性实现进程隔离和资源限制。</p>
+<p><strong>Docker的核心特性：</strong></p>
+<ul>
+<li><strong>轻量级</strong>：容器共享宿主机内核，启动速度快，资源占用少</li>
+<li><strong>可移植性</strong>：镜像包含完整运行环境，跨平台一致运行</li>
+<li><strong>隔离性</strong>：每个容器独立运行，互不干扰</li>
+<li><strong>版本控制</strong>：镜像分层存储，支持版本管理</li>
+<li><strong>快速部署</strong>：秒级启动，弹性伸缩</li>
+</ul>
+
+<h2 id="核心概念">核心概念</h2>
+<h3 id="镜像Image">镜像（Image）</h3>
+<p>Docker镜像是一个只读的模板，包含运行应用所需的完整文件系统。镜像采用分层存储结构，每一层都是前一层的增量修改。</p>
+<pre><code class="language-shell"># 拉取镜像
+docker pull nginx:latest
+
+# 查看镜像列表
+docker images
+
+# 删除镜像
+docker rmi nginx:latest
+
+# 构建镜像
+docker build -t myapp:1.0 .
+
+# 查看镜像历史
+docker history nginx:latest
+</code></pre>
+
+<h3 id="容器Container">容器（Container）</h3>
+<p>容器是镜像的运行实例，在镜像的只读层上添加一个可写层。容器之间相互隔离，共享宿主机内核。</p>
+<pre><code class="language-shell"># 创建并启动容器
+docker run -d --name mynginx -p 80:80 nginx:latest
+
+# 查看运行中的容器
+docker ps
+
+# 查看所有容器
+docker ps -a
+
+# 停止容器
+docker stop mynginx
+
+# 启动容器
+docker start mynginx
+
+# 删除容器
+docker rm mynginx
+
+# 进入容器
+docker exec -it mynginx bash
+</code></pre>
+
+<h3 id="仓库Registry">仓库（Registry）</h3>
+<p>Docker仓库用于存储和分发镜像，Docker Hub是官方的公共仓库。</p>
+<pre><code class="language-shell"># 登录仓库
+docker login
+
+# 推送镜像
+docker push username/myapp:1.0
+
+# 拉取私有镜像
+docker pull registry.example.com/myapp:1.0
+</code></pre>
+
+<h2 id="Dockerfile">Dockerfile</h2>
+<h3 id="基本指令">基本指令</h3>
+<pre><code class="language-dockerfile"># 基础镜像
+FROM ubuntu:20.04
+
+# 维护者信息
+LABEL maintainer="admin@example.com"
+
+# 设置环境变量
+ENV APP_HOME=/app     APP_PORT=8080
+
+# 设置工作目录
+WORKDIR $APP_HOME
+
+# 复制文件
+COPY . .
+
+# 执行命令（构建时）
+RUN apt-get update && apt-get install -y     python3     python3-pip     && rm -rf /var/lib/apt/lists/*
+
+# 安装依赖
+RUN pip3 install -r requirements.txt
+
+# 暴露端口
+EXPOSE $APP_PORT
+
+# 设置卷
+VOLUME ["/data"]
+
+# 容器启动命令
+CMD ["python3", "app.py"]
+</code></pre>
+
+<h3 id="多阶段构建">多阶段构建</h3>
+<pre><code class="language-dockerfile"># 构建阶段
+FROM golang:1.18 AS builder
+WORKDIR /app
+COPY . .
+RUN go build -o main .
+
+# 运行阶段
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/main .
+EXPOSE 8080
+CMD ["./main"]
+</code></pre>
+
+<h3 id="最佳实践">最佳实践</h3>
+<ul>
+<li><strong>使用官方基础镜像</strong>：减少安全风险</li>
+<li><strong>最小化层数</strong>：合并RUN命令减少镜像大小</li>
+<li><strong>使用.dockerignore</strong>：排除不必要的文件</li>
+<li><strong>非root用户运行</strong>：提高安全性</li>
+<li><strong>固定版本号</strong>：避免使用latest标签</li>
+</ul>
+
+<h2 id="网络">网络</h2>
+<h3 id="网络模式">网络模式</h3>
+<table>
+<thead>
+<tr><th>模式</th><th>说明</th><th>使用场景</th></tr>
+</thead>
+<tbody>
+<tr><td>bridge</td><td>默认模式，容器通过虚拟网桥通信</td><td>单机多容器</td></tr>
+<tr><td>host</td><td>容器直接使用宿主机网络</td><td>高性能网络</td></tr>
+<tr><td>none</td><td>容器无网络</td><td>完全隔离</td></tr>
+<tr><td>overlay</td><td>跨主机容器通信</td><td>集群部署</td></tr>
+</tbody>
+</table>
+
+<pre><code class="language-shell"># 创建自定义网络
+docker network create --driver bridge mynet
+
+# 查看网络列表
+docker network ls
+
+# 连接容器到网络
+docker network connect mynet mynginx
+
+# 断开容器网络
+docker network disconnect mynet mynginx
+
+# 查看网络详情
+docker network inspect mynet
+</code></pre>
+
+<h2 id="存储">存储</h2>
+<h3 id="存储类型">存储类型</h3>
+<table>
+<thead>
+<tr><th>类型</th><th>说明</th><th>适用场景</th></tr>
+</thead>
+<tbody>
+<tr><td>Volume</td><td>Docker管理的持久化存储</td><td>数据库、日志</td></tr>
+<tr><td>Bind Mount</td><td>宿主机目录挂载</td><td>开发环境</td></tr>
+<tr><td>tmpfs</td><td>内存中的临时存储</td><td>敏感数据</td></tr>
+</tbody>
+</table>
+
+<pre><code class="language-shell"># 创建数据卷
+docker volume create mydata
+
+# 查看数据卷
+docker volume ls
+
+# 挂载数据卷
+docker run -d -v mydata:/data nginx
+
+# 绑定挂载
+docker run -d -v /host/path:/container/path nginx
+
+# 删除数据卷
+docker volume rm mydata
+</code></pre>
+
+<h2 id="Docker-Compose">Docker Compose</h2>
+<h3 id="compose文件">compose文件</h3>
+<pre><code class="language-yaml">version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+    depends_on:
+      - db
+    networks:
+      - app-net
+
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-net
+
+  redis:
+    image: redis:7
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+</code></pre>
+
+<h3 id="Compose常用命令">Compose常用命令</h3>
+<pre><code class="language-shell"># 启动所有服务
+docker-compose up -d
+
+# 停止所有服务
+docker-compose down
+
+# 查看服务状态
+docker-compose ps
+
+# 查看服务日志
+docker-compose logs -f web
+
+# 重新构建
+docker-compose build
+
+# 扩展服务实例
+docker-compose up -d --scale web=3
+</code></pre>
+
+<h2 id="性能优化">性能优化</h2>
+<h3 id="镜像优化">镜像优化</h3>
+<ul>
+<li><strong>选择轻量基础镜像</strong>：Alpine Linux（~5MB）替代Ubuntu</li>
+<li><strong>多阶段构建</strong>：分离构建环境和运行环境</li>
+<li><strong>合理利用缓存</strong>：将变化少的指令放在前面</li>
+<li><strong>清理临时文件</strong>：在同一RUN中删除安装缓存</li>
+</ul>
+
+<h3 id="容器优化">容器优化</h3>
+<ul>
+<li><strong>资源限制</strong>：设置CPU和内存限制防止资源耗尽</li>
+<li><strong>健康检查</strong>：配置HEALTHCHECK确保服务可用</li>
+<li><strong>日志管理</strong>：配置日志驱动和轮转策略</li>
+</ul>
+
+<pre><code class="language-shell"># 限制容器资源
+docker run -d   --cpus="1.5"   --memory="512m"   --memory-swap="1g"   nginx
+
+# 配置健康检查
+docker run -d   --health-cmd="curl -f http://localhost/ || exit 1"   --health-interval=30s   --health-timeout=10s   --health-retries=3   nginx
+</code></pre>
+
+<h2 id="安全">安全</h2>
+<h3 id="安全最佳实践">安全最佳实践</h3>
+<ol>
+<li><strong>使用非root用户</strong>：在Dockerfile中使用USER指令</li>
+<li><strong>只读文件系统</strong>：使用--read-only标志</li>
+<li><strong>限制系统调用</strong>：使用seccomp配置文件</li>
+<li><strong>扫描镜像漏洞</strong>：使用docker scan或第三方工具</li>
+<li><strong>不存储敏感信息</strong>：使用Docker Secrets或环境变量</li>
+</ol>
+
+<pre><code class="language-dockerfile"># 安全的Dockerfile示例
+FROM node:18-alpine
+
+# 创建非root用户
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+WORKDIR /app
+COPY --chown=appuser:appgroup . .
+
+RUN npm ci --only=production
+
+# 切换到非root用户
+USER appuser
+
+EXPOSE 3000
+CMD ["node", "server.js"]
+</code></pre>
+
+<h2 id="监控与日志">监控与日志</h2>
+<h3 id="容器监控">容器监控</h3>
+<pre><code class="language-shell"># 查看容器资源使用
+docker stats
+
+# 查看容器详情
+docker inspect mynginx
+
+# 查看容器日志
+docker logs -f --tail=100 mynginx
+
+# 查看容器进程
+docker top mynginx
+</code></pre>
+
+<h2 id="总结">总结</h2>
+<p>Docker通过容器化技术彻底改变了应用程序的开发、部署和运维方式。本文介绍了Docker的核心概念、Dockerfile编写、网络存储配置、Docker Compose编排以及安全最佳实践。掌握Docker是现代云原生开发的必备技能，能够显著提升开发效率和部署可靠性。</p>
+
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/Docker/" rel="tag"><i class="fa fa-tag"></i> Docker</a>
+          <a href="/tags/容器/" rel="tag"><i class="fa fa-tag"></i> 容器</a>
+          <a href="/tags/DevOps/" rel="tag"><i class="fa fa-tag"></i> DevOps</a>
+          <a href="/tags/云原生/" rel="tag"><i class="fa fa-tag"></i> 云原生</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+
+        <span class="post-nav-divider"></span>
+
+        <div class="post-nav-prev post-nav-item">
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Docker简介"><span class="nav-number">1.</span> <span class="nav-text">Docker简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#核心概念"><span class="nav-number">2.</span> <span class="nav-text">核心概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#镜像Image"><span class="nav-number">2.1.</span> <span class="nav-text">镜像（Image）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#容器Container"><span class="nav-number">2.2.</span> <span class="nav-text">容器（Container）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#仓库Registry"><span class="nav-number">2.3.</span> <span class="nav-text">仓库（Registry）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Dockerfile"><span class="nav-number">3.</span> <span class="nav-text">Dockerfile</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#基本指令"><span class="nav-number">3.1.</span> <span class="nav-text">基本指令</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#多阶段构建"><span class="nav-number">3.2.</span> <span class="nav-text">多阶段构建</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#最佳实践"><span class="nav-number">3.3.</span> <span class="nav-text">最佳实践</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#网络"><span class="nav-number">4.</span> <span class="nav-text">网络</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#网络模式"><span class="nav-number">4.1.</span> <span class="nav-text">网络模式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#存储"><span class="nav-number">5.</span> <span class="nav-text">存储</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#存储类型"><span class="nav-number">5.1.</span> <span class="nav-text">存储类型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Docker-Compose"><span class="nav-number">6.</span> <span class="nav-text">Docker Compose</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#compose文件"><span class="nav-number">6.1.</span> <span class="nav-text">compose文件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Compose常用命令"><span class="nav-number">6.2.</span> <span class="nav-text">Compose常用命令</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能优化"><span class="nav-number">7.</span> <span class="nav-text">性能优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#镜像优化"><span class="nav-number">7.1.</span> <span class="nav-text">镜像优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#容器优化"><span class="nav-number">7.2.</span> <span class="nav-text">容器优化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#安全"><span class="nav-number">8.</span> <span class="nav-text">安全</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#安全最佳实践"><span class="nav-number">8.1.</span> <span class="nav-text">安全最佳实践</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#监控与日志"><span class="nav-number">9.</span> <span class="nav-text">监控与日志</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#容器监控"><span class="nav-number">9.1.</span> <span class="nav-text">容器监控</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">10.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">153</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">41</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+
+
+
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/03/28/Docker深度解析/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
