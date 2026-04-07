@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Claude Code 是 Anthropic 发布的 AI 编程助手，整个工具打包成一个 13MB 的 npm 包。本文对其解包分析，记录了验证专家 Agent、流式降级、Prompt 缓存分层等有意思的内部实现。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="解包 Claude Code：从 13MB 的 npm 包里看到了什么">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/03/Claude-Code源码解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="Claude Code 是 Anthropic 发布的 AI 编程助手，整个工具打包成一个 13MB 的 npm 包。本文对其解包分析，记录了验证专家 Agent、流式降级、Prompt 缓存分层等有意思的内部实现。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-03T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-03T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="AI">
+<meta property="article:tag" content="Claude">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/03/Claude-Code源码解析/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>解包 Claude Code：从 13MB 的 npm 包里看到了什么 | 侯瑞哲的博客</title>
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-03T10:00:00+08:00" content="2026-04-03">
+      04-03
+    </time>
+  </div>
+
+
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      解包 Claude Code：从 13MB 的 npm 包里看到了什么
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+    <p>Claude Code 是 Anthropic 发布的 AI 编程助手，通过 <code>npm install -g @anthropic-ai/claude-code</code> 即可安装。整个工具打包成一个 13MB 的 <code>cli.js</code> 文件，虽然经过混淆压缩，但 JS 的特性决定了它无法真正隐藏实现细节。</p>
+<p>本文是对这个 npm 包解包分析的结果，记录了一些有意思的内部实现。</p>
+<h2 id="基本信息">基本信息</h2>
+<p>当前版本 <code>2.1.91</code>，构建时间 <code>2026-04-02T21:58:41Z</code>。整个包只有一个入口文件 <code>cli.js</code>，16966 行，约 13MB。Anthropic 在文件里埋了一句话：</p>
+<pre><code class="language-text">Want to see the unminified source? We're hiring!
+https://job-boards.greenhouse.io/anthropic/jobs/4816199008
+</code></pre>
+<h2 id="验证专家-Agent">验证专家 Agent</h2>
+<p>代码里有一个叫 <strong>Verification Specialist（验证专家）</strong> 的子 Agent，它的 system prompt 是整个包里最值得细读的部分。</p>
+<p>这个 Agent 的职责是：<strong>审查父 Agent 这一轮做的所有事情，并尝试找出问题</strong>。</p>
+<p>它的 prompt 开头这样写：</p>
+<pre><code class="language-text">You are the verification specialist. You receive the parent's CURRENT-TURN conversation
+— every tool call the parent made this turn, every output it saw, every shortcut it took.
+Your job is not to confirm the work. Your job is to break it.
+</code></pre>
+<p>更有意思的是 <code>=== SELF-AWARENESS ===</code> 这一节，Anthropic 明确告诉这个 Agent：<strong>你自己也不可信</strong>。</p>
+<pre><code class="language-text">You are Claude, and you are bad at verification. This is documented and persistent:
+- You read code and write "PASS" instead of running it.
+- You see the first 80% — polished UI, passing tests — and feel inclined to pass.
+  The first 80% is on-distribution, the easy part. Your entire value is the last 20%.
+- You're easily fooled by AI slop. The parent is also an LLM. Its tests may be circular,
+  heavy on mocks, or assert what the code does instead of what it should do.
+</code></pre>
+<p>这种"让 AI 对自己保持怀疑"的设计思路很有意思。验证 Agent 被要求强制执行一套对抗性测试：</p>
+<ul>
+<li><strong>边界值</strong>：0、-1、空字符串、超长字符串、Unicode、MAX_INT</li>
+<li><strong>并发测试</strong>：对 create-if-not-exists 路径发起并行请求</li>
+<li><strong>幂等性</strong>：同一个写操作执行两次</li>
+<li><strong>孤立操作</strong>：引用不存在的 ID 进行删除或查询</li>
+</ul>
+<p>这个 Agent 还有一条硬性限制——<strong>不允许修改项目目录里的任何文件</strong>，只能往 <code>/tmp</code> 写临时测试脚本，用完必须清理。</p>
+<h2 id="流式输出与自动降级">流式输出与自动降级</h2>
+<p>Claude Code 默认用 streaming 模式获取 API 响应，但实现了完整的降级逻辑：</p>
+<ol>
+<li>先尝试 streaming，启动一个 90 秒的 watchdog 计时器</li>
+<li>追踪流事件间隔，检测 stall（卡顿）</li>
+<li>降级决策树：
+<ul>
+<li>stream 报错 → 切换 non-streaming</li>
+<li>stream 端点 404 → 切换 non-streaming</li>
+<li>idle 超时 → 中止并重试 non-streaming</li>
+</ul>
+</li>
+</ol>
+<p>代码里还有一套 telemetry 事件，包括：</p>
+<pre><code class="language-text">tengu_streaming_idle_timeout
+tengu_streaming_fallback_to_non_streaming
+tengu_stream_loop_exited_after_watchdog
+tengu_context_window_exceeded
+tengu_max_tokens_reached
+</code></pre>
+<p><code>tengu</code> 这个前缀在日语里是"天狗"，是 Anthropic 内部对这个项目的代号。</p>
+<h2 id="Prompt-缓存的实现细节">Prompt 缓存的实现细节</h2>
+<p>Claude API 支持 prompt caching，Claude Code 对此做了精细的分层管理。</p>
+<p>系统 prompt 被一个特殊标记分割：</p>
+<pre><code class="language-javascript">const BOUNDARY = "__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__"
+</code></pre>
+<p>标记之前的部分是静态内容，可以在 org 级别缓存（TTL 1 小时）；标记之后是动态内容，每次请求重新计算，走 session 级别的短期缓存。</p>
+<p>缓存命中情况通过 <code>cache_creation_input_tokens</code> 和 <code>cache_read_input_tokens</code> 追踪，Anthropic 可以在后台监控每个组织的缓存效率。</p>
+<h2 id="工具的懒加载机制">工具的懒加载机制</h2>
+<p>Claude Code 的工具（Bash、Read、Write、Edit 等）支持懒加载。代码里有一个 <code>defer_loading: true</code> 标记，被标记的工具不会在 system prompt 里直接列出，而是在需要时动态注入。</p>
+<p>这样做的好处是减少初始 token 消耗。代码里有这样的日志：</p>
+<pre><code class="language-text">Dynamic tool loading: 6/12 deferred tools included
+</code></pre>
+<p>MCP（Model Context Protocol）工具也走同样的机制，支持 browser 自动化（<code>mcp__playwright__*</code>）等扩展工具。</p>
+<h2 id="Chrome-原生宿主桥接">Chrome 原生宿主桥接</h2>
+<p>包里有一个 <code>$cK</code> 类，实现了 Claude Code 与 Chrome 扩展之间的通信桥接：</p>
+<ul>
+<li>使用 Unix socket（<code>/var/folders/.../claude-code/mcp-*.sock</code>，权限 0600）进行 IPC</li>
+<li>Windows 上使用命名管道</li>
+<li>双向消息传递：Chrome Extension → Native Host → MCP Clients</li>
+</ul>
+<p>这说明 Claude Code 不只是一个命令行工具，它有完整的浏览器集成能力，可以直接操作浏览器执行任务。</p>
+<h2 id="Token-预算与-Thinking-模式">Token 预算与 Thinking 模式</h2>
+<p>代码里对 token 预算有精细控制：</p>
+<pre><code class="language-javascript">// 默认激进限制
+const DEFAULT_LIMIT = 64000
+
+// 环境变量覆盖
+CLAUDE_CODE_MAX_OUTPUT_TOKENS
+
+// Thinking 模式下动态调整
+if (thinking.type === "enabled") {
+  thinking.budget_tokens = Math.min(thinking.budget_tokens, maxTokens - 1)
+}
+</code></pre>
+<p>支持 adaptive thinking 模式，会根据模型能力自动决定是用固定 budget 还是 adaptive budget。</p>
+<h2 id="架构观察">架构观察</h2>
+<p>从整体来看，Claude Code 的架构可以概括为几个原则：</p>
+<p><strong>递归验证</strong>：父 Agent 的工作必须经过专门的验证 Agent 审查，且验证 Agent 被明确告知不要信任自己的直觉。</p>
+<p><strong>优雅降级</strong>：streaming 失败自动切 non-streaming，工具加载失败不影响核心功能。</p>
+<p><strong>分层缓存</strong>：静态内容走长期缓存，动态内容走短期缓存，通过 boundary marker 精确分割。</p>
+<p><strong>可观测性优先</strong>：大量 telemetry 事件，覆盖 API 调用、缓存命中、工具加载、流式状态等各个维度。</p>
+<h2 id="总结">总结</h2>
+<p>解包一个 AI 工具的 npm 包，能看到的信息比想象中多得多。从验证专家 Agent 的 prompt 设计，到流式降级的实现细节，再到 prompt 缓存的分层策略，这些都是 Anthropic 在生产环境里摸索出来的工程实践。</p>
+<p>最后值得一提的是验证专家 Agent 里的这句话：<strong>"The first 80% is on-distribution, the easy part. Your entire value is the last 20%."</strong> 这不只是对 AI Agent 的要求，也是对所有做 Code Review 的人的提醒。</p>
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/AI/" rel="tag"><i class="fa fa-tag"></i> AI</a>
+          <a href="/tags/Claude/" rel="tag"><i class="fa fa-tag"></i> Claude</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+
+        <span class="post-nav-divider"></span>
+
+        <div class="post-nav-prev post-nav-item">
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#基本信息"><span class="nav-number">1.</span> <span class="nav-text">基本信息</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#验证专家-Agent"><span class="nav-number">2.</span> <span class="nav-text">验证专家 Agent</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#流式输出与自动降级"><span class="nav-number">3.</span> <span class="nav-text">流式输出与自动降级</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Prompt-缓存的实现细节"><span class="nav-number">4.</span> <span class="nav-text">Prompt 缓存的实现细节</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#工具的懒加载机制"><span class="nav-number">5.</span> <span class="nav-text">工具的懒加载机制</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Chrome-原生宿主桥接"><span class="nav-number">6.</span> <span class="nav-text">Chrome 原生宿主桥接</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Token-预算与-Thinking-模式"><span class="nav-number">7.</span> <span class="nav-text">Token 预算与 Thinking 模式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#架构观察"><span class="nav-number">8.</span> <span class="nav-text">架构观察</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">9.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">154</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">43</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+
+
+
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+
+<div class="copyright">
+
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+
+  <script src="/js/local-search.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/04/03/Claude-Code源码解析/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
