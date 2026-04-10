@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="从零实现一个 RPC 框架：网络通信、序列化协议、动态代理、服务注册与发现、负载均衡、超时重试，逐层拆解 RPC 的核心设计。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从零实现一个 RPC 框架">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/03/手写RPC框架/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="从零实现一个 RPC 框架：网络通信、序列化协议、动态代理、服务注册与发现、负载均衡、超时重试，逐层拆解 RPC 的核心设计。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-03T20:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-03T20:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="分布式">
+<meta property="article:tag" content="RPC">
+<meta property="article:tag" content="网络编程">
+<meta property="article:tag" content="Java">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/03/手写RPC框架/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>从零实现一个 RPC 框架 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-03T20:00:00+08:00" content="2026-04-03">
+      04-03
+    </time>
+  </div>
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      从零实现一个 RPC 框架
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>RPC（Remote Procedure Call，远程过程调用）让调用远程服务像调用本地方法一样透明。gRPC、Dubbo、Thrift 这些框架背后的核心机制并不神秘，本文从零拆解一个 RPC 框架的完整实现路径。</p>
+
+<h2 id="RPC-的本质">RPC 的本质</h2>
+<p>一次 RPC 调用在网络上经历了什么：</p>
+<pre><code class="language-text">调用方（Client）                          服务方（Server）
+    │                                          │
+    │  1. 调用本地 Stub 方法                    │
+    │  2. Stub 将方法名+参数序列化为字节流       │
+    │  3. 通过网络发送请求 ──────────────────▶  │
+    │                                          │  4. 反序列化，找到对应方法
+    │                                          │  5. 执行本地实现
+    │                                          │  6. 序列化返回值
+    │  9. 反序列化，返回结果给调用方  ◀──────────│  7. 通过网络发送响应
+    │                                          │
+</code></pre>
+<p>一个完整的 RPC 框架需要解决五个问题：</p>
+<ol>
+<li><strong>网络通信</strong>：如何建立连接、传输数据</li>
+<li><strong>协议设计</strong>：如何定义请求/响应的格式</li>
+<li><strong>序列化</strong>：如何将对象转换为字节流</li>
+<li><strong>动态代理</strong>：如何让调用方感知不到网络的存在</li>
+<li><strong>服务注册与发现</strong>：如何找到服务在哪台机器上</li>
+</ol>
+
+<h2 id="第一步：定义协议">第一步：定义协议</h2>
+<p>协议是 RPC 框架的基础。需要定义请求和响应的数据格式，以及如何在字节流中区分消息边界（解决 TCP 粘包问题）。</p>
+
+<h3 id="消息格式">消息格式</h3>
+<pre><code class="language-text">┌─────────────────────────────────────────────────────┐
+│  Magic (4B) │ Version (1B) │ MsgType (1B) │ Seq (8B) │
+├─────────────────────────────────────────────────────┤
+│              Body Length (4B)                        │
+├─────────────────────────────────────────────────────┤
+│              Body (variable)                         │
+└─────────────────────────────────────────────────────┘
+</code></pre>
+<ul>
+<li><strong>Magic</strong>：魔数，用于快速识别是否是本协议的数据包，例如 <code>0xCAFEBABE</code></li>
+<li><strong>Version</strong>：协议版本，支持后续升级</li>
+<li><strong>MsgType</strong>：消息类型，区分请求（0x01）和响应（0x02）</li>
+<li><strong>Seq</strong>：请求序列号，用于将响应与请求对应（异步调用时关键）</li>
+<li><strong>Body Length</strong>：消息体长度，解决 TCP 粘包</li>
+</ul>
+<pre><code class="language-java">public class RpcProtocol {
+    public static final int MAGIC = 0xCAFEBABE;
+    public static final int HEADER_LENGTH = 18; // 4+1+1+8+4
+
+    // 请求消息体
+    public static class Request {
+        private String serviceInterface; // 接口全限定名
+        private String methodName;
+        private Class&lt;?&gt;[] paramTypes;
+        private Object[] params;
+        private String version;          // 接口版本，支持多版本共存
+    }
+
+    // 响应消息体
+    public static class Response {
+        private Object result;
+        private String errorMsg;         // 非 null 表示调用出错
+        private int code;                // 200 成功，其他失败
+    }
+}
+</code></pre>
+
+<h3 id="编解码器">编解码器</h3>
+<p>基于 Netty 实现 LengthFieldBasedFrame 解码，处理 TCP 粘包：</p>
+<pre><code class="language-java">// 解码：读 Header，再按 Body Length 读 Body
+public class RpcDecoder extends ByteToMessageDecoder {
+    @Override
+    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List&lt;Object&gt; out) {
+        if (in.readableBytes() &lt; RpcProtocol.HEADER_LENGTH) return;
+
+        in.markReaderIndex();
+        int magic = in.readInt();
+        if (magic != RpcProtocol.MAGIC) {
+            ctx.close();
+            return;
+        }
+        byte version = in.readByte();
+        byte msgType = in.readByte();
+        long seq = in.readLong();
+        int bodyLen = in.readInt();
+
+        if (in.readableBytes() &lt; bodyLen) {
+            in.resetReaderIndex(); // 数据不够，等下次
+            return;
+        }
+        byte[] body = new byte[bodyLen];
+        in.readBytes(body);
+        out.add(new RpcMessage(msgType, seq, body));
+    }
+}
+</code></pre>
+
+<h2 id="第二步：序列化">第二步：序列化</h2>
+<p>序列化将对象转换为字节流用于网络传输。常见方案的对比：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>性能</th>
+<th>体积</th>
+<th>跨语言</th>
+<th>可读性</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JDK 原生</td>
+<td>慢</td>
+<td>大</td>
+<td>否</td>
+<td>否</td>
+</tr>
+<tr>
+<td>JSON (Jackson)</td>
+<td>中</td>
+<td>中</td>
+<td>是</td>
+<td>是</td>
+</tr>
+<tr>
+<td>Hessian2</td>
+<td>中</td>
+<td>小</td>
+<td>部分</td>
+<td>否</td>
+</tr>
+<tr>
+<td>Protobuf</td>
+<td>快</td>
+<td>最小</td>
+<td>是</td>
+<td>否</td>
+</tr>
+<tr>
+<td>Kryo</td>
+<td>最快</td>
+<td>小</td>
+<td>否</td>
+<td>否</td>
+</tr>
+</tbody>
+</table>
+<p>设计一个可扩展的序列化接口，允许在运行时切换：</p>
+<pre><code class="language-java">public interface Serializer {
+    byte[] serialize(Object obj);
+    &lt;T&gt; T deserialize(byte[] bytes, Class&lt;T&gt; clazz);
+}
+
+// 用 SPI 机制加载，协议头里带一个 serializerType 字段标识用哪种
+public class SerializerFactory {
+    private static final Map&lt;Byte, Serializer&gt; SERIALIZERS = new HashMap&lt;&gt;();
+    static {
+        SERIALIZERS.put((byte) 0x01, new JsonSerializer());
+        SERIALIZERS.put((byte) 0x02, new KryoSerializer());
+        SERIALIZERS.put((byte) 0x03, new ProtobufSerializer());
+    }
+    public static Serializer get(byte type) {
+        return SERIALIZERS.getOrDefault(type, new JsonSerializer());
+    }
+}
+</code></pre>
+<p>Kryo 不是线程安全的，需要用 ThreadLocal 或对象池：</p>
+<pre><code class="language-java">public class KryoSerializer implements Serializer {
+    private static final ThreadLocal&lt;Kryo&gt; KRYO_LOCAL = ThreadLocal.withInitial(() -&gt; {
+        Kryo kryo = new Kryo();
+        kryo.setRegistrationRequired(false); // 无需预注册类
+        return kryo;
+    });
+
+    @Override
+    public byte[] serialize(Object obj) {
+        Output output = new Output(1024, -1);
+        KRYO_LOCAL.get().writeClassAndObject(output, obj);
+        return output.toBytes();
+    }
+
+    @Override
+    public &lt;T&gt; T deserialize(byte[] bytes, Class&lt;T&gt; clazz) {
+        Input input = new Input(bytes);
+        return clazz.cast(KRYO_LOCAL.get().readClassAndObject(input));
+    }
+}
+</code></pre>
+
+<h2 id="第三步：网络通信">第三步：网络通信</h2>
+<p>生产级 RPC 框架都基于 Netty 的 NIO 实现异步非阻塞通信。</p>
+
+<h3 id="Server-端">Server 端</h3>
+<pre><code class="language-java">public class RpcServer {
+    private final int port;
+    private final ServiceRegistry registry;
+
+    public void start() throws InterruptedException {
+        EventLoopGroup boss = new NioEventLoopGroup(1);
+        EventLoopGroup worker = new NioEventLoopGroup();
+        try {
+            ServerBootstrap b = new ServerBootstrap()
+                .group(boss, worker)
+                .channel(NioServerSocketChannel.class)
+                .option(ChannelOption.SO_BACKLOG, 1024)
+                .childOption(ChannelOption.TCP_NODELAY, true)  // 禁用 Nagle，降低延迟
+                .childOption(ChannelOption.SO_KEEPALIVE, true)
+                .childHandler(new ChannelInitializer&lt;SocketChannel&gt;() {
+                    @Override
+                    protected void initChannel(SocketChannel ch) {
+                        ch.pipeline()
+                            .addLast(new IdleStateHandler(60, 0, 0)) // 心跳检测
+                            .addLast(new RpcDecoder())
+                            .addLast(new RpcEncoder())
+                            .addLast(new RpcServerHandler(registry)); // 业务处理
+                    }
+                });
+            b.bind(port).sync().channel().closeFuture().sync();
+        } finally {
+            boss.shutdownGracefully();
+            worker.shutdownGracefully();
+        }
+    }
+}
+</code></pre>
+
+<h3 id="Server-Handler：反射调用本地方法">Server Handler：反射调用本地方法</h3>
+<pre><code class="language-java">public class RpcServerHandler extends SimpleChannelInboundHandler&lt;RpcMessage&gt; {
+    private final ServiceRegistry registry;
+    // 业务线程池，不阻塞 IO 线程
+    private final ExecutorService executor = new ThreadPoolExecutor(
+        16, 200, 60, TimeUnit.SECONDS, new LinkedBlockingQueue&lt;&gt;(1000));
+
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, RpcMessage msg) {
+        executor.submit(() -&gt; {
+            RpcProtocol.Response response = new RpcProtocol.Response();
+            try {
+                RpcProtocol.Request request = deserialize(msg.getBody());
+                // 从注册中心找到实现类
+                Object service = registry.getService(
+                    request.getServiceInterface(), request.getVersion());
+                // 反射调用
+                Method method = service.getClass().getMethod(
+                    request.getMethodName(), request.getParamTypes());
+                Object result = method.invoke(service, request.getParams());
+                response.setResult(result);
+                response.setCode(200);
+            } catch (Exception e) {
+                response.setCode(500);
+                response.setErrorMsg(e.getMessage());
+            }
+            ctx.writeAndFlush(buildResponse(msg.getSeq(), response));
+        });
+    }
+}
+</code></pre>
+
+<h2 id="第四步：动态代理">第四步：动态代理</h2>
+<p>这是 RPC 的"魔法"所在——让调用方感知不到网络的存在。</p>
+<pre><code class="language-java">public class RpcClientProxy implements InvocationHandler {
+    private final String host;
+    private final int port;
+    private final RpcClient client; // 管理连接池
+
+    @SuppressWarnings("unchecked")
+    public &lt;T&gt; T getProxy(Class&lt;T&gt; serviceInterface) {
+        return (T) Proxy.newProxyInstance(
+            serviceInterface.getClassLoader(),
+            new Class&lt;?&gt;[]{serviceInterface},
+            this
+        );
+    }
+
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        // 构造 RPC 请求
+        RpcProtocol.Request request = new RpcProtocol.Request();
+        request.setServiceInterface(method.getDeclaringClass().getName());
+        request.setMethodName(method.getName());
+        request.setParamTypes(method.getParameterTypes());
+        request.setParams(args);
+
+        // 发送请求，等待响应（同步调用）
+        RpcProtocol.Response response = client.sendRequest(request);
+
+        if (response.getCode() != 200) {
+            throw new RpcException(response.getErrorMsg());
+        }
+        return response.getResult();
+    }
+}
+
+// 使用方：和调用本地方法完全一样
+UserService userService = proxy.getProxy(UserService.class);
+User user = userService.getById(123); // 实际走网络
+</code></pre>
+
+<h3 id="异步调用与-Future">异步调用与 Future</h3>
+<p>同步调用会阻塞调用线程。生产框架通常提供异步接口：</p>
+<pre><code class="language-java">// 使用 CompletableFuture 实现异步
+public CompletableFuture&lt;Object&gt; sendAsync(RpcProtocol.Request request) {
+    long seq = SEQ_GENERATOR.incrementAndGet();
+    CompletableFuture&lt;Object&gt; future = new CompletableFuture&lt;&gt;();
+    // 存入等待 Map，响应到来时通过 seq 找到对应 Future
+    PENDING_FUTURES.put(seq, future);
+
+    // 发送请求（不等待）
+    channel.writeAndFlush(buildRequest(seq, request));
+
+    // 设置超时
+    future.orTimeout(3, TimeUnit.SECONDS)
+          .exceptionally(e -&gt; { PENDING_FUTURES.remove(seq); return null; });
+    return future;
+}
+
+// 响应到来时
+public void onResponse(long seq, RpcProtocol.Response response) {
+    CompletableFuture&lt;Object&gt; future = PENDING_FUTURES.remove(seq);
+    if (future != null) {
+        if (response.getCode() == 200) {
+            future.complete(response.getResult());
+        } else {
+            future.completeExceptionally(new RpcException(response.getErrorMsg()));
+        }
+    }
+}
+</code></pre>
+
+<h2 id="第五步：服务注册与发现">第五步：服务注册与发现</h2>
+<p>硬编码 IP 地址不可扩展。需要一个注册中心让服务提供方和消费方解耦。</p>
+
+<h3 id="基于-ZooKeeper-的注册中心">基于 ZooKeeper 的注册中心</h3>
+<pre><code class="language-text">ZooKeeper 节点结构：
+
+/rpc
+  /com.example.UserService          ← 接口名
+    /providers                      ← 服务提供方列表
+      /192.168.1.10:8080            ← 临时节点（Provider 下线自动删除）
+      /192.168.1.11:8080
+    /consumers                      ← 服务消费方列表（可选）
+      /192.168.2.1
+</code></pre>
+<pre><code class="language-java">public class ZkServiceRegistry implements ServiceRegistry {
+    private final CuratorFramework client;
+
+    // Provider 启动时注册（临时节点，断开连接自动删除）
+    @Override
+    public void register(String serviceName, String address) throws Exception {
+        String path = "/rpc/" + serviceName + "/providers/" + address;
+        client.create()
+              .creatingParentsIfNeeded()
+              .withMode(CreateMode.EPHEMERAL)  // 临时节点
+              .forPath(path);
+    }
+
+    // Consumer 发现服务，并监听变更
+    @Override
+    public List&lt;String&gt; discover(String serviceName) throws Exception {
+        String path = "/rpc/" + serviceName + "/providers";
+        List&lt;String&gt; addresses = client.getChildren().forPath(path);
+
+        // 监听节点变化，缓存更新
+        client.getChildren().usingWatcher((CuratorWatcher) event -&gt; {
+            serviceCache.put(serviceName, client.getChildren().forPath(path));
+        }).forPath(path);
+
+        return addresses;
+    }
+}
+</code></pre>
+
+<h2 id="第六步：负载均衡">第六步：负载均衡</h2>
+<p>当同一服务有多个实例时，需要选择一个发送请求。</p>
+<pre><code class="language-java">public interface LoadBalancer {
+    String select(List&lt;String&gt; addresses, RpcProtocol.Request request);
+}
+
+// 随机
+public class RandomLoadBalancer implements LoadBalancer {
+    private final Random random = new Random();
+    @Override
+    public String select(List&lt;String&gt; addresses, RpcProtocol.Request request) {
+        return addresses.get(random.nextInt(addresses.size()));
+    }
+}
+
+// 轮询
+public class RoundRobinLoadBalancer implements LoadBalancer {
+    private final AtomicInteger counter = new AtomicInteger(0);
+    @Override
+    public String select(List&lt;String&gt; addresses, RpcProtocol.Request request) {
+        return addresses.get(counter.getAndIncrement() % addresses.size());
+    }
+}
+
+// 一致性哈希（相同参数总路由到同一节点，适合有状态服务）
+public class ConsistentHashLoadBalancer implements LoadBalancer {
+    private final TreeMap&lt;Integer, String&gt; ring = new TreeMap&lt;&gt;();
+    // 每个节点在哈希环上放 150 个虚拟节点，避免数据倾斜
+    private static final int VIRTUAL_NODES = 150;
+
+    public void addNode(String address) {
+        for (int i = 0; i &lt; VIRTUAL_NODES; i++) {
+            ring.put(hash(address + "#" + i), address);
+        }
+    }
+
+    @Override
+    public String select(List&lt;String&gt; addresses, RpcProtocol.Request request) {
+        // 以第一个参数的哈希值作为路由 key
+        int key = hash(String.valueOf(request.getParams()[0]));
+        Map.Entry&lt;Integer, String&gt; entry = ring.ceilingEntry(key);
+        return entry != null ? entry.getValue() : ring.firstEntry().getValue();
+    }
+}
+</code></pre>
+
+<h2 id="第七步：超时与重试">第七步：超时与重试</h2>
+<p>网络是不可靠的，必须处理超时和失败。</p>
+<pre><code class="language-java">public Object invokeWithRetry(RpcProtocol.Request request, int maxRetry, long timeoutMs) {
+    int attempt = 0;
+    Exception lastException = null;
+
+    while (attempt &lt; maxRetry) {
+        try {
+            // 每次重试可以换一个节点（failover）
+            String address = loadBalancer.select(discover(request.getServiceInterface()), request);
+            CompletableFuture&lt;Object&gt; future = getClient(address).sendAsync(request);
+            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            lastException = e;
+            attempt++;
+            // 注意：只有幂等操作（查询、有唯一键保护的写）才能重试
+        } catch (Exception e) {
+            throw new RpcException("RPC call failed", e);
+        }
+    }
+    throw new RpcException("RPC call failed after " + maxRetry + " retries", lastException);
+}
+</code></pre>
+<p>重试有一个重要约束：<strong>只有幂等操作才能重试</strong>。非幂等写操作（如扣减库存）重试可能导致重复执行。可以通过在接口上加注解声明幂等性：</p>
+<pre><code class="language-java">@Idempotent  // 框架识别此注解，允许重试
+User getById(long id);
+
+@NonIdempotent  // 禁止重试
+boolean deductStock(long itemId, int quantity);
+</code></pre>
+
+<h2 id="连接管理">连接管理</h2>
+<p>每次调用都建立新 TCP 连接代价极高，需要连接池。</p>
+<pre><code class="language-java">public class ConnectionPool {
+    // 每个地址维护一个连接池
+    private final Map&lt;String, ArrayBlockingQueue&lt;Channel&gt;&gt; pools = new ConcurrentHashMap&lt;&gt;();
+    private static final int POOL_SIZE = 10;
+
+    public Channel acquire(String address) throws InterruptedException {
+        ArrayBlockingQueue&lt;Channel&gt; pool = pools.computeIfAbsent(
+            address, k -&gt; createPool(k, POOL_SIZE));
+
+        Channel ch = pool.poll(100, TimeUnit.MILLISECONDS);
+        if (ch == null || !ch.isActive()) {
+            ch = createChannel(address); // 池里没有可用连接，新建
+        }
+        return ch;
+    }
+
+    public void release(String address, Channel ch) {
+        if (ch.isActive()) {
+            pools.get(address).offer(ch); // 归还到池
+        } else {
+            ch.close(); // 连接已断，直接关闭
+        }
+    }
+}
+</code></pre>
+
+<h2 id="心跳保活">心跳保活</h2>
+<p>长连接需要心跳防止被防火墙或 NAT 断开：</p>
+<pre><code class="language-java">// Client 端：定期发送心跳
+public class HeartbeatHandler extends ChannelInboundHandlerAdapter {
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+        if (evt instanceof IdleStateEvent) {
+            IdleStateEvent e = (IdleStateEvent) evt;
+            if (e.state() == IdleState.WRITER_IDLE) {
+                // 超过 30 秒没发数据，发送心跳包
+                ctx.writeAndFlush(HEARTBEAT_REQUEST);
+            } else if (e.state() == IdleState.ALL_IDLE) {
+                // 超过 60 秒没有任何交互，关闭连接
+                ctx.close();
+            }
+        }
+    }
+}
+</code></pre>
+
+<h2 id="整体架构">整体架构</h2>
+<p>把以上模块组合起来，一个完整 RPC 框架的架构如下：</p>
+<pre><code class="language-text">┌─────────────────────────────────────────────────────────────┐
+│                        Consumer                              │
+│  UserService userService = proxy.getProxy(UserService.class) │
+│  userService.getById(123)  ← 透明调用                        │
+│         │                                                    │
+│  ┌──────▼──────────────────────────────────────────────┐    │
+│  │              Dynamic Proxy (JDK/Cglib)               │    │
+│  │  序列化请求 → 服务发现 → 负载均衡 → 发送 → 等待响应   │    │
+│  └──────────────────────────────────────────────────────┘    │
+│         │                                                    │
+│  ┌──────▼──────────────────────────────────────────────┐    │
+│  │       Connection Pool + Netty Client                 │    │
+│  └──────────────────────────────────────────────────────┘    │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ TCP
+┌───────────────────────────▼─────────────────────────────────┐
+│                        Provider                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │       Netty Server (Boss + Worker EventLoopGroup)     │   │
+│  └──────────────────────────────────────────────────────┘   │
+│         │                                                    │
+│  ┌──────▼──────────────────────────────────────────────┐    │
+│  │  RpcServerHandler → 业务线程池 → 反射调用 → 序列化响应 │    │
+│  └──────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+              ▲                          ▲
+              │ 注册                      │ 发现
+┌─────────────┴──────────────────────────┴──────────────────┐
+│                    ZooKeeper / Etcd / Nacos                 │
+│         /rpc/com.example.UserService/providers/...         │
+└────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h2 id="与-gRPC-的对比">与 gRPC 的对比</h2>
+<p>手写框架和 gRPC 的核心差异：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>手写框架</th>
+<th>gRPC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>传输协议</td>
+<td>TCP + 自定义协议</td>
+<td>HTTP/2</td>
+</tr>
+<tr>
+<td>序列化</td>
+<td>可插拔（JSON/Kryo/Protobuf）</td>
+<td>Protobuf（IDL 强约束）</td>
+</tr>
+<tr>
+<td>流式调用</td>
+<td>需要自行实现</td>
+<td>原生支持（双向流）</td>
+</tr>
+<tr>
+<td>跨语言</td>
+<td>较复杂</td>
+<td>天然支持（IDL 生成多语言代码）</td>
+</tr>
+<tr>
+<td>服务发现</td>
+<td>需集成注册中心</td>
+<td>需集成注册中心</td>
+</tr>
+<tr>
+<td>接口定义</td>
+<td>Java 接口</td>
+<td>.proto 文件</td>
+</tr>
+</tbody>
+</table>
+<p>HTTP/2 的多路复用让 gRPC 天然解决了 Head-of-Line Blocking 问题，这是自定义 TCP 协议需要额外处理的。</p>
+
+<h2 id="总结">总结</h2>
+<p>一个 RPC 框架的核心复杂度集中在几个地方：</p>
+<ul>
+<li><strong>协议设计</strong>决定了扩展性和兼容性，魔数 + 版本号 + 长度字段是最小必要集</li>
+<li><strong>动态代理</strong>是透明调用的关键，JDK Proxy 只能代理接口，Cglib 可以代理类</li>
+<li><strong>异步化</strong>是性能的核心，seq + CompletableFuture 的组合是标准做法</li>
+<li><strong>连接池 + 心跳</strong>是生产可用的必要条件，裸连接在高并发下会成为瓶颈</li>
+<li><strong>幂等性判断</strong>是重试安全的前提，不能无脑重试所有失败</li>
+</ul>
+<p>理解了这些，再去读 Dubbo 或 gRPC 的源码，会发现它们不过是在这个骨架上做了更多的工程化打磨。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/分布式/" rel="tag"><i class="fa fa-tag"></i> 分布式</a>
+          <a href="/tags/RPC/" rel="tag"><i class="fa fa-tag"></i> RPC</a>
+          <a href="/tags/网络编程/" rel="tag"><i class="fa fa-tag"></i> 网络编程</a>
+          <a href="/tags/Java/" rel="tag"><i class="fa fa-tag"></i> Java</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#RPC-的本质"><span class="nav-number">1.</span> <span class="nav-text">RPC 的本质</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第一步：定义协议"><span class="nav-number">2.</span> <span class="nav-text">第一步：定义协议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#消息格式"><span class="nav-number">2.1.</span> <span class="nav-text">消息格式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#编解码器"><span class="nav-number">2.2.</span> <span class="nav-text">编解码器</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第二步：序列化"><span class="nav-number">3.</span> <span class="nav-text">第二步：序列化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第三步：网络通信"><span class="nav-number">4.</span> <span class="nav-text">第三步：网络通信</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Server-端"><span class="nav-number">4.1.</span> <span class="nav-text">Server 端</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Server-Handler：反射调用本地方法"><span class="nav-number">4.2.</span> <span class="nav-text">Server Handler：反射调用本地方法</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第四步：动态代理"><span class="nav-number">5.</span> <span class="nav-text">第四步：动态代理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#异步调用与-Future"><span class="nav-number">5.1.</span> <span class="nav-text">异步调用与 Future</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第五步：服务注册与发现"><span class="nav-number">6.</span> <span class="nav-text">第五步：服务注册与发现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#基于-ZooKeeper-的注册中心"><span class="nav-number">6.1.</span> <span class="nav-text">基于 ZooKeeper 的注册中心</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第六步：负载均衡"><span class="nav-number">7.</span> <span class="nav-text">第六步：负载均衡</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第七步：超时与重试"><span class="nav-number">8.</span> <span class="nav-text">第七步：超时与重试</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#连接管理"><span class="nav-number">9.</span> <span class="nav-text">连接管理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#心跳保活"><span class="nav-number">10.</span> <span class="nav-text">心跳保活</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构"><span class="nav-number">11.</span> <span class="nav-text">整体架构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#与-gRPC-的对比"><span class="nav-number">12.</span> <span class="nav-text">与 gRPC 的对比</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">13.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">156</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">48</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+
+<div class="copyright">
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000,
+        priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/04/03/手写RPC框架/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
