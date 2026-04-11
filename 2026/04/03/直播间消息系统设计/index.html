@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="直播间消息系统的核心挑战：百万并发下的实时推送、消息风控与限流、礼物特效的可靠投递、弹幕去重与顺序保证。从架构到细节逐层拆解。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="直播间消息系统设计">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/03/直播间消息系统设计/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="直播间消息系统的核心挑战：百万并发下的实时推送、消息风控与限流、礼物特效的可靠投递、弹幕去重与顺序保证。从架构到细节逐层拆解。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-03T22:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-03T22:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="系统设计">
+<meta property="article:tag" content="直播">
+<meta property="article:tag" content="消息系统">
+<meta property="article:tag" content="高并发">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/03/直播间消息系统设计/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>直播间消息系统设计 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-03T22:00:00+08:00" content="2026-04-03">
+      04-03
+    </time>
+  </div>
+  </div>
+
+  <h1 class="post-title" itemprop="name headline">
+      直播间消息系统设计
+  </h1>
+
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>直播间的消息系统看起来和普通 IM 差不多——用户发消息，其他人收到。但直播场景有几个极端特性让它成为一个独立的工程问题：单个房间可能同时有百万人在线、消息量在几秒内可以从零飙到每秒数万条、不同类型的消息对可靠性的要求截然不同。</p>
+<p>本文拆解直播间消息系统的核心设计思路。</p>
+
+<h2 id="消息分类：先想清楚要解决什么问题">消息分类：先想清楚要解决什么问题</h2>
+
+<p>直播间里的消息不是一种东西。把它们混在一起处理是很多早期系统的错误。</p>
+
+<table>
+<thead>
+<tr>
+<th>消息类型</th>
+<th>典型量级</th>
+<th>可靠性要求</th>
+<th>延迟要求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>弹幕（普通聊天）</td>
+<td>万条/秒</td>
+<td>低（丢几条无所谓）</td>
+<td>1~3 秒</td>
+</tr>
+<tr>
+<td>礼物</td>
+<td>百条/秒</td>
+<td>高（涉及钱，不能丢）</td>
+<td>500ms 内</td>
+</tr>
+<tr>
+<td>系统通知（进场、关注）</td>
+<td>千条/秒</td>
+<td>中（丢少量可接受）</td>
+<td>2 秒内</td>
+</tr>
+<tr>
+<td>主播控制（禁言、踢人）</td>
+<td>极低</td>
+<td>极高（必须送达）</td>
+<td>500ms 内</td>
+</tr>
+<tr>
+<td>点赞/互动计数</td>
+<td>百万次/秒</td>
+<td>极低（聚合展示）</td>
+<td>3~5 秒</td>
+</tr>
+</tbody>
+</table>
+
+<p>弹幕量最大但可以丢；礼物量小但不能丢；点赞量巨大但只需要展示聚合数字。<strong>用同一套管道处理这五类消息，要么礼物丢失，要么弹幕把系统打爆</strong>。正确的做法是按可靠性和优先级分离处理链路。</p>
+
+<h2 id="连接层：长连接的管理">连接层：长连接的管理</h2>
+
+<p>消息推送需要服务端主动向客户端推数据，这要求长连接。主流方案有三种：</p>
+
+<ul>
+<li><strong>WebSocket</strong>：双向全双工，浏览器原生支持，是 Web 端的标准选择</li>
+<li><strong>TCP 自定义协议</strong>：App 端常用，可以做更精细的心跳和重连控制</li>
+<li><strong>HTTP 长轮询</strong>：兜底方案，在 WebSocket 不可用时降级</li>
+</ul>
+
+<p>百万并发的核心挑战是<strong>连接数</strong>。一台普通服务器能维持的 TCP 连接数取决于文件描述符限制（默认 65535，可调到百万级）和内存（每个连接约 10~50KB 内存）。单机维持 10 万连接是常见配置，百万并发需要约 10 台接入服务器。</p>
+
+<p>接入层（Gateway）只负责维持连接，不处理业务逻辑：</p>
+
+<pre><code class="language-text">Client ──WebSocket──▶ Gateway（接入层，维持连接）
+                           │
+                           │ 内部 RPC/MQ
+                           ▼
+                      Router（路由层，知道谁在哪台 Gateway）
+                           │
+                      Message Service（消息处理）
+</code></pre>
+
+<p>Gateway 是无状态的（除了连接本身），可以水平扩展。连接信息（用户 ID → Gateway 地址）存在 Redis 里，消息服务通过查 Redis 找到目标用户在哪台 Gateway，再通过内部通道推送。</p>
+
+<h2 id="弹幕：限流是核心，不是优化">弹幕：限流是核心，不是优化</h2>
+
+<p>一个百万人的直播间，假设 1% 的用户每 10 秒发一条弹幕，就是每秒 1000 条。热门直播可以轻松达到每秒数万条。这个量直接推给所有在线用户是不可能的——客户端渲染不过来，网络也撑不住。</p>
+
+<p>弹幕系统的核心不是"怎么可靠地投递"，而是"怎么合理地丢弃"。</p>
+
+<h3 id="发送端限流">发送端限流</h3>
+
+<p>每个用户的发送频率限制（如每 2 秒最多 1 条），用 Redis 的滑动窗口或令牌桶实现：</p>
+
+<pre><code class="language-lua">-- Redis Lua 脚本，滑动窗口限流
+local key = "rate:" .. user_id
+local now = tonumber(ARGV[1])
+local window = 2000  -- 2 秒窗口
+local limit = 1      -- 最多 1 条
+
+redis.call("ZREMRANGEBYSCORE", key, 0, now - window)
+local count = redis.call("ZCARD", key)
+if count &lt; limit then
+    redis.call("ZADD", key, now, now)
+    redis.call("EXPIRE", key, 10)
+    return 1  -- 允许
+else
+    return 0  -- 拒绝
+end
+</code></pre>
+
+<h3 id="服务端采样">服务端采样</h3>
+
+<p>即使通过了发送端限流，服务端收到的消息量仍然可能很大。对于普通弹幕，服务端按比例采样后再广播：</p>
+
+<ul>
+<li>正常情况：全量推送</li>
+<li>消息量超过阈值（如每秒 500 条）：随机采样 50% 推送</li>
+<li>消息量极高（如每秒 2000 条）：采样 20%，优先保留高等级用户（VIP、粉丝团）的消息</li>
+</ul>
+
+<p>采样策略对用户来说几乎无感——弹幕本来就是刷过去的，少几条没人注意。</p>
+
+<h3 id="客户端渲染限制">客户端渲染限制</h3>
+
+<p>客户端维护一个弹幕队列，超出渲染能力（如每秒 50 条）的消息直接丢弃，不展示。这是最后一道防线，防止客户端因弹幕过密卡顿。</p>
+
+<h2 id="礼物：可靠投递的两个问题">礼物：可靠投递的两个问题</h2>
+
+<p>礼物消息涉及虚拟货币扣减，不能丢，也不能重复。这是两个独立的问题。</p>
+
+<h3 id="不能丢：消息队列保障">不能丢：消息队列保障</h3>
+
+<p>礼物流程：</p>
+
+<pre><code class="language-text">用户点击送礼
+    │
+    ▼
+礼物服务（扣减虚拟货币，写 DB，发 MQ）
+    │
+    ▼
+MQ（Kafka，持久化）
+    │
+    ▼
+消息推送服务（消费 MQ，推给直播间所有用户）
+    │
+    ▼
+主播端展示礼物特效
+</code></pre>
+
+<p>礼物写入 DB 和发 MQ 要在同一个事务里，或者用事务消息（先写 DB，再发确认消息到 MQ）。消息推送服务消费 MQ 时，如果推送失败，MQ 会重试，直到推送成功。</p>
+
+<h3 id="不能重复：幂等设计">不能重复：幂等设计</h3>
+
+<p>MQ 重试可能导致同一条礼物消息被消费多次，推送多次礼物特效。解决方案是为每条礼物消息生成唯一 ID（gift_id），推送服务用 Redis 记录已推送的 gift_id：</p>
+
+<pre><code class="language-python">def handle_gift_message(gift_id, room_id, gift_data):
+    key = f"gift:sent:{gift_id}"
+    # SET NX：只有 key 不存在时才设置，原子操作
+    if redis.set(key, 1, nx=True, ex=300):
+        # 第一次处理，推送特效
+        push_to_room(room_id, gift_data)
+    else:
+        # 已推送过，忽略重复消息
+        pass
+</code></pre>
+
+<h2 id="房间广播：扇出问题">房间广播：扇出问题</h2>
+
+<p>直播间消息需要广播给房间内所有用户，这是一个典型的扇出（Fan-out）场景。百万人的房间，一条消息要推送给 100 万个连接，这个扇出放大比是系统设计的核心挑战。</p>
+
+<h3 id="服务端广播的瓶颈">服务端广播的瓶颈</h3>
+
+<p>如果消息服务直接给每个用户推送，100 万用户 × 每秒 100 条消息 = 每秒 1 亿次推送操作。这显然不现实。</p>
+
+<p>实际架构是分层广播：</p>
+
+<pre><code class="language-text">消息服务
+    │  广播到所有 Gateway（约 10 台）
+    ▼
+Gateway 1  Gateway 2  ...  Gateway 10
+    │           │                │
+    │ 各自推送给  │                │
+    ▼ 本机连接的  ▼                ▼
+用户 1~10万  用户10~20万  ...  用户90~100万
+</code></pre>
+
+<p>消息服务只需要向 10 台 Gateway 发送，每台 Gateway 负责向自己维护的 10 万个连接推送。扇出被分散到了 Gateway 层。</p>
+
+<h3 id="热门房间的特殊处理">热门房间的特殊处理</h3>
+
+<p>超大直播间（百万级）还需要进一步优化：</p>
+
+<ul>
+<li><strong>消息合并</strong>：同一时间窗口（如 100ms）内的多条消息打包成一个包发送，减少推送次数</li>
+<li><strong>分级推送</strong>：活跃用户（最近有操作）优先推送，长时间无操作的用户降低推送频率</li>
+<li><strong>CDN 边缘推送</strong>：对于弹幕这类可以接受轻微延迟的消息，通过 CDN 边缘节点就近推送，减少回源压力</li>
+</ul>
+
+<h2 id="消息顺序与去重">消息顺序与去重</h2>
+
+<p>分布式系统里保证消息顺序是个经典难题。直播间的处理思路是：<strong>不强求全局顺序，只保证同一用户的消息有序，以及重要消息（礼物、系统通知）的相对顺序</strong>。</p>
+
+<h3 id="消息序号">消息序号</h3>
+
+<p>每个房间维护一个单调递增的序号（用 Redis INCR 生成），每条消息带上序号。客户端按序号排序展示，收到乱序消息时短暂缓冲后重排：</p>
+
+<pre><code class="language-python">class MessageBuffer:
+    def __init__(self):
+        self.buffer = {}       # seq -> message
+        self.next_seq = 1      # 期望的下一个序号
+        self.max_wait = 0.5    # 最多等待 500ms
+
+    def add(self, seq, message):
+        self.buffer[seq] = message
+        self._flush()
+
+    def _flush(self):
+        while self.next_seq in self.buffer:
+            yield self.buffer.pop(self.next_seq)
+            self.next_seq += 1
+
+        # 等待超时，跳过缺失的序号（允许少量消息丢失）
+        if self.buffer and min(self.buffer) > self.next_seq:
+            oldest_time = min(msg.timestamp for msg in self.buffer.values())
+            if time.now() - oldest_time > self.max_wait:
+                self.next_seq = min(self.buffer)
+</code></pre>
+
+<h3 id="断线重连的消息补全">断线重连的消息补全</h3>
+
+<p>用户断线重连后，需要补发断线期间的消息。弹幕不需要补全（太多了，补全没意义），但礼物和系统通知需要。</p>
+
+<p>做法：客户端重连时带上最后收到的消息序号，服务端从消息存储中查询该序号之后的重要消息（礼物、系统通知）补发。弹幕只补发最近 N 条（如 20 条），让用户感知到直播间是活跃的。</p>
+
+<h2 id="风控：不只是敏感词过滤">风控：不只是敏感词过滤</h2>
+
+<p>弹幕风控的难点在于实时性要求高（消息要在发出后 100ms 内完成审核），同时要对抗各种绕过手段。</p>
+
+<p><strong>第一层：本地过滤</strong>（客户端）</p>
+<p>基础敏感词在客户端本地过滤，减少无效请求到达服务端。但客户端过滤容易被绕过，只作为第一道防线。</p>
+
+<p><strong>第二层：服务端实时审核</strong></p>
+<p>消息到达服务端后，异步送入审核队列。审核通过的消息正常推送；审核不通过的消息发送方看到自己的消息，其他人看不到（俗称"影子封禁"，减少被封禁用户的对抗行为）。</p>
+
+<p><strong>第三层：用户行为特征</strong></p>
+<p>单纯的文本过滤容易被 Unicode 变体、谐音、图片等绕过。更有效的是行为特征：</p>
+<ul>
+<li>短时间内大量发送相同或相似消息（刷屏）</li>
+<li>账号注册时间短、无历史互动记录</li>
+<li>IP 或设备指纹与已知违规账号关联</li>
+</ul>
+<p>基于行为特征的风控可以在不看消息内容的情况下识别机器刷屏，误伤率更低。</p>
+
+<h2 id="点赞计数：高频写入的聚合">点赞计数：高频写入的聚合</h2>
+
+<p>点赞是直播间里频率最高的操作，一个热门直播间每秒可能有数十万次点赞。如果每次点赞都写 DB，数据库直接被打爆。</p>
+
+<p>标准做法是<strong>内存聚合 + 批量写入</strong>：</p>
+
+<pre><code class="language-text">用户点赞
+    │
+    ▼
+Redis INCR（room:likes:{room_id}）← 内存计数，极快
+    │
+    ▼  每 5 秒
+定时任务读取 Redis 计数，写入 DB（增量更新）
+    │
+    ▼
+DB 存储最终总计数
+</code></pre>
+
+<p>对客户端展示的点赞数，直接读 Redis，不查 DB。DB 只用于持久化，防止 Redis 重启后数据丢失。</p>
+
+<p>点赞数的展示不需要精确——显示"23.4万"比显示"234127"更好，聚合展示本身就允许一定误差。</p>
+
+<h2 id="整体架构">整体架构</h2>
+
+<pre><code class="language-text">                    ┌─────────────────────────────────────────┐
+                    │              客户端（App/Web）            │
+                    │  WebSocket 长连接 │ HTTP 短连接（送礼等）  │
+                    └────────┬─────────┴──────────────────────┘
+                             │
+              ┌──────────────▼──────────────┐
+              │         接入层 Gateway        │
+              │   维持长连接，无状态，可扩展   │
+              └──────────────┬──────────────┘
+                             │ 内部通道
+         ┌───────────────────┼───────────────────┐
+         │                   │                   │
+    ┌────▼────┐         ┌────▼────┐        ┌────▼────┐
+    │  弹幕服务 │         │  礼物服务 │        │ 通知服务  │
+    │ 限流采样  │         │  MQ保障  │        │ 控制指令  │
+    └────┬────┘         └────┬────┘        └────┬────┘
+         │                   │                   │
+    ┌────▼────────────────────▼───────────────────▼────┐
+    │                    消息路由层                      │
+    │   查 Redis 找目标用户所在 Gateway，分发消息         │
+    └───────────────────────────────────────────────────┘
+         │                   │
+    ┌────▼────┐         ┌────▼────┐
+    │  Redis   │         │  Kafka  │
+    │ 连接映射  │         │ 礼物队列 │
+    │ 计数聚合  │         │        │
+    └─────────┘         └─────────┘
+</code></pre>
+
+<h2 id="几个容易忽略的细节">几个容易忽略的细节</h2>
+
+<p><strong>心跳与连接保活</strong>：客户端每 30 秒发一次心跳包，服务端超过 60 秒没收到心跳则主动断开连接。这样可以及时清理僵尸连接，释放服务器资源。</p>
+
+<p><strong>连接数统计的延迟</strong>：直播间的在线人数不能实时精确统计（太贵），通常是每 10~30 秒采样一次，显示的是近似值。用户看到的"100万在线"可能是 30 秒前的数字。</p>
+
+<p><strong>主播端的优先级</strong>：主播自己发出的消息（如主播说话）应该有最高优先级，在限流和采样中豁免，确保主播的互动消息必然到达所有观众。</p>
+
+<p><strong>消息的 TTL</strong>：弹幕消息不需要永久存储。通常保留最近 N 条（如 200 条）用于新进入用户的初始化加载，历史弹幕不做长期存储。礼物消息需要持久化，用于账单和对账。</p>
+
+<p><strong>直播结束的清理</strong>：直播结束时，需要通知所有连接的客户端断开，清理 Redis 中的房间状态，取消所有定时任务。这个清理流程如果不做，会有大量僵尸数据积累。</p>
+
+<h2 id="总结">总结</h2>
+
+<p>直播间消息系统的核心设计原则可以归结为三点：</p>
+
+<ul>
+<li><strong>按消息类型分离处理链路</strong>：弹幕可以丢，礼物不能丢，混在一起处理两头都不好</li>
+<li><strong>扇出问题分层解决</strong>：消息服务 → Gateway 层 → 客户端，每层只承担自己的扇出规模</li>
+<li><strong>限流是功能，不是优化</strong>：弹幕系统设计的核心是合理丢弃，而不是尽力投递</li>
+</ul>
+
+<p>这套架构在抖音、B 站、虎牙等平台都有类似的实践。具体实现细节各家不同，但核心思路——消息分类、分层广播、礼物可靠投递、弹幕限流采样——是通用的。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+
+      <div class="post-tags">
+          <a href="/tags/系统设计/" rel="tag"><i class="fa fa-tag"></i> 系统设计</a>
+          <a href="/tags/直播/" rel="tag"><i class="fa fa-tag"></i> 直播</a>
+          <a href="/tags/消息系统/" rel="tag"><i class="fa fa-tag"></i> 消息系统</a>
+          <a href="/tags/高并发/" rel="tag"><i class="fa fa-tag"></i> 高并发</a>
+      </div>
+
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#消息分类：先想清楚要解决什么问题"><span class="nav-number">1.</span> <span class="nav-text">消息分类：先想清楚要解决什么问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#连接层：长连接的管理"><span class="nav-number">2.</span> <span class="nav-text">连接层：长连接的管理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#弹幕：限流是核心，不是优化"><span class="nav-number">3.</span> <span class="nav-text">弹幕：限流是核心，不是优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#发送端限流"><span class="nav-number">3.1.</span> <span class="nav-text">发送端限流</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#服务端采样"><span class="nav-number">3.2.</span> <span class="nav-text">服务端采样</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#客户端渲染限制"><span class="nav-number">3.3.</span> <span class="nav-text">客户端渲染限制</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#礼物：可靠投递的两个问题"><span class="nav-number">4.</span> <span class="nav-text">礼物：可靠投递的两个问题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#不能丢：消息队列保障"><span class="nav-number">4.1.</span> <span class="nav-text">不能丢：消息队列保障</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#不能重复：幂等设计"><span class="nav-number">4.2.</span> <span class="nav-text">不能重复：幂等设计</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#房间广播：扇出问题"><span class="nav-number">5.</span> <span class="nav-text">房间广播：扇出问题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#服务端广播的瓶颈"><span class="nav-number">5.1.</span> <span class="nav-text">服务端广播的瓶颈</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#热门房间的特殊处理"><span class="nav-number">5.2.</span> <span class="nav-text">热门房间的特殊处理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#消息顺序与去重"><span class="nav-number">6.</span> <span class="nav-text">消息顺序与去重</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#消息序号"><span class="nav-number">6.1.</span> <span class="nav-text">消息序号</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#断线重连的消息补全"><span class="nav-number">6.2.</span> <span class="nav-text">断线重连的消息补全</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#风控：不只是敏感词过滤"><span class="nav-number">7.</span> <span class="nav-text">风控：不只是敏感词过滤</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#点赞计数：高频写入的聚合"><span class="nav-number">8.</span> <span class="nav-text">点赞计数：高频写入的聚合</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构"><span class="nav-number">9.</span> <span class="nav-text">整体架构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#几个容易忽略的细节"><span class="nav-number">10.</span> <span class="nav-text">几个容易忽略的细节</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">157</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">52</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+<div class="copyright">
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love"><i class="fa fa-heart"></i></span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000, priority: true,
+        ignores : [uri => uri.includes('#'), uri => uri === 'https://ruizhehou.github.io/2026/04/03/直播间消息系统设计/']
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
