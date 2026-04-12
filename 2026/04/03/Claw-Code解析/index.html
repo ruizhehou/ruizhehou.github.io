@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Claw Code 是一个用 Rust 重写的 Claude Code 开源实现，4 天内积累 18 万 star。这篇文章分析它的架构设计：9 个 Rust crate、多智能体协调系统、以及它真正想证明的事情。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Claw Code 解析：用 Rust 重写 Claude Code，4 天 18 万 star">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/03/Claw-Code解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="Claw Code 是一个用 Rust 重写的 Claude Code 开源实现，4 天内积累 18 万 star。这篇文章分析它的架构设计：9 个 Rust crate、多智能体协调系统、以及它真正想证明的事情。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-03T23:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-03T23:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="AI Agent">
+<meta property="article:tag" content="Rust">
+<meta property="article:tag" content="开源">
+<meta property="article:tag" content="Claude Code">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/03/Claw-Code解析/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>Claw Code 解析：用 Rust 重写 Claude Code，4 天 18 万 star | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-03T23:00:00+08:00" content="2026-04-03">
+      04-03
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      Claw Code 解析：用 Rust 重写 Claude Code，4 天 18 万 star
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>2026 年 3 月 31 日，一个叫 <code>ultraworkers/claw-code</code> 的仓库出现在 GitHub 上。4 天后，它积累了 18 万 star、10 万 fork，成为 GitHub 历史上最快突破 10 万 star 的仓库。</p>
+<p>这个仓库是什么？它用 Rust 重写了 Claude Code 的核心功能，并且把整个构建过程做成了一个公开的多智能体协作演示。</p>
+
+<h2 id="它是什么">它是什么</h2>
+
+<p>Claw Code 的 README 写得很直接：</p>
+<blockquote>
+<p>Claw Code is the public Rust implementation of the <code>claw</code> CLI agent harness.</p>
+</blockquote>
+<p>本质上，它是一个 CLI 工具，功能对标 Claude Code：读写文件、执行 bash、调用 Claude API、支持 MCP 插件、会话管理、权限控制。用法几乎一样：</p>
+<pre><code class="language-bash"># 克隆并构建
+git clone https://github.com/ultraworkers/claw-code
+cd claw-code/rust
+cargo build --workspace
+
+# 设置 API key（需要 Anthropic API key，不支持 Claude 订阅账号登录）
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# 健康检查
+./target/debug/claw doctor
+
+# 执行一个 prompt
+./target/debug/claw prompt "say hello"
+</code></pre>
+<p>支持的功能列表相当完整：</p>
+<ul>
+<li>Anthropic / OpenAI 兼容的 provider 和流式输出</li>
+<li>交互式 REPL（基于 rustyline）</li>
+<li>完整工具系统：bash、read、write、edit、grep、glob</li>
+<li>Web 工具：搜索、fetch</li>
+<li>子 agent / agent 编排</li>
+<li>Todo 追踪、Notebook 编辑</li>
+<li>CLAUDE.md / 项目记忆</li>
+<li>MCP server 生命周期管理</li>
+<li>会话持久化与恢复</li>
+<li>Git 集成</li>
+<li>权限系统</li>
+</ul>
+
+<h2 id="Rust-工作区结构">Rust 工作区结构</h2>
+
+<p>代码主体在 <code>rust/</code> 目录，是一个 Cargo workspace，包含 9 个 crate：</p>
+<pre><code class="language-text">rust/crates/
+├── api/                    # Anthropic/OpenAI API 客户端，流式响应解析
+├── commands/               # CLI 子命令实现（prompt、session、doctor 等）
+├── compat-harness/         # 兼容性测试框架
+├── mock-anthropic-service/ # 确定性 mock Anthropic 服务，用于测试
+├── plugins/                # 插件系统
+├── runtime/                # 核心运行时：bash、文件操作、沙箱、MCP 桥接、LSP 客户端
+├── rusty-claude-cli/       # 主 CLI 入口，REPL，parity 测试 harness
+├── telemetry/              # 遥测和日志
+└── tools/                  # 工具系统，工具注册和分发
+</code></pre>
+
+<p>其中 <code>runtime</code> 是核心，负责所有实际执行逻辑：</p>
+<ul>
+<li><strong>bash.rs</strong>（283 LOC）：超时控制、后台执行、沙箱隔离</li>
+<li><strong>file_ops.rs</strong>（744 LOC）：二进制检测、大小限制、工作区边界校验、符号链接逃逸防护</li>
+<li><strong>sandbox.rs</strong>（385 LOC）：探测 <code>unshare</code> 能力而非假设二进制存在</li>
+<li><strong>permission_enforcer.rs</strong>：权限门控，bash 只读模式检查</li>
+<li><strong>mcp_tool_bridge.rs</strong>：MCP 工具生命周期桥接</li>
+<li><strong>lsp_client.rs</strong>：LSP 客户端集成</li>
+<li><strong>task_registry.rs</strong>：任务注册与管理</li>
+<li><strong>team_cron_registry.rs</strong>：团队协作和定时任务</li>
+</ul>
+
+<p>整个项目在 4 天内完成了 292 次提交，48,599 行 Rust 代码，2,568 行测试代码，3 位作者。</p>
+
+<h2 id="它真正想证明的事">它真正想证明的事</h2>
+
+<p>README 里有一个 <code>PHILOSOPHY.md</code> 文件，这才是理解这个项目的关键。</p>
+<p>文件的第一句话是：</p>
+<blockquote>
+<p>If you only look at the generated files in this repository, you are looking at the wrong layer.</p>
+</blockquote>
+<p>Claw Code 不只是一个 Claude Code 的 Rust 替代品。它是一个公开的演示：<strong>当多个 AI agent 协调工作时，一个完整的工程项目能在多短的时间内构建完成</strong>。</p>
+<p>整个系统由三部分组成：</p>
+
+<h3 id="1-oh-my-codex-工作流层">1. oh-my-codex（工作流层）</h3>
+<p>把短指令转化为结构化执行：规划关键词、执行模式、持续验证循环、并行多 agent 工作流。一句话变成可重复的工作协议。</p>
+
+<h3 id="2-clawhip-事件路由层">2. clawhip（事件路由层）</h3>
+<p>监听 git commit、tmux session、GitHub issue/PR、agent 生命周期事件，把通知路由到 Discord 频道。它的核心作用是把监控和通知<strong>移出编码 agent 的 context window</strong>，让 agent 专注于实现，而不是格式化状态报告。</p>
+
+<h3 id="3-oh-my-openagent-多-agent-协调层">3. oh-my-openagent（多 agent 协调层）</h3>
+<p>处理规划、任务交接、分歧解决、跨 agent 验证循环。当 Architect、Executor、Reviewer 三个 agent 意见不一致时，这一层提供收敛机制而不是崩溃。</p>
+
+<p><strong>人类的接口是 Discord 频道</strong>。一个人用手机发一句话，走开去做别的事，agent 读取指令、拆解任务、分配角色、写代码、跑测试、处理失败、恢复、在代码通过后 push。</p>
+
+<h2 id="测试体系：mock-parity-harness">测试体系：mock parity harness</h2>
+
+<p>项目有一套值得关注的测试框架——mock parity harness。</p>
+<p>核心思路是：用一个确定性的 mock Anthropic 服务替代真实 API，在干净环境中跑端到端 CLI 测试，验证行为与原始 Claude Code 一致。</p>
+<pre><code class="language-bash">cd rust/
+# 运行 mock parity harness
+./scripts/run_mock_parity_harness.sh
+
+# 或者手动启动 mock 服务做 ad hoc 测试
+cargo run -p mock-anthropic-service -- --bind 127.0.0.1:0
+</code></pre>
+<p>覆盖的场景包括：</p>
+<ul>
+<li><code>streaming_text</code>：流式文本响应</li>
+<li><code>read_file_roundtrip</code>：文件读取完整流程</li>
+<li><code>grep_chunk_assembly</code>：grep 结果分块组装</li>
+<li><code>write_file_allowed</code> / <code>write_file_denied</code>：写入权限控制</li>
+<li><code>multi_tool_turn_roundtrip</code>：多工具调用轮次</li>
+<li><code>bash_stdout_roundtrip</code>：bash 输出流程</li>
+<li><code>bash_permission_prompt_approved</code> / <code>bash_permission_prompt_denied</code>：权限弹窗</li>
+<li><code>plugin_tool_roundtrip</code>：插件工具执行路径</li>
+</ul>
+<p>这套 harness 的价值在于：不依赖真实 API key，测试结果确定性强，可以在 CI 中稳定运行。</p>
+
+<h2 id="9-lane-并行开发">9-lane 并行开发</h2>
+
+<p>PARITY.md 记录了整个开发过程的一个有趣细节：9 个功能 lane 并行开发，全部合并到 main。</p>
+
+<table>
+<thead>
+<tr><th>Lane</th><th>功能</th><th>代码量</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>Bash 验证（只读、破坏性命令警告、路径校验）</td><td>+1004 LOC</td></tr>
+<tr><td>2</td><td>CI 修复（sandbox 能力探测）</td><td>+22/-1 LOC</td></tr>
+<tr><td>3</td><td>文件工具边界（二进制检测、大小限制、工作区边界）</td><td>+195/-1 LOC</td></tr>
+<tr><td>4</td><td>TaskRegistry</td><td>+336 LOC</td></tr>
+<tr><td>5</td><td>Task 接线</td><td>+79/-35 LOC</td></tr>
+<tr><td>6</td><td>Team + Cron 注册</td><td>+441/-37 LOC</td></tr>
+<tr><td>7</td><td>MCP 生命周期</td><td>+491/-24 LOC</td></tr>
+<tr><td>8</td><td>LSP 客户端</td><td>+461/-9 LOC</td></tr>
+<tr><td>9</td><td>权限执行</td><td>+357 LOC</td></tr>
+</tbody>
+</table>
+
+<p>9 个 lane 同时推进，4 天内全部合并。这不是一个人能做到的速度，也印证了 PHILOSOPHY.md 里说的：这个项目本身就是多 agent 并行开发的产物。</p>
+
+<h2 id="为什么是-Rust">为什么是 Rust</h2>
+
+<p>原始的 Claude Code 是 TypeScript/Node.js 实现。选择 Rust 重写有几个明显的工程动机：</p>
+<ul>
+<li><strong>性能</strong>：CLI 工具启动延迟对用户体验影响显著，Rust 的启动速度远快于 Node.js</li>
+<li><strong>内存安全</strong>：agent 工具系统涉及文件操作、bash 执行、沙箱隔离，Rust 的所有权模型在编译期消除了大量安全问题</li>
+<li><strong>类型系统</strong>：工具注册、权限门控、MCP 协议这类状态机逻辑，在 Rust 的类型系统下更容易表达正确性</li>
+<li><strong>跨平台二进制</strong>：Rust 编译产物是单一静态二进制，分发和部署比 Node.js 生态简单</li>
+</ul>
+<p>README 里也明确提示了一个陷阱：<code>cargo install claw-code</code> 会安装错误的东西——crates.io 上有一个同名的废弃 stub，只会打印 "claw-code has been renamed to agent-code"。正确的做法是从源码构建，或者安装上游的 <code>agent-code</code> crate。</p>
+
+<h2 id="这件事的意义">这件事的意义</h2>
+
+<p>4 天，18 万 star，48,000 行 Rust 代码，9 个并行开发 lane，292 次提交——这些数字本身就是一个信号。</p>
+<p>PHILOSOPHY.md 里有一段话说得很清楚：</p>
+<blockquote>
+<p>When agent systems can rebuild a codebase in hours, the scarce resource becomes: architectural clarity, task decomposition, judgment, taste, conviction about what is worth building, knowing which parts can be parallelized and which parts must stay constrained.</p>
+</blockquote>
+<p>编码速度不再是瓶颈。当 agent 系统能在数小时内重建一个代码库，稀缺的资源变成了：架构清晰度、任务分解能力、判断力、品味、对值得构建什么的坚定认知、以及知道哪些部分可以并行、哪些部分必须保持约束。</p>
+<p>Claw Code 本身是一个工具。但它背后的协调系统——Discord 作为人机接口、clawhip 做事件路由、oh-my-openagent 做多 agent 协调——才是这个项目真正想展示的东西。</p>
+<p>代码是证据。协调系统才是产品。</p>
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/AI-Agent/" rel="tag"><i class="fa fa-tag"></i> AI Agent</a>
+          <a href="/tags/Rust/" rel="tag"><i class="fa fa-tag"></i> Rust</a>
+          <a href="/tags/开源/" rel="tag"><i class="fa fa-tag"></i> 开源</a>
+          <a href="/tags/Claude-Code/" rel="tag"><i class="fa fa-tag"></i> Claude Code</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#它是什么"><span class="nav-number">1.</span> <span class="nav-text">它是什么</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Rust-工作区结构"><span class="nav-number">2.</span> <span class="nav-text">Rust 工作区结构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#它真正想证明的事"><span class="nav-number">3.</span> <span class="nav-text">它真正想证明的事</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-oh-my-codex-工作流层"><span class="nav-number">3.1.</span> <span class="nav-text">1. oh-my-codex（工作流层）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-clawhip-事件路由层"><span class="nav-number">3.2.</span> <span class="nav-text">2. clawhip（事件路由层）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-oh-my-openagent-多-agent-协调层"><span class="nav-number">3.3.</span> <span class="nav-text">3. oh-my-openagent（多 agent 协调层）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#测试体系：mock-parity-harness"><span class="nav-number">4.</span> <span class="nav-text">测试体系：mock parity harness</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-lane-并行开发"><span class="nav-number">5.</span> <span class="nav-text">9-lane 并行开发</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#为什么是-Rust"><span class="nav-number">6.</span> <span class="nav-text">为什么是 Rust</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#这件事的意义"><span class="nav-number">7.</span> <span class="nav-text">这件事的意义</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">157</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">49</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+<div class="copyright">
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love"><i class="fa fa-heart"></i></span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo : !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000, priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/04/03/Claw-Code解析/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
