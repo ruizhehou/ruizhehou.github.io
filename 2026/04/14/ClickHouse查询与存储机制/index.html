@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ClickHouse 查询与存储机制深度解析：MergeTree 存储引擎、列式存储、数据压缩、稀疏索引、向量化执行引擎、查询优化，以及生产实践。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ClickHouse 查询与存储机制深度解析">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/14/ClickHouse查询与存储机制/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="ClickHouse 查询与存储机制深度解析：MergeTree 存储引擎、列式存储、数据压缩、稀疏索引、向量化执行引擎、查询优化，以及生产实践。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-14T17:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-14T17:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="ClickHouse">
+<meta property="article:tag" content="大数据">
+<meta property="article:tag" content="列式存储">
+<meta property="article:tag" content="OLAP">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/14/ClickHouse查询与存储机制/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>ClickHouse 查询与存储机制深度解析 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-14T17:00:00+08:00" content="2026-04-14">
+      04-14
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      ClickHouse 查询与存储机制深度解析
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+
+<p>ClickHouse 是由 Yandex 在 2016 年开源的列式 OLAP 数据库，专为在线分析处理（OLAP）场景设计。它能够在单台服务器上以每秒数十亿行的速度扫描数据，在 TPC-H 等标准基准测试中长期位列第一。ClickHouse 的名字来自 "Clickstream"（点击流数据）+"HouseHold"（数据仓库），正是为处理互联网行为数据而生。本文从底层原理出发，深入解析 ClickHouse 的存储机制、索引设计、向量化执行引擎和查询优化，并结合生产实践给出建议。</p>
+
+<h2 id="为什么-ClickHouse-这么快">为什么 ClickHouse 这么快</h2>
+
+<p>很多人第一次看到 ClickHouse 的 benchmark 时都会怀疑：一个 SQL 查询扫描百亿行、在几秒内出结果，这不是神话吗？实际上这是真实的，背后有四个相互协同的核心原因：列式存储、向量化执行、数据压缩和并行处理。在深入每一个机制之前，先通过一个具体的例子感受行存和列存的本质差异。</p>
+
+<p>假设有一张电商订单表，有 100 列，每行 1KB，共 10 亿行，总数据量约 1TB。现在要执行一个典型的 OLAP 查询：统计过去一个月各城市的 GMV（成交金额）。这个查询只需要 <code>city</code>、<code>amount</code>、<code>order_time</code> 三列，仅占总数据量的 3%。</p>
+
+<p>在行式存储（如 MySQL、PostgreSQL）中，数据按行连续存放。即使只需要 3 列，也不得不读取每行完整的 1KB 数据，再从中提取 3 列。10 亿行就意味着扫描整整 1TB 的数据，实际需要的只有 30GB，IO 放大了约 33 倍。在列式存储中，每列数据单独存放，读取 3 列就真正只读 30GB，IO 放大系数接近 1。这个差距在有足够多列、且查询只涉及少量列时（恰好是 OLAP 的典型场景），会非常显著。</p>
+
+<p>ClickHouse 快的四个核心原因：</p>
+<ul>
+<li><strong>列式存储</strong>：只读取查询涉及的列，减少 IO 读取量，对于宽表（100+ 列）效果尤为突出</li>
+<li><strong>向量化执行</strong>：每次处理一批数据（默认 65536 行的 Block），利用 CPU 的 SIMD 指令（AVX2/AVX-512）对整批数据做批量计算，大幅减少函数调用开销并充分利用 CPU 流水线</li>
+<li><strong>数据压缩</strong>：列存使得同类型数据连续存放，压缩比远高于行存。同一列的整型数据压缩后体积可缩小 3~10 倍，更小的数据意味着更少的 IO 和更好的 CPU 缓存命中率</li>
+<li><strong>并行处理</strong>：单机充分利用多核 CPU，将一个查询拆分为多个并行的 Pipeline，多线程同时读取不同的数据块（Granule）</li>
+</ul>
+
+<h2 id="列式存储原理">列式存储原理</h2>
+
+<p>理解 ClickHouse 的性能优势，必须先深入理解列式存储的物理布局。列存和行存的差异不只是"按列存"和"按行存"这么简单，它影响到压缩效果、缓存效率和 IO 模式。</p>
+
+<h3 id="行存与列存的物理布局">行存与列存的物理布局</h3>
+
+<p>假设有一张简单的表，包含 user_id、city、amount 三列，共 4 行数据。</p>
+<p>行式存储的物理布局（磁盘上数据按行连续存放）：</p>
+<pre><code class="language-bash">磁盘块 1:
+[1001, "北京", 299.00] [1002, "上海", 158.50] [1003, "北京", 89.00] [1004, "广州", 422.00]
+</code></pre>
+<p>列式存储的物理布局（每列数据独立存放）：</p>
+<pre><code class="language-bash">user_id 列文件: [1001, 1002, 1003, 1004]
+city 列文件:    ["北京", "上海", "北京", "广州"]
+amount 列文件:  [299.00, 158.50, 89.00, 422.00]
+</code></pre>
+
+<p>列存对压缩有天然优势。以 <code>city</code> 列为例，北京出现两次，上海和广州各一次。字典压缩可以将字符串映射为整数（北京=0, 上海=1, 广州=2），压缩后 <code>city</code> 列变成 <code>[0, 1, 0, 2]</code>，存储空间从 16 字节降到 4 字节。这种压缩在行式存储中无法高效实现，因为同一列的数据分散在各行之间，不连续存放。</p>
+
+<p>列存对 OLAP 查询的优势在于只读需要的列。当 SELECT 只涉及 city 和 amount 两列时，ClickHouse 完全不会读取 user_id 列的磁盘块，IO 利用率接近 100%。相比之下，行存必须读取完整的行才能提取需要的列字段。</p>
+
+<h3 id="ClickHouse-的列文件结构">ClickHouse 的列文件结构</h3>
+
+<p>在 ClickHouse 的 MergeTree 引擎中，每一列数据被拆分为三类文件，它们共同支撑了高效的索引和读取：</p>
+<ul>
+<li><strong>.bin 文件</strong>：列的实际数据文件，经过编解码器（Codec）和通用压缩算法压缩后存储。读取数据时解压此文件。</li>
+<li><strong>.mrk 文件（Mark 文件）</strong>：标记文件，记录每个 Granule（粒度块）在 .bin 文件中的偏移量（offset）。查询时先通过主键索引定位 Granule 范围，再通过 .mrk 找到对应数据在 .bin 中的具体位置，实现跳跃式读取而无需扫描整个列文件。</li>
+<li><strong>primary.idx 文件</strong>：主键稀疏索引文件，每隔 index_granularity（默认 8192）行存储一个索引项（主键值）。查询时用于快速定位需要读取的 Granule 范围。</li>
+</ul>
+
+<p>这三者的协作关系是：查询 WHERE 条件 → primary.idx 定位 Granule 范围 → .mrk 获取对应数据在 .bin 中的偏移量 → 直接读取那段数据。整个过程避免了全量扫描，即使表有几百亿行，也只读取少量 Granule 的数据。</p>
+
+<h2 id="MergeTree-存储引擎">MergeTree 存储引擎</h2>
+
+<p>MergeTree 是 ClickHouse 最核心、使用最广泛的存储引擎，其他所有引擎（ReplacingMergeTree、SummingMergeTree 等）都是在 MergeTree 基础上扩展的。理解 MergeTree 的内部机制，是用好 ClickHouse 的前提。</p>
+
+<h3 id="数据写入流程">数据写入流程</h3>
+
+<p>MergeTree 的写入采用了类似 LSM-Tree 的思想：数据先批量写入一个新的 Part（数据目录），写入完成后在后台异步合并（Merge）多个 Part。这个设计让写入不需要随机 IO，数据顺序写入磁盘，写入吞吐量很高。</p>
+
+<p>具体流程如下：</p>
+<ol>
+<li>客户端发起 INSERT，数据进入内存缓冲区</li>
+<li>ClickHouse 将这批数据排序（按 ORDER BY 键），生成一个新的 Part 目录，写入磁盘</li>
+<li>一个 Part 目录包含该批数据的所有列文件（.bin、.mrk）和索引文件（primary.idx）</li>
+<li>后台的 MergeTask 定期扫描同一分区内的多个 Part，将它们合并为一个更大的 Part，合并时执行排序合并（Merge Sort），保持数据的全局有序性</li>
+<li>合并完成后，旧的 Part 被标记为废弃，等待垃圾回收</li>
+</ol>
+
+<p>这意味着：写入越频繁、每批越小，生成的 Part 数量越多，后台合并压力越大。ClickHouse 建议每批写入至少 1000~10000 行，避免每秒写入几行这种极端小批量场景，否则会触发 "too many parts" 错误（Part 数量超过阈值时，ClickHouse 会拒绝写入以等待合并追上来）。</p>
+
+<h3 id="Part-的目录结构">Part 的目录结构</h3>
+
+<p>每个 Part 是磁盘上的一个目录，结构如下：</p>
+<pre><code class="language-bash">/var/lib/clickhouse/data/default/orders/
+└── 20260414_1_1_0/           # Part 目录，格式：分区_MinBlock_MaxBlock_Level
+    ├── primary.idx           # 主键稀疏索引
+    ├── user_id.bin           # user_id 列数据（压缩）
+    ├── user_id.mrk2          # user_id 列的标记文件
+    ├── city.bin              # city 列数据
+    ├── city.mrk2             # city 列标记文件
+    ├── amount.bin            # amount 列数据
+    ├── amount.mrk2           # amount 列标记文件
+    ├── order_time.bin        # order_time 列数据
+    ├── order_time.mrk2       # order_time 列标记文件
+    ├── checksums.txt         # 各文件的校验和
+    ├── columns.txt           # 列定义信息
+    └── count.txt             # 该 Part 的行数
+</code></pre>
+
+<p>Part 目录名中包含分区值（如 20260414）、该 Part 的数据块范围（MinBlock_MaxBlock）和合并层级（Level）。Level 从 0 开始，每次合并后 Level 加 1，通过 Level 可以判断一个 Part 是原始写入的（Level=0）还是合并后的结果。</p>
+
+<h3 id="主键索引：稀疏索引">主键索引：稀疏索引</h3>
+
+<p>ClickHouse 的主键索引是稀疏索引（Sparse Index），而不是像 MySQL InnoDB 那样的稠密索引（Dense Index）。稀疏索引的核心思想是：不为每一行建索引项，而是每隔 index_granularity 行（默认 8192 行）存储一个索引项（主键值）。</p>
+
+<p>以一张有 10 万行、ORDER BY user_id 的表为例：</p>
+<pre><code class="language-bash">primary.idx 内容：
+索引项 0:  user_id=1000   (对应 Granule 0，第 1~8192 行)
+索引项 1:  user_id=9201   (对应 Granule 1，第 8193~16384 行)
+索引项 2:  user_id=17890  (对应 Granule 2，第 16385~24576 行)
+...
+索引项 12: user_id=98001  (对应 Granule 12，第 98305~100000 行)
+</code></pre>
+
+<p>当查询 <code>WHERE user_id = 50000</code> 时，ClickHouse 对 primary.idx 做二分查找，确定 50000 落在某两个相邻索引项之间，找到对应的 Granule 范围（比如 Granule 5 和 Granule 6），只读取这两个 Granule 的数据（约 16384 行），对结果过滤后返回匹配的行。</p>
+
+<p>为什么选择稀疏索引而不是稠密索引？稠密索引为每行存一个索引项，100 亿行意味着索引本身就有上百 GB，无法全部载入内存，查询时需要 IO 读取索引，失去了索引的加速意义。稀疏索引每 8192 行才有一个索引项，100 亿行只有约 122 万个索引项，假设每项 8 字节，总大小约 9.3MB，可以完全放在内存中。代价是查询时需要读取完整的 Granule（最多 8192 行），而不是精确定位到单行，但对于 OLAP 的扫描查询场景，这个代价完全可以接受。</p>
+
+<h3 id="MarkRange-与-Granule">MarkRange 与 Granule</h3>
+
+<p>Granule（粒度块）是 ClickHouse 读取数据的最小单位，由 index_granularity 参数决定，默认每 8192 行为一个 Granule。MarkRange 是查询过程中通过索引确定的"需要读取的 Granule 范围"。</p>
+
+<p>一次查询的数据读取过程是：</p>
+<ol>
+<li>通过 primary.idx 的二分查找，确定 WHERE 条件对应的 MarkRange（可能是一个或多个连续/不连续的 Granule 范围）</li>
+<li>通过 .mrk 文件，将 Granule 编号转换为 .bin 文件中的字节偏移量</li>
+<li>从 .bin 文件的对应位置读取并解压数据</li>
+<li>在解压后的数据中，再次应用 WHERE 条件过滤出精确匹配的行</li>
+</ol>
+
+<p>ClickHouse 还支持自适应粒度（Adaptive Index Granularity），当列数据较大时自动减小 Granule 大小，保证每个 Granule 的数据量大致相同（约 8KB），这样磁盘读取更均匀。</p>
+
+<h3 id="建表-DDL-示例">建表 DDL 示例</h3>
+
+<pre><code class="language-sql">-- 典型的 MergeTree 建表语句
+CREATE TABLE orders
+(
+    order_id     UInt64,
+    user_id      UInt64,
+    city         LowCardinality(String),  -- 低基数字符串，自动字典编码
+    amount       Decimal(10, 2),
+    status       UInt8,
+    order_time   DateTime,
+    create_date  Date
+)
+ENGINE = MergeTree()
+PARTITION BY toYYYYMM(create_date)   -- 按年月分区，每个月一个分区目录
+ORDER BY (city, user_id, order_id)   -- 主键（排序键），决定数据排列顺序和稀疏索引
+PRIMARY KEY (city, user_id)          -- 主键可以是排序键的前缀（此处省略 order_id）
+TTL create_date + INTERVAL 2 YEAR    -- 数据保留 2 年，过期自动删除
+SETTINGS index_granularity = 8192;  -- 每 8192 行一个索引项（默认值）
+</code></pre>
+
+<p>ORDER BY 决定了数据在磁盘上的物理排列顺序，这是 ClickHouse 中最重要的建表决策。ORDER BY 选择的列应该是查询中最常用的过滤条件列。上面的例子中，ORDER BY (city, user_id, order_id) 意味着先按 city 排序，相同 city 再按 user_id 排序，因此 <code>WHERE city = '北京'</code> 的查询可以通过稀疏索引直接定位到北京的所有数据，不需要扫描其他城市的数据。</p>
+
+<h2 id="索引与数据跳过">索引与数据跳过</h2>
+
+<p>ClickHouse 的查询优化核心思路是"尽可能少读数据"。除了主键稀疏索引，ClickHouse 还提供了跳数索引（Data Skipping Index）和分区裁剪（Partition Pruning），构成三层数据过滤机制。</p>
+
+<h3 id="主键索引的局限">主键索引的局限</h3>
+
+<p>主键索引只对排序键的前缀列有效。以 ORDER BY (city, user_id, order_id) 为例，<code>WHERE city = '北京'</code> 可以用索引加速，<code>WHERE city = '北京' AND user_id = 12345</code> 也可以，但 <code>WHERE user_id = 12345</code>（不带 city 条件）就无法利用索引了，因为 user_id 在 city 混合排序的情况下不是全局有序的。对于这类"非主键列过滤"的需求，就需要跳数索引来补充。</p>
+
+<h3 id="跳数索引">跳数索引</h3>
+
+<p>跳数索引（Data Skipping Index）是 ClickHouse 在 Granule 级别建立的辅助索引，用于跳过不满足条件的 Granule，减少不必要的数据读取。每种跳数索引都以一定的粒度（granularity，即多少个 Granule 合并为一个索引项）存储对应列的统计信息。</p>
+
+<p><strong>minmax 索引</strong>：记录每个 Granule 范围内某列的最小值和最大值。适用于数值类型列的范围查询（如 <code>WHERE amount > 1000</code>）。如果某个 Granule 的 max(amount) &lt; 1000，则这个 Granule 中不可能有满足条件的行，直接跳过。</p>
+
+<p><strong>set 索引</strong>：记录每个 Granule 中某列的不同值集合（最多存 max_rows 个值）。适用于低基数列的等值查询（如 <code>WHERE status IN (1, 2)</code>）。如果某个 Granule 的值集合与查询条件没有交集，则跳过。</p>
+
+<p><strong>bloom_filter 索引</strong>：使用布隆过滤器记录某列的值集合，支持等值查询和 IN 查询，相比 set 索引能处理更高基数的列。布隆过滤器有一定的误判率（False Positive），但不会漏判（False Negative），因此不会导致查询结果错误，只是偶尔读取了不必要的 Granule。</p>
+
+<p><strong>ngrambf_v1 索引</strong>：对字符串类型列建立 N-gram 布隆过滤器，适用于字符串的模糊匹配（LIKE '%keyword%'）。将每个字符串按 N-gram 分词后存入布隆过滤器，查询时将条件也分词后查询。</p>
+
+<pre><code class="language-sql">-- 创建带跳数索引的表
+CREATE TABLE orders_with_index
+(
+    order_id    UInt64,
+    user_id     UInt64,
+    city        LowCardinality(String),
+    amount      Decimal(10, 2),
+    status      UInt8,
+    note        String,
+    order_time  DateTime,
+    -- minmax 索引：加速 amount 的范围查询
+    INDEX idx_amount amount TYPE minmax GRANULARITY 4,
+    -- set 索引：加速 status 的等值查询（基数小）
+    INDEX idx_status status TYPE set(10) GRANULARITY 4,
+    -- bloom_filter 索引：加速 user_id 的等值查询
+    INDEX idx_user_id user_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    -- ngrambf 索引：加速 note 的字符串模糊搜索
+    INDEX idx_note note TYPE ngrambf_v1(3, 1024, 2, 0) GRANULARITY 4
+)
+ENGINE = MergeTree()
+PARTITION BY toYYYYMM(order_time)
+ORDER BY (city, user_id, order_id);
+</code></pre>
+
+<h3 id="分区裁剪">分区裁剪</h3>
+
+<p>分区裁剪（Partition Pruning）是最粗粒度但也是最高效的数据过滤方式。ClickHouse 按 PARTITION BY 键将数据存放在不同的子目录中，查询时如果 WHERE 条件包含分区键的过滤条件，ClickHouse 直接跳过不相关的分区目录，这些分区的数据不会被读取，也不进入后续的索引查找过程。</p>
+
+<p>对于按月分区（<code>PARTITION BY toYYYYMM(order_time)</code>）的表，<code>WHERE order_time >= '2026-04-01' AND order_time &lt; '2026-05-01'</code> 只会读取 202604 分区目录下的 Part，其他月份的 Part 完全不参与查询。</p>
+
+<h3 id="三层过滤的执行顺序">三层过滤的执行顺序</h3>
+
+<p>查询时的三层过滤顺序是：</p>
+<ol>
+<li><strong>分区裁剪</strong>：根据 PARTITION BY 键，直接排除不相关的分区目录（文件系统级别跳过）</li>
+<li><strong>主键索引</strong>：在选中的分区内，通过 primary.idx 二分查找，确定需要读取的 Granule 范围</li>
+<li><strong>跳数索引</strong>：在候选 Granule 中，通过跳数索引进一步过滤，跳过统计信息不满足条件的 Granule</li>
+<li><strong>读取数据并过滤</strong>：读取最终候选 Granule 的数据，在内存中做精确的行级过滤</li>
+</ol>
+
+<p>这三层过滤层层递进，每层都能大幅减少下一层需要处理的数据量。在理想情况下（查询条件与分区键、主键高度对齐），一个亿级别的表可能只读取几千行数据。</p>
+
+<h2 id="向量化执行引擎">向量化执行引擎</h2>
+
+<p>ClickHouse 的查询速度不仅来自减少 IO，也来自高效利用 CPU。向量化执行引擎（Vectorized Execution Engine）是 ClickHouse 在 CPU 端的核心优化。</p>
+
+<h3 id="传统火山模型的问题">传统火山模型的问题</h3>
+
+<p>传统数据库（如早期 MySQL、PostgreSQL）采用火山模型（Volcano Model，也叫 Iterator Model）执行查询。在这个模型中，每个算子（Operator）实现一个 <code>next()</code> 方法，每次调用返回一行数据。执行时，上层算子调用下层算子的 <code>next()</code>，数据一行一行地从最底层的 Scan 算子"流"到最顶层。</p>
+
+<p>火山模型的问题有两个：第一，函数调用开销。一条查询可能包含多个算子（Filter、Project、Aggregate 等），每处理一行数据就需要经过多次 <code>next()</code> 调用，函数调用的固定开销（入栈出栈、跳转）远超实际计算。对于 10 亿行数据，这些调用开销是天文数字。第二，CPU 流水线利用率低。每次 <code>next()</code> 只处理一个值，CPU 分支预测失败率高，缓存命中率低。</p>
+
+<h3 id="向量化执行的原理">向量化执行的原理</h3>
+
+<p>向量化执行将"每次处理一行"改为"每次处理一批（Block）"。ClickHouse 的执行单元是 Block，默认包含 65536 行数据（由 <code>max_block_size</code> 参数控制）。每次算子调用处理一整个 Block，一次函数调用完成 65536 行的操作，函数调用开销摊薄了 65536 倍。</p>
+
+<p>更重要的是，对列数据的批量操作可以利用 CPU 的 SIMD（Single Instruction Multiple Data）指令。现代 x86 CPU 支持 AVX2（256 位，一次处理 8 个 32 位整数）和 AVX-512（512 位，一次处理 16 个 32 位整数）指令集。以 <code>amount > 1000</code> 这个过滤条件为例，批量 SIMD 实现可以一条指令同时比较 8 或 16 个 amount 值，相比逐行比较速度提升 8~16 倍。</p>
+
+<pre><code class="language-cpp">// 伪代码：向量化的列过滤操作
+// 传统方式：逐行处理
+for (int i = 0; i &lt; 65536; i++) {
+    if (amount[i] > 1000) result[i] = true;
+}
+
+// SIMD 向量化方式：一次处理 8 个 float
+for (int i = 0; i &lt; 65536; i += 8) {
+    __m256 v = _mm256_loadu_ps(&amount[i]);         // 加载 8 个 float
+    __m256 threshold = _mm256_set1_ps(1000.0f);     // 广播阈值
+    __m256 cmp = _mm256_cmp_ps(v, threshold, _CMP_GT_OS);  // 8 个比较
+    // 将比较结果写入 result
+}
+</code></pre>
+
+<h3 id="Pipeline-执行模型">Pipeline 执行模型</h3>
+
+<p>ClickHouse 20.x 引入了基于 Pipeline 的并行执行模型。一个查询被分解为多个 Processor（处理器），每个 Processor 代表一个计算步骤（读取列文件、过滤、聚合、排序等），多个 Processor 组成一个有向无环图（DAG）形成 Pipeline。不同 Processor 可以在不同线程上并行运行，数据在 Processor 之间流动。</p>
+
+<pre><code class="language-sql">-- 查看查询的 Pipeline 执行计划
+EXPLAIN PIPELINE
+SELECT city, sum(amount) AS total_amount
+FROM orders
+WHERE order_time >= '2026-04-01' AND order_time &lt; '2026-05-01'
+GROUP BY city
+ORDER BY total_amount DESC
+LIMIT 10;
+</code></pre>
+
+<p>Pipeline 的输出会显示各个 Processor 的名称（如 MergeTreeThread、FilterTransform、AggregatingTransform、SortingTransform 等）及其并行数量，帮助理解查询的并行度和瓶颈所在。</p>
+
+<h2 id="查询处理流程">查询处理流程</h2>
+
+<p>理解一条 SQL 从客户端提交到返回结果的完整链路，有助于定位性能瓶颈和理解优化方向。</p>
+
+<h3 id="SQL-到结果的完整链路">SQL 到结果的完整链路</h3>
+
+<p>一条 ClickHouse SQL 的执行路径如下：</p>
+<ol>
+<li><strong>Parser（解析器）</strong>：将 SQL 字符串解析为 AST（抽象语法树）。ClickHouse 使用手写的递归下降解析器，解析速度极快。</li>
+<li><strong>AST 分析与重写</strong>：对 AST 做语义分析（检查表名、列名是否存在）和规则优化（谓词下推、常量折叠、子查询展开等）。</li>
+<li><strong>Query Plan 生成</strong>：将 AST 转换为逻辑查询计划，确定各算子的执行顺序和方式（选择哪种 JOIN 算法、是否使用索引等）。</li>
+<li><strong>Pipeline 构建</strong>：将逻辑查询计划转换为物理执行 Pipeline，确定并行度（多少个线程并行读取数据），生成具体的 Processor DAG。</li>
+<li><strong>执行</strong>：线程池并行执行 Pipeline，读取数据、计算、汇总结果。</li>
+</ol>
+
+<h3 id="分布式查询">分布式查询</h3>
+
+<p>在分布式 ClickHouse 集群中，数据按 shard 分散在多台机器上。Distributed 表引擎是分布式查询的入口，它本身不存储数据，而是将查询分发到各 shard 的本地表执行，再汇总结果。</p>
+
+<p>分布式查询的执行流程：</p>
+<ol>
+<li>客户端连接到任意一台 ClickHouse 节点（通常是接入层，或直接是某个 shard）</li>
+<li>查询发到 Distributed 表，该节点作为协调节点（Coordinator）</li>
+<li>协调节点将查询（或其一部分，如 WHERE 过滤和部分聚合）下推到每个 shard 的本地表执行</li>
+<li>各 shard 独立并行执行本地查询，将本地结果返回给协调节点</li>
+<li>协调节点汇总各 shard 的结果（做最终的 GROUP BY 聚合、ORDER BY 排序、LIMIT 截断），返回给客户端</li>
+</ol>
+
+<p>对于聚合查询，ClickHouse 通常在各 shard 先做局部聚合（Pre-Aggregation），协调节点再做全局聚合，以减少网络传输量。这个优化对于高基数的 GROUP BY 查询尤为重要。</p>
+
+<h3 id="EXPLAIN-查看执行计划">EXPLAIN 查看执行计划</h3>
+
+<pre><code class="language-sql">-- 查看查询的逻辑计划
+EXPLAIN
+SELECT city, count() AS cnt, sum(amount) AS total
+FROM orders
+WHERE order_time >= '2026-04-01'
+GROUP BY city
+ORDER BY total DESC;
+
+-- 查看更详细的物理计划（包含索引使用情况）
+EXPLAIN indexes = 1
+SELECT city, count() AS cnt, sum(amount) AS total
+FROM orders
+WHERE order_time >= '2026-04-01'
+GROUP BY city;
+
+-- 查看 Pipeline 执行图（显示并行度）
+EXPLAIN PIPELINE
+SELECT city, count() AS cnt, sum(amount) AS total
+FROM orders
+WHERE order_time >= '2026-04-01'
+GROUP BY city;
+
+-- 实际执行并返回每步的性能指标
+EXPLAIN ESTIMATE
+SELECT city, count() AS cnt, sum(amount) AS total
+FROM orders
+WHERE order_time >= '2026-04-01'
+GROUP BY city;
+</code></pre>
+
+<p>在 <code>EXPLAIN indexes = 1</code> 的输出中，关注 "Selected parts"（选择的 Part 数量）、"Selected granules"（选择的 Granule 数量）和 "Total granules"（总 Granule 数量）。如果 Selected granules / Total granules 的比例很高（接近 1），说明索引没有发挥过滤作用，需要检查 ORDER BY 和 WHERE 条件是否对齐。</p>
+
+<h2 id="数据压缩">数据压缩</h2>
+
+<p>数据压缩是 ClickHouse 性能的重要组成部分。更小的数据意味着更少的磁盘 IO、更好的 CPU 缓存利用率（更多数据可以放入 L2/L3 Cache），以及更低的网络传输开销。ClickHouse 实现了两层压缩机制。</p>
+
+<h3 id="两层压缩机制">两层压缩机制</h3>
+
+<p>第一层是<strong>编解码器（Codec）</strong>，针对特定数据类型做特化的预处理，将数据转换为更容易被通用压缩算法压缩的形式：</p>
+<ul>
+<li><strong>Delta Codec</strong>：存储相邻值的差值而不是原始值。适用于单调递增的数值序列（如时间戳、自增 ID）。时间戳 [1713000000, 1713000001, 1713000002, ...] 经过 Delta 后变成 [1713000000, 1, 1, ...]，后续的差值全是 1，极易压缩。</li>
+<li><strong>DoubleDelta Codec</strong>：存储差值的差值（二阶差分）。适用于等差增长的序列，如固定采样间隔的时序数据。经过 DoubleDelta 后，等差序列的大部分值变为 0，压缩率极高。</li>
+<li><strong>Gorilla Codec</strong>：Facebook 的时序数据库 Gorilla 提出的浮点数压缩算法，利用相邻浮点数二进制表示的相似性（高位通常相同）做 XOR 压缩，适用于变化幅度小的浮点序列（如传感器读数）。</li>
+<li><strong>T64 Codec</strong>：对整型数据转置为 64 列的二进制矩阵，利用高位通常为 0 的特性裁剪掉无效位，适合整数范围变化不大的列。</li>
+</ul>
+
+<p>第二层是<strong>通用压缩算法</strong>，在 Codec 预处理之后，对数据块做通用压缩：</p>
+<ul>
+<li><strong>LZ4</strong>（默认）：压缩和解压速度极快（GB/s 级别），压缩比适中（通常 2~4 倍）。CPU 开销小，适合大多数场景。</li>
+<li><strong>ZSTD</strong>：压缩比更高（通常 4~8 倍，特别规律的数据可达 10+ 倍），压缩和解压速度比 LZ4 慢但仍远快于 GZIP。适合对存储成本敏感、数据访问频率不高的冷数据。</li>
+<li><strong>LZ4HC</strong>：LZ4 的高压缩比变体，压缩比接近 ZSTD，解压速度接近 LZ4，压缩速度较慢。</li>
+</ul>
+
+<h3 id="压缩配置示例">压缩配置示例</h3>
+
+<pre><code class="language-sql">-- 建表时为不同列指定不同的压缩 Codec
+CREATE TABLE metrics
+(
+    -- 时间戳：Delta + LZ4，充分利用时间戳单调递增的特性
+    event_time  DateTime CODEC(Delta, LZ4),
+    -- 设备 ID：T64 + ZSTD，整数且高位通常为 0
+    device_id   UInt64   CODEC(T64, ZSTD(3)),
+    -- 浮点传感器数据：Gorilla + LZ4，浮点数变化幅度小
+    temperature Float64  CODEC(Gorilla, LZ4),
+    -- 高压缩比的冷数据列：直接 ZSTD
+    raw_payload String   CODEC(ZSTD(9)),
+    -- 低基数字符串，使用 LowCardinality + 默认压缩
+    region      LowCardinality(String)
+)
+ENGINE = MergeTree()
+PARTITION BY toYYYYMM(event_time)
+ORDER BY (device_id, event_time);
+</code></pre>
+
+<p>压缩对查询性能有双重影响：压缩减少了磁盘读取量（IO 加速），但解压需要消耗 CPU。对于 IO 受限的场景（如机械硬盘、高并发读取），更高的压缩比（ZSTD）带来更好的性能；对于 CPU 受限的场景（如大量 CPU 密集型的 SIMD 计算），LZ4 的低解压开销更合适。在 NVMe SSD 上，LZ4 通常是最佳选择，因为 SSD 的 IO 速度已足够快，而 LZ4 的低解压开销让 CPU 可以更多地花在计算上。</p>
+
+<h2 id="MergeTree-家族">MergeTree 家族</h2>
+
+<p>ClickHouse 以 MergeTree 为基础，派生出多种特化的存储引擎，每种引擎在 Merge 过程中增加了特定的数据处理逻辑，满足不同的业务场景需求。</p>
+
+<h3 id="ReplacingMergeTree">ReplacingMergeTree</h3>
+
+<p>ReplacingMergeTree 在 Merge 过程中，对相同 ORDER BY 键的行进行去重，只保留版本号最高的一行（或最后写入的一行）。这使得写入可以做到幂等：对于相同 Primary Key 的重复写入，最终只保留最新的一份。</p>
+
+<p>需要特别注意的是：去重只发生在 Merge 时，查询时可能读到同一个 Key 的多个版本（因为 Merge 可能尚未完成）。因此查询时需要使用 <code>FINAL</code> 关键字强制去重，或者在业务层面接受最终一致性。</p>
+
+<pre><code class="language-sql">-- ReplacingMergeTree：按 order_id 去重，保留最新版本
+CREATE TABLE orders_replacing
+(
+    order_id    UInt64,
+    user_id     UInt64,
+    status      UInt8,
+    amount      Decimal(10, 2),
+    update_time DateTime,
+    version     UInt64  -- 版本号，Merge 时保留版本号最大的行
+)
+ENGINE = ReplacingMergeTree(version)  -- 指定版本列
+ORDER BY order_id;
+
+-- 查询时使用 FINAL 确保去重（强制 Merge 后查询，性能有一定损耗）
+SELECT order_id, status, amount
+FROM orders_replacing FINAL
+WHERE order_id = 12345;
+
+-- 或使用 argMax 在聚合时去重（性能更好）
+SELECT
+    order_id,
+    argMax(status, update_time) AS latest_status,
+    argMax(amount, update_time) AS latest_amount
+FROM orders_replacing
+WHERE order_id = 12345
+GROUP BY order_id;
+</code></pre>
+
+<h3 id="SummingMergeTree">SummingMergeTree</h3>
+
+<p>SummingMergeTree 在 Merge 时对相同 ORDER BY 键的行进行求和聚合。适用于预聚合场景：不需要保留明细数据，只关心各维度的汇总值。例如，统计每个用户每天的消费总额，可以实时写入按 (user_id, date) 分组的 SummingMergeTree 表，查询时无需扫描明细数据。</p>
+
+<pre><code class="language-sql">CREATE TABLE user_daily_stats
+(
+    user_id     UInt64,
+    stat_date   Date,
+    order_cnt   UInt64,   -- 订单数：Merge 时求和
+    total_amount Decimal(12, 2)  -- 总金额：Merge 时求和
+)
+ENGINE = SummingMergeTree()  -- 对所有数值列求和
+ORDER BY (user_id, stat_date);
+</code></pre>
+
+<h3 id="AggregatingMergeTree">AggregatingMergeTree</h3>
+
+<p>AggregatingMergeTree 是最灵活的聚合引擎，存储聚合函数的中间状态（State）而不是最终值，支持在 Merge 时将多个中间状态合并为更大的中间状态。这使得它可以支持 COUNT(DISTINCT)、AVG、QUANTILE 等复杂聚合，不局限于 SUM。</p>
+
+<p>AggregatingMergeTree 通常与物化视图（Materialized View）结合使用，在数据写入时实时维护预聚合结果：</p>
+
+<pre><code class="language-sql">-- 1. 创建 AggregatingMergeTree 目标表（存储聚合中间状态）
+CREATE TABLE city_stats_agg
+(
+    city        LowCardinality(String),
+    stat_date   Date,
+    order_cnt   AggregateFunction(count),           -- count 的中间状态
+    uv          AggregateFunction(uniq, UInt64),    -- uniq（近似去重）的中间状态
+    total_amount AggregateFunction(sum, Decimal(10,2))  -- sum 的中间状态
+)
+ENGINE = AggregatingMergeTree()
+ORDER BY (city, stat_date);
+
+-- 2. 创建物化视图：每次写入原始表时自动更新聚合表
+CREATE MATERIALIZED VIEW mv_city_stats TO city_stats_agg AS
+SELECT
+    city,
+    toDate(order_time) AS stat_date,
+    countState()                    AS order_cnt,
+    uniqState(user_id)              AS uv,
+    sumState(amount)                AS total_amount
+FROM orders
+GROUP BY city, stat_date;
+
+-- 3. 查询时用 Merge 函数合并中间状态
+SELECT
+    city,
+    stat_date,
+    countMerge(order_cnt)       AS order_cnt,
+    uniqMerge(uv)               AS uv,
+    sumMerge(total_amount)      AS total_amount
+FROM city_stats_agg
+WHERE stat_date >= '2026-04-01'
+GROUP BY city, stat_date
+ORDER BY total_amount DESC;
+</code></pre>
+
+<h3 id="CollapsingMergeTree-与-VersionedCollapsingMergeTree">CollapsingMergeTree 与 VersionedCollapsingMergeTree</h3>
+
+<p>ClickHouse 不擅长 UPDATE 和 DELETE 操作（后台 Mutation 代价很高），CollapsingMergeTree 提供了一种用"折叠"代替删除的方案。每行数据有一个 sign 列（+1 或 -1），相同 ORDER BY 键的 +1 行和 -1 行在 Merge 时互相抵消（折叠），最终只保留没有被折叠的行（即最新状态）。VersionedCollapsingMergeTree 是其改进版，增加了版本列保证折叠的正确性（即使数据不按顺序到达）。</p>
+
+<h2 id="生产实践">生产实践</h2>
+
+<h3 id="写入最佳实践">写入最佳实践</h3>
+
+<p>ClickHouse 的写入性能取决于批量大小。每次 INSERT 生成一个新的 Part，批量越小，Part 越多，后台 Merge 压力越大。当活跃 Part 数量超过阈值（默认 300）时，ClickHouse 会限速甚至拒绝写入（抛出 "too many parts" 异常），等待后台 Merge 追上来。</p>
+
+<p>写入最佳实践：</p>
+<ul>
+<li><strong>批量写入</strong>：每批至少 1000 行，建议 10000~100000 行。避免每次只写几行或几十行。</li>
+<li><strong>使用 Buffer 表</strong>：在 ClickHouse 前面加一层 Buffer 引擎表，Buffer 在内存中积攒数据，到达阈值后批量刷入 MergeTree 表，天然缓冲小批量写入。</li>
+<li><strong>使用消息队列缓冲</strong>：通过 Kafka 或其他消息队列缓冲写入请求，消费端批量写入 ClickHouse，是生产环境最常用的模式。</li>
+<li><strong>分区设计要合理</strong>：分区粒度不要太细，每天的数据量应达到至少几十 MB。分区过细（如按小时分区但每小时数据量只有几 MB）会导致 Part 数量爆炸。</li>
+</ul>
+
+<pre><code class="language-sql">-- Buffer 表示例：先写 Buffer，Buffer 满足条件后自动刷入 orders 表
+CREATE TABLE orders_buffer AS orders
+ENGINE = Buffer(
+    currentDatabase(), orders,  -- 目标数据库和表
+    16,           -- 后台刷新线程数
+    10, 100,      -- flush 时间间隔：最少 10 秒，最多 100 秒
+    10000, 100000, -- flush 行数阈值：最少 10000 行，最多 100000 行
+    10000000, 1000000000  -- flush 字节阈值：最少 10MB，最多 1GB
+);
+</code></pre>
+
+<h3 id="查询优化建议">查询优化建议</h3>
+
+<p>查询优化的核心是让 WHERE 条件尽可能多地命中索引，减少读取的数据量：</p>
+
+<ul>
+<li><strong>ORDER BY 与 WHERE 对齐</strong>：建表时 ORDER BY 的列应该是查询中最频繁的过滤条件列，且应将基数低的列放在前面（如先按 city 排序，再按 user_id），这样对 city 的查询能最大程度缩小扫描范围。</li>
+<li><strong>避免高基数列做 GROUP BY</strong>：GROUP BY 一个有几亿个不同值的列（如 user_id）会消耗大量内存和 CPU。如果只需要近似去重，用 <code>uniq()</code> 替代 <code>count(distinct)</code>（前者使用 HyperLogLog，内存占用极小）。</li>
+<li><strong>使用物化视图预聚合</strong>：对于高频的聚合查询（如每天统计各城市的 GMV），用 AggregatingMergeTree + 物化视图在写入时预计算，查询时直接读聚合结果，将查询时间从秒级降到毫秒级。</li>
+<li><strong>LowCardinality 类型</strong>：对基数低于 10000 的字符串列（如 status、city、category），使用 <code>LowCardinality(String)</code> 类型，ClickHouse 会自动使用字典编码，存储空间缩小数倍，比较操作从字符串比较变为整数比较，性能大幅提升。</li>
+<li><strong>避免 SELECT *</strong>：ClickHouse 是列存，SELECT * 会读取所有列，失去列存的 IO 优势。始终明确指定需要的列。</li>
+</ul>
+
+<pre><code class="language-sql">-- 查询优化示例
+
+-- 不好：高基数 GROUP BY，内存可能溢出
+SELECT user_id, count() FROM orders GROUP BY user_id;
+
+-- 好：使用近似算法统计用户数
+SELECT city, uniq(user_id) AS uv FROM orders GROUP BY city;
+
+-- 不好：对分区列使用函数，分区裁剪失效
+SELECT * FROM orders WHERE toYear(order_time) = 2026;
+
+-- 好：直接范围过滤，分区裁剪有效
+SELECT city, sum(amount) FROM orders
+WHERE order_time >= '2026-01-01' AND order_time &lt; '2027-01-01'
+GROUP BY city;
+
+-- 不好：LIKE 全表扫描，对未加索引的列效率低
+SELECT order_id FROM orders WHERE note LIKE '%退款%';
+
+-- 好：在 note 列上加 ngrambf 索引后，LIKE 查询可以跳过不包含该 N-gram 的 Granule
+-- （建表时添加 INDEX idx_note note TYPE ngrambf_v1(3, 1024, 2, 0) GRANULARITY 4）
+</code></pre>
+
+<h3 id="常见问题与处理">常见问题与处理</h3>
+
+<p><strong>too many parts（分 Part 过多）</strong>：根本原因是写入速度过快，后台 Merge 跟不上。解决方案：增大写入批量、降低写入频率、检查分区设计是否过细、临时增加 <code>max_bytes_to_merge_at_max_space_in_pool</code> 参数让 Merge 能处理更大的 Part。长期方案是优化写入模式，使用 Kafka 等消息队列做缓冲。</p>
+
+<p><strong>内存溢出（Memory Limit Exceeded）</strong>：常见于大 GROUP BY（高基数列）、大 JOIN（两张大表 JOIN）、大排序（ORDER BY 大量数据）。解决方案：</p>
+<ul>
+<li>增大 <code>max_memory_usage</code>（单查询内存上限）或 <code>max_memory_usage_for_user</code></li>
+<li>对 GROUP BY 启用外排（<code>SET max_bytes_before_external_group_by = 10000000000</code>），超出内存后溢出到磁盘</li>
+<li>改用近似算法（uniq 替代 count distinct、quantile 替代 median）</li>
+<li>使用物化视图预聚合，降低查询时的数据量</li>
+</ul>
+
+<p><strong>查询慢但索引未生效</strong>：通过 <code>EXPLAIN indexes = 1</code> 检查 Selected granules 是否接近 Total granules。如果是，说明索引未能过滤数据，可能的原因：ORDER BY 列与 WHERE 条件不匹配、对索引列做了函数运算（ClickHouse 大多数情况下不支持函数索引，函数运算后的索引列无法直接对照 primary.idx 的值）。</p>
+
+<h3 id="监控关键指标">监控关键指标</h3>
+
+<p>生产环境中，以下系统表和指标是监控 ClickHouse 健康状态的关键：</p>
+
+<pre><code class="language-sql">-- 查看当前各表的 Part 数量（过多则需要关注 Merge 情况）
+SELECT database, table, count() AS parts_count, sum(rows) AS total_rows
+FROM system.parts
+WHERE active = 1
+GROUP BY database, table
+ORDER BY parts_count DESC
+LIMIT 20;
+
+-- 查看 Merge 队列（积压过多说明写入压力过大）
+SELECT database, table, count() AS merges_in_queue
+FROM system.merges
+GROUP BY database, table
+ORDER BY merges_in_queue DESC;
+
+-- 查看慢查询（最近 1 小时执行时间超过 10 秒的查询）
+SELECT
+    query_start_time,
+    query_duration_ms,
+    read_rows,
+    read_bytes,
+    memory_usage,
+    query
+FROM system.query_log
+WHERE event_time >= now() - INTERVAL 1 HOUR
+  AND query_duration_ms > 10000
+  AND type = 'QueryFinish'
+ORDER BY query_duration_ms DESC
+LIMIT 20;
+
+-- 查看各查询的内存使用情况（正在运行的查询）
+SELECT
+    query_id,
+    elapsed,
+    formatReadableSize(memory_usage) AS memory,
+    query
+FROM system.processes
+ORDER BY memory_usage DESC;
+</code></pre>
+
+<h2 id="总结">总结</h2>
+
+<p>ClickHouse 的高性能来自多个机制的协同：列式存储减少了 IO 读取量，MergeTree 的稀疏索引加速了数据定位，向量化执行引擎充分利用了 CPU 的 SIMD 指令，数据压缩进一步缩小了 IO 和内存占用，Pipeline 并行模型将多核 CPU 的算力发挥到极致。这些机制互相配合，使得 ClickHouse 在正确的场景下能够做到其他数据库难以匹敌的查询性能。</p>
+
+<p>ClickHouse 最适合的场景是：</p>
+<ul>
+<li><strong>大宽表聚合分析</strong>：表有几十到几百列，查询只涉及少量列，行数超过亿级。典型例子是用户行为事件表、订单明细表。</li>
+<li><strong>时序数据分析</strong>：有明确时间范围的过滤，数据按时间分区，结合 Delta/DoubleDelta Codec 获得极高的压缩比。</li>
+<li><strong>实时 OLAP 看板</strong>：结合物化视图预聚合，实现秒级甚至毫秒级的聚合查询响应。</li>
+</ul>
+
+<p>ClickHouse 不适合的场景：</p>
+<ul>
+<li><strong>高并发点查</strong>：ClickHouse 适合少量并发的大扫描查询，不适合每秒数千个按主键查单行的点查场景（这种场景应使用 HBase、TiKV 等）。</li>
+<li><strong>频繁 UPDATE/DELETE</strong>：ClickHouse 的更新删除通过后台 Mutation 实现，代价较高，不适合频繁变更数据的场景（使用 ReplacingMergeTree 可以部分缓解，但有最终一致性的代价）。</li>
+<li><strong>多张大表 JOIN</strong>：ClickHouse 的 JOIN 是在单机内存中完成的，两张大表 JOIN 容易内存溢出。应尽量将数据预处理为大宽表，减少查询时的 JOIN。</li>
+</ul>
+
+<p>与其他 OLAP 引擎的定位比较：ClickHouse 在单机/小集群的扫描吞吐量上是最强的，Presto/Trino 的 SQL 兼容性和跨数据源联邦查询能力更强，Apache Doris 在高并发点查和实时导入上更平衡，Spark SQL 在超大规模（PB 级）批量 ETL 上更适合。在以"快速分析宽表"为核心需求的场景下，ClickHouse 是 OLAP 领域当之无愧的首选。</p>
+
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/ClickHouse/" rel="tag"><i class="fa fa-tag"></i> ClickHouse</a>
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+          <a href="/tags/列式存储/" rel="tag"><i class="fa fa-tag"></i> 列式存储</a>
+          <a href="/tags/OLAP/" rel="tag"><i class="fa fa-tag"></i> OLAP</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#为什么-ClickHouse-这么快"><span class="nav-number">1.</span> <span class="nav-text">为什么 ClickHouse 这么快</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#列式存储原理"><span class="nav-number">2.</span> <span class="nav-text">列式存储原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#行存与列存的物理布局"><span class="nav-number">2.1.</span> <span class="nav-text">行存与列存的物理布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ClickHouse-的列文件结构"><span class="nav-number">2.2.</span> <span class="nav-text">ClickHouse 的列文件结构</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MergeTree-存储引擎"><span class="nav-number">3.</span> <span class="nav-text">MergeTree 存储引擎</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#数据写入流程"><span class="nav-number">3.1.</span> <span class="nav-text">数据写入流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Part-的目录结构"><span class="nav-number">3.2.</span> <span class="nav-text">Part 的目录结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#主键索引：稀疏索引"><span class="nav-number">3.3.</span> <span class="nav-text">主键索引：稀疏索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#MarkRange-与-Granule"><span class="nav-number">3.4.</span> <span class="nav-text">MarkRange 与 Granule</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#建表-DDL-示例"><span class="nav-number">3.5.</span> <span class="nav-text">建表 DDL 示例</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#索引与数据跳过"><span class="nav-number">4.</span> <span class="nav-text">索引与数据跳过</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#主键索引的局限"><span class="nav-number">4.1.</span> <span class="nav-text">主键索引的局限</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#跳数索引"><span class="nav-number">4.2.</span> <span class="nav-text">跳数索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#分区裁剪"><span class="nav-number">4.3.</span> <span class="nav-text">分区裁剪</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#三层过滤的执行顺序"><span class="nav-number">4.4.</span> <span class="nav-text">三层过滤的执行顺序</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#向量化执行引擎"><span class="nav-number">5.</span> <span class="nav-text">向量化执行引擎</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#传统火山模型的问题"><span class="nav-number">5.1.</span> <span class="nav-text">传统火山模型的问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#向量化执行的原理"><span class="nav-number">5.2.</span> <span class="nav-text">向量化执行的原理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Pipeline-执行模型"><span class="nav-number">5.3.</span> <span class="nav-text">Pipeline 执行模型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#查询处理流程"><span class="nav-number">6.</span> <span class="nav-text">查询处理流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#SQL-到结果的完整链路"><span class="nav-number">6.1.</span> <span class="nav-text">SQL 到结果的完整链路</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#分布式查询"><span class="nav-number">6.2.</span> <span class="nav-text">分布式查询</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#EXPLAIN-查看执行计划"><span class="nav-number">6.3.</span> <span class="nav-text">EXPLAIN 查看执行计划</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据压缩"><span class="nav-number">7.</span> <span class="nav-text">数据压缩</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#两层压缩机制"><span class="nav-number">7.1.</span> <span class="nav-text">两层压缩机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#压缩配置示例"><span class="nav-number">7.2.</span> <span class="nav-text">压缩配置示例</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MergeTree-家族"><span class="nav-number">8.</span> <span class="nav-text">MergeTree 家族</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ReplacingMergeTree"><span class="nav-number">8.1.</span> <span class="nav-text">ReplacingMergeTree</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SummingMergeTree"><span class="nav-number">8.2.</span> <span class="nav-text">SummingMergeTree</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#AggregatingMergeTree"><span class="nav-number">8.3.</span> <span class="nav-text">AggregatingMergeTree</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#CollapsingMergeTree-与-VersionedCollapsingMergeTree"><span class="nav-number">8.4.</span> <span class="nav-text">CollapsingMergeTree 与 VersionedCollapsingMergeTree</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#生产实践"><span class="nav-number">9.</span> <span class="nav-text">生产实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#写入最佳实践"><span class="nav-number">9.1.</span> <span class="nav-text">写入最佳实践</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查询优化建议"><span class="nav-number">9.2.</span> <span class="nav-text">查询优化建议</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#常见问题与处理"><span class="nav-number">9.3.</span> <span class="nav-text">常见问题与处理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#监控关键指标"><span class="nav-number">9.4.</span> <span class="nav-text">监控关键指标</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">10.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">159</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">55</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+<div class="copyright">
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love"><i class="fa fa-heart"></i></span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo : !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000, priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/04/14/ClickHouse查询与存储机制/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
