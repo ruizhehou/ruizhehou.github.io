@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="HiveQL 与标准 SQL 的全面对比：语法相同点、核心差异、DDL/DML 扩展、数据类型、事务支持、函数体系，帮助 SQL 工程师快速上手 Hive。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HiveQL 与 SQL 深度对比">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/17/HiveQL与SQL对比/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="HiveQL 与标准 SQL 的全面对比：语法相同点、核心差异、DDL/DML 扩展、数据类型、事务支持、函数体系，帮助 SQL 工程师快速上手 Hive。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-17T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-17T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="HiveQL">
+<meta property="article:tag" content="SQL">
+<meta property="article:tag" content="Hive">
+<meta property="article:tag" content="大数据">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/17/HiveQL与SQL对比/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>HiveQL 与 SQL 深度对比 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-17T10:00:00+08:00" content="2026-04-17">
+      04-17
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      HiveQL 与 SQL 深度对比
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>HiveQL 是 Hive 的查询语言，脱胎于 SQL-92 标准，语法上与 MySQL、PostgreSQL 等关系型数据库的 SQL 高度相似。对于熟悉 SQL 的工程师，上手 HiveQL 的成本很低——大部分 SELECT 语句几乎可以直接复用。但 HiveQL 并非标准 SQL 的完整实现，它在某些方面有所限制，同时又针对大数据场景做了大量扩展。本文系统梳理两者的相同点与差异，帮助你在迁移或学习时少踩坑。</p>
+
+<h2 id="相同点">相同点</h2>
+
+<p>HiveQL 与标准 SQL 在核心查询语法上高度一致，以下这些特性在两者中的行为基本相同。</p>
+
+<h3 id="基础查询语法">基础查询语法</h3>
+<p>SELECT、FROM、WHERE、GROUP BY、HAVING、ORDER BY、LIMIT 的语法和语义与标准 SQL 完全一致：</p>
+<pre><code class="language-sql">-- 以下语句在 HiveQL 和标准 SQL 中行为完全相同
+SELECT
+    user_id,
+    COUNT(*)        AS order_cnt,
+    SUM(amount)     AS total_amount,
+    AVG(amount)     AS avg_amount
+FROM orders
+WHERE status = 'paid'
+  AND create_time >= '2026-01-01'
+GROUP BY user_id
+HAVING COUNT(*) > 5
+ORDER BY total_amount DESC
+LIMIT 100;
+</code></pre>
+
+<h3 id="JOIN 语法">JOIN 语法</h3>
+<p>HiveQL 支持与标准 SQL 相同的 JOIN 类型：INNER JOIN、LEFT OUTER JOIN、RIGHT OUTER JOIN、FULL OUTER JOIN、CROSS JOIN。ON 条件的写法也完全一致：</p>
+<pre><code class="language-sql">-- INNER JOIN
+SELECT a.user_id, a.username, b.order_id, b.amount
+FROM user_profile a
+INNER JOIN orders b ON a.user_id = b.user_id;
+
+-- LEFT JOIN（保留左表所有行）
+SELECT a.user_id, a.username, b.order_id
+FROM user_profile a
+LEFT JOIN orders b ON a.user_id = b.user_id;
+
+-- FULL OUTER JOIN
+SELECT COALESCE(a.user_id, b.user_id) AS user_id
+FROM table_a a
+FULL OUTER JOIN table_b b ON a.user_id = b.user_id;
+</code></pre>
+
+<h3 id="子查询">子查询</h3>
+<p>HiveQL 支持 FROM 子句中的子查询（派生表）和 WHERE 子句中的 IN/EXISTS 子查询（Hive 0.13+）：</p>
+<pre><code class="language-sql">-- FROM 子查询（派生表）
+SELECT t.user_id, t.cnt
+FROM (
+    SELECT user_id, COUNT(*) AS cnt
+    FROM orders
+    GROUP BY user_id
+) t
+WHERE t.cnt > 10;
+
+-- IN 子查询（Hive 0.13+）
+SELECT user_id, username
+FROM user_profile
+WHERE user_id IN (
+    SELECT DISTINCT user_id FROM orders WHERE amount > 1000
+);
+
+-- EXISTS 子查询（Hive 0.13+）
+SELECT a.user_id
+FROM user_profile a
+WHERE EXISTS (
+    SELECT 1 FROM orders b WHERE b.user_id = a.user_id AND b.amount > 1000
+);
+</code></pre>
+
+<h3 id="窗口函数">窗口函数</h3>
+<p>HiveQL 对窗口函数的支持相当完整，OVER()、PARTITION BY、ORDER BY、ROWS/RANGE BETWEEN 的语法与标准 SQL 一致，常用的窗口函数（ROW_NUMBER、RANK、DENSE_RANK、LAG、LEAD、SUM/AVG/COUNT OVER）全部支持：</p>
+<pre><code class="language-sql">-- 以下窗口函数语法在 HiveQL 和标准 SQL 中行为一致
+SELECT
+    user_id,
+    order_date,
+    amount,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY order_date)  AS rn,
+    RANK()        OVER (PARTITION BY user_id ORDER BY amount DESC) AS rnk,
+    LAG(amount, 1, 0) OVER (PARTITION BY user_id ORDER BY order_date) AS prev_amount,
+    SUM(amount)   OVER (PARTITION BY user_id ORDER BY order_date
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cum_amount
+FROM orders;
+</code></pre>
+
+<h3 id="聚合函数">聚合函数</h3>
+<p>COUNT、SUM、AVG、MIN、MAX、COUNT(DISTINCT ...)、GROUP_CONCAT（Hive 中为 COLLECT_LIST/COLLECT_SET）等聚合函数的行为与标准 SQL 一致。CASE WHEN ... THEN ... ELSE ... END 表达式语法也完全相同：</p>
+<pre><code class="language-sql">-- CASE WHEN 语法完全一致
+SELECT
+    user_id,
+    SUM(CASE WHEN action_type = 'buy'  THEN 1 ELSE 0 END) AS buy_cnt,
+    SUM(CASE WHEN action_type = 'view' THEN 1 ELSE 0 END) AS view_cnt
+FROM user_actions
+GROUP BY user_id;
+</code></pre>
+
+<h3 id="CTE（WITH 子句）">CTE（WITH 子句）</h3>
+<p>Hive 0.13+ 支持 WITH ... AS ... 的 CTE（公共表表达式）语法，写法与标准 SQL 相同：</p>
+<pre><code class="language-sql">WITH active_users AS (
+    SELECT DISTINCT user_id
+    FROM user_actions
+    WHERE dt = '2026-04-17' AND action_type = 'login'
+),
+high_value_orders AS (
+    SELECT user_id, SUM(amount) AS total
+    FROM orders
+    WHERE dt = '2026-04-17'
+    GROUP BY user_id
+    HAVING SUM(amount) > 1000
+)
+SELECT a.user_id, h.total
+FROM active_users a
+JOIN high_value_orders h ON a.user_id = h.user_id;
+</code></pre>
+
+<h3 id="常用内置函数">常用内置函数</h3>
+<p>字符串函数（CONCAT、SUBSTR/SUBSTRING、TRIM、UPPER、LOWER、LENGTH、REPLACE、REGEXP_REPLACE）、数值函数（ROUND、FLOOR、CEIL、ABS、MOD）、日期函数（DATE_FORMAT、DATEDIFF、DATE_ADD）、NULL 处理函数（COALESCE、NULLIF、NVL）的语法和语义与主流 SQL 数据库基本一致。</p>
+
+
+<h2 id="核心差异">核心差异</h2>
+
+<p>HiveQL 与标准 SQL 的差异主要体现在以下几个方面，这些是从 SQL 迁移到 Hive 时最容易踩坑的地方。</p>
+
+<h3 id="事务与 DML 限制">事务与 DML 限制</h3>
+<p>这是 HiveQL 与标准 SQL 最根本的差异。标准 SQL 数据库（MySQL、PostgreSQL）支持完整的 ACID 事务，可以随时 INSERT 单行、UPDATE 任意行、DELETE 任意行。<strong>HiveQL 在 Hive 3.0 之前不支持行级 UPDATE 和 DELETE</strong>，即使 Hive 3.x 引入了 ACID 事务，也有严格限制：</p>
+<ul>
+<li>必须使用 ORC 格式存储</li>
+<li>必须开启事务相关配置（<code>hive.support.concurrency=true</code>）</li>
+<li>表必须声明为 <code>TBLPROPERTIES('transactional'='true')</code></li>
+<li>UPDATE/DELETE 性能远不如关系型数据库，不适合高频小批量修改</li>
+</ul>
+<pre><code class="language-sql">-- 标准 SQL（MySQL/PostgreSQL）：完全支持，高效
+UPDATE orders SET status = 'cancelled' WHERE order_id = '12345';
+DELETE FROM orders WHERE create_time < '2020-01-01';
+
+-- HiveQL（Hive 3.x ACID 表）：支持但有条件，性能差
+-- 需要先建 ACID 表
+CREATE TABLE orders_acid (
+    order_id  STRING,
+    user_id   BIGINT,
+    status    STRING,
+    amount    DECIMAL(10,2)
+)
+STORED AS ORC
+TBLPROPERTIES ('transactional'='true');
+
+-- 然后才能执行
+UPDATE orders_acid SET status = 'cancelled' WHERE order_id = '12345';
+
+-- HiveQL 常见替代方案：用 INSERT OVERWRITE 全量覆盖
+INSERT OVERWRITE TABLE orders PARTITION (dt='2026-04-17')
+SELECT
+    order_id,
+    user_id,
+    CASE WHEN order_id = '12345' THEN 'cancelled' ELSE status END AS status,
+    amount
+FROM orders
+WHERE dt = '2026-04-17';
+</code></pre>
+
+<h3 id="INSERT 语义差异">INSERT 语义差异</h3>
+<p>标准 SQL 的 INSERT 是追加单行或少量行；HiveQL 的 INSERT 通常是批量写入，且有 <code>INSERT INTO</code>（追加）和 <code>INSERT OVERWRITE</code>（覆盖）两种模式。<strong>HiveQL 没有标准 SQL 的 <code>INSERT INTO ... VALUES (...)</code> 单行插入模式</strong>（Hive 0.14+ 虽然支持，但极少使用，性能极差，每次都启动一个 MapReduce 作业）。</p>
+<pre><code class="language-sql">-- 标准 SQL：单行插入，高效
+INSERT INTO orders (order_id, user_id, amount) VALUES ('abc', 1001, 99.9);
+
+-- HiveQL 推荐写法：从另一张表批量写入
+INSERT INTO TABLE orders PARTITION (dt='2026-04-17')
+SELECT order_id, user_id, amount
+FROM orders_staging
+WHERE dt = '2026-04-17';
+
+-- INSERT OVERWRITE：覆盖目标表/分区（HiveQL 特有，标准 SQL 没有）
+INSERT OVERWRITE TABLE orders PARTITION (dt='2026-04-17')
+SELECT order_id, user_id, amount
+FROM orders_new
+WHERE dt = '2026-04-17';
+
+-- 多目标插入（HiveQL 特有，一次扫描写多张表）
+FROM orders_raw
+INSERT OVERWRITE TABLE orders_detail PARTITION (dt='2026-04-17')
+    SELECT order_id, user_id, amount WHERE dt = '2026-04-17'
+INSERT OVERWRITE TABLE orders_summary PARTITION (dt='2026-04-17')
+    SELECT user_id, SUM(amount) WHERE dt = '2026-04-17' GROUP BY user_id;
+</code></pre>
+
+<h3 id="DDL 扩展：分区与分桶">DDL 扩展：分区与分桶</h3>
+<p>HiveQL 在 CREATE TABLE 语句上做了大量扩展，这些是标准 SQL 没有的：</p>
+<pre><code class="language-sql">-- 标准 SQL 的建表（PostgreSQL）
+CREATE TABLE orders (
+    order_id  VARCHAR(64) PRIMARY KEY,
+    user_id   BIGINT NOT NULL,
+    amount    DECIMAL(10,2),
+    status    VARCHAR(20),
+    dt        DATE
+);
+
+-- HiveQL 的建表：更多子句，无 PRIMARY KEY 约束
+CREATE EXTERNAL TABLE orders (
+    order_id  STRING,           -- 无 VARCHAR 长度限制
+    user_id   BIGINT,
+    amount    DECIMAL(10,2),
+    status    STRING
+    -- 注意：分区列 dt 不在这里定义！
+)
+COMMENT '订单表'
+PARTITIONED BY (dt STRING)          -- HiveQL 特有：分区声明
+CLUSTERED BY (user_id) INTO 32 BUCKETS  -- HiveQL 特有：分桶声明
+ROW FORMAT DELIMITED                -- HiveQL 特有：行格式
+    FIELDS TERMINATED BY '\t'
+    LINES TERMINATED BY '\n'
+STORED AS ORC                       -- HiveQL 特有：存储格式
+LOCATION '/warehouse/orders/'       -- HiveQL 特有：HDFS 路径
+TBLPROPERTIES ('orc.compress'='SNAPPY');  -- HiveQL 特有：表属性
+</code></pre>
+
+<p>关键差异点：</p>
+<ul>
+<li><strong>无主键约束</strong>：HiveQL 不支持 PRIMARY KEY、FOREIGN KEY、UNIQUE 约束（即使语法上可以声明，也不会强制执行）</li>
+<li><strong>无 NOT NULL 强制</strong>：HiveQL 的 NOT NULL 是提示性的，不会在写入时校验</li>
+<li><strong>分区列不在列定义中</strong>：分区列通过 PARTITIONED BY 单独声明，查询时分区列像普通列一样使用</li>
+<li><strong>EXTERNAL 关键字</strong>：外部表 DROP 时不删除数据，内部表 DROP 时同时删除 HDFS 数据</li>
+</ul>
+
+<h3 id="数据类型差异">数据类型差异</h3>
+<p>HiveQL 的数据类型与标准 SQL 有所不同，主要体现在：</p>
+
+<p><strong>HiveQL 特有类型</strong>：</p>
+<ul>
+<li><code>STRING</code>：变长字符串，无需指定长度，等价于 TEXT，是 Hive 中最常用的字符串类型</li>
+<li><code>ARRAY&lt;T&gt;</code>：数组类型，如 <code>ARRAY&lt;STRING&gt;</code>，可存储同类型元素的有序集合</li>
+<li><code>MAP&lt;K,V&gt;</code>：映射类型，如 <code>MAP&lt;STRING, INT&gt;</code>，键值对集合</li>
+<li><code>STRUCT&lt;field:type,...&gt;</code>：结构体类型，类似 JSON 对象，可嵌套</li>
+<li><code>UNIONTYPE</code>：联合类型（较少使用）</li>
+</ul>
+
+<pre><code class="language-sql">-- HiveQL 复杂类型示例
+CREATE TABLE user_profile (
+    user_id     BIGINT,
+    username    STRING,
+    tags        ARRAY&lt;STRING&gt;,               -- 用户标签列表
+    extra_info  MAP&lt;STRING, STRING&gt;,         -- 扩展属性键值对
+    address     STRUCT&lt;
+                    province: STRING,
+                    city:     STRING,
+                    district: STRING
+                &gt;
+);
+
+-- 访问复杂类型
+SELECT
+    user_id,
+    tags[0]                    AS first_tag,      -- 数组下标访问（从 0 开始）
+    extra_info['phone']        AS phone,           -- Map 键访问
+    address.city               AS city,            -- Struct 字段访问
+    SIZE(tags)                 AS tag_count,       -- 数组长度
+    ARRAY_CONTAINS(tags, 'vip') AS is_vip          -- 数组包含判断
+FROM user_profile;
+
+-- 展开数组：LATERAL VIEW EXPLODE（标准 SQL 没有，类似 unnest）
+SELECT user_id, tag
+FROM user_profile
+LATERAL VIEW EXPLODE(tags) tmp AS tag;
+</code></pre>
+
+<p><strong>类型映射对比</strong>：</p>
+<ul>
+<li>标准 SQL 的 <code>VARCHAR(n)</code> → HiveQL 中用 <code>STRING</code>（无需长度）或 <code>VARCHAR(n)</code>（Hive 0.12+）</li>
+<li>标准 SQL 的 <code>TEXT</code> → HiveQL 的 <code>STRING</code></li>
+<li>标准 SQL 的 <code>BOOLEAN</code> → HiveQL 同样支持 <code>BOOLEAN</code></li>
+<li>标准 SQL 的 <code>DATETIME</code> → HiveQL 的 <code>TIMESTAMP</code></li>
+<li>标准 SQL 的 <code>JSON</code> 类型 → HiveQL 没有原生 JSON 类型，通常用 STRING 存储，配合 <code>get_json_object</code> 函数解析</li>
+</ul>
+
+<h3 id="JOIN 限制与扩展">JOIN 限制与扩展</h3>
+<p>HiveQL 的 JOIN 在早期版本有一些限制，理解这些差异有助于避免踩坑：</p>
+<pre><code class="language-sql">-- 标准 SQL 支持：JOIN ON 条件中使用不等式
+SELECT a.user_id, b.order_id
+FROM users a
+JOIN orders b ON a.user_id = b.user_id AND b.amount > a.credit_limit;
+-- HiveQL 早期版本不支持 ON 条件中的不等式，需要改写为 WHERE
+
+-- 标准 SQL 支持：隐式 JOIN（逗号语法）
+SELECT a.user_id FROM users a, orders b WHERE a.user_id = b.user_id;
+-- HiveQL 0.13 之前不支持隐式 JOIN，必须写显式 JOIN
+
+-- HiveQL 特有：MAPJOIN hint（标准 SQL 没有）
+SELECT /*+ MAPJOIN(dim) */ a.user_id, dim.city_name
+FROM orders a
+JOIN dim_city dim ON a.city_id = dim.city_id;
+
+-- HiveQL 特有：SEMI JOIN（标准 SQL 用 EXISTS 实现）
+-- 等价于：SELECT * FROM a WHERE EXISTS (SELECT 1 FROM b WHERE b.id = a.id)
+SELECT a.user_id FROM user_profile a
+LEFT SEMI JOIN orders b ON a.user_id = b.user_id;
+</code></pre>
+
+<h3 id="子查询限制">子查询限制</h3>
+<p>早期 HiveQL（0.12 及以前）对子查询的支持非常有限，很多在标准 SQL 中常见的子查询写法无法直接使用：</p>
+<pre><code class="language-sql">-- 标准 SQL 支持：WHERE 子句中的标量子查询
+SELECT user_id FROM orders
+WHERE amount > (SELECT AVG(amount) FROM orders);
+-- HiveQL 0.12 不支持此写法，需改为 JOIN
+
+-- 改写为 HiveQL 兼容写法
+SELECT a.user_id
+FROM orders a
+JOIN (SELECT AVG(amount) AS avg_amount FROM orders) b
+ON a.amount > b.avg_amount;
+
+-- 标准 SQL 支持：NOT IN 子查询
+SELECT user_id FROM users
+WHERE user_id NOT IN (SELECT user_id FROM blacklist);
+-- HiveQL 0.13+ 支持，但早期版本需改为 LEFT JOIN + IS NULL
+
+-- 改写为 LEFT JOIN 反连接（通用写法，HiveQL 各版本兼容）
+SELECT a.user_id
+FROM users a
+LEFT JOIN blacklist b ON a.user_id = b.user_id
+WHERE b.user_id IS NULL;
+</code></pre>
+
+<h3 id="ORDER BY 与 SORT BY">ORDER BY 与 SORT BY</h3>
+<p>HiveQL 有四种排序关键字，这是标准 SQL 没有的概念：</p>
+<pre><code class="language-sql">-- ORDER BY：全局排序，只有一个 Reducer，数据量大时极慢
+-- 等价于标准 SQL 的 ORDER BY
+SELECT user_id, amount FROM orders ORDER BY amount DESC;
+
+-- SORT BY（HiveQL 特有）：每个 Reducer 内部排序，结果不是全局有序的
+-- 多个 Reducer 时，每个 Reducer 的输出是有序的，但整体无序
+SELECT user_id, amount FROM orders SORT BY amount DESC;
+
+-- DISTRIBUTE BY（HiveQL 特有）：控制数据如何分发到 Reducer（类似 GROUP BY 的 Shuffle）
+-- 相同 user_id 的数据会发到同一个 Reducer
+SELECT user_id, amount FROM orders DISTRIBUTE BY user_id;
+
+-- CLUSTER BY（HiveQL 特有）：DISTRIBUTE BY + SORT BY 的简写
+-- 等价于：DISTRIBUTE BY user_id SORT BY user_id
+SELECT user_id, amount FROM orders CLUSTER BY user_id;
+
+-- 实际场景：每个用户的订单在同一 Reducer 内按时间排序
+SELECT user_id, order_time, amount
+FROM orders
+DISTRIBUTE BY user_id
+SORT BY user_id, order_time;
+</code></pre>
+
+<h3 id="LIMIT 与采样">LIMIT 与采样</h3>
+<pre><code class="language-sql">-- 标准 SQL：LIMIT + OFFSET 分页
+SELECT * FROM orders LIMIT 10 OFFSET 20;
+
+-- HiveQL：支持 LIMIT，但 OFFSET 需要 Hive 2.0+
+-- 早期版本分页通常用 ROW_NUMBER() 实现
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY create_time) AS rn FROM orders
+) t WHERE rn BETWEEN 21 AND 30;
+
+-- HiveQL 特有：TABLESAMPLE 表采样（标准 SQL 没有）
+-- 按桶采样（分桶表）
+SELECT * FROM orders_bucketed TABLESAMPLE (BUCKET 1 OUT OF 10 ON user_id);
+
+-- 按百分比采样
+SELECT * FROM orders TABLESAMPLE (10 PERCENT);
+
+-- 按数据量采样
+SELECT * FROM orders TABLESAMPLE (1000 ROWS);
+</code></pre>
+
+
+<h2 id="函数体系差异">函数体系差异</h2>
+
+<h3 id="HiveQL 特有函数">HiveQL 特有函数</h3>
+<p>HiveQL 提供了大量针对大数据场景的内置函数，这些在标准 SQL 中没有对应：</p>
+
+<p><strong>集合操作函数</strong>：</p>
+<pre><code class="language-sql">-- COLLECT_LIST：将分组内的值收集为数组（保留重复值）
+-- 类似 MySQL 的 GROUP_CONCAT
+SELECT user_id, COLLECT_LIST(product_id) AS product_list
+FROM orders GROUP BY user_id;
+
+-- COLLECT_SET：收集为集合（去重）
+SELECT user_id, COLLECT_SET(category) AS categories
+FROM orders GROUP BY user_id;
+
+-- EXPLODE：将数组/Map 展开为多行（配合 LATERAL VIEW 使用）
+SELECT user_id, tag
+FROM user_profile
+LATERAL VIEW EXPLODE(tags) t AS tag;
+
+-- POSEXPLODE：展开数组，同时返回下标
+SELECT user_id, pos, tag
+FROM user_profile
+LATERAL VIEW POSEXPLODE(tags) t AS pos, tag;
+</code></pre>
+
+<p><strong>JSON 解析函数</strong>（标准 SQL 数据库通常有原生 JSON 类型，Hive 用函数处理）：</p>
+<pre><code class="language-sql">-- get_json_object：从 JSON 字符串中提取字段（JSONPath 语法）
+SELECT
+    get_json_object(extra_info, '$.phone')    AS phone,
+    get_json_object(extra_info, '$.address')  AS address
+FROM user_profile;
+
+-- json_tuple：一次提取多个字段，效率更高
+SELECT user_id, phone, address
+FROM user_profile
+LATERAL VIEW json_tuple(extra_info, 'phone', 'address') t AS phone, address;
+</code></pre>
+
+<p><strong>字符串处理扩展</strong>：</p>
+<pre><code class="language-sql">-- SPLIT：按分隔符拆分字符串为数组
+SELECT SPLIT('a,b,c', ',');  -- 返回 ["a","b","c"]
+
+-- REGEXP_EXTRACT：正则提取
+SELECT REGEXP_EXTRACT('order_20260417_001', 'order_(\\d+)_(\\d+)', 1);  -- 返回 20260417
+
+-- PARSE_URL：解析 URL 各组成部分
+SELECT PARSE_URL('https://www.example.com/path?k=v', 'HOST');  -- 返回 www.example.com
+
+-- STR_TO_MAP：将 key1:val1,key2:val2 格式字符串转为 Map
+SELECT STR_TO_MAP('a:1,b:2', ',', ':');  -- 返回 {"a":"1","b":"2"}
+</code></pre>
+
+<p><strong>日期函数差异</strong>：</p>
+<pre><code class="language-sql">-- 标准 SQL（PostgreSQL）
+SELECT EXTRACT(YEAR FROM NOW());
+SELECT DATE_TRUNC('month', NOW());
+SELECT NOW() - INTERVAL '7 days';
+
+-- HiveQL 等价写法
+SELECT YEAR(CURRENT_TIMESTAMP);
+SELECT TRUNC(CURRENT_DATE, 'MM');           -- 截断到月初
+SELECT DATE_SUB(CURRENT_DATE, 7);          -- 当前日期减 7 天
+SELECT DATEDIFF('2026-04-17', '2026-04-01'); -- 日期差（天数）
+SELECT FROM_UNIXTIME(unix_timestamp);       -- Unix 时间戳转日期字符串
+SELECT UNIX_TIMESTAMP('2026-04-17', 'yyyy-MM-dd');  -- 日期字符串转时间戳
+</code></pre>
+
+<h3 id="UDF 扩展机制">UDF 扩展机制</h3>
+<p>HiveQL 和标准 SQL 都支持用户自定义函数（UDF），但 Hive 的 UDF 体系更丰富，专门针对大数据场景设计了三种类型：</p>
+<ul>
+<li><strong>UDF（User Defined Function）</strong>：一进一出，如 <code>my_upper(STRING) → STRING</code>，等价于标准 SQL 的 UDF</li>
+<li><strong>UDAF（User Defined Aggregate Function）</strong>：多进一出，如自定义聚合函数，等价于标准 SQL 的聚合 UDF</li>
+<li><strong>UDTF（User Defined Table-generating Function）</strong>：一进多出（生成多行），如 EXPLODE，标准 SQL 没有直接对应</li>
+</ul>
+<pre><code class="language-sql">-- 注册并使用 UDF（Java 实现）
+ADD JAR /path/to/my-udf.jar;
+CREATE TEMPORARY FUNCTION my_func AS 'com.example.MyUDF';
+SELECT my_func(column_name) FROM my_table;
+
+-- 永久注册（Hive 1.1+）
+CREATE FUNCTION db_name.my_func AS 'com.example.MyUDF'
+USING JAR 'hdfs:///jars/my-udf.jar';
+</code></pre>
+
+
+<h2 id="SQL 兼容性版本演进">SQL 兼容性版本演进</h2>
+
+<p>HiveQL 对标准 SQL 的兼容性随版本持续提升，了解版本差异有助于判断哪些特性可以使用：</p>
+
+<ul>
+<li><strong>Hive 0.11</strong>：引入窗口函数和分析函数，补齐了与标准 SQL 的重要差距</li>
+<li><strong>Hive 0.12</strong>：支持 VARCHAR、CHAR 类型，提升类型兼容性</li>
+<li><strong>Hive 0.13</strong>：支持 WHERE 子句子查询（IN/EXISTS/NOT IN/NOT EXISTS），支持隐式 JOIN，引入 CBO 优化器</li>
+<li><strong>Hive 0.14</strong>：引入 ACID 事务（INSERT/UPDATE/DELETE），但仅支持 ORC 格式的 Bucket 表</li>
+<li><strong>Hive 2.0</strong>：LLAP（Live Long and Process）模式，支持低延迟交互式查询；LIMIT OFFSET 分页</li>
+<li><strong>Hive 3.0</strong>：完善 ACID 事务支持，支持物化视图（Materialized View），改进 SQL 标准兼容性</li>
+</ul>
+
+
+<h2 id="迁移建议">迁移建议</h2>
+
+<p>将标准 SQL 迁移到 HiveQL，或反向迁移时，需要注意以下几点：</p>
+
+<h3 id="从标准 SQL 迁移到 HiveQL">从标准 SQL 迁移到 HiveQL</h3>
+<ol>
+<li><strong>去掉 UPDATE/DELETE，改用 INSERT OVERWRITE</strong>：这是最大的思维转变，Hive 是写一次读多次（WORM）模型，数据修改通过全量覆盖实现</li>
+<li><strong>去掉主键和唯一约束</strong>：Hive 不强制约束，数据质量需要在 ETL 流程中保证</li>
+<li><strong>VARCHAR 改为 STRING</strong>：Hive 中 STRING 更通用，无需指定长度</li>
+<li><strong>NOT IN 子查询改为 LEFT JOIN + IS NULL</strong>：更兼容，且性能通常更好</li>
+<li><strong>添加分区列</strong>：将时间字段（如 dt）改为分区列，是 Hive 性能优化的基础</li>
+<li><strong>ORDER BY 谨慎使用</strong>：全局 ORDER BY 在 Hive 中只有一个 Reducer，数据量大时非常慢；如果只需要 TopN，用 ORDER BY ... LIMIT N 即可</li>
+</ol>
+
+<h3 id="从 HiveQL 迁移到标准 SQL">从 HiveQL 迁移到标准 SQL</h3>
+<ol>
+<li><strong>ARRAY/MAP/STRUCT 类型</strong>：标准 SQL 没有这些类型，需要拆表或用 JSON 类型替代</li>
+<li><strong>LATERAL VIEW EXPLODE</strong>：改用标准 SQL 的 <code>UNNEST</code>（PostgreSQL）或 <code>JSON_TABLE</code>（MySQL 8.0）</li>
+<li><strong>INSERT OVERWRITE</strong>：改为 <code>TRUNCATE + INSERT</code> 或 <code>MERGE INTO</code></li>
+<li><strong>DISTRIBUTE BY / SORT BY</strong>：标准 SQL 没有对应语法，通常不需要（关系型数据库有自己的查询优化器）</li>
+<li><strong>分区表</strong>：标准 SQL 用 <code>PARTITION BY RANGE</code> 实现，但语法和用途有差异</li>
+</ol>
+
+
+<h2 id="总结">总结</h2>
+
+<p>HiveQL 与标准 SQL 的关系可以用一句话概括：<strong>查询语法高度兼容，数据操作（DML）差异显著，DDL 大量扩展</strong>。</p>
+
+<p><strong>相同点</strong>（可以直接复用）：</p>
+<ul>
+<li>SELECT / FROM / WHERE / GROUP BY / HAVING / ORDER BY / LIMIT</li>
+<li>JOIN（INNER/LEFT/RIGHT/FULL OUTER/CROSS）语法</li>
+<li>窗口函数（ROW_NUMBER、RANK、LAG、LEAD、SUM OVER 等）</li>
+<li>子查询（FROM 子查询、IN/EXISTS 子查询，Hive 0.13+）</li>
+<li>CTE（WITH ... AS ...，Hive 0.13+）</li>
+<li>CASE WHEN 表达式</li>
+<li>常用聚合函数和字符串/数值/日期函数</li>
+</ul>
+
+<p><strong>核心差异</strong>（需要重点注意）：</p>
+<ul>
+<li>无行级 UPDATE/DELETE（Hive 3.x ACID 支持但有限制），用 INSERT OVERWRITE 替代</li>
+<li>INSERT 语义不同：批量写入为主，分 INSERT INTO（追加）和 INSERT OVERWRITE（覆盖）</li>
+<li>DDL 扩展：分区（PARTITIONED BY）、分桶（CLUSTERED BY）、存储格式（STORED AS）、外部表（EXTERNAL）</li>
+<li>无强制约束（PRIMARY KEY、NOT NULL、UNIQUE 不强制执行）</li>
+<li>特有数据类型：ARRAY、MAP、STRUCT</li>
+<li>特有排序关键字：SORT BY、DISTRIBUTE BY、CLUSTER BY</li>
+<li>特有函数：EXPLODE、COLLECT_LIST、get_json_object、TABLESAMPLE 等</li>
+</ul>
+
+<p>对于熟悉 SQL 的工程师，HiveQL 的学习曲线并不陡峭——核心查询语法几乎可以直接迁移。真正需要适应的，是 Hive 的"批处理思维"：数据是不可变的，修改通过覆盖实现；性能优化依赖分区设计，而不是索引；大表 JOIN 需要考虑 Shuffle 代价，而不是依赖查询优化器自动处理。</p>
+
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/HiveQL/" rel="tag"><i class="fa fa-tag"></i> HiveQL</a>
+          <a href="/tags/SQL/" rel="tag"><i class="fa fa-tag"></i> SQL</a>
+          <a href="/tags/Hive/" rel="tag"><i class="fa fa-tag"></i> Hive</a>
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#相同点"><span class="nav-number">1.</span> <span class="nav-text">相同点</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#基础查询语法"><span class="nav-number">1.1.</span> <span class="nav-text">基础查询语法</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#JOIN 语法"><span class="nav-number">1.2.</span> <span class="nav-text">JOIN 语法</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#子查询"><span class="nav-number">1.3.</span> <span class="nav-text">子查询</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#窗口函数"><span class="nav-number">1.4.</span> <span class="nav-text">窗口函数</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#聚合函数"><span class="nav-number">1.5.</span> <span class="nav-text">聚合函数</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#CTE（WITH 子句）"><span class="nav-number">1.6.</span> <span class="nav-text">CTE（WITH 子句）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#常用内置函数"><span class="nav-number">1.7.</span> <span class="nav-text">常用内置函数</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#核心差异"><span class="nav-number">2.</span> <span class="nav-text">核心差异</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#事务与 DML 限制"><span class="nav-number">2.1.</span> <span class="nav-text">事务与 DML 限制</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#INSERT 语义差异"><span class="nav-number">2.2.</span> <span class="nav-text">INSERT 语义差异</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#DDL 扩展：分区与分桶"><span class="nav-number">2.3.</span> <span class="nav-text">DDL 扩展：分区与分桶</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#数据类型差异"><span class="nav-number">2.4.</span> <span class="nav-text">数据类型差异</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#JOIN 限制与扩展"><span class="nav-number">2.5.</span> <span class="nav-text">JOIN 限制与扩展</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#子查询限制"><span class="nav-number">2.6.</span> <span class="nav-text">子查询限制</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#ORDER BY 与 SORT BY"><span class="nav-number">2.7.</span> <span class="nav-text">ORDER BY 与 SORT BY</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#LIMIT 与采样"><span class="nav-number">2.8.</span> <span class="nav-text">LIMIT 与采样</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#函数体系差异"><span class="nav-number">3.</span> <span class="nav-text">函数体系差异</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#HiveQL 特有函数"><span class="nav-number">3.1.</span> <span class="nav-text">HiveQL 特有函数</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#UDF 扩展机制"><span class="nav-number">3.2.</span> <span class="nav-text">UDF 扩展机制</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#SQL 兼容性版本演进"><span class="nav-number">4.</span> <span class="nav-text">SQL 兼容性版本演进</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#迁移建议"><span class="nav-number">5.</span> <span class="nav-text">迁移建议</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#从标准 SQL 迁移到 HiveQL"><span class="nav-number">5.1.</span> <span class="nav-text">从标准 SQL 迁移到 HiveQL</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#从 HiveQL 迁移到标准 SQL"><span class="nav-number">5.2.</span> <span class="nav-text">从 HiveQL 迁移到标准 SQL</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">6.</span> <span class="nav-text">总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">160</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">55</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+<div class="copyright">
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love"><i class="fa fa-heart"></i></span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo : !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+        quicklink.listen();
+      });
+  </script>
+</body>
+</html>

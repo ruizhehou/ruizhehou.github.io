@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="时序数据库深度解析：核心数据模型、InfluxDB TSM存储引擎、Prometheus TSDB、存储压缩算法、高基数问题、查询优化与生产实践。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="时序数据库深度解析">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/17/时序数据库深度解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="时序数据库深度解析：核心数据模型、InfluxDB TSM存储引擎、Prometheus TSDB、存储压缩算法、高基数问题、查询优化与生产实践。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-17T09:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-17T09:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="时序数据库">
+<meta property="article:tag" content="InfluxDB">
+<meta property="article:tag" content="Prometheus">
+<meta property="article:tag" content="存储引擎">
+<meta property="article:tag" content="大数据">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/17/时序数据库深度解析/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>时序数据库深度解析 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN" itemscope itemtype="http://schema.org/Article" itemscope>
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-17T09:00:00+08:00" content="2026-04-17">
+      04-17
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      时序数据库深度解析
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>时序数据库（Time Series Database，TSDB）是专门为处理时间序列数据而设计的数据库。时间序列数据是以时间戳为索引、按时间顺序排列的数据点序列，在基础设施监控、IoT 传感器、金融行情、运营指标等场景中大量产生。传统关系型数据库在处理这类高写入、高压缩、按时间范围查询的负载时力不从心，时序数据库因此应运而生。本文从核心数据模型出发，深入解析 InfluxDB 的 TSM 存储引擎、Prometheus 的拉取式架构、压缩算法原理，以及高基数问题与查询优化等核心话题。</p>
+
+<h2 id="时序数据库简介">时序数据库简介</h2>
+
+<p>时序数据库的核心价值在于针对时间序列数据的写入、存储和查询进行了深度优化。理解时序数据库，首先要理解时序数据的特点：</p>
+<ul>
+<li><strong>写多读少</strong>：监控指标每隔几秒写入一次，读取频率远低于写入频率</li>
+<li><strong>按时间追加</strong>：几乎所有写入都是最新时间戳的数据，旧数据极少修改</li>
+<li><strong>时间范围查询</strong>：查询通常是"最近1小时"、"过去7天"这样的时间范围查询</li>
+<li><strong>高压缩率</strong>：同一指标的相邻值通常变化很小，具有极高的压缩潜力</li>
+<li><strong>数据生命周期明确</strong>：通常只保留一段时间的明细数据，旧数据自动过期或降精度</li>
+</ul>
+
+<h3 id="典型应用场景">典型应用场景</h3>
+<p><strong>基础设施监控</strong>：服务器的 CPU 使用率、内存占用、网络流量、磁盘 I/O 等指标每隔 15 秒采集一次，一个中型公司可能有数千台服务器，每天产生数十亿个数据点。Prometheus + Grafana 是这类场景的标准组合。</p>
+<p><strong>IoT 物联网</strong>：工厂的传感器、智能电表、车联网设备持续上报温度、压力、电量、位置等数据。设备数量可能达到百万级，写入吞吐量极高，对存储效率要求苛刻。InfluxDB 和 TDengine 在这类场景表现突出。</p>
+<p><strong>金融行情</strong>：股票、期货、外汇的逐笔成交数据（Tick Data）是典型的时序数据，证券交易所每天产生数亿条记录，金融分析需要高精度的时间序列回测能力。</p>
+<p><strong>应用性能监控（APM）</strong>：微服务架构下每个接口的 QPS、P99 延迟、错误率等指标需要实时监控，配合告警系统在异常发生时快速通知。</p>
+
+<h3 id="时序数据的三要素">时序数据的三要素</h3>
+<p>无论哪种时序数据库，其数据模型都围绕三个核心概念展开：</p>
+<ul>
+<li><strong>时间戳（Timestamp）</strong>：数据点的时间，通常精确到毫秒或纳秒。是时序数据的第一维度，也是最重要的索引字段。</li>
+<li><strong>标签（Tag / Label）</strong>：描述数据来源的维度信息，如 host=server01、region=us-east、job=mysql。标签是低基数（Low Cardinality）的离散值，会被建立索引，支持按标签过滤和分组聚合。</li>
+<li><strong>字段值（Field / Value）</strong>：实际的测量值，如 cpu_usage=72.3、memory_free=1024。字段值通常是数值型，不建索引，支持数学运算和聚合。</li>
+</ul>
+
+
+<h2 id="核心数据模型">核心数据模型</h2>
+
+<p>时序数据库的数据模型是理解其存储和查询行为的基础。不同数据库在术语上有差异，但核心概念高度一致。</p>
+
+<h3 id="序列与数据点">序列与数据点</h3>
+<p>在 InfluxDB 中，一条<strong>时间序列（Series）</strong>由 Measurement（指标名，类似关系数据库的表名）+ Tag Set（所有标签的组合）唯一确定。每个序列对应一条时间线，沿时间轴不断追加新的数据点。</p>
+<pre><code class="language-sql">-- InfluxDB Line Protocol 格式
+-- measurement,tag_key=tag_value field_key=field_value timestamp
+cpu_usage,host=server01,region=us-east usage_idle=21.3,usage_user=72.5 1713340800000000000
+cpu_usage,host=server02,region=us-west usage_idle=35.1,usage_user=60.2 1713340800000000000
+memory,host=server01,region=us-east free=1073741824,used=3221225472 1713340800000000000
+</code></pre>
+<p>上面的例子中，<code>cpu_usage,host=server01,region=us-east</code> 是一条序列，<code>cpu_usage,host=server02,region=us-west</code> 是另一条序列，两者共享同一个 Measurement 名称，但 Tag Set 不同。</p>
+
+<p>在 Prometheus 中，等价的概念是<strong>指标（Metric）</strong>和<strong>标签集（Label Set）</strong>：</p>
+<pre><code class="language-yaml"># Prometheus 指标格式
+# metric_name{label_key="label_value",...} value [timestamp]
+cpu_usage_idle{host="server01", region="us-east"} 21.3 1713340800
+cpu_usage_idle{host="server02", region="us-west"} 35.1 1713340800
+node_memory_free_bytes{host="server01"} 1073741824 1713340800
+</code></pre>
+
+<h3 id="序列基数问题">序列基数问题</h3>
+<p><strong>序列基数（Series Cardinality）</strong>是时序数据库最重要的性能指标之一，指数据库中唯一时间序列的数量。序列基数 = 所有可能的 Tag 值组合数量。</p>
+<p>以一个监控系统为例：</p>
+<ul>
+<li>1000 台服务器（host tag）× 50 种指标（metric）= 50,000 个序列，这是正常规模</li>
+<li>如果再加上 pod_id tag（Kubernetes 环境中 Pod 频繁创建销毁），pod 数量达到 10 万，基数可能暴增至数十亿</li>
+</ul>
+<p>高基数会导致：</p>
+<ul>
+<li><strong>内存占用暴增</strong>：InfluxDB 将所有序列的索引（倒排索引 + tag 索引）存储在内存中，高基数直接导致 OOM</li>
+<li><strong>写入性能下降</strong>：每次写入都要查找或创建序列，高基数使序列查找开销剧增</li>
+<li><strong>查询变慢</strong>：按 tag 过滤需要先在索引中定位序列，高基数的 tag 索引查找耗时增加</li>
+</ul>
+
+
+<h2 id="主流时序数据库对比">主流时序数据库对比</h2>
+
+<p>目前市场上主流的时序数据库各有侧重，适用场景有所不同。</p>
+
+<h3 id="数据库特性对比">数据库特性对比</h3>
+<p><strong>InfluxDB</strong>：InfluxData 公司开发，Go 语言实现，是目前最流行的时序数据库之一。提供专有的 TSM 存储引擎，原生支持 InfluxQL 和 Flux 查询语言，内置 Retention Policy、Continuous Query 等时序特性。商业版支持集群，开源版仅单机。InfluxDB 3.0 已用 Apache DataFusion + Apache Parquet 重构，性能大幅提升。</p>
+<p><strong>Prometheus</strong>：云原生监控的事实标准，采用 Pull 模式采集指标，自带高效的 TSDB 存储引擎，PromQL 表达能力极强，与 Kubernetes 生态深度融合。Prometheus 设计上是单机的，高可用通过 Thanos/Cortex/VictoriaMetrics 等方案实现。</p>
+<p><strong>OpenTSDB</strong>：基于 HBase 的分布式时序数据库，天然具备 HBase 的水平扩展能力，适合超大规模数据。但 HBase 运维复杂，查询语言较弱，且 HBase 架构本身的延迟不适合低延迟查询场景。</p>
+<p><strong>TimescaleDB</strong>：基于 PostgreSQL 扩展的时序数据库，兼容完整的 SQL 语法和 PostgreSQL 生态，对已有 PostgreSQL 用户友好。通过超表（Hypertable）和自动分区实现时序优化，支持连续聚合（Continuous Aggregates）。</p>
+<p><strong>TDengine</strong>：国产时序数据库，涛思数据开发，针对 IoT 场景深度优化，采用"一个设备一张表"的超级表（Super Table）模型，写入吞吐量极高，并内置消息队列、流计算能力。</p>
+
+<table style="width:100%;border-collapse:collapse;margin:1em 0">
+<thead>
+<tr style="background:#f5f5f5">
+<th style="border:1px solid #ddd;padding:8px">数据库</th>
+<th style="border:1px solid #ddd;padding:8px">存储引擎</th>
+<th style="border:1px solid #ddd;padding:8px">查询语言</th>
+<th style="border:1px solid #ddd;padding:8px">集群</th>
+<th style="border:1px solid #ddd;padding:8px">适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="border:1px solid #ddd;padding:8px">InfluxDB</td>
+<td style="border:1px solid #ddd;padding:8px">TSM（自研）</td>
+<td style="border:1px solid #ddd;padding:8px">InfluxQL / Flux</td>
+<td style="border:1px solid #ddd;padding:8px">企业版</td>
+<td style="border:1px solid #ddd;padding:8px">监控、APM、IoT</td>
+</tr>
+<tr>
+<td style="border:1px solid #ddd;padding:8px">Prometheus</td>
+<td style="border:1px solid #ddd;padding:8px">TSDB（自研）</td>
+<td style="border:1px solid #ddd;padding:8px">PromQL</td>
+<td style="border:1px solid #ddd;padding:8px">借助第三方</td>
+<td style="border:1px solid #ddd;padding:8px">K8s 监控</td>
+</tr>
+<tr>
+<td style="border:1px solid #ddd;padding:8px">OpenTSDB</td>
+<td style="border:1px solid #ddd;padding:8px">HBase</td>
+<td style="border:1px solid #ddd;padding:8px">HTTP API</td>
+<td style="border:1px solid #ddd;padding:8px">原生</td>
+<td style="border:1px solid #ddd;padding:8px">超大规模数据</td>
+</tr>
+<tr>
+<td style="border:1px solid #ddd;padding:8px">TimescaleDB</td>
+<td style="border:1px solid #ddd;padding:8px">PostgreSQL 扩展</td>
+<td style="border:1px solid #ddd;padding:8px">SQL</td>
+<td style="border:1px solid #ddd;padding:8px">企业版</td>
+<td style="border:1px solid #ddd;padding:8px">复杂 SQL 分析</td>
+</tr>
+<tr>
+<td style="border:1px solid #ddd;padding:8px">TDengine</td>
+<td style="border:1px solid #ddd;padding:8px">自研列存</td>
+<td style="border:1px solid #ddd;padding:8px">SQL 方言</td>
+<td style="border:1px solid #ddd;padding:8px">原生</td>
+<td style="border:1px solid #ddd;padding:8px">IoT、工业数据</td>
+</tr>
+</tbody>
+</table>
+
+
+<h2 id="InfluxDB-深度解析">InfluxDB 深度解析</h2>
+
+<p>InfluxDB 是最具代表性的时序数据库，其 TSM 存储引擎的设计思路对整个时序数据库领域影响深远。</p>
+
+<h3 id="TSM-存储引擎">TSM 存储引擎</h3>
+<p>TSM（Time-Structured Merge Tree）是 InfluxDB 自研的存储引擎，参考了 LSM-Tree（Log-Structured Merge Tree）的设计，但针对时序数据做了深度定制。TSM 引擎由四个核心组件构成：</p>
+
+<p><strong>WAL（Write-Ahead Log）</strong>：所有写入首先追加到 WAL 文件，保证数据持久性。WAL 是纯追加写，写入速度极快。WAL 文件按 Segment 分割，每个 Segment 最大 10MB。</p>
+<p><strong>Cache</strong>：WAL 数据同时写入内存中的 Cache 结构，Cache 是一个按序列组织的有序 Map，支持对最新数据的快速读取。当 Cache 超过阈值（默认 25MB）时，触发 Snapshot 将 Cache 刷入磁盘，生成新的 TSM 文件。</p>
+<p><strong>TSM 文件</strong>：磁盘上的持久化存储文件，采用列式存储，每个文件内按序列存储压缩后的时间戳和字段值块（Block）。TSM 文件一旦写入就不再修改（Immutable），类似 SSTable。</p>
+<p><strong>Compaction（合并压实）</strong>：后台进程持续将小的 TSM 文件合并为更大的文件，减少文件数量，提升读取性能，并清除过期数据（Retention Policy 到期的数据点）。</p>
+
+<pre><code class="language-yaml"># InfluxDB 存储引擎配置（influxdb.conf）
+[data]
+  # WAL 目录
+  wal-dir = "/var/lib/influxdb/wal"
+  # 数据目录（TSM 文件）
+  dir = "/var/lib/influxdb/data"
+  # Cache 大小上限，超过后触发 Snapshot
+  cache-max-memory-size = "1g"
+  # Cache Snapshot 触发阈值
+  cache-snapshot-memory-size = "25m"
+  # Cache 写入 WAL 超时
+  cache-snapshot-write-cold-duration = "10m"
+  # Compaction 并发度
+  compact-full-write-cold-duration = "4h"
+  # TSM 文件大小上限（合并目标）
+  max-concurrent-compactions = 0
+</code></pre>
+
+<h3 id="TSM-文件格式">TSM 文件格式</h3>
+<p>TSM 文件由以下部分组成：</p>
+<ul>
+<li><strong>Header</strong>：4 字节魔数 + 1 字节版本号</li>
+<li><strong>Blocks</strong>：数据块，按序列存储压缩后的时间戳和字段值。每个 Block 对应一个序列的一段时间范围内的数据点</li>
+<li><strong>Index</strong>：每个序列在文件中的位置索引（offset + size），以及该序列在此文件中的时间范围（min_time, max_time）</li>
+<li><strong>Footer</strong>：Index 的起始偏移量</li>
+</ul>
+<p>查询时，InfluxDB 首先从 Index 定位到目标序列的 Block 位置，再解压读取 Block 中在查询时间范围内的数据点，充分利用时间范围索引跳过不相关的 Block。</p>
+
+<h3 id="InfluxQL-与-Flux-查询">InfluxQL 与 Flux 查询</h3>
+<p>InfluxDB 提供两种查询语言：InfluxQL（类 SQL）和 Flux（函数式脚本语言）。</p>
+
+<pre><code class="language-sql">-- InfluxQL：查询 server01 最近 1 小时的 CPU 使用率，每 5 分钟降采样
+SELECT MEAN(usage_user) AS cpu_mean
+FROM cpu_usage
+WHERE host = 'server01'
+  AND time >= now() - 1h
+GROUP BY time(5m)
+ORDER BY time DESC;
+
+-- InfluxQL：按 region 聚合，计算各区域平均内存使用
+SELECT MEAN(used) / (MEAN(used) + MEAN(free)) * 100 AS memory_pct
+FROM memory
+WHERE time >= '2026-04-17T00:00:00Z'
+  AND time < '2026-04-18T00:00:00Z'
+GROUP BY region, time(1h)
+FILL(previous);
+
+-- InfluxQL：创建持续查询（Continuous Query），每小时自动降采样写入另一个 measurement
+CREATE CONTINUOUS QUERY "cq_cpu_1h" ON "telegraf"
+BEGIN
+  SELECT MEAN(usage_user) AS usage_user_mean,
+         MAX(usage_user)  AS usage_user_max
+  INTO "telegraf"."rp_1year"."cpu_usage_1h"
+  FROM "cpu_usage"
+  GROUP BY time(1h), *
+END;
+</code></pre>
+
+<pre><code class="language-yaml"># Flux 查询：更强大的函数式语法（InfluxDB 2.x+）
+from(bucket: "telegraf")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "cpu_usage" and r.host == "server01")
+  |> filter(fn: (r) => r._field == "usage_user")
+  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+  |> yield(name: "cpu_mean")
+</code></pre>
+
+<h3 id="Retention-Policy">Retention Policy（数据保留策略）</h3>
+<p>时序数据通常有明确的生命周期：近期数据保留高精度明细，历史数据降精度或删除。InfluxDB 的 Retention Policy（RP）定义了数据的保留时长，超期数据在 Compaction 过程中被自动清除。</p>
+<pre><code class="language-sql">-- 创建一个数据库，包含多个 Retention Policy
+CREATE DATABASE telegraf;
+
+-- 默认 RP：保留 30 天明细数据，副本数为 1
+CREATE RETENTION POLICY "rp_30d" ON "telegraf"
+DURATION 30d REPLICATION 1 DEFAULT;
+
+-- 长期 RP：保留 1 年的降采样数据
+CREATE RETENTION POLICY "rp_1year" ON "telegraf"
+DURATION 365d REPLICATION 1;
+
+-- 修改 RP
+ALTER RETENTION POLICY "rp_30d" ON "telegraf"
+DURATION 60d REPLICATION 1;
+
+-- 查看所有 RP
+SHOW RETENTION POLICIES ON "telegraf";
+</code></pre>
+
+
+<h2 id="Prometheus-深度解析">Prometheus 深度解析</h2>
+
+<p>Prometheus 是云原生监控的事实标准，由 SoundCloud 开发，2016 年加入 CNCF，现已成为 Kubernetes 生态中监控的首选方案。</p>
+
+<h3 id="Pull-拉取模型">Pull 拉取模型</h3>
+<p>Prometheus 与大多数监控系统最大的不同在于采用 <strong>Pull 模式</strong>：Prometheus Server 主动定期拉取（Scrape）各目标暴露的 HTTP metrics 端点，而不是由目标主动推送（Push）。</p>
+<p>Pull 模式的优势：</p>
+<ul>
+<li><strong>易于调试</strong>：任何时候都可以手动 curl 目标的 /metrics 端点查看当前指标，无需等待推送</li>
+<li><strong>服务发现友好</strong>：Prometheus 可以通过 Kubernetes、Consul、DNS 等服务发现机制自动发现新目标</li>
+<li><strong>控制权在 Server 端</strong>：采集频率、目标列表均由 Prometheus 统一配置管理</li>
+<li><strong>故障检测</strong>：如果目标不可达，Prometheus 会立即感知（Scrape 失败），而 Push 模式下 Server 无法区分"目标挂了"还是"暂时没有数据"</li>
+</ul>
+<p>对于短生命周期的 batch job（无法被 Pull），Prometheus 提供了 <strong>Pushgateway</strong> 作为中间层，job 完成时 Push 到 Pushgateway，再由 Prometheus 从 Pushgateway Pull。</p>
+
+<pre><code class="language-yaml"># prometheus.yml 配置示例
+global:
+  scrape_interval: 15s       # 默认采集间隔
+  evaluation_interval: 15s  # 规则评估间隔
+
+# Alertmanager 配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# 告警规则文件
+rule_files:
+  - "rules/alert_rules.yml"
+
+# 采集目标配置
+scrape_configs:
+  # 采集 Prometheus 自身指标
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 采集 Node Exporter（服务器指标）
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets:
+        - 'server01:9100'
+        - 'server02:9100'
+        - 'server03:9100'
+
+  # Kubernetes Pod 动态服务发现
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+</code></pre>
+
+<h3 id="Prometheus-TSDB-存储">Prometheus TSDB 存储</h3>
+<p>Prometheus 的本地存储是一个高效的 TSDB，其数据组织方式如下：</p>
+<p><strong>Head Block（内存块）</strong>：最近写入的数据（默认最近 2 小时）存放在内存的 Head Block 中，支持高速写入和低延迟读取。Head Block 也有 WAL 保证持久性。</p>
+<p><strong>Chunks</strong>：数据在 Head Block 中以 Chunk 形式存储，每个 Chunk 对应一个序列的一段时间内的样本（默认 120 个样本/Chunk）。Chunk 内采用 Gorilla 压缩算法（XOR + delta-of-delta 编码），压缩率极高。</p>
+<p><strong>Block（磁盘块）</strong>：Head Block 每 2 小时切割一次，将内存数据持久化为磁盘上的 Block。每个 Block 是一个目录，包含 Chunks 文件、index 文件（倒排索引）和 meta.json。Block 的时间范围不重叠，互相独立。</p>
+<p><strong>Compaction</strong>：Prometheus 后台会将小的 Block 合并为大的 Block，减少查询时需要扫描的文件数量。较旧的 Block 合并后时间范围变大（如 2h → 6h → 24h）。</p>
+
+<h3 id="PromQL-查询语言">PromQL 查询语言</h3>
+<p>PromQL 是 Prometheus 的查询语言，以其简洁而强大的表达能力著称。</p>
+<pre><code class="language-yaml"># 瞬时向量（Instant Vector）：当前时刻的指标值
+http_requests_total{job="api-server", status="200"}
+
+# 区间向量（Range Vector）：过去 5 分钟内的所有样本
+http_requests_total{job="api-server"}[5m]
+
+# 速率计算：每秒请求数（对 Counter 类型指标求增长率）
+rate(http_requests_total{job="api-server"}[5m])
+
+# 聚合：按 job 和 status 汇总所有实例的请求速率
+sum by (job, status) (
+  rate(http_requests_total[5m])
+)
+
+# P99 延迟（使用 histogram_quantile）
+histogram_quantile(0.99,
+  sum by (le, job) (
+    rate(http_request_duration_seconds_bucket[5m])
+  )
+)
+
+# CPU 使用率（1 - 空闲率）
+1 - avg by (instance) (
+  rate(node_cpu_seconds_total{mode="idle"}[5m])
+)
+
+# 预测：基于线性回归预测磁盘 4 小时后是否会满
+predict_linear(node_filesystem_free_bytes[6h], 4 * 3600) < 0
+</code></pre>
+
+<h3 id="告警规则">告警规则</h3>
+<pre><code class="language-yaml"># rules/alert_rules.yml
+groups:
+  - name: node_alerts
+    interval: 30s
+    rules:
+      # CPU 使用率持续 5 分钟超过 90%
+      - alert: HighCPUUsage
+        expr: |
+          1 - avg by (instance) (
+            rate(node_cpu_seconds_total{mode="idle"}[5m])
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+      # 内存可用率低于 10%
+      - alert: LowMemory
+        expr: |
+          node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low memory on {{ $labels.instance }}"
+          description: "Available memory: {{ $value | humanize }}"
+
+      # 磁盘预计 4 小时内写满
+      - alert: DiskWillFillUp
+        expr: |
+          predict_linear(node_filesystem_free_bytes{fstype!="tmpfs"}[6h], 4*3600) < 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk will fill up on {{ $labels.instance }}"
+</code></pre>
+
+
+<h2 id="存储引擎设计">存储引擎设计</h2>
+
+<p>时序数据库的存储引擎设计是其性能的核心，本节从压缩算法、数据组织和写入路径三个维度深入分析。</p>
+
+<h3 id="为什么-LSM-Tree-适合时序数据">为什么 LSM-Tree 适合时序数据</h3>
+<p>传统 B-Tree 存储引擎（如 InnoDB）在随机写入时性能较差，因为需要定位到页并原地更新，产生大量随机 I/O。时序数据的写入是按时间戳单调递增的顺序写，天然适合 LSM-Tree 的追加写模式：</p>
+<ul>
+<li><strong>顺序写</strong>：所有写入追加到 WAL + 内存，再批量 Flush 为有序的磁盘文件，充分利用磁盘顺序写性能</li>
+<li><strong>无原地修改</strong>：时序数据几乎不修改历史数据，不存在 B-Tree 的"写放大"（Update 需要读-改-写整个页）</li>
+<li><strong>时间范围 Compaction</strong>：LSM-Tree 的 Compaction 过程可以自然地将相邻时间段的数据合并，老数据合并压缩，节省空间</li>
+</ul>
+
+<h3 id="时间戳压缩">时间戳压缩</h3>
+<p>时序数据的时间戳通常是等间隔或近似等间隔的，适合使用 <strong>delta-of-delta 编码</strong>压缩：</p>
+<pre><code class="language-yaml"># 原始时间戳（秒级 Unix 时间戳）
+timestamps: [1713340800, 1713340815, 1713340830, 1713340845, 1713340860]
+
+# 第一步：计算 delta（相邻时间戳之差）
+deltas: [-, 15, 15, 15, 15]
+
+# 第二步：计算 delta-of-delta（delta 的差值）
+delta_of_deltas: [-, -, 0, 0, 0]
+
+# 如果采集间隔非常规律，大量 delta-of-delta 为 0，
+# 用 variable-length integer 编码后压缩率极高
+# 原始 5 * 8 = 40 字节，编码后可能只需 4-5 字节
+</code></pre>
+
+<h3 id="浮点值压缩-Gorilla-算法">浮点值压缩：Gorilla 算法</h3>
+<p>Gorilla 是 Facebook 2015 年论文中提出的时序数据压缩算法，被 Prometheus（Chunks）和 InfluxDB（TSM Block）广泛采用，核心思想是对相邻浮点数进行 XOR 运算：</p>
+<pre><code class="language-yaml"># 相邻监控值通常变化很小
+values: [72.3, 72.5, 72.1, 72.4, 72.3]
+
+# 将 float64 作为 64 位整数处理，对相邻值做 XOR
+# XOR 后，高位相同的位都变为 0
+# 对于变化很小的浮点数，XOR 结果的前导零（leading zeros）很多
+# 只存储 XOR 结果中有意义的位（meaningful bits），实现压缩
+
+# 典型压缩率：
+# - 完全不变的值（如某些状态指标）：每个样本约 1 bit
+# - 正常监控指标：每个样本约 1.37 字节（原始 8 字节，压缩率约 17%）
+</code></pre>
+
+<h3 id="乱序写入处理">乱序写入处理</h3>
+<p>在分布式采集场景中，数据可能以非严格递增的时间戳到达（网络延迟、时钟偏差）。时序数据库对乱序写入的处理策略：</p>
+<ul>
+<li><strong>InfluxDB</strong>：支持有限的乱序写入，允许写入时间戳早于当前写入窗口但在 Retention Policy 范围内的数据。但乱序数据不能直接追加到 WAL，需要触发额外的 Out-of-Order Compaction。</li>
+<li><strong>Prometheus</strong>：Head Block 默认不接受超过 1 小时的乱序数据。Prometheus 2.39 引入了 Out-of-Order Ingestion 特性，支持配置乱序允许窗口（<code>out_of_order_time_window</code>）。</li>
+<li><strong>ClickHouse（时序场景）</strong>：MergeTree 引擎的 Compaction 过程会对数据重新排序，对乱序容忍度更高，但 Compaction 前的乱序数据会影响查询性能。</li>
+</ul>
+
+
+<h2 id="高基数问题">高基数问题</h2>
+
+<p>高基数（High Cardinality）是时序数据库生产环境中最常见的"地雷"，很多性能问题和 OOM 都源于此。</p>
+
+<h3 id="高基数的成因">高基数的成因</h3>
+<p>任何可能取大量不同值的 Tag 都会导致高基数问题，常见的"高基数 Tag"包括：</p>
+<ul>
+<li><strong>用户 ID / 请求 ID</strong>：如果将 user_id 作为 Tag，则序列数量 = 用户数量，几亿用户就是几亿条序列</li>
+<li><strong>Pod ID</strong>：Kubernetes 中 Pod 频繁创建和销毁，Pod name（通常包含随机 hash）作为 Tag 会产生大量"僵尸序列"</li>
+<li><strong>时间戳作为 Tag</strong>：这是新手最常犯的错误，将时间戳放入 Tag 而不是 Field，会造成无限膨胀的基数</li>
+<li><strong>URL 路径</strong>：如果 URL 包含动态参数（如 /api/users/12345），不经过规范化直接作为 Tag，会产生极高基数</li>
+</ul>
+
+<h3 id="高基数的危害">高基数的危害</h3>
+<p>以 InfluxDB 为例，序列索引（Series Index）存储在内存中。每个序列约占用 300-500 字节内存（Tag Key-Value 字符串 + 倒排索引条目）。</p>
+<ul>
+<li>100 万序列 ≈ 300MB~500MB 内存（可以接受）</li>
+<li>1 亿序列 ≈ 30GB~50GB 内存（通常导致 OOM）</li>
+<li>10 亿序列 ≈ 无法承载</li>
+</ul>
+<p>Prometheus 的情况类似，每个活跃序列在内存中需要维护 Head Block 相关状态，高基数直接导致 Prometheus 进程 OOM 重启。</p>
+
+<h3 id="高基数解决方案">高基数解决方案</h3>
+<p><strong>Schema 设计时避免高基数 Tag</strong>：这是根本解决方案。将高基数字段放入 Field 而不是 Tag。例如：</p>
+<pre><code class="language-yaml"># 错误做法：将 request_id 作为 Tag（无限基数）
+http_request,method=GET,path=/api/users,request_id=abc123 duration_ms=45
+
+# 正确做法：request_id 放入 Field，只做记录，不用于索引
+http_request,method=GET,path=/api/users duration_ms=45,request_id="abc123"
+</code></pre>
+
+<p><strong>URL 规范化</strong>：将动态路径参数替换为占位符，再作为 Tag：</p>
+<pre><code class="language-yaml"># 原始 URL（高基数）
+path="/api/users/12345/orders/67890"
+
+# 规范化后（低基数）
+path="/api/users/{id}/orders/{order_id}"
+</code></pre>
+
+<p><strong>序列修剪（Series Pruning）</strong>：定期删除长期无新数据写入的"僵尸序列"（Dead Series）。InfluxDB 通过 Retention Policy 自动删除过期数据；Prometheus 通过 <code>--storage.tsdb.retention.time</code> 控制数据保留时间，过期的 Block 被整体删除，其中包含的序列自然消失。</p>
+<p><strong>预聚合（Pre-aggregation）</strong>：对高基数数据在写入时进行降维聚合，只存储聚合结果而非明细。例如将数百万个用户的行为事件，在写入时按分钟聚合为各行为类型的计数，大幅减少序列数量。</p>
+<p><strong>使用支持高基数的系统</strong>：部分时序数据库对高基数有更好的支持，如 VictoriaMetrics 采用基于磁盘的倒排索引而非内存索引，对高基数场景更友好；ClickHouse 虽然不是专用时序数据库，但其列存 + MergeTree 引擎在高基数场景下表现优秀。</p>
+
+
+<h2 id="查询优化">查询优化</h2>
+
+<h3 id="时间范围查询优化">时间范围查询优化</h3>
+<p>时间范围查询是时序数据库最常见的查询模式，各数据库针对此类查询有专门的优化：</p>
+<p><strong>时间分区</strong>：数据按时间范围分区存储（InfluxDB 的 Shard，Prometheus 的 Block），查询时先确定时间范围对应的分区，只扫描相关分区的数据，跳过大量不相关数据。</p>
+<p><strong>Block-level 索引</strong>：TSM 文件和 Prometheus Block 都在文件/块级别记录了时间范围（min_time, max_time），查询引擎可以快速跳过不相关的文件块。</p>
+
+<h3 id="降采样与预聚合">降采样与预聚合</h3>
+<p>对于长时间跨度的查询（如"过去1年每天的平均值"），直接查询原始数据会扫描海量数据点，性能较差。解决方案是<strong>降采样（Downsampling）</strong>：将高精度原始数据聚合为低精度的汇总数据，查询时根据时间跨度自动选择合适精度的数据。</p>
+<pre><code class="language-sql">-- InfluxDB：使用 Continuous Query 实现自动降采样
+-- 每 5 分钟执行一次，将原始数据降采样为 1 小时粒度
+CREATE CONTINUOUS QUERY "downsample_cpu_1h"
+ON "telegraf"
+RESAMPLE EVERY 5m FOR 2h
+BEGIN
+  SELECT
+    MEAN(usage_user)   AS usage_user_mean,
+    MAX(usage_user)    AS usage_user_max,
+    MIN(usage_user)    AS usage_user_min,
+    PERCENTILE(usage_user, 95) AS usage_user_p95
+  INTO "telegraf"."rp_2years"."cpu_usage_1h"
+  FROM "telegraf"."rp_30d"."cpu_usage"
+  GROUP BY time(1h), *
+END;
+
+-- 查询时指定降采样的 measurement（1 年跨度只需查 cpu_usage_1h）
+SELECT usage_user_mean
+FROM "telegraf"."rp_2years"."cpu_usage_1h"
+WHERE host = 'server01'
+  AND time >= '2025-04-17T00:00:00Z'
+  AND time < '2026-04-17T00:00:00Z'
+GROUP BY time(1d);
+</code></pre>
+
+<pre><code class="language-yaml"># Prometheus：使用 Recording Rules 实现预聚合
+# 计算结果存储为新的指标，查询时直接用预聚合结果
+groups:
+  - name: recording_rules
+    interval: 1m
+    rules:
+      # 预聚合：每分钟计算各 job 的请求速率
+      - record: job:http_requests_total:rate5m
+        expr: |
+          sum by (job) (
+            rate(http_requests_total[5m])
+          )
+
+      # 预聚合：每分钟计算 P99 延迟
+      - record: job:http_request_duration_p99:rate5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (job, le) (
+              rate(http_request_duration_seconds_bucket[5m])
+            )
+          )
+</code></pre>
+
+<h3 id="Tag-索引与查询加速">Tag 索引与查询加速</h3>
+<p>时序数据库对 Tag 建立倒排索引，使得按 Tag 过滤的查询可以快速定位到相关序列而无需全表扫描。InfluxDB 的序列索引（TSI，Time Series Index）结构：</p>
+<ul>
+<li><strong>Measurement 索引</strong>：记录所有 Measurement 名称</li>
+<li><strong>Tag Key 索引</strong>：每个 Measurement 下的所有 Tag Key</li>
+<li><strong>Tag Value 索引</strong>：每个 Tag Key 下的所有 Tag Value，以及对应的 Series Keys（倒排列表）</li>
+</ul>
+<p>按 Tag 查询流程：先在 Tag Value 索引中找到所有匹配的 Series Key，再在 TSM 文件的 Index 中查找这些序列的数据位置，最后读取数据块。整个过程无需全量扫描，时间复杂度接近 O(log N)。</p>
+
+
+<h2 id="集群与高可用">集群与高可用</h2>
+
+<h3 id="InfluxDB-集群方案">InfluxDB 集群方案</h3>
+<p>InfluxDB 开源版（OSS）仅支持单机部署，集群功能（InfluxDB Enterprise）为商业版特性。企业版采用以下架构：</p>
+<ul>
+<li><strong>Meta Node（元数据节点）</strong>：3 个 Meta Node 组成 Raft 集群，存储数据库元数据（Shard 分布、RP 配置、用户权限等），保证强一致性</li>
+<li><strong>Data Node（数据节点）</strong>：多个 Data Node 存储实际数据，数据以 Shard 为单位分配，每个 Shard 默认有 2~3 个副本分布在不同 Data Node 上</li>
+<li><strong>Shard 分配策略</strong>：每个 Shard 覆盖一段连续的时间范围（默认 7 天），写入时根据时间戳路由到对应的 Shard 所在的 Data Node</li>
+</ul>
+
+<h3 id="Prometheus-高可用方案">Prometheus 高可用方案</h3>
+<p>Prometheus 原生不支持集群，高可用方案通常是：</p>
+<p><strong>双写 + Dedup</strong>：部署两个完全相同的 Prometheus 实例，同时拉取相同的目标。查询层（如 Thanos Query）对两个实例的结果去重。简单但存储开销翻倍。</p>
+<p><strong>Thanos</strong>：CNCF 毕业项目，为 Prometheus 提供全局查询视图、长期存储（对接 S3/GCS 等对象存储）和数据压缩（Compactor）能力。Thanos Sidecar 随每个 Prometheus 实例部署，将本地数据上传到对象存储，实现数据持久化和跨实例全局查询。</p>
+<p><strong>VictoriaMetrics</strong>：高性能时序数据库，兼容 Prometheus 的 remote_write 协议，原生支持集群模式，可作为 Prometheus 的长期存储和扩展方案。</p>
+
+<pre><code class="language-yaml"># Prometheus remote_write 配置：将数据写入远端长期存储
+remote_write:
+  - url: "http://victoriametrics:8428/api/v1/write"
+    queue_config:
+      max_samples_per_send: 10000
+      max_shards: 200
+      capacity: 2500
+    remote_timeout: 30s
+
+# Thanos Sidecar 配置（以 GCS 为例）
+# thanos sidecar
+#   --tsdb.path=/prometheus/data
+#   --prometheus.url=http://localhost:9090
+#   --objstore.config-file=/etc/thanos/bucket.yml
+
+# bucket.yml
+type: GCS
+config:
+  bucket: "prometheus-long-term"
+  service_account: ""
+</code></pre>
+
+<h3 id="一致性与可用性权衡">一致性与可用性权衡</h3>
+<p>时序数据库通常倾向于 AP（可用性 + 分区容错性），在一致性上做了妥协：</p>
+<ul>
+<li><strong>写入一致性</strong>：InfluxDB Enterprise 支持配置写入时等待几个副本确认（consistency level：any/one/quorum/all），默认 quorum（多数副本写入成功即返回）</li>
+<li><strong>读取一致性</strong>：查询时可能读到不同副本的数据，存在短暂的不一致窗口，但最终一致</li>
+<li><strong>CAP 实践</strong>：对于监控场景，短暂的数据不一致通常可以接受（监控本身就有采样误差），优先保证写入可用性和查询性能</li>
+</ul>
+
+
+<h2 id="生产实践">生产实践</h2>
+
+<h3 id="Schema-设计最佳实践">Schema 设计最佳实践</h3>
+<p>Schema 设计是时序数据库性能的基础，错误的 Schema 几乎无法通过运维手段弥补：</p>
+<ul>
+<li><strong>Tag vs Field 的选择原则</strong>：如果一个字段需要用于过滤（WHERE 条件）或分组（GROUP BY），且基数较低（&lt;10万），放入 Tag；否则放入 Field</li>
+<li><strong>Measurement 命名</strong>：一个 Measurement 对应一类指标，不要把所有指标混在一个 Measurement 里，也不要为每个指标创建一个 Measurement（浪费 Schema）</li>
+<li><strong>时间精度一致</strong>：明确并统一时间精度（秒/毫秒/微秒/纳秒），混用精度会造成时序混乱</li>
+<li><strong>避免稀疏数据</strong>：如果一个 Measurement 中某些 Field 只有极少数序列有值（大量 null），考虑拆分为多个 Measurement</li>
+</ul>
+
+<h3 id="Retention-Policy-与容量规划">Retention Policy 与容量规划</h3>
+<p>合理的 RP 配置可以显著降低存储成本：</p>
+<pre><code class="language-yaml"># 典型的三层 RP 配置（对应不同时间跨度的查询精度）
+# Layer 1: 保留 7 天的 10 秒粒度原始数据（用于故障排查）
+# Layer 2: 保留 90 天的 1 分钟粒度降采样（用于近期趋势分析）
+# Layer 3: 保留 2 年的 1 小时粒度降采样（用于历史趋势）
+
+# InfluxDB 配置
+CREATE RETENTION POLICY "raw_7d"  ON "metrics" DURATION 7d   REPLICATION 1 DEFAULT;
+CREATE RETENTION POLICY "1m_90d"  ON "metrics" DURATION 90d  REPLICATION 1;
+CREATE RETENTION POLICY "1h_2y"   ON "metrics" DURATION 730d REPLICATION 1;
+
+# 容量估算公式（InfluxDB）
+# 存储空间 = 序列数 × 每序列每天数据点数 × 每点压缩后字节数 × 保留天数
+# 示例：10万序列，15秒采集间隔（每天5760点），每点约1字节（压缩后），保留30天
+# = 100,000 × 5,760 × 1 × 30 ≈ 17.28 GB（仅原始数据，不含索引）
+</code></pre>
+
+<h3 id="监控监控系统本身">监控监控系统本身</h3>
+<p>"监控监控系统"（Meta-monitoring）是生产环境中容易被忽视但至关重要的实践：</p>
+<pre><code class="language-yaml"># Prometheus 关键自监控指标
+
+# 采集延迟：某个 job 的所有 target scrape 耗时
+sum by (job) (scrape_duration_seconds)
+
+# 采集失败数：采集失败的 target 数量（应持续为 0）
+up == 0
+
+# WAL 重放时间：Prometheus 重启时重放 WAL 的耗时（越长说明 WAL 积压越多）
+prometheus_tsdb_head_chunks_storage_size_bytes
+
+# 序列数量：监控高基数的增长趋势
+prometheus_tsdb_head_series
+
+# 查询耗时：p99 查询延迟
+histogram_quantile(0.99, rate(prometheus_engine_query_duration_seconds_bucket[5m]))
+
+# InfluxDB 关键指标
+# 写入速率
+influxdb_write_points_ok_total
+
+# Compaction 状态
+influxdb_tsm1_compact_compactions_active
+
+# 序列基数（重点关注）
+influxdb_tsm1_engine_series_count
+</code></pre>
+
+<h3 id="性能调优实践">性能调优实践</h3>
+<p>生产环境中的常见调优策略：</p>
+<ul>
+<li><strong>批量写入</strong>：将多个数据点合并为一个 HTTP 请求批量写入（InfluxDB 建议每批 5000~10000 点），大幅减少网络开销和写入 WAL 的 fsync 次数</li>
+<li><strong>写入分片</strong>：对于超高吞吐场景，在客户端按序列（或时间范围）对多个 InfluxDB 实例进行分片写入，利用多机并行写入能力</li>
+<li><strong>查询缓存</strong>：在 InfluxDB 前加 Grafana + Grafana 的 Query Caching，将相同查询结果缓存一段时间，减少重复计算</li>
+<li><strong>SSD 存储</strong>：时序数据库的 Compaction 过程有大量顺序读写，SSD 比 HDD 性能好 5x~10x，生产环境强烈推荐 SSD</li>
+<li><strong>调整 GOMAXPROCS</strong>：InfluxDB 和 Prometheus 都是 Go 实现，确保 GOMAXPROCS 设置为 CPU 核心数，充分利用多核并行能力</li>
+</ul>
+
+
+<h2 id="总结">总结</h2>
+
+<p>时序数据库是大数据生态中不可或缺的一环，专门解决传统数据库在时间序列数据上的性能瓶颈。核心要点总结：</p>
+<ul>
+<li><strong>数据模型理解是基础</strong>：清楚时间戳、Tag（低基数维度，建索引）、Field（高基数度量值，不建索引）的区别，是正确使用时序数据库的前提</li>
+<li><strong>高基数是头号敌人</strong>：生产事故中很大比例是高基数 Tag 导致的内存耗尽。Schema 设计时严格审查每个 Tag 的基数，永远不要将用户 ID、请求 ID、动态路径等高基数字段放入 Tag</li>
+<li><strong>TSM/LSM-Tree 存储的本质</strong>：追加写 + 批量 Flush + 后台 Compaction，以写放大换取高吞吐写入和高压缩率，这是时序数据库的核心设计哲学</li>
+<li><strong>压缩是时序数据库的核心竞争力</strong>：delta-of-delta（时间戳）+ Gorilla XOR（浮点值）可将原始数据压缩至原大小的 5%~15%，存储成本是传统数据库的几十分之一</li>
+<li><strong>降采样是长期存储的标配</strong>：原始数据高精度保留 7~30 天，通过 Continuous Query/Recording Rules 自动降采样为更低精度的历史数据，在查询灵活性和存储成本之间取得平衡</li>
+<li><strong>技术选型建议</strong>：K8s 监控首选 Prometheus + Thanos；IoT/高吞吐写入选 InfluxDB 或 TDengine；需要复杂 SQL 分析选 TimescaleDB；超大规模历史数据分析可考虑 ClickHouse（非专用 TSDB 但列存性能突出）</li>
+</ul>
+
+
+  </div>
+
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/时序数据库/" rel="tag"><i class="fa fa-tag"></i> 时序数据库</a>
+          <a href="/tags/InfluxDB/" rel="tag"><i class="fa fa-tag"></i> InfluxDB</a>
+          <a href="/tags/Prometheus/" rel="tag"><i class="fa fa-tag"></i> Prometheus</a>
+          <a href="/tags/存储引擎/" rel="tag"><i class="fa fa-tag"></i> 存储引擎</a>
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+        </div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+        </div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview" data-target="site-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#时序数据库简介"><span class="nav-number">1.</span> <span class="nav-text">时序数据库简介</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#典型应用场景"><span class="nav-number">1.1.</span> <span class="nav-text">典型应用场景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#时序数据的三要素"><span class="nav-number">1.2.</span> <span class="nav-text">时序数据的三要素</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#核心数据模型"><span class="nav-number">2.</span> <span class="nav-text">核心数据模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#序列与数据点"><span class="nav-number">2.1.</span> <span class="nav-text">序列与数据点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#序列基数问题"><span class="nav-number">2.2.</span> <span class="nav-text">序列基数问题</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#主流时序数据库对比"><span class="nav-number">3.</span> <span class="nav-text">主流时序数据库对比</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#数据库特性对比"><span class="nav-number">3.1.</span> <span class="nav-text">数据库特性对比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#InfluxDB-深度解析"><span class="nav-number">4.</span> <span class="nav-text">InfluxDB 深度解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#TSM-存储引擎"><span class="nav-number">4.1.</span> <span class="nav-text">TSM 存储引擎</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#TSM-文件格式"><span class="nav-number">4.2.</span> <span class="nav-text">TSM 文件格式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#InfluxQL-与-Flux-查询"><span class="nav-number">4.3.</span> <span class="nav-text">InfluxQL 与 Flux 查询</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Retention-Policy"><span class="nav-number">4.4.</span> <span class="nav-text">Retention Policy</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Prometheus-深度解析"><span class="nav-number">5.</span> <span class="nav-text">Prometheus 深度解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Pull-拉取模型"><span class="nav-number">5.1.</span> <span class="nav-text">Pull 拉取模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Prometheus-TSDB-存储"><span class="nav-number">5.2.</span> <span class="nav-text">Prometheus TSDB 存储</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#PromQL-查询语言"><span class="nav-number">5.3.</span> <span class="nav-text">PromQL 查询语言</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#告警规则"><span class="nav-number">5.4.</span> <span class="nav-text">告警规则</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#存储引擎设计"><span class="nav-number">6.</span> <span class="nav-text">存储引擎设计</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#为什么-LSM-Tree-适合时序数据"><span class="nav-number">6.1.</span> <span class="nav-text">为什么 LSM-Tree 适合时序数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#时间戳压缩"><span class="nav-number">6.2.</span> <span class="nav-text">时间戳压缩</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#浮点值压缩-Gorilla-算法"><span class="nav-number">6.3.</span> <span class="nav-text">浮点值压缩：Gorilla 算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#乱序写入处理"><span class="nav-number">6.4.</span> <span class="nav-text">乱序写入处理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#高基数问题"><span class="nav-number">7.</span> <span class="nav-text">高基数问题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#高基数的成因"><span class="nav-number">7.1.</span> <span class="nav-text">高基数的成因</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#高基数的危害"><span class="nav-number">7.2.</span> <span class="nav-text">高基数的危害</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#高基数解决方案"><span class="nav-number">7.3.</span> <span class="nav-text">高基数解决方案</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#查询优化"><span class="nav-number">8.</span> <span class="nav-text">查询优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#时间范围查询优化"><span class="nav-number">8.1.</span> <span class="nav-text">时间范围查询优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#降采样与预聚合"><span class="nav-number">8.2.</span> <span class="nav-text">降采样与预聚合</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Tag-索引与查询加速"><span class="nav-number">8.3.</span> <span class="nav-text">Tag 索引与查询加速</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#集群与高可用"><span class="nav-number">9.</span> <span class="nav-text">集群与高可用</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#InfluxDB-集群方案"><span class="nav-number">9.1.</span> <span class="nav-text">InfluxDB 集群方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Prometheus-高可用方案"><span class="nav-number">9.2.</span> <span class="nav-text">Prometheus 高可用方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#一致性与可用性权衡"><span class="nav-number">9.3.</span> <span class="nav-text">一致性与可用性权衡</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#生产实践"><span class="nav-number">10.</span> <span class="nav-text">生产实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Schema-设计最佳实践"><span class="nav-number">10.1.</span> <span class="nav-text">Schema 设计最佳实践</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Retention-Policy-与容量规划"><span class="nav-number">10.2.</span> <span class="nav-text">Retention Policy 与容量规划</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#监控监控系统本身"><span class="nav-number">10.3.</span> <span class="nav-text">监控监控系统本身</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#性能调优实践"><span class="nav-number">10.4.</span> <span class="nav-text">性能调优实践</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+          <span class="site-state-item-count">159</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">0</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">58</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+  </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+<div class="copyright">
+  &copy;
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love"><i class="fa fa-heart"></i></span>
+  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo : !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+      window.addEventListener('load', () => {
+      quicklink({
+        timeout : 3000, priority: true,
+        ignores : [uri => uri.includes('#'),uri => uri === 'https://ruizhehou.github.io/2026/04/17/时序数据库深度解析/',]
+      });
+      });
+  </script>
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end --></body>
+</html>
