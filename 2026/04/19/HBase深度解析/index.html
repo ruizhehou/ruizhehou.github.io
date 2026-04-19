@@ -501,6 +501,50 @@ long newCount = table.incrementColumnValue(
 <p><strong>HBase + Flink</strong>：Flink 的 HBase Sink 支持流式写入，配合 BufferedMutator 批量提交，提升写入吞吐。HBase 也常作为 Flink 状态后端的外部存储，存储大规模维表数据用于实时 Join。</p>
 
 
+<h2 id="适用场景">适用场景</h2>
+
+<p>HBase 并不是万能的，它的设计取舍（无 JOIN、无复杂事务、查询依赖 RowKey）决定了它只在特定场景下才是最优解。理解这些场景的共同特征，比记住一个列表更有价值。</p>
+
+<h3 id="适合的场景">适合的场景</h3>
+
+<p><strong>用户行为日志与埋点数据</strong></p>
+<p>典型代表：电商用户的浏览、点击、加购、下单记录；APP 的操作日志；广告曝光与点击流水。特征是写入量极大（每秒百万级），数据按用户维度查询（给定 userId 查最近 N 条行为），时间窗口内的范围扫描。RowKey 设计为 <code>userId + 反转时间戳</code>，同一用户的行为聚集在相邻 Region，查询效率高。互联网公司的用户行为平台几乎都以 HBase 作为在线存储层。</p>
+
+<p><strong>消息系统的历史消息存储</strong></p>
+<p>典型代表：IM 聊天记录、站内信、通知消息。查询模式是"拉取某个会话的最近 N 条消息"，天然适合 HBase 的范围扫描。多版本特性可以直接支持消息的已读/未读状态更新，无需额外的状态表。Facebook Messenger 早期就以 HBase 存储消息，这也是 HBase 最早的大规模生产案例之一。</p>
+
+<p><strong>时序数据（监控指标、IoT 数据）</strong></p>
+<p>典型代表：服务器 CPU/内存/网络指标、传感器采集数据、金融行情数据。数据特征：写入频繁（每秒数百万数据点）、按时间范围查询、数据量随时间线性增长。RowKey 设计为 <code>metricName + timestamp</code> 或 <code>deviceId + timestamp</code>，支持高效的时间范围扫描。OpenTSDB 就是构建在 HBase 之上的时序数据库，将多个指标点合并存储在同一行以减少 RowKey 开销。</p>
+
+<p><strong>用户画像与标签系统</strong></p>
+<p>典型代表：用户的人口属性、兴趣标签、行为特征、风控标签。数据特征：列数极多（每个标签一列，可能有数千列）且稀疏（不同用户有不同的标签集合），按 userId 点查，偶尔需要更新部分列。HBase 的稀疏存储（空列不占空间）和动态列（无需提前定义列名）天然适合这种宽表场景。关系型数据库在几千列的宽表上性能很差，而 HBase 处理起来毫无压力。</p>
+
+<p><strong>对象存储的元数据索引</strong></p>
+<p>典型代表：文件系统的目录/文件元数据（路径、大小、权限、修改时间）、图片/视频的属性信息。HDFS 的 NameNode 本身就面临元数据规模瓶颈，将元数据存入 HBase 可以支持更大规模的文件系统（如 Apache Ozone）。</p>
+
+<p><strong>增量数据的 Upsert 存储</strong></p>
+<p>典型代表：订单状态流水、商品库存变更记录。数据持续写入，同一 RowKey 的数据不断更新（HBase 的 Put 天然是 Upsert 语义），保留多版本历史。相比关系型数据库，HBase 的写入吞吐高出一到两个数量级，不需要加锁更新。</p>
+
+<h3 id="不适合的场景">不适合的场景</h3>
+
+<p><strong>需要复杂查询的场景</strong>：HBase 没有 SQL，没有 JOIN，没有聚合函数，没有二级索引（需要借助 Phoenix 或自建）。如果业务需要"按城市统计用户数"、"关联多张表做报表"，HBase 不合适，应选 MySQL/PostgreSQL 或 Hive/Spark。</p>
+
+<p><strong>数据量较小的场景</strong>：HBase 集群至少需要 3 个 ZooKeeper + 1 个 HMaster + 3 个 RegionServer，运维成本高。数据量在千万行以内，MySQL 的性能完全够用且运维简单得多。HBase 的优势在百亿行以上才开始体现。</p>
+
+<p><strong>强事务场景</strong>：HBase 只支持单行原子操作（checkAndPut），跨行、跨表的事务需要借助外部协调（如 Omid/Tephra），复杂度高。需要 ACID 事务的场景应选关系型数据库。</p>
+
+<p><strong>随机读多写少的场景</strong>：HBase 的 LSM-Tree 架构对写友好，但读需要合并多个 HFile，存在读放大。如果业务是读多写少（如商品详情页），Redis 或关系型数据库是更好的选择。</p>
+
+<h3 id="选型对比">选型对比</h3>
+<ul>
+<li><strong>vs MySQL/PostgreSQL</strong>：数据量 &lt; 千万行、需要 JOIN/复杂查询、需要强事务 → 选关系型数据库；数据量 &gt; 百亿行、写多读少、宽表稀疏 → 选 HBase</li>
+<li><strong>vs Redis</strong>：数据需要持久化到磁盘、数据量超过内存容量、需要范围扫描 → 选 HBase；需要极低延迟（微秒级）、数据结构丰富（List/Set/Hash）→ 选 Redis</li>
+<li><strong>vs Cassandra</strong>：已有 Hadoop 生态、需要与 Hive/Spark 深度集成 → 选 HBase；无 Hadoop 依赖、需要多数据中心复制、运维更简单 → 选 Cassandra</li>
+<li><strong>vs Elasticsearch</strong>：需要全文检索、多字段任意组合查询 → 选 ES；需要高吞吐写入、按 RowKey 点查或范围扫描 → 选 HBase</li>
+<li><strong>vs InfluxDB/Prometheus</strong>：纯时序场景、数据有自动过期需求、需要 PromQL/Flux 查询 → 选专用时序数据库；时序数据需要与其他业务数据共存、已有 HBase 基础设施 → 选 HBase（如 OpenTSDB）</li>
+</ul>
+
+
 <h2 id="总结">总结</h2>
 
 <p>HBase 的核心价值在于：在 HDFS 之上提供了对海量数据的随机读写能力，填补了 Hadoop 生态中"批处理（MapReduce/Spark）能处理大数据，但无法随机访问"的空白。</p>
@@ -592,7 +636,14 @@ long newCount = table.incrementColumnValue(
     <li class="nav-item nav-level-3"><a class="nav-link" href="#与其他系统集成"><span class="nav-number">6.3.</span> <span class="nav-text">与其他系统集成</span></a></li>
   </ol>
 </li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">总结</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#适用场景"><span class="nav-number">7.</span> <span class="nav-text">适用场景</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#适合的场景"><span class="nav-number">7.1.</span> <span class="nav-text">适合的场景</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#不适合的场景"><span class="nav-number">7.2.</span> <span class="nav-text">不适合的场景</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#选型对比"><span class="nav-number">7.3.</span> <span class="nav-text">选型对比</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">8.</span> <span class="nav-text">总结</span></a></li>
 </ol></div>
       </div>
       <!--/noindex-->
