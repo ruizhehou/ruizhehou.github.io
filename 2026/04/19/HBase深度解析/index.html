@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="HBase 深度解析：数据模型、RegionServer 架构、LSM-Tree 存储引擎、MemStore/HFile/Compaction、读写流程、RowKey 设计、热点问题与生产实践。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HBase 深度解析">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/19/HBase深度解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="HBase 深度解析：数据模型、RegionServer 架构、LSM-Tree 存储引擎、MemStore/HFile/Compaction、读写流程、RowKey 设计、热点问题与生产实践。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-19T09:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-19T09:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="HBase">
+<meta property="article:tag" content="NoSQL">
+<meta property="article:tag" content="大数据">
+<meta property="article:tag" content="LSM-Tree">
+<meta property="article:tag" content="分布式存储">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/19/HBase深度解析/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>HBase 深度解析 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-19T09:00:00+08:00" content="2026-04-19">
+      04-19
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      HBase 深度解析
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>HBase 是构建在 HDFS 之上的分布式列式存储系统，脱胎于 Google Bigtable 论文，是 Hadoop 生态中处理海量结构化数据的核心组件。与关系型数据库不同，HBase 放弃了复杂的 SQL 查询和事务，换来了水平扩展能力和对百亿行数据的毫秒级随机读写。本文从数据模型出发，深入解析 HBase 的存储引擎、读写流程、RegionServer 架构，以及生产环境中最关键的 RowKey 设计与热点问题处理。</p>
+
+<h2 id="数据模型">数据模型</h2>
+
+<h3 id="核心概念">核心概念</h3>
+<p>HBase 的数据模型与关系型数据库差异很大，理解这些概念是使用 HBase 的前提：</p>
+<p><strong>Table（表）</strong>：HBase 的顶层组织单位，按 RowKey 字典序排列，自动水平切分为多个 Region。</p>
+<p><strong>RowKey（行键）</strong>：每行数据的唯一标识，字节数组类型，按字典序排序。RowKey 的设计直接决定数据分布和查询性能，是 HBase 使用中最关键的设计决策。</p>
+<p><strong>Column Family（列族）</strong>：列的逻辑分组，建表时静态定义，同一列族的数据存储在同一组 HFile 中。列族数量建议不超过 3 个，过多列族会导致 Compaction 和 MemStore 管理复杂度上升。</p>
+<p><strong>Column Qualifier（列限定符）</strong>：列族内的列名，动态定义，无需提前声明，可以在写入时任意添加。完整的列名格式为 <code>列族:列限定符</code>，如 <code>info:name</code>。</p>
+<p><strong>Cell（单元格）</strong>：由 <code>{RowKey, Column Family, Column Qualifier, Timestamp}</code> 四元组唯一确定的数据单元，存储一个字节数组值。</p>
+<p><strong>Timestamp（时间戳）</strong>：每个 Cell 可以保存多个版本，通过时间戳区分。默认保留最新 3 个版本，读取时默认返回最新版本。</p>
+
+<h3 id="与关系型数据库对比">与关系型数据库对比</h3>
+<p>以用户信息表为例，关系型数据库和 HBase 的存储方式对比如下：</p>
+<pre><code class="language-bash"># 关系型数据库（MySQL）
+# user_id | name  | age | city    | phone
+# 1001    | Alice | 28  | Beijing | 13800000001
+
+# HBase 数据模型
+# RowKey    | info:name | info:age | info:city | contact:phone
+# 1001      | Alice     | 28       | Beijing   | 13800000001
+
+# HBase 的每个 Cell 独立存储，可以有不同版本
+# RowKey=1001, CF=info, CQ=city, ts=1713600000 -> "Beijing"
+# RowKey=1001, CF=info, CQ=city, ts=1713500000 -> "Shanghai"  (历史版本)
+</code></pre>
+<p>关键差异：</p>
+<ul>
+<li>HBase <strong>没有固定 Schema</strong>，不同行可以有完全不同的列</li>
+<li>HBase <strong>没有 JOIN</strong>，所有查询基于单行或范围扫描</li>
+<li>HBase <strong>支持多版本</strong>，天然支持历史数据查询</li>
+<li>HBase <strong>稀疏存储</strong>，空列不占用存储空间</li>
+</ul>
+
+<h3 id="Java-API">Java API 基础操作</h3>
+<pre><code class="language-java">Configuration conf = HBaseConfiguration.create();
+conf.set("hbase.zookeeper.quorum", "zk1,zk2,zk3");
+
+try (Connection connection = ConnectionFactory.createConnection(conf);
+     Table table = connection.getTable(TableName.valueOf("user"))) {
+
+    // Put：写入一行数据
+    Put put = new Put(Bytes.toBytes("1001"));
+    put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("name"),  Bytes.toBytes("Alice"));
+    put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("age"),   Bytes.toBytes("28"));
+    put.addColumn(Bytes.toBytes("contact"), Bytes.toBytes("phone"), Bytes.toBytes("13800000001"));
+    table.put(put);
+
+    // Get：按 RowKey 精确查询
+    Get get = new Get(Bytes.toBytes("1001"));
+    get.addFamily(Bytes.toBytes("info"));  // 只读取 info 列族
+    Result result = table.get(get);
+    byte[] name = result.getValue(Bytes.toBytes("info"), Bytes.toBytes("name"));
+    System.out.println(Bytes.toString(name));  // Alice
+
+    // Scan：范围扫描
+    Scan scan = new Scan();
+    scan.withStartRow(Bytes.toBytes("1000"));
+    scan.withStopRow(Bytes.toBytes("2000"));   // [startRow, stopRow)
+    scan.addColumn(Bytes.toBytes("info"), Bytes.toBytes("name"));
+    scan.setCaching(500);    // 每次 RPC 拉取 500 行，减少 RPC 次数
+    scan.setBatch(10);       // 每行最多返回 10 个 Cell
+
+    try (ResultScanner scanner = table.getScanner(scan)) {
+        for (Result r : scanner) {
+            System.out.println(Bytes.toString(r.getRow()));
+        }
+    }
+
+    // Delete：删除（逻辑删除，写入 Tombstone 标记）
+    Delete delete = new Delete(Bytes.toBytes("1001"));
+    delete.addColumn(Bytes.toBytes("info"), Bytes.toBytes("age"));
+    table.delete(delete);
+}
+</code></pre>
+
+
+<h2 id="整体架构">整体架构</h2>
+
+<h3 id="核心组件">核心组件</h3>
+<p>HBase 集群由以下核心组件构成：</p>
+<p><strong>HMaster</strong>：集群的管理节点，负责 Region 的分配与负载均衡、RegionServer 的故障检测与恢复、DDL 操作（建表、删表、修改表结构）。HMaster 不参与数据读写，不是性能瓶颈，但是单点，通常部署主备两个。</p>
+<p><strong>RegionServer</strong>：数据服务节点，负责实际的数据读写。每个 RegionServer 管理若干个 Region，处理客户端的 Get/Put/Scan/Delete 请求。RegionServer 是 HBase 的核心，也是性能调优的主要对象。</p>
+<p><strong>ZooKeeper</strong>：HBase 的协调服务，存储集群的元数据（hbase:meta 表的位置）、HMaster 选主、RegionServer 的存活状态监控。客户端通过 ZooKeeper 找到 hbase:meta 表所在的 RegionServer，再定位目标 Region。</p>
+<p><strong>HDFS</strong>：底层存储，HFile（HBase 的 SSTable 实现）和 WAL（Write-Ahead Log）都存储在 HDFS 上，提供数据的持久化和副本保障。</p>
+
+<h3 id="Region-与分区">Region 与分区</h3>
+<p>Region 是 HBase 的基本数据分区单位，每个 Region 负责一段连续的 RowKey 范围 <code>[startKey, endKey)</code>。一张表初始只有一个 Region，随着数据增长，当 Region 大小超过阈值（默认 10 GB）时自动 Split 为两个子 Region，由 HMaster 将其分配到不同的 RegionServer 上。</p>
+<p>客户端访问数据的寻址流程（三层寻址）：</p>
+<ol>
+<li>从 ZooKeeper 获取 <code>hbase:meta</code> 表所在的 RegionServer 地址（缓存在客户端）</li>
+<li>访问 <code>hbase:meta</code> 表，根据 RowKey 查找目标 Region 所在的 RegionServer（缓存在客户端）</li>
+<li>直接访问目标 RegionServer，读写数据</li>
+</ol>
+<p>客户端会缓存 Region 位置信息，只有缓存失效（Region 发生 Split 或迁移）时才重新查询 <code>hbase:meta</code>。</p>
+
+
+<h2 id="存储引擎：LSM-Tree">存储引擎：LSM-Tree</h2>
+
+<p>HBase 的存储引擎基于 LSM-Tree（Log-Structured Merge-Tree），这是它能实现高吞吐写入的根本原因。LSM-Tree 的核心思路是：<strong>将随机写转换为顺序写</strong>，用读放大换取写放大的降低。</p>
+
+<h3 id="RegionServer-内部结构">RegionServer 内部结构</h3>
+<p>每个 RegionServer 内部，数据流经以下组件：</p>
+<p><strong>WAL（Write-Ahead Log）</strong>：写入数据前，先将操作追加写入 WAL（存储在 HDFS 上的顺序文件）。WAL 是故障恢复的保障：RegionServer 崩溃后，未持久化到 HFile 的数据可以从 WAL 重放恢复。每个 RegionServer 只有一个 WAL，所有 Region 共享（HBase 1.x 后支持多 WAL 提升并发）。</p>
+<p><strong>MemStore</strong>：每个 Column Family 对应一个 MemStore，是内存中的有序跳表（ConcurrentSkipListMap），按 <code>{RowKey, CF, CQ, Timestamp}</code> 排序。写入数据先写 WAL，再写 MemStore，写入完成即返回客户端成功。MemStore 达到阈值（默认 128 MB）时触发 Flush，将数据写入 HDFS 生成新的 HFile。</p>
+<p><strong>HFile</strong>：HBase 的持久化存储文件，是 SSTable（Sorted String Table）的实现，文件内数据按 Key 有序排列，支持高效的顺序扫描和二分查找。HFile 一旦写入就不再修改（Immutable），更新和删除通过写入新版本或 Tombstone 标记实现。</p>
+<p><strong>BlockCache</strong>：RegionServer 级别的读缓存，缓存从 HFile 读取的 Block（默认 64 KB）。默认使用 LRU 策略，也支持 BucketCache（堆外内存或 SSD）。</p>
+
+<h3 id="写入流程">写入流程</h3>
+<p>一次 Put 操作的完整流程：</p>
+<ol>
+<li>客户端查询 <code>hbase:meta</code> 定位目标 RegionServer（通常已缓存）</li>
+<li>RegionServer 将操作追加写入 WAL（顺序写，极快）</li>
+<li>数据写入对应列族的 MemStore（内存操作）</li>
+<li>返回客户端写入成功</li>
+<li>当 MemStore 达到 128 MB（或 RegionServer 总 MemStore 达到堆内存 40%），触发 Flush：
+   <ul>
+   <li>将 MemStore 的数据快照写入 HDFS，生成新的 HFile</li>
+   <li>清空 MemStore，删除对应的 WAL 段</li>
+   </ul>
+</li>
+</ol>
+<pre><code class="language-bash"># HBase Shell 操作示例
+# 创建表，指定列族和配置
+create 'user', 
+  {NAME => 'info',    VERSIONS => 3, COMPRESSION => 'SNAPPY', BLOOMFILTER => 'ROW'},
+  {NAME => 'contact', VERSIONS => 1, COMPRESSION => 'SNAPPY', BLOOMFILTER => 'ROWCOL'}
+
+# 写入数据
+put 'user', '1001', 'info:name', 'Alice'
+put 'user', '1001', 'info:age',  '28'
+put 'user', '1001', 'contact:phone', '13800000001'
+
+# 读取数据
+get 'user', '1001'
+get 'user', '1001', {COLUMN => 'info:name', VERSIONS => 3}  # 读取最近 3 个版本
+
+# 范围扫描
+scan 'user', {STARTROW => '1000', STOPROW => '2000', LIMIT => 100}
+
+# 手动触发 Flush（生产环境谨慎使用）
+flush 'user'
+</code></pre>
+
+<h3 id="读取流程">读取流程</h3>
+<p>一次 Get 操作需要合并多个数据源的结果：</p>
+<ol>
+<li>查询 BlockCache（内存缓存），命中则直接返回</li>
+<li>查询 MemStore（内存中未 Flush 的最新数据）</li>
+<li>查询各个 HFile（可能有多个，按时间从新到旧查询）</li>
+<li>合并所有来源的结果，按版本排序，返回最新版本（或指定版本数）</li>
+</ol>
+<p>HFile 数量越多，读取需要查询的文件越多，读放大越严重。这是 Compaction 存在的根本原因。</p>
+<p><strong>Bloom Filter 优化读取</strong>：每个 HFile 内置 Bloom Filter，在读取时可以快速判断某个 RowKey（或 RowKey+Column）是否存在于该 HFile 中，不存在则跳过，大幅减少不必要的磁盘 IO。</p>
+
+<h3 id="Compaction">Compaction：合并优化</h3>
+<p>随着 Flush 不断产生新的 HFile，单个 Region 的 HFile 数量会越来越多，导致读放大加剧。Compaction 负责将多个 HFile 合并为更大的 HFile，同时清理过期数据和 Tombstone 标记。</p>
+<p><strong>Minor Compaction</strong>：将少量较小的 HFile 合并为一个较大的 HFile。不清理过期版本和 Tombstone（除非合并了所有 HFile），速度快，I/O 开销小，频繁发生。</p>
+<p><strong>Major Compaction</strong>：将一个 Region 内某个列族的所有 HFile 合并为一个 HFile。彻底清理过期版本、Tombstone 标记，读性能最优。但 I/O 开销极大，会影响业务读写，默认每 7 天触发一次，生产环境通常关闭自动 Major Compaction，在业务低峰期手动执行。</p>
+<pre><code class="language-bash"># 关闭自动 Major Compaction（在 hbase-site.xml 中配置）
+# hbase.hregion.majorcompaction = 0  (0 表示禁用自动触发)
+
+# 手动在低峰期执行 Major Compaction
+major_compact 'user'
+major_compact 'user,1001,2000'  # 只对指定 Region 执行
+</code></pre>
+
+
+<h2 id="RowKey-设计">RowKey 设计</h2>
+
+<p>RowKey 设计是 HBase 使用中最重要的决策，直接影响数据分布、查询性能和热点问题。好的 RowKey 设计需要同时考虑：数据均匀分布（避免热点）、支持目标查询模式（精确查找或范围扫描）、尽量短小（RowKey 在每个 Cell 中都存储一份）。</p>
+
+<h3 id="热点问题">热点问题</h3>
+<p>热点（Hotspot）是 HBase 生产环境最常见的问题：大量请求集中到少数几个 Region，导致这些 Region 所在的 RegionServer 过载，而其他 RegionServer 空闲。</p>
+<p><strong>顺序递增 RowKey 的热点问题</strong>：如果 RowKey 是递增的时间戳或自增 ID，所有新写入的数据都会落到最后一个 Region（最大 RowKey 所在的 Region），形成写热点。这是最常见的热点场景。</p>
+<pre><code class="language-bash"># 错误示例：RowKey 使用时间戳，所有写入集中到最新 Region
+# RowKey: 1713600001, 1713600002, 1713600003, ...
+# 所有写入都落到 Region [1713600000, +∞)，其他 Region 空闲
+
+# 正确做法：通过散列打散写入
+</code></pre>
+
+<h3 id="RowKey-散列设计">RowKey 散列设计</h3>
+<p><strong>方案一：Hash 前缀</strong>：取 RowKey 的 MD5/CRC32 前几位作为前缀，将数据均匀散列到各个 Region。代价是失去了范围扫描能力。</p>
+<pre><code class="language-java">// 原始 RowKey：userId_timestamp
+// 散列后：hash(userId)前2位 + userId_timestamp
+String originalKey = userId + "_" + timestamp;
+String hashPrefix = String.format("%02x", Math.abs(originalKey.hashCode()) % 256);
+String rowKey = hashPrefix + "_" + originalKey;
+// 结果：如 "3a_1001_1713600001"，数据均匀分布到 256 个 Region
+</code></pre>
+
+<p><strong>方案二：RowKey 反转</strong>：将递增部分（如时间戳、自增 ID）反转后作为 RowKey 前缀。时间戳 1713600001 反转为 1000063171，相邻时间的数据散列到不同 Region。</p>
+<pre><code class="language-java">// 时间戳反转：最新数据排在前面（适合查最新数据的场景）
+long reverseTs = Long.MAX_VALUE - System.currentTimeMillis();
+String rowKey = userId + "_" + String.format("%019d", reverseTs);
+// 查询某用户最新 N 条记录：scan startRow=userId+"_0", stopRow=userId+"_9"
+</code></pre>
+
+<p><strong>方案三：Salting（加盐）</strong>：在 RowKey 前加随机或轮询的前缀（如 0-N 的数字），将数据分散到 N 个桶。预分区时配合使用，确保每个桶对应一个 Region。</p>
+<pre><code class="language-java">// Salting：按 userId 取模，分散到 N 个桶
+int buckets = 32;
+int salt = Math.abs(userId.hashCode()) % buckets;
+String rowKey = String.format("%02d", salt) + "_" + userId + "_" + timestamp;
+</code></pre>
+
+<h3 id="预分区">预分区（Pre-splitting）</h3>
+<p>新建表时如果不预分区，初始只有一个 Region，所有写入都集中在这个 Region，直到触发 Split 才开始分散。对于已知数据分布的场景，建表时应预先指定分区点：</p>
+<pre><code class="language-bash"># HBase Shell 预分区建表
+# 按 Hash 前缀预分 16 个 Region
+create 'user', 'info', 'contact', 
+  SPLITS => ['10', '20', '30', '40', '50', '60', '70', '80', '90', 'a0', 'b0', 'c0', 'd0', 'e0', 'f0']
+
+# 或者按数量均匀分区
+create 'user', 'info', {NUMREGIONS => 16, SPLITALGO => 'HexStringSplit'}
+</code></pre>
+
+<h3 id="常见查询模式的-RowKey-设计">常见查询模式的 RowKey 设计</h3>
+<p><strong>场景一：查询某用户的历史订单（按时间倒序）</strong></p>
+<pre><code class="language-java">// RowKey = salt + userId + (Long.MAX_VALUE - orderTime)
+// 同一用户的订单聚集在相邻 Region，扫描效率高
+// 时间戳取反后，最新订单排在前面，scan 时自然按时间倒序
+String rowKey = salt + "_" + userId + "_" + (Long.MAX_VALUE - orderTime);
+// 查询用户 1001 的最新 10 条订单：
+// scan startRow="xx_1001_0", stopRow="xx_1001_9", LIMIT=10
+</code></pre>
+
+<p><strong>场景二：查询某类商品在某时间段的所有交易</strong></p>
+<pre><code class="language-java">// RowKey = categoryId + orderTime + orderId
+// 同一品类的订单按时间聚集，支持时间范围扫描
+// scan startRow="electronics_1713500000", stopRow="electronics_1713600000"
+String rowKey = categoryId + "_" + orderTime + "_" + orderId;
+</code></pre>
+
+<p><strong>场景三：消息系统（查询某会话的历史消息）</strong></p>
+<pre><code class="language-java">// RowKey = conversationId + (Long.MAX_VALUE - messageTime)
+// 同一会话的消息聚集，时间倒序排列
+String rowKey = conversationId + "_" + String.format("%019d", Long.MAX_VALUE - messageTime);
+</code></pre>
+
+
+<h2 id="高级特性">高级特性</h2>
+
+<h3 id="过滤器">过滤器（Filter）</h3>
+<p>HBase 的过滤器在 RegionServer 端执行，减少网络传输的数据量，比在客户端过滤效率更高：</p>
+<pre><code class="language-java">// RowKey 前缀过滤器：只返回特定前缀的行
+Filter prefixFilter = new PrefixFilter(Bytes.toBytes("1001_"));
+
+// 列值过滤器：只返回 info:age > 25 的行
+SingleColumnValueFilter ageFilter = new SingleColumnValueFilter(
+    Bytes.toBytes("info"),
+    Bytes.toBytes("age"),
+    CompareOperator.GREATER,
+    Bytes.toBytes("25")
+);
+ageFilter.setFilterIfMissing(true);  // 没有 age 列的行也过滤掉
+
+// 分页过滤器：服务端分页
+Filter pageFilter = new PageFilter(100);  // 每次返回最多 100 行
+
+// 组合过滤器：AND/OR 逻辑
+FilterList filterList = new FilterList(FilterList.Operator.MUST_PASS_ALL);
+filterList.addFilter(prefixFilter);
+filterList.addFilter(ageFilter);
+
+Scan scan = new Scan();
+scan.setFilter(filterList);
+</code></pre>
+
+<h3 id="原子操作">原子操作</h3>
+<p>HBase 支持行级原子操作，是实现分布式锁和 CAS 的基础：</p>
+<pre><code class="language-java">// checkAndPut：CAS 操作，只有当指定列的值符合预期时才执行 Put
+// 等价于：if (table[rowKey][cf:cq] == expectedValue) { put(newValue); }
+boolean success = table.checkAndMutate(
+    Bytes.toBytes("1001"),
+    Bytes.toBytes("info"), Bytes.toBytes("status")
+).ifEquals(Bytes.toBytes("active"))
+ .thenPut(new Put(Bytes.toBytes("1001"))
+     .addColumn(Bytes.toBytes("info"), Bytes.toBytes("status"), Bytes.toBytes("inactive")));
+
+// incrementColumnValue：原子自增，适合计数器场景
+long newCount = table.incrementColumnValue(
+    Bytes.toBytes("counter_1001"),
+    Bytes.toBytes("stats"),
+    Bytes.toBytes("page_view"),
+    1L  // 每次加 1
+);
+</code></pre>
+
+<h3 id="协处理器">协处理器（Coprocessor）</h3>
+<p>协处理器允许在 RegionServer 端执行自定义代码，类似于数据库的存储过程，减少客户端与服务端的数据传输：</p>
+<ul>
+<li><strong>Observer</strong>：类似触发器，在 Get/Put/Delete/Scan 操作前后执行自定义逻辑（如二级索引维护、审计日志）</li>
+<li><strong>Endpoint</strong>：类似存储过程，在 RegionServer 端执行聚合计算（如 COUNT、SUM），结果汇总后返回客户端，避免全量数据传输</li>
+</ul>
+
+
+<h2 id="生产实践">生产实践</h2>
+
+<h3 id="容量规划与参数调优">容量规划与参数调优</h3>
+<pre><code class="language-xml">&lt;!-- hbase-site.xml 核心参数 --&gt;
+
+&lt;!-- RegionServer 堆内存建议 32-64 GB，不超过 64 GB（避免 GC 停顿过长）--&gt;
+&lt;!-- export HBASE_HEAPSIZE=32768 --&gt;
+
+&lt;!-- MemStore 占堆内存的比例上限，超过则阻塞写入触发 Flush --&gt;
+&lt;property&gt;
+  &lt;name&gt;hbase.regionserver.global.memstore.size&lt;/name&gt;
+  &lt;value&gt;0.4&lt;/value&gt;
+&lt;/property&gt;
+
+&lt;!-- 单个 MemStore 的 Flush 阈值 --&gt;
+&lt;property&gt;
+  &lt;name&gt;hbase.hregion.memstore.flush.size&lt;/name&gt;
+  &lt;value&gt;134217728&lt;/value&gt;  &lt;!-- 128 MB --&gt;
+&lt;/property&gt;
+
+&lt;!-- BlockCache 占堆内存的比例 --&gt;
+&lt;property&gt;
+  &lt;name&gt;hfile.block.cache.size&lt;/name&gt;
+  &lt;value&gt;0.4&lt;/value&gt;
+&lt;/property&gt;
+
+&lt;!-- Region 大小上限，超过则触发 Split --&gt;
+&lt;property&gt;
+  &lt;name&gt;hbase.hregion.max.filesize&lt;/name&gt;
+  &lt;value&gt;10737418240&lt;/value&gt;  &lt;!-- 10 GB --&gt;
+&lt;/property&gt;
+
+&lt;!-- 关闭自动 Major Compaction --&gt;
+&lt;property&gt;
+  &lt;name&gt;hbase.hregion.majorcompaction&lt;/name&gt;
+  &lt;value&gt;0&lt;/value&gt;
+&lt;/property&gt;
+
+&lt;!-- Minor Compaction：当 HFile 数量超过此值时触发 --&gt;
+&lt;property&gt;
+  &lt;name&gt;hbase.hstore.compactionThreshold&lt;/name&gt;
+  &lt;value&gt;5&lt;/value&gt;
+&lt;/property&gt;
+</code></pre>
+
+<h3 id="常见问题排查">常见问题排查</h3>
+<p><strong>写入延迟飙高</strong>：通常是 MemStore 达到全局上限导致写入阻塞。排查：查看 RegionServer 日志中的 <code>Blocking updates</code> 字样；检查是否有 Region 的 HFile 数量过多（Minor Compaction 跟不上写入速度）；考虑增大 RegionServer 堆内存或减小 MemStore 比例。</p>
+<p><strong>读取延迟飙高</strong>：BlockCache 命中率低或 HFile 数量过多。排查：通过 RegionServer Web UI（默认 16030 端口）查看 BlockCache 命中率；如果 HFile 数量过多，手动触发 Minor Compaction；检查是否有全表扫描（Scan 没有设置 startRow/stopRow）。</p>
+<p><strong>Region 热点</strong>：某个 RegionServer 的 CPU/网络显著高于其他节点。排查：HMaster Web UI（16010 端口）查看各 RegionServer 的 Region 数量和请求分布；如果是写热点，检查 RowKey 设计是否有顺序递增问题；如果是读热点，考虑对热点 Region 手动 Split 或迁移。</p>
+<p><strong>GC 停顿导致 RegionServer 超时</strong>：RegionServer 堆内存过大（&gt;64 GB）时，Full GC 停顿可能超过 ZooKeeper 会话超时（默认 90 秒），导致 RegionServer 被 HMaster 认为宕机而触发 Region 迁移。处理：使用 G1GC 并调优 GC 参数；或将 BlockCache 迁移到堆外（BucketCache 模式），减小 JVM 堆大小。</p>
+
+<h3 id="与其他系统集成">与其他系统集成</h3>
+<p><strong>HBase + Phoenix</strong>：Apache Phoenix 在 HBase 之上提供 SQL 接口，支持二级索引、JDBC 连接，适合需要 SQL 查询的场景。Phoenix 的查询最终转换为 HBase 的 Scan 操作，性能依赖 RowKey 设计和索引。</p>
+<p><strong>HBase + Spark</strong>：通过 <code>hbase-spark</code> 连接器，Spark 可以批量读写 HBase，适合离线分析场景。注意控制并发度，避免 Scan 请求压垮 RegionServer。</p>
+<p><strong>HBase + Flink</strong>：Flink 的 HBase Sink 支持流式写入，配合 BufferedMutator 批量提交，提升写入吞吐。HBase 也常作为 Flink 状态后端的外部存储，存储大规模维表数据用于实时 Join。</p>
+
+
+<h2 id="总结">总结</h2>
+
+<p>HBase 的核心价值在于：在 HDFS 之上提供了对海量数据的随机读写能力，填补了 Hadoop 生态中"批处理（MapReduce/Spark）能处理大数据，但无法随机访问"的空白。</p>
+<p>理解 HBase 的关键是掌握三个核心机制：</p>
+<ul>
+<li><strong>LSM-Tree 写入路径</strong>：WAL → MemStore → HFile，写入转顺序写，高吞吐的根本</li>
+<li><strong>读取合并</strong>：BlockCache + MemStore + 多个 HFile 的结果合并，Bloom Filter 和 Compaction 是优化读性能的手段</li>
+<li><strong>RowKey 决定一切</strong>：数据分布、查询效率、热点问题，都由 RowKey 设计决定，是使用 HBase 最需要投入精力的地方</li>
+</ul>
+<p>选型建议：HBase 适合写多读少、需要随机访问、数据量百亿行以上的场景，如用户行为日志、消息历史、时序监控数据。如果数据量在千万行以内，或需要复杂 SQL 查询，关系型数据库通常是更好的选择。如果主要是批量分析而非随机访问，Hive/Spark 直接读 HDFS 更合适。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/HBase/" rel="tag"><i class="fa fa-tag"></i> HBase</a>
+          <a href="/tags/NoSQL/" rel="tag"><i class="fa fa-tag"></i> NoSQL</a>
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+          <a href="/tags/LSM-Tree/" rel="tag"><i class="fa fa-tag"></i> LSM-Tree</a>
+          <a href="/tags/分布式存储/" rel="tag"><i class="fa fa-tag"></i> 分布式存储</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#数据模型"><span class="nav-number">1.</span> <span class="nav-text">数据模型</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#核心概念"><span class="nav-number">1.1.</span> <span class="nav-text">核心概念</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#与关系型数据库对比"><span class="nav-number">1.2.</span> <span class="nav-text">与关系型数据库对比</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Java-API"><span class="nav-number">1.3.</span> <span class="nav-text">Java API 基础操作</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构"><span class="nav-number">2.</span> <span class="nav-text">整体架构</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#核心组件"><span class="nav-number">2.1.</span> <span class="nav-text">核心组件</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Region-与分区"><span class="nav-number">2.2.</span> <span class="nav-text">Region 与分区</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#存储引擎：LSM-Tree"><span class="nav-number">3.</span> <span class="nav-text">存储引擎：LSM-Tree</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#RegionServer-内部结构"><span class="nav-number">3.1.</span> <span class="nav-text">RegionServer 内部结构</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#写入流程"><span class="nav-number">3.2.</span> <span class="nav-text">写入流程</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#读取流程"><span class="nav-number">3.3.</span> <span class="nav-text">读取流程</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Compaction"><span class="nav-number">3.4.</span> <span class="nav-text">Compaction：合并优化</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#RowKey-设计"><span class="nav-number">4.</span> <span class="nav-text">RowKey 设计</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#热点问题"><span class="nav-number">4.1.</span> <span class="nav-text">热点问题</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#RowKey-散列设计"><span class="nav-number">4.2.</span> <span class="nav-text">RowKey 散列设计</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#预分区"><span class="nav-number">4.3.</span> <span class="nav-text">预分区</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#常见查询模式的-RowKey-设计"><span class="nav-number">4.4.</span> <span class="nav-text">常见查询模式的 RowKey 设计</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#高级特性"><span class="nav-number">5.</span> <span class="nav-text">高级特性</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#过滤器"><span class="nav-number">5.1.</span> <span class="nav-text">过滤器（Filter）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#原子操作"><span class="nav-number">5.2.</span> <span class="nav-text">原子操作</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#协处理器"><span class="nav-number">5.3.</span> <span class="nav-text">协处理器（Coprocessor）</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#生产实践"><span class="nav-number">6.</span> <span class="nav-text">生产实践</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#容量规划与参数调优"><span class="nav-number">6.1.</span> <span class="nav-text">容量规划与参数调优</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#常见问题排查"><span class="nav-number">6.2.</span> <span class="nav-text">常见问题排查</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#与其他系统集成"><span class="nav-number">6.3.</span> <span class="nav-text">与其他系统集成</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">162</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">59</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+    window.addEventListener('load', () => { quicklink.listen(); });
+  </script>
+</body>
+</html>
