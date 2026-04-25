@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="大型模型平台系统建设全景：特征平台、训练框架、在线推理、MLOps 全链路，以及金融与增长场景下的工程实践与技术选型。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="大型模型平台系统建设">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/25/大型模型平台系统建设/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="大型模型平台系统建设全景：特征平台、训练框架、在线推理、MLOps 全链路，以及金融与增长场景下的工程实践与技术选型。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-25T11:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-25T11:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="模型平台">
+<meta property="article:tag" content="特征工程">
+<meta property="article:tag" content="推理框架">
+<meta property="article:tag" content="MLOps">
+<meta property="article:tag" content="系统设计">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/25/大型模型平台系统建设/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>大型模型平台系统建设 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-25T11:00:00+08:00" content="2026-04-25">
+      04-25
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      大型模型平台系统建设
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>模型平台是连接数据与算法的工程基础设施。在金融风控、用户增长、推荐广告等场景下，一个完善的模型平台需要同时解决三个核心问题：<strong>如何高效地生产特征</strong>（特征平台）、<strong>如何稳定地训练模型</strong>（训练框架）、<strong>如何低延迟地提供预测服务</strong>（推理框架）。三者缺一不可，任何一环的短板都会成为整个 AI 工程链路的瓶颈。本文结合实际 JD 场景，系统梳理大型模型平台的全链路建设思路与关键技术决策。</p>
+
+
+<h2 id="整体架构">整体架构</h2>
+
+<h3 id="全链路分层视图">全链路分层视图</h3>
+<p>一个完整的模型平台可以分为五层，从底层数据到上层业务逐层递进：</p>
+<ul>
+<li><strong>数据层</strong>：原始数据的接入与存储，包括用户行为日志（Kafka）、业务数据库（MySQL/HBase）、外部数据源。数据质量是整个平台的地基，脏数据会污染所有下游环节。</li>
+<li><strong>特征层</strong>：批流一体的特征生产，将原始数据加工为模型可用的特征，并提供统一的特征存储与查询服务。特征平台是模型平台中最复杂、最容易被低估的部分。</li>
+<li><strong>训练层</strong>：样本构建、模型训练、实验管理。支持离线批训练和在线增量训练，管理超参数调优和多版本实验对比。</li>
+<li><strong>推理层</strong>：模型部署与在线服务，负责低延迟的特征实时查询、模型预测、结果后处理。是平台中对 SLA 要求最高的部分（P99 &lt; 50ms）。</li>
+<li><strong>管理层</strong>：模型仓库、A/B 测试、监控告警、数据隔离。保障平台的可观测性和多租户安全隔离。</li>
+</ul>
+
+<h3 id="核心数据流">核心数据流</h3>
+<p>一次完整的模型迭代流程如下：</p>
+<ol>
+<li>业务事件（用户点击、交易、授信申请）产生原始日志，写入 Kafka</li>
+<li>Flink 实时消费 Kafka，计算实时特征（近 1 小时行为统计），写入 Redis/HBase</li>
+<li>Spark/Hive 批量计算历史特征（近 30 天统计），写入特征存储</li>
+<li>样本构建服务从特征存储拼接样本，生成训练数据集</li>
+<li>训练框架（PyTorch/TF）读取训练数据，完成模型训练，输出模型文件</li>
+<li>模型推送到模型仓库，经过评估后灰度发布到推理服务</li>
+<li>在线请求到达时，推理服务实时查询特征，调用模型，返回预测分</li>
+<li>预测结果和真实标签回流，用于监控模型效果和触发下一轮训练</li>
+</ol>
+
+
+<h2 id="特征平台">特征平台</h2>
+
+<p>特征平台是模型平台中投入最大、收益最持久的基础设施。它的核心价值不是计算特征，而是<strong>让特征可复用、训练与线上一致、生产过程可管理</strong>。</p>
+
+<h3 id="批流一体特征生产">批流一体特征生产</h3>
+<p>特征生产有两条路径，必须统一管理才能避免训练与线上特征不一致（Training-Serving Skew）：</p>
+<p><strong>批量特征</strong>：用 Spark/Hive 计算历史窗口统计（近 7 天、近 30 天），结果写入 HBase 或 Redis。特点是数据量大、计算复杂、延迟高（T+1 或 T+几小时），适合用户长期行为特征、商品历史统计等变化缓慢的特征。</p>
+<p><strong>实时特征</strong>：用 Flink 消费 Kafka 事件流，计算近实时窗口统计（近 1 分钟、近 1 小时），结果写入 Redis。特点是延迟低（秒级），适合捕捉用户当前意图（刚刚浏览了什么、刚刚发生了什么交易）。</p>
+<p>批流统一的关键是<strong>特征定义语言</strong>：用同一套 DSL 或配置描述特征的计算逻辑，由平台自动生成 Spark 批处理代码和 Flink 流处理代码，保证语义一致。</p>
+<pre><code class="language-yaml"># 特征定义示例（DSL 配置）
+feature:
+  name: user_buy_cnt_7d
+  description: 用户近7天购买次数
+  entity: user_id
+  source: order_events          # 事件源
+  filter: event_type == 'buy'
+  window: 7d
+  aggregation: count
+  # 平台自动生成：
+  # - Spark SQL: SELECT user_id, COUNT(*) FROM orders WHERE dt >= date_sub(today,7) GROUP BY user_id
+  # - Flink: keyBy(user_id).window(SlidingEventTimeWindows.of(7d,1h)).aggregate(CountAgg)
+</code></pre>
+
+<h3 id="特征存储选型">特征存储选型</h3>
+<p>不同特征有不同的读写模式，需要针对性地选择存储：</p>
+<ul>
+<li><strong>实时特征（Redis）</strong>：延迟要求极高（&lt;1ms），数据量相对小（活跃用户），支持高频更新。用 Hash 结构存储用户的多个实时特征，Pipeline 批量读取减少 RTT。</li>
+<li><strong>批量特征（HBase）</strong>：数据量大（全量用户/商品），更新频率低（每天或每小时），支持按 RowKey 点查。RowKey 设计为 <code>userId</code> 或 <code>itemId</code>，一行存储该实体的所有批量特征。</li>
+<li><strong>离线特征（Hive/HDFS）</strong>：用于训练样本拼接，不参与在线服务，追求高吞吐而非低延迟。</li>
+<li><strong>向量特征（Faiss/Milvus）</strong>：Embedding 向量的近似最近邻检索，用于召回阶段的向量相似度搜索。</li>
+</ul>
+<pre><code class="language-python"># 在线特征查询示例（推理服务调用）
+class FeatureStore:
+    def get_features(self, user_id: str, item_id: str) -> dict:
+        # 批量从多个存储并发查询，减少延迟
+        with ThreadPoolExecutor() as executor:
+            redis_future  = executor.submit(self._get_realtime_features, user_id)
+            hbase_future  = executor.submit(self._get_batch_features, user_id, item_id)
+
+        realtime = redis_future.result()   # 实时特征：近1小时行为
+        batch    = hbase_future.result()   # 批量特征：近7天/30天统计
+
+        return {**realtime, **batch}
+
+    def _get_realtime_features(self, user_id: str) -> dict:
+        # Redis Pipeline 批量获取，一次 RTT 取多个特征
+        pipe = self.redis.pipeline()
+        pipe.hgetall(f"user:realtime:{user_id}")
+        results = pipe.execute()
+        return results[0] or {}
+</code></pre>
+
+<h3 id="特征一致性保障">特征一致性保障</h3>
+<p>Training-Serving Skew 是模型效果下降最隐蔽的原因之一。常见的不一致来源：</p>
+<ul>
+<li>训练时用 Hive 计算特征，线上用 Redis 查询，两者逻辑有细微差异</li>
+<li>训练数据的时间窗口定义（如"近7天"的边界）与线上不一致</li>
+<li>缺失值处理方式不同（训练填 0，线上填 -1）</li>
+<li>特征归一化参数（均值、标准差）训练时固定，线上用了不同的值</li>
+</ul>
+<p>解决方案：<strong>Point-in-Time Correct 特征回填</strong>——训练样本拼接时，用事件发生时刻的特征值（而非当前特征值），重现模型在预测时刻看到的特征状态。同时，将特征计算逻辑抽象为统一的算子库，训练和推理共用同一套代码。</p>
+
+
+<h2 id="训练框架">训练框架</h2>
+
+<h3 id="样本构建">样本构建</h3>
+<p>样本质量直接决定模型上限，样本构建是训练流水线中最容易出问题的环节。</p>
+<p><strong>正负样本构建</strong>：在金融风控场景，正样本（逾期/欺诈）通常极少（1:100 甚至 1:1000），需要负采样或过采样（SMOTE）。在增长场景（点击率预估），需要对曝光未点击样本进行随机负采样，并在模型推理时做校正（Calibration）。</p>
+<p><strong>样本穿越（Data Leakage）检测</strong>：训练样本中不能包含预测时刻之后才产生的特征。例如，预测用户是否会逾期，不能用逾期发生后的还款行为作为特征。平台需要自动检测特征时间戳是否晚于样本标签时间戳。</p>
+<pre><code class="language-python"># 样本构建：Point-in-Time Correct 特征拼接
+def build_sample(event_time: datetime, user_id: str, label: int) -> dict:
+    # 查询事件发生时刻的特征快照（而非当前值）
+    # 通过 HBase 的多版本特性，查询 timestamp <= event_time 的最新版本
+    features = feature_store.get_features_at(
+        user_id=user_id,
+        timestamp=event_time   # Point-in-Time
+    )
+    return {"label": label, "event_time": event_time, **features}
+</code></pre>
+
+<h3 id="训练任务管理">训练任务管理</h3>
+<p>生产级训练平台需要管理大量并发的训练任务，核心能力包括：</p>
+<p><strong>资源调度</strong>：基于 Kubernetes 的 GPU 任务调度，支持 Gang Scheduling（所有 Worker 同时启动）、拓扑感知调度（同机架 GPU 优先）、抢占式调度（高优任务可抢占低优任务的资源）。</p>
+<p><strong>实验管理</strong>：每次训练记录超参数、数据集版本、代码版本、评估指标，支持实验对比和复现。MLflow 或 W&amp;B 是常用选择。</p>
+<p><strong>自动超参调优</strong>：Optuna 或 Ray Tune 的贝叶斯优化，自动搜索学习率、网络结构、正则化系数等超参数空间，减少人工调参成本。</p>
+<pre><code class="language-python">import optuna
+import mlflow
+
+def objective(trial):
+    # 超参数搜索空间
+    lr           = trial.suggest_float("lr", 1e-5, 1e-2, log=True)
+    batch_size   = trial.suggest_categorical("batch_size", [256, 512, 1024])
+    hidden_units = trial.suggest_int("hidden_units", 64, 512, step=64)
+
+    with mlflow.start_run():
+        mlflow.log_params({"lr": lr, "batch_size": batch_size, "hidden_units": hidden_units})
+
+        model = DeepFM(hidden_units=hidden_units)
+        auc = train_and_evaluate(model, lr=lr, batch_size=batch_size)
+
+        mlflow.log_metric("auc", auc)
+
+    return auc
+
+study = optuna.create_study(direction="maximize")
+study.optimize(objective, n_trials=50, n_jobs=4)  # 并行搜索
+</code></pre>
+
+<h3 id="在线学习与增量训练">在线学习与增量训练</h3>
+<p>在增长场景（广告点击率、推荐）中，用户兴趣变化快，T+1 的离线训练无法及时捕捉最新趋势。在线学习（Online Learning）或增量训练（Incremental Training）是解决方案：</p>
+<ul>
+<li><strong>增量训练</strong>：每隔 1-6 小时，用最新数据在现有模型基础上继续训练若干步，更新模型参数。成本低，但存在灾难性遗忘（Catastrophic Forgetting）风险，需要控制学习率和训练步数。</li>
+<li><strong>流式训练（FTRL）</strong>：用 Follow-The-Regularized-Leader 算法对每条样本实时更新模型，适合稀疏线性模型（LR + 特征交叉）。延迟可以降到分钟级，但模型复杂度受限。</li>
+<li><strong>双塔模型分离更新</strong>：推荐系统中，用户塔每天全量更新，物品塔每小时增量更新，在效果和成本之间取得平衡。</li>
+</ul>
+
+
+<h2 id="在线推理框架">在线推理框架</h2>
+
+<h3 id="推理服务架构">推理服务架构</h3>
+<p>在线推理是模型平台中延迟最敏感的环节，金融风控场景通常要求 P99 &lt; 100ms，推荐广告场景要求 P99 &lt; 50ms。推理服务的关键路径：</p>
+<ol>
+<li>接收请求（用户 ID、物品 ID、上下文信息）</li>
+<li>并发查询特征存储（Redis + HBase），合并特征向量</li>
+<li>特征预处理（归一化、离散化、Embedding Lookup）</li>
+<li>模型前向推理（TensorFlow Serving / TorchServe / Triton）</li>
+<li>结果后处理（校正、阈值判断、业务规则过滤）</li>
+<li>返回预测分，记录请求日志（用于后续样本回流）</li>
+</ol>
+
+<h3 id="推理性能优化">推理性能优化</h3>
+<p><strong>模型量化（Quantization）</strong>：将模型参数从 FP32 转为 INT8 或 FP16，减少显存占用和推理计算量。INT8 量化通常能将推理速度提升 2-4x，精度损失 &lt;0.5% AUC。</p>
+<pre><code class="language-python"># PyTorch 动态量化（适合 Embedding 密集的推荐模型）
+import torch.quantization
+
+model = DeepFM.load("model.pt")
+quantized_model = torch.quantization.quantize_dynamic(
+    model,
+    {torch.nn.Linear, torch.nn.Embedding},
+    dtype=torch.qint8
+)
+# 推理速度提升约 2x，模型体积减小约 75%
+</code></pre>
+
+<p><strong>模型蒸馏（Knowledge Distillation）</strong>：用大模型（Teacher）的软标签训练小模型（Student），在保持大部分效果的同时大幅降低推理延迟。适合将复杂的 Transformer 模型蒸馏为轻量 MLP 用于在线服务。</p>
+
+<p><strong>特征缓存</strong>：对变化缓慢的特征（用户长期画像、商品属性）在推理服务内缓存，避免每次请求都查 HBase/Redis。本地缓存（Caffeine）+ 异步刷新，命中率可达 80-90%，将特征查询延迟从 5ms 降到 0.1ms。</p>
+
+<p><strong>批量推理（Batching）</strong>：将多个请求合并为一个 Batch 送入 GPU，提升 GPU 利用率。Triton Inference Server 支持动态 Batching，自动在延迟和吞吐之间取得平衡。</p>
+
+<h3 id="模型版本管理与灰度发布">模型版本管理与灰度发布</h3>
+<p>生产环境不能直接全量切换新模型，需要灰度验证：</p>
+<pre><code class="language-yaml"># 推理服务路由配置（金丝雀发布）
+model_routing:
+  - model: deepfm_v3
+    weight: 90    # 90% 流量走旧模型
+    version: "2026-04-20"
+  - model: deepfm_v4
+    weight: 10    # 10% 流量走新模型（灰度）
+    version: "2026-04-25"
+
+# 灰度期间对比两个模型的：
+# - 业务指标（点击率、转化率、逾期率）
+# - 技术指标（P99延迟、QPS、错误率）
+# 确认新模型稳定后，逐步调整 weight 到 100%
+</code></pre>
+
+
+<h2 id="数据隔离与多租户">数据隔离与多租户</h2>
+
+<p>在金融场景中，不同业务线（消费金融、财富管理、保险）的数据有严格的隔离要求，模型平台必须支持多租户隔离：</p>
+
+<h3 id="数据隔离层次">数据隔离层次</h3>
+<ul>
+<li><strong>存储隔离</strong>：不同业务线的特征存储在独立的 HBase 表或 Redis Cluster，避免数据混用。Hive 用库级别隔离，每个业务线有独立的数据库和权限控制。</li>
+<li><strong>计算隔离</strong>：Kubernetes Namespace + ResourceQuota 限制每个业务线的 CPU/GPU/内存配额，防止一个业务线的训练任务影响其他业务线的在线推理。</li>
+<li><strong>模型隔离</strong>：模型仓库按业务线分区，不同业务线的模型互不可见。推理服务按业务线部署独立实例，避免共享推理服务的故障级联。</li>
+<li><strong>访问控制</strong>：基于 RBAC 的权限管理，数据科学家只能访问自己业务线的数据和模型，平台管理员有全局视图。</li>
+</ul>
+
+<h3 id="数据血缘与审计">数据血缘与审计</h3>
+<p>金融场景有强监管要求，需要完整的数据血缘追踪：每个特征的来源（哪张原始表、哪个字段）、每个模型的训练数据（哪个时间段、哪个版本的特征）、每次预测的输入特征值（用于事后审计和解释）。Apache Atlas 或自建血缘系统可以满足这一需求。</p>
+
+
+<h2 id="监控与告警">监控与告警</h2>
+
+<h3 id="三层监控体系">三层监控体系</h3>
+<p>模型平台的监控分为三个层次，每层关注不同的问题：</p>
+
+<p><strong>系统监控</strong>（基础设施层）：</p>
+<ul>
+<li>推理服务：QPS、P50/P99 延迟、错误率、GPU 利用率</li>
+<li>特征存储：Redis 命中率、HBase 读延迟、Kafka 消费延迟</li>
+<li>训练任务：GPU 利用率（MFU）、训练速度（samples/sec）、显存使用率</li>
+</ul>
+
+<p><strong>数据监控</strong>（特征层）：</p>
+<ul>
+<li>特征缺失率：某个特征的缺失比例突然升高，通常意味着上游数据管道故障</li>
+<li>特征分布漂移：特征的均值、方差、分位数与历史基线偏差过大（PSI 检验）</li>
+<li>特征时效性：实时特征的更新延迟，超过阈值触发告警</li>
+</ul>
+
+<p><strong>模型监控</strong>（效果层）：</p>
+<ul>
+<li>预测分分布：模型输出的分数分布发生偏移（Score Distribution Shift），通常是特征分布漂移的信号</li>
+<li>业务指标：点击率、转化率、逾期率等业务 KPI 的实时监控</li>
+<li>模型性能指标：AUC、KS、Gini 系数的定期评估（需要等待标签回流，有延迟）</li>
+</ul>
+<pre><code class="language-python"># 特征分布漂移检测（PSI - Population Stability Index）
+def calculate_psi(baseline: np.ndarray, current: np.ndarray, bins: int = 10) -> float:
+    """
+    PSI < 0.1：分布稳定，无需关注
+    0.1 <= PSI < 0.2：轻微漂移，需要关注
+    PSI >= 0.2：显著漂移，需要重新训练模型
+    """
+    baseline_pct, _ = np.histogram(baseline, bins=bins, density=True)
+    current_pct, _  = np.histogram(current,  bins=bins, density=True)
+
+    # 避免除零
+    baseline_pct = np.where(baseline_pct == 0, 1e-6, baseline_pct)
+    current_pct  = np.where(current_pct  == 0, 1e-6, current_pct)
+
+    psi = np.sum((current_pct - baseline_pct) * np.log(current_pct / baseline_pct))
+    return psi
+</code></pre>
+
+<h3 id="自动化再训练触发">自动化再训练触发</h3>
+<p>模型不是训练一次就永久有效的，需要根据监控信号自动触发再训练：</p>
+<ul>
+<li><strong>定时触发</strong>：每天/每周定时重新训练，适合变化较慢的场景（金融风控）</li>
+<li><strong>漂移触发</strong>：当特征 PSI 超过阈值或预测分分布偏移超过阈值时自动触发</li>
+<li><strong>效果触发</strong>：当线上 AUC 下降超过 N% 时触发（需要标签回流，有延迟）</li>
+<li><strong>数据量触发</strong>：当新增训练样本超过一定数量时触发增量训练</li>
+</ul>
+
+
+<h2 id="技术选型">技术选型总结</h2>
+
+<p>基于上述 JD 场景（金融 + 增长，Java/Scala/Go/Python 技术栈），推荐以下技术选型：</p>
+
+<ul>
+<li><strong>实时特征计算</strong>：Flink（Java/Scala），状态管理成熟，与 Kafka 集成完善，适合金融场景的精确一次语义</li>
+<li><strong>批量特征计算</strong>：Spark（Scala/Python），生态丰富，与 Hive/HDFS 集成好，支持大规模数据处理</li>
+<li><strong>实时特征存储</strong>：Redis Cluster，低延迟，支持 Hash 结构批量读取</li>
+<li><strong>批量特征存储</strong>：HBase，海量数据随机读写，与 Hadoop 生态集成</li>
+<li><strong>离线数据仓库</strong>：Hive + HDFS，成熟稳定，适合 T+1 的批量计算</li>
+<li><strong>流批一体数据湖</strong>：Hudi（支持 Upsert 和增量查询，解决流批数据统一问题）</li>
+<li><strong>OLAP 分析</strong>：ClickHouse，亿级数据的秒级聚合查询，适合特征统计分析</li>
+<li><strong>训练框架</strong>：PyTorch（研究灵活性）+ DeepSpeed/FSDP（大模型分布式训练）</li>
+<li><strong>推理框架</strong>：Triton Inference Server（GPU 推理）+ TorchServe（CPU 推理），Go 实现的推理网关负责特征查询和路由</li>
+<li><strong>实验管理</strong>：MLflow（开源，自托管，与 Python 生态集成好）</li>
+<li><strong>任务调度</strong>：Kubernetes + Argo Workflow，支持 DAG 任务依赖和重试</li>
+<li><strong>消息队列</strong>：Kafka，高吞吐，与 Flink 深度集成</li>
+</ul>
+
+
+<h2 id="总结">总结</h2>
+
+<p>大型模型平台的建设是一个长期工程，没有一步到位的方案。从工程实践角度，建议按以下优先级推进：</p>
+<ol>
+<li><strong>先打通链路，再优化性能</strong>：优先建立从数据到预测的完整闭环，哪怕初期用简单的方案（单机 Spark、Redis 直连），再逐步替换为高性能组件</li>
+<li><strong>特征平台优先于模型优化</strong>：特征质量和一致性比模型架构更重要，80% 的模型效果来自于特征工程</li>
+<li><strong>可观测性与数据质量是地基</strong>：没有监控的平台是黑盒，特征漂移和样本穿越问题会悄无声息地侵蚀模型效果</li>
+<li><strong>标准化降低协作成本</strong>：统一的特征定义 DSL、统一的模型接口规范、统一的实验管理，让算法工程师和平台工程师能高效协作</li>
+</ol>
+<p>在金融场景中，<strong>稳定性和可解释性</strong>的优先级高于模型性能——一个稳定运行的简单模型，远比一个偶尔出问题的复杂模型更有价值。在增长场景中，<strong>迭代速度</strong>是核心竞争力，平台的价值在于让算法工程师能以最低的工程成本快速验证新想法。两种场景对平台的要求不同，但底层基础设施（特征平台、数据管道、监控体系）是共通的。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/模型平台/" rel="tag"><i class="fa fa-tag"></i> 模型平台</a>
+          <a href="/tags/特征工程/" rel="tag"><i class="fa fa-tag"></i> 特征工程</a>
+          <a href="/tags/推理框架/" rel="tag"><i class="fa fa-tag"></i> 推理框架</a>
+          <a href="/tags/MLOps/" rel="tag"><i class="fa fa-tag"></i> MLOps</a>
+          <a href="/tags/系统设计/" rel="tag"><i class="fa fa-tag"></i> 系统设计</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构"><span class="nav-number">1.</span> <span class="nav-text">整体架构</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#全链路分层视图"><span class="nav-number">1.1.</span> <span class="nav-text">全链路分层视图</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#核心数据流"><span class="nav-number">1.2.</span> <span class="nav-text">核心数据流</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#特征平台"><span class="nav-number">2.</span> <span class="nav-text">特征平台</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#批流一体特征生产"><span class="nav-number">2.1.</span> <span class="nav-text">批流一体特征生产</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#特征存储选型"><span class="nav-number">2.2.</span> <span class="nav-text">特征存储选型</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#特征一致性保障"><span class="nav-number">2.3.</span> <span class="nav-text">特征一致性保障</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#训练框架"><span class="nav-number">3.</span> <span class="nav-text">训练框架</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#样本构建"><span class="nav-number">3.1.</span> <span class="nav-text">样本构建</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#训练任务管理"><span class="nav-number">3.2.</span> <span class="nav-text">训练任务管理</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#在线学习与增量训练"><span class="nav-number">3.3.</span> <span class="nav-text">在线学习与增量训练</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#在线推理框架"><span class="nav-number">4.</span> <span class="nav-text">在线推理框架</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#推理服务架构"><span class="nav-number">4.1.</span> <span class="nav-text">推理服务架构</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#推理性能优化"><span class="nav-number">4.2.</span> <span class="nav-text">推理性能优化</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#模型版本管理与灰度发布"><span class="nav-number">4.3.</span> <span class="nav-text">模型版本管理与灰度发布</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#数据隔离与多租户"><span class="nav-number">5.</span> <span class="nav-text">数据隔离与多租户</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#数据隔离层次"><span class="nav-number">5.1.</span> <span class="nav-text">数据隔离层次</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#数据血缘与审计"><span class="nav-number">5.2.</span> <span class="nav-text">数据血缘与审计</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#监控与告警"><span class="nav-number">6.</span> <span class="nav-text">监控与告警</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#三层监控体系"><span class="nav-number">6.1.</span> <span class="nav-text">三层监控体系</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#自动化再训练触发"><span class="nav-number">6.2.</span> <span class="nav-text">自动化再训练触发</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#技术选型"><span class="nav-number">7.</span> <span class="nav-text">技术选型总结</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">8.</span> <span class="nav-text">总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">164</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">63</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+    window.addEventListener('load', () => { quicklink.listen(); });
+  </script>
+</body>
+</html>
