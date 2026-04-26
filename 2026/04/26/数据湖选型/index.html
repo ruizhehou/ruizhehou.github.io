@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="数据湖选型全景：存储层（HDFS/S3/OSS）、表格式（Delta Lake/Iceberg/Hudi）、计算引擎（Spark/Flink/Trino）、元数据管理（Hive Metastore/Glue/Nessie）的选型对比与组合建议。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="数据湖选型全景：存储、表格式、计算引擎怎么选">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/26/数据湖选型/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="数据湖选型全景：存储层（HDFS/S3/OSS）、表格式（Delta Lake/Iceberg/Hudi）、计算引擎（Spark/Flink/Trino）、元数据管理（Hive Metastore/Glue/Nessie）的选型对比与组合建议。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-26T09:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-26T09:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据湖">
+<meta property="article:tag" content="Delta Lake">
+<meta property="article:tag" content="Iceberg">
+<meta property="article:tag" content="Hudi">
+<meta property="article:tag" content="技术选型">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/26/数据湖选型/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>数据湖选型全景：存储、表格式、计算引擎怎么选 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-26T09:00:00+08:00" content="2026-04-26">
+      04-26
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      数据湖选型全景：存储、表格式、计算引擎怎么选
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>数据湖不是一个单一的产品，而是一套由多个组件组合而成的架构。选型时需要在四个层次分别做决策：<strong>存储层</strong>（数据放哪）、<strong>表格式层</strong>（数据怎么组织）、<strong>计算引擎层</strong>（数据怎么处理）、<strong>元数据管理层</strong>（数据怎么管理）。本文逐层拆解各主流选项的特点，并给出典型的组合方案。</p>
+
+
+<h2 id="存储层">存储层：数据放哪</h2>
+
+<p>存储层是数据湖的地基，决定了数据的物理存放位置和访问成本。</p>
+
+<h3 id="HDFS">HDFS（自建 Hadoop 集群）</h3>
+<p>HDFS 是传统大数据架构的存储核心，数据存在自己的服务器上。</p>
+<p><strong>优点</strong>：数据完全自控，网络带宽不受云厂商限制，计算与存储在同一集群（数据本地性），适合计算密集型的大规模批处理。</p>
+<p><strong>缺点</strong>：运维成本高（需要专职团队维护 NameNode、DataNode），扩缩容不灵活（加机器周期长），存储与计算耦合（计算资源闲置时存储资源也在消耗成本）。</p>
+<p><strong>适合场景</strong>：已有大规模 Hadoop 集群、对数据安全有极高要求（不能上云）、网络带宽是瓶颈的场景（如超大规模 Shuffle 作业）。</p>
+
+<h3 id="云对象存储">云对象存储（S3 / OSS / GCS）</h3>
+<p>云对象存储是现代数据湖的主流选择。AWS S3、阿里云 OSS、腾讯云 COS、Google GCS 的设计思路相同：按存储量和请求次数计费，存储与计算完全解耦。</p>
+<p><strong>优点</strong>：存储成本极低（约 $0.02/GB/月，比 HDFS 低 3-5 倍）；弹性无限，不需要提前规划容量；存算分离，计算集群可以按需启停；多个计算集群可以共享同一份数据。</p>
+<p><strong>缺点</strong>：网络延迟比 HDFS 高（跨网络访问 vs 本地磁盘）；小文件问题更突出（每次 LIST 操作有延迟）；数据出云有流量费用。</p>
+<p><strong>适合场景</strong>：新建数据湖首选，尤其是业务规模不稳定、需要弹性扩缩容的团队。国内上云首选阿里云 OSS（与 EMR/MaxCompute 生态集成最好）或腾讯云 COS。</p>
+
+<h3 id="存储层选型建议">选型建议</h3>
+<p>2026 年新建数据湖，<strong>默认选云对象存储</strong>。除非有合规要求（金融、政务数据不能出境）或已有大规模 HDFS 集群，否则 HDFS 的运维成本很难被收益覆盖。存算分离是大势所趋，云上的 EMR 集群可以在夜间关停，大幅降低计算成本。</p>
+
+
+<h2 id="表格式层">表格式层：数据怎么组织</h2>
+
+<p>表格式层是数据湖近年来最重要的技术演进，解决了"文件堆"变成"可管理的表"的问题。三个主流选项：Delta Lake、Apache Iceberg、Apache Hudi。</p>
+
+<h3 id="Delta-Lake">Delta Lake</h3>
+<p>由 Databricks 开源（2019 年），是 Databricks 平台的核心存储格式。</p>
+<p><strong>核心机制</strong>：在 Parquet 文件之上维护一个 <code>_delta_log</code> 目录，记录每次写操作的 JSON 日志（事务日志）。读取时通过回放事务日志确定当前状态，支持快照隔离（Snapshot Isolation）。</p>
+<p><strong>核心特性</strong>：</p>
+<ul>
+<li>ACID 事务：并发写入不会互相覆盖，写失败自动回滚</li>
+<li>时间旅行（Time Travel）：通过版本号或时间戳查询历史数据，默认保留 30 天</li>
+<li>Schema Evolution：支持新增列、修改列类型，不需要重写历史数据</li>
+<li>OPTIMIZE + Z-ORDER：自动合并小文件，并按指定列做多维聚类，提升查询性能</li>
+<li>Change Data Feed（CDF）：记录每行数据的变更（INSERT/UPDATE/DELETE），方便下游增量消费</li>
+</ul>
+<pre><code class="language-python">from delta.tables import DeltaTable
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .getOrCreate()
+
+# 写入 Delta 表
+df.write.format("delta").save("s3://my-bucket/orders/")
+
+# MERGE（Upsert）：存在则更新，不存在则插入
+delta_table = DeltaTable.forPath(spark, "s3://my-bucket/orders/")
+delta_table.alias("target").merge(
+    updates_df.alias("source"),
+    "target.order_id = source.order_id"
+).whenMatchedUpdateAll() \
+ .whenNotMatchedInsertAll() \
+ .execute()
+
+# 时间旅行：查询昨天的数据
+spark.read.format("delta") \
+    .option("timestampAsOf", "2026-04-25") \
+    .load("s3://my-bucket/orders/").show()
+
+# 查看历史版本
+delta_table.history().show()
+
+# 优化小文件 + Z-ORDER 聚类
+spark.sql("OPTIMIZE delta.`s3://my-bucket/orders/` ZORDER BY (user_id, order_date)")
+</code></pre>
+<p><strong>优势</strong>：与 Spark 集成最深，Databricks 平台原生支持，社区活跃，文档丰富。国内阿里云 EMR 也支持 Delta Lake。</p>
+<p><strong>劣势</strong>：多引擎支持不如 Iceberg（Trino/Presto 对 Delta 的支持相对滞后）；事务日志在文件数量多时可能成为瓶颈。</p>
+
+<h3 id="Apache-Iceberg">Apache Iceberg</h3>
+<p>由 Netflix 开源（2018 年），现为 Apache 顶级项目，定位是"开放的表格式标准"。</p>
+<p><strong>核心机制</strong>：三层元数据结构——Catalog（表注册）→ Metadata File（表快照）→ Manifest List → Manifest File → 数据文件。每次写入生成新的 Metadata File，通过原子替换实现事务。</p>
+<p><strong>核心特性</strong>：</p>
+<ul>
+<li><strong>隐藏分区（Hidden Partitioning）</strong>：分区逻辑对用户透明，查询时不需要写分区过滤条件，Iceberg 自动做分区裁剪。这是 Iceberg 相比 Hive 分区表最大的改进。</li>
+<li><strong>分区演进（Partition Evolution）</strong>：可以修改分区策略（如从按天分区改为按小时分区），历史数据不需要重写。</li>
+<li><strong>行级删除（Row-level Delete）</strong>：支持 Equality Delete 和 Position Delete，不需要重写整个文件。</li>
+<li><strong>多引擎支持</strong>：Spark、Flink、Trino、Presto、Hive、StarRocks 都有原生支持，是多引擎架构的首选。</li>
+</ul>
+<pre><code class="language-python"># Iceberg + Spark 示例
+spark = SparkSession.builder \
+    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
+    .config("spark.sql.catalog.my_catalog", "org.apache.iceberg.spark.SparkCatalog") \
+    .config("spark.sql.catalog.my_catalog.type", "hive") \
+    .getOrCreate()
+
+# 建表（隐藏分区：按 order_date 的 day 分区，用户查询无感知）
+spark.sql("""
+    CREATE TABLE my_catalog.db.orders (
+        order_id    STRING,
+        user_id     BIGINT,
+        amount      DECIMAL(10,2),
+        order_date  TIMESTAMP
+    ) USING iceberg
+    PARTITIONED BY (days(order_date))
+""")
+
+# 查询时不需要指定分区，Iceberg 自动裁剪
+spark.sql("""
+    SELECT * FROM my_catalog.db.orders
+    WHERE order_date BETWEEN '2026-04-01' AND '2026-04-25'
+""")
+
+# 修改分区策略（分区演进，历史数据无需重写）
+spark.sql("""
+    ALTER TABLE my_catalog.db.orders
+    REPLACE PARTITION FIELD days(order_date) WITH hours(order_date)
+""")
+
+# 时间旅行
+spark.sql("""
+    SELECT * FROM my_catalog.db.orders
+    FOR SYSTEM_TIME AS OF '2026-04-25 00:00:00'
+""")
+</code></pre>
+<p><strong>优势</strong>：多引擎生态最好，是开放标准的首选；隐藏分区和分区演进极大简化了分区管理；Flink 对 Iceberg 的支持非常完善，适合流批一体架构。</p>
+<p><strong>劣势</strong>：相比 Delta Lake，Databricks 平台上的集成度略低；元数据层次更复杂，调试难度稍高。</p>
+
+<h3 id="Apache-Hudi">Apache Hudi</h3>
+<p>由 Uber 开源（2016 年），最早专注于解决数据库 CDC（Change Data Capture）同步到数据湖的问题。</p>
+<p><strong>两种存储类型</strong>：</p>
+<ul>
+<li><strong>Copy-on-Write（COW）</strong>：写入时直接重写受影响的 Parquet 文件，读性能好，写放大较高。适合读多写少的场景。</li>
+<li><strong>Merge-on-Read（MOR）</strong>：写入时先写增量日志文件（Avro 格式），读时合并基础文件和日志文件。写性能极好，读时有合并开销。适合高频 Upsert 场景（如 CDC 同步）。</li>
+</ul>
+<pre><code class="language-python"># Hudi + Spark 写入示例（MOR 模式，适合 CDC 场景）
+df.write.format("hudi") \
+    .option("hoodie.table.name", "orders") \
+    .option("hoodie.datasource.write.recordkey.field", "order_id") \
+    .option("hoodie.datasource.write.precombine.field", "updated_at") \
+    .option("hoodie.datasource.write.operation", "upsert") \
+    .option("hoodie.datasource.write.table.type", "MERGE_ON_READ") \
+    .mode("append") \
+    .save("s3://my-bucket/orders/")
+</code></pre>
+<p><strong>优势</strong>：CDC 场景下的 Upsert 性能最好；MOR 模式对高频写入友好；与 Flink 集成支持近实时数据入湖（分钟级延迟）。</p>
+<p><strong>劣势</strong>：概念最复杂（COW/MOR、Timeline、Compaction 等），学习曲线陡峭；多引擎支持不如 Iceberg；社区活跃度近年有所下降。</p>
+
+<h3 id="表格式选型建议">三者选型建议</h3>
+<ul>
+<li><strong>重度使用 Databricks / Spark，团队技术栈单一</strong>：选 Delta Lake，集成最深，运维最简单</li>
+<li><strong>多引擎架构（Spark + Flink + Trino 并用），追求开放标准</strong>：选 Iceberg，生态最广，未来兼容性最好</li>
+<li><strong>核心需求是数据库 CDC 实时同步到数据湖，高频 Upsert</strong>：选 Hudi（MOR 模式），或考虑 Iceberg + Flink（近年来 Iceberg 在这个场景的支持也在快速完善）</li>
+<li><strong>不确定怎么选</strong>：选 Iceberg，它是最接近"开放标准"的选项，未来切换引擎的代价最小</li>
+</ul>
+
+
+<h2 id="计算引擎层">计算引擎层：数据怎么处理</h2>
+
+<h3 id="Apache-Spark">Apache Spark：批处理首选</h3>
+<p>Spark 是数据湖计算层的主力引擎，适合复杂的批量 ETL、机器学习特征工程、大规模数据清洗。对 Delta Lake 和 Iceberg 的支持最成熟。</p>
+<p>关键配置：</p>
+<pre><code class="language-bash"># 提交 Spark 作业（以 Iceberg 为例）
+spark-submit \
+  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0 \
+  --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
+  --conf spark.sql.catalog.my_catalog=org.apache.iceberg.spark.SparkCatalog \
+  --conf spark.sql.catalog.my_catalog.warehouse=s3://my-bucket/warehouse \
+  my_etl_job.py
+</code></pre>
+
+<h3 id="Apache-Flink">Apache Flink：流批一体</h3>
+<p>Flink 是流处理场景的首选引擎，对 Iceberg 和 Hudi 的写入支持很好，适合实时数据入湖（CDC 同步、实时特征计算结果写湖）。</p>
+<p>Flink + Iceberg 的典型场景：MySQL CDC → Flink → Iceberg（数据湖），实现分钟级的数据库变更同步到数据湖，下游 Spark 或 Trino 可以查询近实时数据。</p>
+<pre><code class="language-sql">-- Flink SQL：实时将 MySQL CDC 数据写入 Iceberg
+CREATE TABLE mysql_orders (
+    order_id   STRING,
+    user_id    BIGINT,
+    status     STRING,
+    updated_at TIMESTAMP(3),
+    PRIMARY KEY (order_id) NOT ENFORCED
+) WITH (
+    'connector' = 'mysql-cdc',
+    'hostname'  = 'mysql-host',
+    'database-name' = 'shop',
+    'table-name'    = 'orders'
+);
+
+CREATE TABLE iceberg_orders (
+    order_id   STRING,
+    user_id    BIGINT,
+    status     STRING,
+    updated_at TIMESTAMP(3),
+    PRIMARY KEY (order_id) NOT ENFORCED
+) WITH (
+    'connector'          = 'iceberg',
+    'catalog-name'       = 'my_catalog',
+    'catalog-type'       = 'hive',
+    'database-name'      = 'db',
+    'table-name'         = 'orders',
+    'warehouse'          = 's3://my-bucket/warehouse'
+);
+
+-- 实时同步：MySQL 的 INSERT/UPDATE/DELETE 实时反映到 Iceberg
+INSERT INTO iceberg_orders SELECT * FROM mysql_orders;
+</code></pre>
+
+<h3 id="Trino-Presto">Trino / Presto：交互式查询</h3>
+<p>Trino（原 PrestoSQL）是专为交互式查询设计的 MPP 引擎，查询延迟在秒级，适合数据分析师的即席查询（Ad-hoc Query）和 BI 报表。Trino 对 Iceberg 的支持最好，对 Delta Lake 的支持也在逐步完善。</p>
+<p>Trino 的定位是"查询加速层"，不做数据写入和复杂 ETL，专注于快速读取数据湖中的数据并返回结果。</p>
+<pre><code class="language-sql">-- Trino 查询 Iceberg 表（语法与标准 SQL 一致）
+SELECT
+    user_id,
+    COUNT(*) AS order_cnt,
+    SUM(amount) AS total_amount
+FROM iceberg.db.orders
+WHERE order_date >= DATE '2026-04-01'
+GROUP BY user_id
+ORDER BY total_amount DESC
+LIMIT 100;
+
+-- 时间旅行查询
+SELECT * FROM iceberg.db.orders
+FOR TIMESTAMP AS OF TIMESTAMP '2026-04-25 00:00:00';
+</code></pre>
+
+<h3 id="StarRocks-Doris">StarRocks / Doris：OLAP 加速</h3>
+<p>StarRocks 和 Apache Doris 是国内广泛使用的实时 OLAP 引擎，可以直接查询数据湖（External Catalog），也可以将数据湖中的数据导入内部表获得更高查询性能。</p>
+<p>StarRocks 对 Iceberg/Delta/Hudi 都有 External Catalog 支持，查询性能优于 Trino（向量化执行引擎），适合需要亚秒级响应的报表场景。</p>
+<pre><code class="language-sql">-- StarRocks 创建 Iceberg External Catalog
+CREATE EXTERNAL CATALOG iceberg_catalog
+PROPERTIES (
+    "type" = "iceberg",
+    "iceberg.catalog.type" = "hive",
+    "hive.metastore.uris" = "thrift://hive-metastore:9083"
+);
+
+-- 直接查询数据湖（无需导入数据）
+SELECT * FROM iceberg_catalog.db.orders
+WHERE order_date = '2026-04-26'
+LIMIT 100;
+</code></pre>
+
+
+<h2 id="元数据管理层">元数据管理层：数据怎么管理</h2>
+
+<p>元数据管理层负责记录"哪些表存在、表在哪里、表的 Schema 是什么"，是数据湖的"目录"。</p>
+
+<h3 id="Hive-Metastore">Hive Metastore（HMS）</h3>
+<p>最传统也最通用的元数据服务，几乎所有大数据引擎（Spark、Flink、Trino、Hive）都支持。HMS 将表的元数据存在 MySQL/PostgreSQL 中，通过 Thrift 协议提供服务。</p>
+<p>HMS 是目前最安全的选择——生态支持最广，踩坑最少。缺点是不支持多版本元数据（无法回滚 Schema 变更）、并发写入时有锁竞争。</p>
+
+<h3 id="AWS-Glue">AWS Glue Data Catalog</h3>
+<p>AWS 托管的元数据服务，完全兼容 HMS API，在 AWS 生态内无缝集成（S3 + Glue + Athena + EMR）。不需要自己维护 Metastore 服务，适合全上 AWS 的团队。</p>
+
+<h3 id="Project-Nessie">Project Nessie</h3>
+<p>新一代的数据湖 Catalog，核心特性是<strong>类 Git 的版本控制</strong>：支持分支（Branch）、标签（Tag）、提交历史，可以在不同分支上独立开发和测试数据管道，确认无误后再合并到主分支。这对数据工程师来说极其有用——可以在测试分支上运行 ETL，不影响生产数据。Nessie 是 Iceberg 生态中的重要组件，Dremio 和 Databricks 都在推进 Nessie 的采用。</p>
+<pre><code class="language-bash"># Nessie 分支操作（类似 Git）
+# 创建开发分支
+curl -X POST http://nessie-server/api/v1/trees/branch/dev \
+  -d '{"sourceRefName": "main"}'
+
+# 在 dev 分支上运行 ETL，不影响 main
+spark-submit --conf spark.sql.catalog.nessie.ref=dev my_etl.py
+
+# 验证无误后合并到 main
+curl -X POST http://nessie-server/api/v1/trees/branch/main/merge \
+  -d '{"fromRefName": "dev"}'
+</code></pre>
+
+
+<h2 id="典型组合方案">典型组合方案</h2>
+
+<h3 id="方案一：Databricks 全家桶">方案一：Databricks 全家桶</h3>
+<p>存储：S3/ADLS → 表格式：Delta Lake → 计算：Spark（Databricks Runtime）→ 元数据：Unity Catalog</p>
+<p>适合：已采购 Databricks，追求开箱即用，不想管理基础设施。Delta Lake + Databricks 的组合在 OPTIMIZE/Z-ORDER/CDF 等功能上体验最好。</p>
+
+<h3 id="方案二：开源多引擎架构">方案二：开源多引擎架构</h3>
+<p>存储：S3/OSS → 表格式：Iceberg → 计算：Spark（批处理）+ Flink（流处理）+ Trino（交互查询）→ 元数据：Hive Metastore</p>
+<p>适合：技术团队强，追求开放生态，不想被单一厂商锁定。这是国内大厂（字节、美团、滴滴）的主流架构。</p>
+
+<h3 id="方案三：阿里云一体化">方案三：阿里云一体化</h3>
+<p>存储：OSS → 表格式：Iceberg 或 Delta Lake（EMR 都支持）→ 计算：EMR Spark + EMR Flink → 元数据：DLF（Data Lake Formation，阿里云托管 Metastore）→ 查询加速：MaxCompute 或 StarRocks</p>
+<p>适合：业务在阿里云，希望减少自建组件，利用云厂商托管服务降低运维成本。</p>
+
+<h3 id="方案四：CDC-实时入湖">方案四：CDC 实时入湖</h3>
+<p>MySQL/PostgreSQL → Flink CDC → Iceberg（MOR 模式）→ Spark 定时 Compaction → Trino/StarRocks 查询</p>
+<p>适合：需要将业务数据库的变更实时同步到数据湖，下游做近实时分析。Iceberg 的 Flink 支持在这个场景已经非常成熟。</p>
+
+
+<h2 id="总结">总结</h2>
+
+<p>数据湖选型没有唯一答案，但有几个清晰的原则：</p>
+<ul>
+<li><strong>存储层默认选云对象存储</strong>（S3/OSS），存算分离是趋势，除非有特殊合规要求</li>
+<li><strong>表格式层优先考虑 Iceberg</strong>，多引擎生态最好，最接近开放标准；如果重度使用 Databricks 则选 Delta Lake</li>
+<li><strong>计算引擎按场景分工</strong>：Spark 做批处理 ETL，Flink 做流式入湖，Trino/StarRocks 做交互查询</li>
+<li><strong>元数据管理从 Hive Metastore 起步</strong>，稳定可靠；有多分支开发需求时考虑 Nessie</li>
+</ul>
+<p>对于大多数团队，<strong>S3/OSS + Iceberg + Spark/Flink + HMS</strong> 是最稳健的起点，覆盖了 90% 的场景，且未来扩展灵活。不要一开始就追求最复杂的架构，先跑通核心链路，再根据实际瓶颈补充组件。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/数据湖/" rel="tag"><i class="fa fa-tag"></i> 数据湖</a>
+          <a href="/tags/Delta-Lake/" rel="tag"><i class="fa fa-tag"></i> Delta Lake</a>
+          <a href="/tags/Iceberg/" rel="tag"><i class="fa fa-tag"></i> Iceberg</a>
+          <a href="/tags/Hudi/" rel="tag"><i class="fa fa-tag"></i> Hudi</a>
+          <a href="/tags/技术选型/" rel="tag"><i class="fa fa-tag"></i> 技术选型</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#存储层"><span class="nav-number">1.</span> <span class="nav-text">存储层：数据放哪</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#HDFS"><span class="nav-number">1.1.</span> <span class="nav-text">HDFS（自建 Hadoop 集群）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#云对象存储"><span class="nav-number">1.2.</span> <span class="nav-text">云对象存储（S3 / OSS / GCS）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#存储层选型建议"><span class="nav-number">1.3.</span> <span class="nav-text">选型建议</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#表格式层"><span class="nav-number">2.</span> <span class="nav-text">表格式层：数据怎么组织</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Delta-Lake"><span class="nav-number">2.1.</span> <span class="nav-text">Delta Lake</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Apache-Iceberg"><span class="nav-number">2.2.</span> <span class="nav-text">Apache Iceberg</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Apache-Hudi"><span class="nav-number">2.3.</span> <span class="nav-text">Apache Hudi</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#表格式选型建议"><span class="nav-number">2.4.</span> <span class="nav-text">三者选型建议</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#计算引擎层"><span class="nav-number">3.</span> <span class="nav-text">计算引擎层：数据怎么处理</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Apache-Spark"><span class="nav-number">3.1.</span> <span class="nav-text">Apache Spark：批处理首选</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Apache-Flink"><span class="nav-number">3.2.</span> <span class="nav-text">Apache Flink：流批一体</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Trino-Presto"><span class="nav-number">3.3.</span> <span class="nav-text">Trino / Presto：交互式查询</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#StarRocks-Doris"><span class="nav-number">3.4.</span> <span class="nav-text">StarRocks / Doris：OLAP 加速</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#元数据管理层"><span class="nav-number">4.</span> <span class="nav-text">元数据管理层：数据怎么管理</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Hive-Metastore"><span class="nav-number">4.1.</span> <span class="nav-text">Hive Metastore（HMS）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#AWS-Glue"><span class="nav-number">4.2.</span> <span class="nav-text">AWS Glue Data Catalog</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Project-Nessie"><span class="nav-number">4.3.</span> <span class="nav-text">Project Nessie</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#典型组合方案"><span class="nav-number">5.</span> <span class="nav-text">典型组合方案</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#方案一：Databricks-全家桶"><span class="nav-number">5.1.</span> <span class="nav-text">方案一：Databricks 全家桶</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#方案二：开源多引擎架构"><span class="nav-number">5.2.</span> <span class="nav-text">方案二：开源多引擎架构</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#方案三：阿里云一体化"><span class="nav-number">5.3.</span> <span class="nav-text">方案三：阿里云一体化</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#方案四：CDC-实时入湖"><span class="nav-number">5.4.</span> <span class="nav-text">方案四：CDC 实时入湖</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">6.</span> <span class="nav-text">总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">168</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">70</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+    window.addEventListener('load', () => { quicklink.listen(); });
+  </script>
+</body>
+</html>
