@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="模型平台研发工程师技能图谱：从编程语言、大数据基础、特征平台、训练框架、推理服务到系统设计，分级梳理必备技能与进阶路径。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="模型平台研发工程师技能图谱">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/26/模型平台研发工程师技能图谱/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="模型平台研发工程师技能图谱：从编程语言、大数据基础、特征平台、训练框架、推理服务到系统设计，分级梳理必备技能与进阶路径。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-26T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-26T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="模型平台">
+<meta property="article:tag" content="技能图谱">
+<meta property="article:tag" content="职业发展">
+<meta property="article:tag" content="MLOps">
+<meta property="article:tag" content="大数据">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/26/模型平台研发工程师技能图谱/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>模型平台研发工程师技能图谱 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-26T10:00:00+08:00" content="2026-04-26">
+      04-26
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      模型平台研发工程师技能图谱
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>模型平台研发工程师（ML Platform Engineer）是一个横跨大数据工程、机器学习系统、后端服务的复合型岗位。它不是算法工程师（不需要设计模型结构），也不是纯粹的后端工程师（需要深度理解 ML 工作流），而是为算法工程师提供高效、稳定的基础设施工具的人。本文从岗位视角出发，分层梳理这个岗位的核心技能，并给出学习优先级建议。</p>
+
+
+<h2 id="岗位定位">岗位定位：做什么、不做什么</h2>
+
+<p>先明确边界，避免把精力花在不必要的方向上。</p>
+<p><strong>模型平台工程师做的事</strong>：</p>
+<ul>
+<li>建设特征平台：让特征的生产、存储、查询变得高效且一致</li>
+<li>建设训练框架：让算法工程师能一键提交训练任务，平台负责资源调度、分布式训练、实验管理</li>
+<li>建设推理服务：让模型能以低延迟、高可用的方式对外提供预测服务</li>
+<li>与算法工程师联合优化：理解算法需求，在系统层面做针对性优化（如为某个模型定制特征缓存策略）</li>
+</ul>
+<p><strong>模型平台工程师不做的事</strong>：</p>
+<ul>
+<li>不需要自己设计模型结构（那是算法工程师的工作）</li>
+<li>不需要深入调参（超参数搜索由算法工程师主导）</li>
+<li>不需要成为某个单一技术栈的专家（全栈广度比单点深度更重要）</li>
+</ul>
+
+
+<h2 id="编程语言">编程语言：工具不是目的</h2>
+
+<p>模型平台工程师通常需要掌握多门语言，每门语言有不同的使用场景。</p>
+
+<h3 id="Java-Scala">Java / Scala（必须）</h3>
+<p>大数据生态（Spark、Flink、Kafka）的主要开发语言。Java 是工程服务的基础语言，Scala 是 Spark 的原生语言（性能更好，API 更简洁）。</p>
+<p>需要掌握的深度：能独立开发 Spark/Flink 作业，理解 JVM 内存模型（堆/非堆/GC 调优），能排查 OOM 和性能问题。不需要精通 Scala 的函数式编程高级特性。</p>
+<pre><code class="language-scala">// Spark Scala 示例：用户近7天购买次数特征计算
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions._
+
+val spark = SparkSession.builder().appName("feature_calc").getOrCreate()
+
+val orders = spark.table("dwd.orders")
+  .filter(col("dt") >= date_sub(current_date(), 7))
+
+val userBuyCnt7d = orders
+  .filter(col("status") === "paid")
+  .groupBy("user_id")
+  .agg(count("*").as("buy_cnt_7d"), sum("amount").as("total_amount_7d"))
+
+userBuyCnt7d.write
+  .format("hudi")
+  .option("hoodie.table.name", "user_features")
+  .option("hoodie.datasource.write.operation", "upsert")
+  .mode("append")
+  .save("s3://bucket/user_features/")
+</code></pre>
+
+<h3 id="Python">Python（必须）</h3>
+<p>ML 生态的通用语言，PyTorch/TensorFlow 的主要接口语言，也是数据处理和脚本开发的首选。需要能读懂和修改算法工程师的训练代码，理解 PyTorch 的基本原理（Tensor、Autograd、DataLoader），能用 Python 开发工具脚本和 SDK。</p>
+<p>不需要精通深度学习理论，但要能看懂模型代码，知道哪些地方是性能瓶颈。</p>
+
+<h3 id="Go">Go（加分）</h3>
+<p>推理服务的网关层常用 Go 实现（高并发、低延迟、部署简单）。特征查询的在线服务也有用 Go 开发的场景。Go 的学习曲线平缓，有 Java 基础的工程师通常 1-2 个月能上手。</p>
+
+<h3 id="SQL">SQL（必须）</h3>
+<p>Hive SQL、Spark SQL、Flink SQL 是特征工程和数据处理的日常工具。需要熟练掌握窗口函数、JOIN 优化、分区裁剪，能写出高效的特征计算 SQL。</p>
+
+
+<h2 id="大数据基础">大数据基础：平台的地基</h2>
+
+<p>这是模型平台工程师与纯后端工程师最大的差异所在，必须深入掌握。</p>
+
+<h3 id="流批计算框架">流批计算框架（核心）</h3>
+<p><strong>Apache Spark</strong>：理解 RDD/DataFrame/Dataset 的区别，掌握 Spark 调优（分区数、广播变量、Shuffle 优化、数据倾斜处理），能读懂 Spark UI 分析性能瓶颈。特征平台的离线特征计算几乎都依赖 Spark。</p>
+<p><strong>Apache Flink</strong>：理解流处理的核心概念（事件时间 vs 处理时间、Watermark、窗口类型），掌握 Flink 状态管理（KeyedState、Checkpoint），能开发实时特征计算作业。实时特征（近1小时行为统计）是 Flink 的主要应用场景。</p>
+<p>两者都要掌握，不能只会其中一个。实际工作中，批量特征用 Spark，实时特征用 Flink，是标准的分工。</p>
+
+<h3 id="存储系统">存储系统（核心）</h3>
+<p><strong>Redis</strong>：实时特征存储的首选。需要理解 Redis 的数据结构（Hash 存用户特征，ZSet 存排序列表），掌握 Pipeline 批量操作（减少 RTT），了解 Redis Cluster 的分片机制和热 Key 问题的处理。</p>
+<p><strong>HBase</strong>：批量特征存储的主力。需要理解 RowKey 设计（影响数据分布和查询性能），掌握 LSM-Tree 存储引擎原理（WAL/MemStore/HFile/Compaction），了解热点问题的处理方案。</p>
+<p><strong>Kafka</strong>：实时数据管道的核心。需要理解 Topic/Partition/Consumer Group 的概念，掌握 Kafka 的 at-least-once 和 exactly-once 语义，能排查消费延迟和消息积压问题。</p>
+<p><strong>数据湖格式（Iceberg/Hudi/Delta Lake）</strong>：了解湖仓一体的概念，掌握至少一种格式的使用（推荐 Iceberg），理解 ACID 事务和时间旅行的实现原理。</p>
+
+<h3 id="消息队列与数据管道">数据管道</h3>
+<p>理解数据从业务系统（MySQL/日志）到特征存储的完整链路：MySQL CDC（Debezium/Canal）→ Kafka → Flink → Redis/HBase。能独立排查数据管道中的延迟、乱序、重复消费等问题。</p>
+
+
+<h2 id="特征平台">特征平台：模型平台的核心</h2>
+
+<p>特征平台是模型平台中最复杂、最能体现工程师价值的部分。</p>
+
+<h3 id="特征工程理解">理解特征工程</h3>
+<p>不需要成为特征工程专家，但要理解常见的特征类型和计算模式：</p>
+<ul>
+<li><strong>统计类特征</strong>：近 N 天/小时的 COUNT、SUM、AVG、MAX（最常见，Spark/Flink 窗口聚合）</li>
+<li><strong>行为序列特征</strong>：用户最近 N 次操作的序列（需要保留顺序，用 List 或 JSON 存储）</li>
+<li><strong>交叉特征</strong>：两个特征的组合（如用户品类偏好 × 商品品类），通常在模型层做，但有时在特征层预计算</li>
+<li><strong>Embedding 特征</strong>：用户/商品的稠密向量表示，存储在向量数据库（Milvus/Faiss）</li>
+</ul>
+
+<h3 id="Training-Serving-一致性">Training-Serving 一致性</h3>
+<p>这是特征平台工程师最需要关注的问题。需要理解 Training-Serving Skew 的成因（离线/在线特征计算逻辑不一致），掌握 Point-in-Time Correct 特征回填的实现原理，能设计并实现特征一致性校验机制（定期对比离线特征和在线特征的分布）。</p>
+
+<h3 id="特征存储设计">特征存储设计</h3>
+<p>能根据特征的读写模式选择合适的存储：实时高频更新选 Redis，海量历史特征选 HBase，离线训练数据选 Hive/HDFS。能设计合理的 RowKey 和数据结构，避免热点和性能瓶颈。</p>
+
+
+<h2 id="训练框架">训练框架：支撑大规模训练</h2>
+
+<h3 id="深度学习框架基础">深度学习框架基础（了解即可）</h3>
+<p>不需要精通，但要能看懂训练代码，理解训练流程（数据加载 → 前向传播 → 计算 Loss → 反向传播 → 参数更新），能排查训练中的工程问题（OOM、数据加载慢、GPU 利用率低）。</p>
+<p>重点掌握：PyTorch 的 DataLoader 机制（多进程预取）、模型保存与加载（Checkpoint）、混合精度训练（AMP）。</p>
+
+<h3 id="分布式训练">分布式训练（核心）</h3>
+<p>理解数据并行（DDP）的工作原理（梯度同步、All-Reduce），掌握 PyTorch DDP 的使用和常见问题排查（NCCL 超时、梯度不同步）。了解 FSDP 和 DeepSpeed ZeRO 的基本思路（参数分片，显存优化）。</p>
+<p>不需要深入实现分布式训练框架，但要能配置和使用现有框架，能根据模型规模和资源情况选择合适的并行策略。</p>
+
+<h3 id="资源调度">资源调度（核心）</h3>
+<p>掌握 Kubernetes 基础（Pod、Deployment、Service、ConfigMap），理解 GPU 调度（device plugin、资源限制），能用 Kubeflow 或 Argo Workflow 编排训练任务。能排查任务调度失败、资源不足、节点故障等问题。</p>
+<pre><code class="language-yaml"># Kubernetes GPU 训练任务示例
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: train-deepfm-v5
+spec:
+  template:
+    spec:
+      containers:
+      - name: trainer
+        image: my-registry/train:latest
+        resources:
+          limits:
+            nvidia.com/gpu: 8      # 申请 8 块 GPU
+            memory: "128Gi"
+            cpu: "32"
+        env:
+        - name: MASTER_ADDR
+          value: "train-deepfm-v5-0"
+        - name: NPROC_PER_NODE
+          value: "8"
+        command: ["torchrun", "--nproc_per_node=8", "train.py",
+                  "--config", "configs/deepfm_v5.yaml"]
+      restartPolicy: OnFailure
+</code></pre>
+
+
+<h2 id="推理服务">推理服务：低延迟高可用</h2>
+
+<h3 id="推理框架">推理框架</h3>
+<p>了解主流推理框架的特点和使用场景：</p>
+<ul>
+<li><strong>TorchServe</strong>：PyTorch 官方推理框架，适合 CPU 推理和中等规模场景，配置简单</li>
+<li><strong>Triton Inference Server</strong>：NVIDIA 出品，支持多框架（PyTorch/TF/ONNX），动态 Batching，适合 GPU 推理和高吞吐场景</li>
+<li><strong>ONNX Runtime</strong>：跨平台推理引擎，将模型转为 ONNX 格式后可在 CPU/GPU 上高效推理</li>
+</ul>
+<p>能完成模型从训练到部署的完整流程：导出模型（TorchScript/ONNX）→ 部署到推理框架 → 封装 HTTP/gRPC 接口 → 配置灰度发布。</p>
+
+<h3 id="推理性能优化">推理性能优化</h3>
+<p>理解推理延迟的组成（特征查询时间 + 模型推理时间 + 后处理时间），能针对性地优化各个环节：</p>
+<ul>
+<li>特征查询慢：Redis Pipeline 批量读取、本地缓存热点特征、异步并发查询多个存储</li>
+<li>模型推理慢：INT8/FP16 量化、算子融合（torch.compile）、批量推理（Dynamic Batching）</li>
+<li>整体延迟高：服务拆分（特征服务 + 推理服务分离）、就近部署（减少网络 RTT）</li>
+</ul>
+
+<h3 id="服务稳定性">服务稳定性</h3>
+<p>推理服务是直接面向业务的，稳定性要求最高。需要掌握：</p>
+<ul>
+<li>熔断降级：特征存储不可用时返回默认值，而非让请求失败</li>
+<li>限流：防止上游流量突增压垮推理服务</li>
+<li>灰度发布：新模型先放 5-10% 流量，验证无问题再全量</li>
+<li>监控告警：P99 延迟、错误率、QPS 的实时监控，异常时快速回滚</li>
+</ul>
+
+
+<h2 id="系统设计能力">系统设计能力：连接技术与业务</h2>
+
+<p>技术技能是工具，系统设计能力才是工程师的核心竞争力。</p>
+
+<h3 id="高并发与高可用设计">高并发与高可用设计</h3>
+<p>推理服务的 QPS 可能在万级以上，需要理解：</p>
+<ul>
+<li>水平扩展：无状态服务 + 负载均衡，能随流量增长线性扩容</li>
+<li>缓存策略：多级缓存（本地内存 → Redis → 远程存储），合理设置 TTL 和缓存更新策略</li>
+<li>异步化：非关键路径（日志记录、监控上报）异步处理，不阻塞主流程</li>
+<li>故障隔离：特征存储的超时不能影响推理服务的整体可用性</li>
+</ul>
+
+<h3 id="数据一致性">数据一致性</h3>
+<p>特征平台涉及多个存储系统的数据同步，需要理解：</p>
+<ul>
+<li>最终一致性：批量特征的更新有延迟（T+1 或 T+几小时），业务需要能接受</li>
+<li>幂等性：特征计算任务失败重跑时，不能产生重复数据</li>
+<li>数据版本管理：模型上线时使用的特征版本需要与训练时一致</li>
+</ul>
+
+<h3 id="可观测性">可观测性（Observability）</h3>
+<p>平台工程师需要让系统"透明"，让问题快速暴露和定位：</p>
+<ul>
+<li><strong>指标（Metrics）</strong>：特征缺失率、推理延迟分位数、训练任务成功率，用 Prometheus + Grafana 展示</li>
+<li><strong>日志（Logging）</strong>：关键路径的结构化日志，方便用 ELK 检索和分析</li>
+<li><strong>链路追踪（Tracing）</strong>：一次推理请求经过了哪些服务、每个服务耗时多少，用 Jaeger/Zipkin 追踪</li>
+</ul>
+
+
+<h2 id="业务理解">业务理解：做对的事比做好事更重要</h2>
+
+<p>模型平台工程师需要理解所服务的业务场景，才能做出正确的技术决策。</p>
+<p>以金融风控场景为例：需要理解"为什么推理延迟要求 &lt;100ms"（用户等待支付的容忍度）、"为什么特征需要 Point-in-Time 正确"（防止数据穿越导致模型效果虚高）、"为什么需要特征可解释"（监管要求，拒绝申请需要给出理由）。理解了这些，才能在技术方案中做出正确的权衡。</p>
+<p>以推荐场景为例：需要理解"为什么需要在线学习"（用户兴趣变化快，T+1 模型效果差）、"为什么实时特征比批量特征重要"（用户当前行为比历史行为更能反映当下意图）。</p>
+
+
+<h2 id="学习路径">学习路径建议</h2>
+
+<p>按优先级排序，建议按以下顺序学习：</p>
+
+<p><strong>第一阶段（0-3 个月）：打通基础链路</strong></p>
+<ol>
+<li>Java/Python 编程能力达到能独立开发生产级代码的水平</li>
+<li>Spark 入门：完成官方教程，能写 Spark SQL 和 DataFrame API，理解 Shuffle 和分区</li>
+<li>Redis + HBase 基础：理解数据结构，能设计简单的特征存储方案</li>
+<li>Kafka 基础：理解 Topic/Partition/Consumer，能开发简单的生产者和消费者</li>
+<li>Kubernetes 基础：理解 Pod/Deployment/Service，能部署简单的服务</li>
+</ol>
+
+<p><strong>第二阶段（3-9 个月）：深入核心能力</strong></p>
+<ol>
+<li>Flink 深入：掌握状态管理、Watermark、Checkpoint，能开发实时特征计算作业</li>
+<li>PyTorch 基础：能读懂训练代码，理解 DataLoader 和 DDP，能排查训练工程问题</li>
+<li>推理服务：能部署 TorchServe/Triton，完成模型从训练到上线的完整流程</li>
+<li>特征平台：理解 Training-Serving Skew，能设计批流一体的特征生产方案</li>
+<li>系统设计：能设计高并发的推理服务，理解缓存、限流、熔断的实现</li>
+</ol>
+
+<p><strong>第三阶段（9 个月以上）：进阶与专精</strong></p>
+<ol>
+<li>分布式训练深入：理解 ZeRO/FSDP，能排查 NCCL 通信问题，计算 MFU</li>
+<li>推理优化：掌握模型量化（INT8/FP16）、算子融合、动态 Batching</li>
+<li>数据湖：掌握 Iceberg/Hudi，能设计端到端的数据湖架构</li>
+<li>平台工程：能设计多租户隔离、完整的监控体系、自动化再训练流程</li>
+<li>大模型方向（可选）：LLM 推理优化（KV Cache、PagedAttention、投机采样）</li>
+</ol>
+
+
+<h2 id="总结">总结</h2>
+
+<p>模型平台研发工程师的核心竞争力是<strong>连接能力</strong>：连接大数据工程与机器学习系统，连接算法需求与底层基础设施，连接离线训练与在线推理。这个岗位不需要在某一个方向做到极致，但需要在多个方向都有足够的深度，能看到全局，能在系统层面做出正确的权衡。</p>
+<p>技能优先级一句话总结：<strong>Spark + Flink（数据处理）> Redis + HBase + Kafka（存储与消息）> Python + PyTorch（ML 基础）> Kubernetes（调度）> 推理优化（进阶）</strong>。</p>
+<p>最重要的不是掌握所有技术，而是理解每项技术解决的是什么问题，在什么场景下用它，以及它的局限在哪里。技术是手段，帮助算法工程师更高效地迭代模型才是目的。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/模型平台/" rel="tag"><i class="fa fa-tag"></i> 模型平台</a>
+          <a href="/tags/技能图谱/" rel="tag"><i class="fa fa-tag"></i> 技能图谱</a>
+          <a href="/tags/职业发展/" rel="tag"><i class="fa fa-tag"></i> 职业发展</a>
+          <a href="/tags/MLOps/" rel="tag"><i class="fa fa-tag"></i> MLOps</a>
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#岗位定位"><span class="nav-number">1.</span> <span class="nav-text">岗位定位：做什么、不做什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#编程语言"><span class="nav-number">2.</span> <span class="nav-text">编程语言：工具不是目的</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Java-Scala"><span class="nav-number">2.1.</span> <span class="nav-text">Java / Scala（必须）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Python"><span class="nav-number">2.2.</span> <span class="nav-text">Python（必须）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Go"><span class="nav-number">2.3.</span> <span class="nav-text">Go（加分）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#SQL"><span class="nav-number">2.4.</span> <span class="nav-text">SQL（必须）</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#大数据基础"><span class="nav-number">3.</span> <span class="nav-text">大数据基础：平台的地基</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#流批计算框架"><span class="nav-number">3.1.</span> <span class="nav-text">流批计算框架（核心）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#存储系统"><span class="nav-number">3.2.</span> <span class="nav-text">存储系统（核心）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#消息队列与数据管道"><span class="nav-number">3.3.</span> <span class="nav-text">数据管道</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#特征平台"><span class="nav-number">4.</span> <span class="nav-text">特征平台：模型平台的核心</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#特征工程理解"><span class="nav-number">4.1.</span> <span class="nav-text">理解特征工程</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#Training-Serving-一致性"><span class="nav-number">4.2.</span> <span class="nav-text">Training-Serving 一致性</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#特征存储设计"><span class="nav-number">4.3.</span> <span class="nav-text">特征存储设计</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#训练框架"><span class="nav-number">5.</span> <span class="nav-text">训练框架：支撑大规模训练</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#深度学习框架基础"><span class="nav-number">5.1.</span> <span class="nav-text">深度学习框架基础（了解即可）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#分布式训练"><span class="nav-number">5.2.</span> <span class="nav-text">分布式训练（核心）</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#资源调度"><span class="nav-number">5.3.</span> <span class="nav-text">资源调度（核心）</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#推理服务"><span class="nav-number">6.</span> <span class="nav-text">推理服务：低延迟高可用</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#推理框架"><span class="nav-number">6.1.</span> <span class="nav-text">推理框架</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#推理性能优化"><span class="nav-number">6.2.</span> <span class="nav-text">推理性能优化</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#服务稳定性"><span class="nav-number">6.3.</span> <span class="nav-text">服务稳定性</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#系统设计能力"><span class="nav-number">7.</span> <span class="nav-text">系统设计能力</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#高并发与高可用设计"><span class="nav-number">7.1.</span> <span class="nav-text">高并发与高可用设计</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#数据一致性"><span class="nav-number">7.2.</span> <span class="nav-text">数据一致性</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#可观测性"><span class="nav-number">7.3.</span> <span class="nav-text">可观测性</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#业务理解"><span class="nav-number">8.</span> <span class="nav-text">业务理解</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#学习路径"><span class="nav-number">9.</span> <span class="nav-text">学习路径建议</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">10.</span> <span class="nav-text">总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">169</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">72</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <script src="/js/third-party/comments/gitalk.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  <script>
+    window.addEventListener('load', () => { quicklink.listen(); });
+  </script>
+</body>
+</html>
