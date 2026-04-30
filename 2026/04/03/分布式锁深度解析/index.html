@@ -501,10 +501,6 @@ lock.lock();  // 死锁！key 已存在，SET NX 失败，等待自己释放
   </div>
   </div>
 
-  <div class="comments" id="comments">
-    <div id="valine-comments"></div>
-  </div>
-
   </div>
 
   <div class="toggle sidebar-toggle" role="button">
@@ -567,6 +563,10 @@ lock.lock();  // 死锁！key 已存在，SET NX 失败，等待自己释放
 
       </div>
     </main>
+
+    <div class="comments-section" style="max-width:800px;margin:24px auto 0;padding:0 20px;">
+      <div id="valine-comments"></div>
+    </div>
 
     <footer class="footer">
       <div class="footer-inner">
