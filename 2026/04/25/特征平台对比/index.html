@@ -566,10 +566,6 @@ training_data = client.get_offline_features(
       </div>
     </main>
 
-    <div class="comments-section" style="max-width:800px;margin:24px auto 0;padding:0 20px;">
-      <div id="valine-comments"></div>
-    </div>
-
     <footer class="footer">
       <div class="footer-inner">
         <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
@@ -621,28 +617,6 @@ window.addEventListener('pjax:success', () => {
     NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
   }
   NexT.utils.updateSidebarPosition();
-});
-</script>
-<script>
-NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
-  NexT.utils.getScript('https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js', () => {
-    new Valine({
-      el         : '#valine-comments',
-      verify     : false,
-      notify     : false,
-      appId      : '8YC1b0uYNOAbXVznOWHGd3aN-MdYXbMMI',
-      appKey     : '9KUsD7M9QgpQiV7VRKDR1F7s',
-      placeholder: '说点什么吧...',
-      avatar     : 'mm',
-      meta       : ['nick', 'mail', 'link'],
-      pageSize   : 10,
-      visitor    : false,
-      lang       : 'zh-cn',
-      path       : location.pathname,
-      recordIP   : false,
-      serverURLs : ''
-    });
-  }, window.Valine);
 });
 </script>
   <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
