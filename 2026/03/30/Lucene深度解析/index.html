@@ -694,6 +694,11 @@ String author = doc.get("author");
   </div>
 
 
+
+  <div class="comments" id="comments">
+    <div id="valine-comments"></div>
+  </div>
+
   <div class="toggle sidebar-toggle" role="button">
     <span class="toggle-line"></span>
     <span class="toggle-line"></span>
@@ -857,7 +862,28 @@ window.addEventListener('pjax:success', () => {
 });
 </script>
 
-  <script src="/js/third-party/comments/gitalk.js"></script>
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js', () => {
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : '8YC1b0uYNOAbXVznOWHGd3aN-MdYXbMMI',
+      appKey     : '9KUsD7M9QgpQiV7VRKDR1F7s',
+      placeholder: '说点什么吧...',
+      avatar     : 'mm',
+      meta       : ['nick', 'mail', 'link'],
+      pageSize   : 10,
+      visitor    : false,
+      lang       : 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
 
   <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
   <script>
