@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="研发效能工程师的主要工作内容：CI/CD 平台、研发度量、工具链建设、性能优化与开发者体验，以及典型工作日的真实样子。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="研发效能工程师是做什么的：工作内容与典型的一天">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/04/30/研发效能工程师/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="研发效能工程师的主要工作内容：CI/CD 平台、研发度量、工具链建设、性能优化与开发者体验，以及典型工作日的真实样子。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-30T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-30T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="研发效能">
+<meta property="article:tag" content="工程效能">
+<meta property="article:tag" content="职业">
+<meta property="article:tag" content="CI/CD">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/04/30/研发效能工程师/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>研发效能工程师是做什么的：工作内容与典型的一天 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-04-30T10:00:00+08:00" content="2026-04-30">
+      04-30
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      研发效能工程师是做什么的：工作内容与典型的一天
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>「研发效能」这个词近几年在国内大厂里越来越热，但很多人对这个岗位的实际工作内容还是模糊的。它不像业务开发那样直接对应需求，也不像运维那样随时等着告警——那它到底在做什么？本文从工作内容、核心技能、以及一个典型工作日三个维度，解答这个问题。</p>
+
+
+<h2 id="研发效能是什么">一、研发效能是什么</h2>
+
+<p>研发效能工程师（DevEx Engineer / Engineering Productivity Engineer）的核心使命是：<strong>让研发团队交付更快、质量更高、开发者更爽</strong>。</p>
+
+<p>一句话概括：<strong>他们的客户是开发者，产品是工具和平台</strong>。</p>
+
+<p>区别于业务开发的是，效能工程师写的代码不直接服务终端用户，而是服务于公司内部的工程师群体。你做的一个 CI 优化，可能让 500 个工程师每天少等 10 分钟；你建的一套代码质量门禁，可能每年拦截几百个线上 bug。影响是乘法效应的。</p>
+
+<p>Google 有一个专门的团队叫 <strong>Engineering Productivity</strong>，Meta 叫 <strong>Developer Infrastructure</strong>，字节内部叫<strong>研发效能</strong>，美团叫<strong>工程效能</strong>。名字不同，本质一样。</p>
+
+
+<h2 id="主要工作内容">二、主要工作内容</h2>
+
+<h3 id="CI-CD-平台建设">1. CI/CD 平台建设</h3>
+
+<p>这是效能团队最核心的工作之一。具体包括：</p>
+<ul>
+<li><strong>流水线基础设施</strong>：搭建和维护 Jenkins / GitLab CI / Argo Workflows 等 CI 系统，管理构建集群（往往是几百到几千台机器）</li>
+<li><strong>构建提速</strong>：分析构建耗时瓶颈，做增量编译、并行化、缓存（Maven 本地缓存、远程缓存、Bazel 增量构建），把构建时间从 20 分钟压到 5 分钟</li>
+<li><strong>流水线治理</strong>：监控全公司所有流水线的成功率、耗时分布，治理长期失败的流水线，推动团队修复不稳定的测试（Flaky Test）</li>
+<li><strong>发布系统</strong>：金丝雀发布、蓝绿部署的平台化支持，让业务团队开箱即用地做安全发布</li>
+</ul>
+
+<pre><code class="language-yaml"># 一个典型的效能团队维护的流水线模板（业务团队直接引用）
+# .ci/pipeline.yml
+include:
+  - project: 'infra/ci-templates'
+    ref: 'v2.3.1'
+    file: '/templates/java-service.yml'
+
+variables:
+  JAVA_VERSION: "17"
+  ENABLE_SONAR: "true"
+  COVERAGE_THRESHOLD: "80"
+  CANARY_WEIGHT: "5"   # 金丝雀流量比例
+
+# 业务团队只需要这几行，其余全由模板处理
+stages: [build, test, security-scan, deploy-canary, deploy-full]
+</code></pre>
+
+<h3 id="研发度量与可视化">2. 研发度量与可视化</h3>
+
+<p>效能工作需要数据说话。效能团队会建立一套度量体系，让管理者和工程师都能看到研发过程的健康状态。</p>
+
+<p>核心度量框架是 <strong>DORA 四项指标</strong>：</p>
+<ul>
+<li><strong>部署频率（Deployment Frequency）</strong>：多久部署一次，越高越好</li>
+<li><strong>变更前置时间（Lead Time for Changes）</strong>：从提交代码到上线需要多久</li>
+<li><strong>变更失败率（Change Failure Rate）</strong>：每次部署导致线上故障的比例</li>
+<li><strong>服务恢复时间（Mean Time to Recovery）</strong>：出了故障多久能恢复</li>
+</ul>
+
+<p>效能团队的日常工作包括：采集这些数据（对接 Git、CI 系统、监控系统）、建设 Dashboard（Grafana / 内部数据平台）、定期出研发效能报告给各业务团队，发现异常后拉着对应团队一起分析根因。</p>
+
+<pre><code class="language-sql">-- 统计各团队过去 30 天的变更前置时间（从 MR 创建到部署完成）
+SELECT
+    team_name,
+    COUNT(*)                                          AS deploy_count,
+    ROUND(AVG(lead_time_minutes) / 60, 1)            AS avg_lead_time_hours,
+    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP
+          (ORDER BY lead_time_minutes) / 60, 1)      AS p50_hours,
+    ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP
+          (ORDER BY lead_time_minutes) / 60, 1)      AS p95_hours
+FROM deploy_events
+WHERE deploy_time >= NOW() - INTERVAL '30 days'
+  AND env = 'production'
+GROUP BY team_name
+ORDER BY avg_lead_time_hours DESC;
+</code></pre>
+
+<h3 id="代码质量与工程规范">3. 代码质量与工程规范</h3>
+
+<p>效能团队往往是公司工程规范的制定者和推动者：</p>
+<ul>
+<li><strong>静态检查门禁</strong>：在 CI 流水线中集成 Checkstyle、SpotBugs、SonarQube，让代码质量问题在合并前就被拦截</li>
+<li><strong>覆盖率门禁</strong>：配置单测覆盖率阈值，低于 70% 的 MR 不允许合入</li>
+<li><strong>依赖安全扫描</strong>：集成 OWASP Dependency Check、Snyk，扫描开源组件的已知漏洞</li>
+<li><strong>规范推广</strong>：输出《Java 编码规范》《API 设计规范》等文档，在 Code Review 机器人中内置规范提示</li>
+</ul>
+
+<h3 id="开发者工具与体验">4. 开发者工具与体验（Developer Experience）</h3>
+
+<p>这是近两年越来越受重视的方向。核心问题是：<strong>工程师的日常开发体验好不好？</strong></p>
+<ul>
+<li><strong>本地开发环境</strong>：标准化 Dev Container / Nix 环境，让新人 30 分钟内跑起项目，而不是对着 README 折腾半天</li>
+<li><strong>内部脚手架</strong>：一行命令创建符合公司规范的服务模板（内置监控埋点、日志配置、CI 流水线）</li>
+<li><strong>AI 辅助工具</strong>：内部 Copilot 部署、代码生成工具的接入和推广</li>
+<li><strong>开发者满意度调研</strong>：定期收集工程师对工具链的反馈，用 SPACE 框架（Satisfaction / Performance / Activity / Communication / Efficiency）量化开发体验</li>
+</ul>
+
+<h3 id="基础设施与平台化">5. 基础设施与平台化</h3>
+
+<p>大厂的效能团队还会参与或主导一些基础设施层的工作：</p>
+<ul>
+<li>代码仓库管理（GitLab 集群的运维、大仓 Monorepo 的治理）</li>
+<li>制品仓库（Maven Nexus、Docker Registry 的管理和优化）</li>
+<li>测试环境管理（测试容器化、环境按需申请、资源回收）</li>
+<li>构建机器池管理（动态扩缩容、机器利用率优化）</li>
+</ul>
+
+
+<h2 id="典型的一天">三、典型的一天</h2>
+
+<p>以下是一个在中型互联网公司（约 500 名工程师）的效能工程师的真实工作日。</p>
+
+<h3 id="上午">上午：从数据开始</h3>
+
+<p><strong>09:00 — 查看昨日流水线大盘</strong></p>
+<p>打开内部 CI Dashboard，看昨天全公司的流水线情况：整体成功率 94.2%，比上周低了 1.5 个百分点。下钻发现，订单服务团队的集成测试失败率飙升到 23%，触发了异常告警。给对方团队负责人发消息，约下午一起看。</p>
+
+<p><strong>09:30 — 处理一个构建提速需求</strong></p>
+<p>上周收到用户服务团队的反馈：他们的 Java 服务全量构建要 18 分钟，严重影响开发效率。今天开始分析：</p>
+
+<pre><code class="language-bash"># 分析构建耗时瓶颈
+mvn clean package -Dsurefire.skip=true \
+  -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn \
+  | tee build.log
+
+# 用 Maven profiler 插件分析各阶段耗时
+mvn clean package -Dprofile \
+  -Dprofile.output=build-profile.txt
+
+# 发现问题：compiler 阶段 11 分钟，主要是 annotation processing 太慢
+# 原因：MapStruct + Lombok 的 annotation processor 在全量重新跑
+</code></pre>
+
+<p>发现根因是 MapStruct 注解处理器每次全量运行。解决方案：开启增量编译 + 把 annotation processing 单独拆出来缓存。预计能把构建时间压到 7 分钟以内。</p>
+
+<p><strong>11:00 — Code Review</strong></p>
+<p>团队里另一个同事在做 CI 流水线的通知系统重构，review 他的 PR。主要关注：幂等性（同一条流水线结果不要重复通知）、消息丢失处理、以及钉钉/大象/企微多渠道的抽象设计是否合理。留了几条评论，整体没问题。</p>
+
+<h3 id="下午">下午：解决问题和推进项目</h3>
+
+<p><strong>14:00 — 和订单服务团队排查集成测试失败</strong></p>
+<p>拉上订单服务的技术负责人和测试同学，一起看失败的测试。</p>
+
+<pre><code class="language-bash"># 查看失败测试的错误日志
+# 发现是 TestContainers 启动 MySQL 超时
+# ERROR: Container startup failed after 60000ms
+
+# 排查：CI 机器上 Docker pull 速度慢，导致镜像拉取超时
+docker pull mysql:8.0  # 在 CI 机器上手动测试，果然很慢
+
+# 解决方案：
+# 1. 在 CI 机器上预热常用镜像（加到机器初始化脚本）
+# 2. 把 mysql:8.0 镜像托管到内网镜像仓库
+# 3. 把 TestContainers 的超时时间从 60s 改成 120s（临时方案）
+</code></pre>
+
+<p>根因找到了：新批次的 CI 机器没有预热 Docker 镜像，导致 MySQL 容器启动超时。给运维同学提了一个工单，让他们把常用基础镜像加到机器初始化脚本。订单服务团队临时把超时改成 120s，问题解决。</p>
+
+<p><strong>15:30 — 季度 OKR 进展同步会</strong></p>
+<p>效能团队的季度 OKR 之一是：把全公司 P95 构建时间从 22 分钟降到 12 分钟。本季度已经完成了 Maven 远程缓存的建设，效果是 P95 降到了 16 分钟，还差一些。下一步计划是推动更多团队迁移到并行测试。会议上同步了进展，对齐了下一步的资源投入。</p>
+
+<p><strong>16:30 — 写一份提案：引入 Flaky Test 自动检测</strong></p>
+<p>Flaky Test（不稳定测试）是效能团队的老大难问题——同样的代码，有时测试过，有时测试失败，严重干扰 CI 的可信度。准备写一份方案，在 CI 系统中增加自动检测逻辑：</p>
+
+<pre><code class="language-python"># Flaky Test 检测逻辑（伪代码）
+# 对每个测试用例，在过去 30 天内统计：
+# 同一 commit 下，多次运行的通过率
+
+def is_flaky(test_name: str, commit_sha: str) -> bool:
+    runs = get_test_runs(test_name, commit_sha, days=30)
+    if len(runs) < 5:
+        return False  # 样本太少，不判断
+
+    pass_count = sum(1 for r in runs if r.status == 'PASS')
+    pass_rate = pass_count / len(runs)
+
+    # 通过率在 20%~80% 之间，判定为 Flaky
+    return 0.2 < pass_rate < 0.8
+</code></pre>
+
+<p><strong>18:00 — 收尾和规划明天</strong></p>
+<p>把今天的进展更新到工作项系统：构建提速方案已验证，明天提 MR；CI 镜像问题已解决；Flaky Test 方案草稿完成，明天找 TL 过一遍。整理明天的 TODO，收工。</p>
+
+
+<h2 id="核心技能要求">四、核心技能要求</h2>
+
+<p>想做好研发效能工程，需要以下几类能力：</p>
+
+<h3 id="工程基础">工程基础</h3>
+<ul>
+<li><strong>编程能力</strong>：至少精通一门后端语言（Java/Go/Python），能独立开发和维护平台系统</li>
+<li><strong>Linux 和 Shell</strong>：熟悉 Linux 系统，能写 Shell/Python 脚本处理自动化任务</li>
+<li><strong>容器与 Kubernetes</strong>：CI 机器池、测试环境、发布系统都跑在 K8s 上，必须熟悉</li>
+<li><strong>构建工具</strong>：Maven/Gradle（Java 生态）、Bazel（大规模构建）的原理和调优</li>
+</ul>
+
+<h3 id="数据能力">数据能力</h3>
+<ul>
+<li>能写 SQL，会用 Hive/Spark 处理构建日志等大批量数据</li>
+<li>熟悉 Grafana、Prometheus，能独立建设监控 Dashboard</li>
+<li>有数据分析思维，能从数据中找到问题根因</li>
+</ul>
+
+<h3 id="沟通推动力">沟通与推动力</h3>
+<p>这一点往往被低估，但实际上极其重要。效能团队是<strong>横向支持团队</strong>，你的工具和平台需要几十个业务团队配合才能落地。推动一个工程规范的落地，可能比写代码本身更难。需要能写清晰的方案文档、能在技术评审中说服人、能在遇到阻力时找到合适的推进策略。</p>
+
+
+<h2 id="和其他岗位的区别">五、和其他岗位的区别</h2>
+
+<p>效能工程师经常被和几个相近岗位混淆：</p>
+
+<ul>
+<li><strong>vs 运维/SRE</strong>：SRE 关注线上服务的稳定性（可用性、延迟、容量），效能工程师关注研发过程的效率（构建、测试、发布速度）。有交叉，但重心不同。</li>
+<li><strong>vs 业务开发</strong>：业务开发的用户是终端用户，效能工程师的用户是公司内部工程师。业务开发关注功能实现，效能工程师关注工程基础设施。</li>
+<li><strong>vs 测试/QA</strong>：QA 关注产品质量（功能是否正确），效能工程师关注测试基础设施（测试框架、CI 稳定性、测试环境）。效能团队会建设 QA 使用的工具，但不承担功能测试的职责。</li>
+<li><strong>vs 架构师</strong>：架构师关注系统的技术设计，效能工程师关注交付过程。但好的效能工程师需要有架构视角，才能设计出可扩展的效能平台。</li>
+</ul>
+
+
+<h2 id="总结">六、总结</h2>
+
+<p>研发效能工程师做的事，用一句话概括就是：<strong>让工程师把时间花在真正有价值的事上，而不是和工具较劲</strong>。</p>
+
+<p>这个岗位有几个特别吸引人的地方：</p>
+<ul>
+<li><strong>影响面大</strong>：你的一个优化，受益的是整个工程团队，而不只是一个业务线的用户</li>
+<li><strong>技术广度</strong>：会接触构建系统、容器、数据分析、前端工具链等各种技术，不容易陷入单一领域</li>
+<li><strong>问题有趣</strong>：构建提速、Flaky Test 治理、开发环境标准化——这些问题都有相当的技术深度，不枯燥</li>
+</ul>
+
+<p>当然也有挑战：横向推动文化建设比写业务代码难得多，效果难以量化，有时候做了大量工作但业务团队感知不到。这需要效能工程师既有技术能力，也有产品思维和沟通能力。</p>
+
+<p>如果你对「让整个团队更高效」这件事有热情，研发效能是个非常值得考虑的方向。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/研发效能/" rel="tag"><i class="fa fa-tag"></i> 研发效能</a>
+          <a href="/tags/工程效能/" rel="tag"><i class="fa fa-tag"></i> 工程效能</a>
+          <a href="/tags/职业/" rel="tag"><i class="fa fa-tag"></i> 职业</a>
+          <a href="/tags/CI-CD/" rel="tag"><i class="fa fa-tag"></i> CI/CD</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#研发效能是什么"><span class="nav-number">1.</span> <span class="nav-text">一、研发效能是什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#主要工作内容"><span class="nav-number">2.</span> <span class="nav-text">二、主要工作内容</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#CI-CD-平台建设"><span class="nav-number">2.1.</span> <span class="nav-text">1. CI/CD 平台建设</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#研发度量与可视化"><span class="nav-number">2.2.</span> <span class="nav-text">2. 研发度量与可视化</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#代码质量与工程规范"><span class="nav-number">2.3.</span> <span class="nav-text">3. 代码质量与工程规范</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#开发者工具与体验"><span class="nav-number">2.4.</span> <span class="nav-text">4. 开发者工具与体验</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#基础设施与平台化"><span class="nav-number">2.5.</span> <span class="nav-text">5. 基础设施与平台化</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#典型的一天"><span class="nav-number">3.</span> <span class="nav-text">三、典型的一天</span></a>
+  <ol class="nav-child">
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#上午"><span class="nav-number">3.1.</span> <span class="nav-text">上午：从数据开始</span></a></li>
+    <li class="nav-item nav-level-3"><a class="nav-link" href="#下午"><span class="nav-number">3.2.</span> <span class="nav-text">下午：解决问题和推进项目</span></a></li>
+  </ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#核心技能要求"><span class="nav-number">4.</span> <span class="nav-text">四、核心技能要求</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#和其他岗位的区别"><span class="nav-number">5.</span> <span class="nav-text">五、和其他岗位的区别</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">6.</span> <span class="nav-text">六、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">210</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">28</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+  <style>
+    pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+    pre[class*="language-"]::before { display: none !important; }
+    body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+    body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+    body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+    body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+  </style>
+  <script>
+    (function() {
+      function syncPrismTheme() {
+        var isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('prism-theme-light').disabled = isDark;
+        document.getElementById('prism-theme-dark').disabled = !isDark;
+      }
+      document.addEventListener('DOMContentLoaded', syncPrismTheme);
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+          if (m.attributeName === 'class') syncPrismTheme();
+        });
+      });
+      observer.observe(document.body, { attributes: true });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+</body>
+</html>
