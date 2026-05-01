@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="深度解析 NousResearch Hermes Agent：自我进化的 AI Agent，内置学习闭环、技能系统、多平台接入与任意模型支持，是目前开源 Agent 框架中最具特色的设计之一。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hermes Agent 深度解析：会自我进化的开源 AI Agent">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/01/Hermes-Agent解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="深度解析 NousResearch Hermes Agent：自我进化的 AI Agent，内置学习闭环、技能系统、多平台接入与任意模型支持，是目前开源 Agent 框架中最具特色的设计之一。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-01T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-01T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="AI Agent">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="NousResearch">
+<meta property="article:tag" content="开源">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/01/Hermes-Agent解析/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>Hermes Agent 深度解析：会自我进化的开源 AI Agent | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-01T10:00:00+08:00" content="2026-05-01">
+      05-01
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      Hermes Agent 深度解析：会自我进化的开源 AI Agent
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>大多数 AI Agent 框架都在解决同一个问题：如何让 LLM 调用工具、完成任务。但 <strong>Hermes Agent</strong> 想解决的是一个更难的问题：<strong>如何让 Agent 从每次对话中学习，越用越聪明，而不是每次都从零开始</strong>。</p>
+
+<p>Hermes Agent 是 <a href="https://nousresearch.com" target="_blank" rel="noopener">Nous Research</a> 开源的 AI Agent 框架（MIT 协议），它最核心的设计理念是一个<strong>闭合的学习循环</strong>：Agent 在完成复杂任务后自动生成「技能」，技能在使用中持续改进，同时跨会话积累对用户的理解。这让它与 AutoGPT、CrewAI 等框架有本质上的不同。</p>
+
+
+<h2 id="核心设计理念">一、核心设计理念：学习闭环</h2>
+
+<p>绝大多数 Agent 框架的记忆是「静态」的——你告诉它一些背景信息，它记住；你不告诉它，它不知道。Hermes 的不同之处在于它有一套<strong>主动的、自驱的知识积累机制</strong>。</p>
+
+<p>学习闭环由四个部分构成：</p>
+
+<ul>
+<li><strong>持久记忆（Persistent Memory）</strong>：Agent 会主动将重要信息写入 <code>MEMORY.md</code>，并在对话中定期「nudge」自己检视和更新记忆，而不是等用户主动告知</li>
+<li><strong>用户建模（User Modeling）</strong>：集成 <a href="https://github.com/plastic-labs/honcho" target="_blank" rel="noopener">Honcho</a> 的 dialectic 用户建模，跨会话逐渐建立对用户偏好、习惯、工作方式的理解——类似一个越来越了解你的助手</li>
+<li><strong>技能系统（Skills System）</strong>：完成复杂任务后，Agent 自动将解决方案提炼成可复用的「技能」（Skill），下次遇到同类问题直接调用，不再重复推理</li>
+<li><strong>会话搜索（Session Search）</strong>：基于 SQLite FTS5 的全文检索，配合 LLM 摘要，可以跨历史会话检索相关内容，让 Agent 能「想起」很久之前做过的事</li>
+</ul>
+
+<p>这个设计的本质是：<strong>把 Agent 的经验转化为可调用的程序性记忆，而不只是陈述性记忆</strong>。一个类比：人类不只是记住「做饭的步骤」，而是练熟了之后形成肌肉记忆，不需要每次查食谱。Hermes 的技能系统就是 Agent 的「肌肉记忆」。</p>
+
+
+<h2 id="技能系统">二、技能系统（Skills System）</h2>
+
+<p>技能是 Hermes 最有特色的设计。每个技能本质上是一个 Markdown 文件，描述了完成某类任务的步骤、注意事项和最佳实践。</p>
+
+<h3 id="技能的生命周期">技能的生命周期</h3>
+<ol>
+<li><strong>自动创建</strong>：Agent 完成一个复杂任务后，会判断这个任务值不值得抽象成技能。如果值得，自动生成技能文件</li>
+<li><strong>使用中改进</strong>：每次调用某个技能时，如果发现步骤有误或有更好的做法，技能文件会被自动修订</li>
+<li><strong>用户触发</strong>：在对话中用 <code>/skill-name</code> 命令可以手动触发某个技能</li>
+<li><strong>社区共享</strong>：技能遵循 <a href="https://agentskills.io" target="_blank" rel="noopener">agentskills.io</a> 开放标准，可以在社区 Skills Hub 上发布和下载</li>
+</ol>
+
+<pre><code class="language-bash"># 查看已有技能列表
+/skills
+
+# 触发某个技能
+/deploy-to-production
+
+# 技能文件存储位置
+~/.hermes/skills/
+├── system/          # 内置技能
+├── user/            # 用户创建的技能
+└── openclaw-imports/ # 从 OpenClaw 迁移的技能
+</code></pre>
+
+<p>技能文件的格式是普通的 Markdown，任何人都可以手动编写和修改：</p>
+
+<pre><code class="language-markdown"># Deploy to Production
+
+## When to use
+Use this skill when asked to deploy a service to production.
+
+## Steps
+1. Run the test suite: `make test`
+2. Build the Docker image: `docker build -t {service}:{version} .`
+3. Push to registry: `docker push registry.example.com/{service}:{version}`
+4. Update the Helm chart values and open a PR
+5. After PR merge, monitor the canary deployment for 10 minutes
+6. Check error rate — if > 1%, roll back immediately
+
+## Notes
+- Always deploy during low-traffic windows (avoid 9am-11am, 7pm-9pm)
+- Notify #deployments channel before starting
+- Use `hermes cron` to schedule off-hours deploys if needed
+</code></pre>
+
+
+<h2 id="工具系统">三、工具系统：40+ 内置工具</h2>
+
+<p>Hermes 内置了 40 多个工具，覆盖开发、系统、文件、网络等各类场景，并支持通过 MCP（Model Context Protocol）接入任意外部工具。</p>
+
+<h3 id="终端后端">六种终端后端</h3>
+<p>Hermes 最独特的工具设计是支持<strong>六种不同的代码执行后端</strong>，让 Agent 可以在不同的隔离环境中运行代码：</p>
+
+<table>
+  <thead>
+    <tr><th>后端</th><th>适用场景</th><th>特点</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Local</strong></td><td>本机直接执行</td><td>最快，无隔离</td></tr>
+    <tr><td><strong>Docker</strong></td><td>本地容器化执行</td><td>隔离好，需要 Docker</td></tr>
+    <tr><td><strong>SSH</strong></td><td>远程服务器</td><td>适合在云服务器上运行</td></tr>
+    <tr><td><strong>Daytona</strong></td><td>Serverless 开发环境</td><td>闲置时自动休眠，近乎零成本</td></tr>
+    <tr><td><strong>Singularity</strong></td><td>HPC 集群</td><td>科研计算环境</td></tr>
+    <tr><td><strong>Modal</strong></td><td>Serverless GPU</td><td>需要 GPU 计算时按需唤醒</td></tr>
+  </tbody>
+</table>
+
+<p>这个设计的亮点是 <strong>Daytona 和 Modal 后端</strong>：Agent 的执行环境可以在云端持久化，闲置时自动休眠（几乎零成本），有任务时唤醒。这意味着你可以在 Telegram 上给 Agent 发一条消息，它在云端虚拟机上工作，完成后通知你，全程不需要你的笔记本开着。</p>
+
+<h3 id="并行子Agent">并行子 Agent</h3>
+<p>Hermes 支持派生隔离的子 Agent 并行处理多个工作流：</p>
+
+<pre><code class="language-bash"># 主 Agent 可以同时派生多个子 Agent 处理独立任务
+# 子 Agent 通过 RPC 调用工具，结果汇总回主 Agent
+# 每个子 Agent 有独立的上下文窗口，不消耗主 Agent 的 context
+
+# 也可以用 Python 脚本直接调用工具（零 context cost）
+python3 << 'EOF'
+from hermes.tools import run_tool
+
+# 并行执行多个工具调用
+results = await asyncio.gather(
+    run_tool("bash", {"command": "pytest tests/unit/"}),
+    run_tool("bash", {"command": "pytest tests/integration/"}),
+    run_tool("grep", {"pattern": "TODO", "path": "./src"}),
+)
+EOF
+</code></pre>
+
+
+<h2 id="多平台接入">四、多平台接入：不绑定终端</h2>
+
+<p>大多数 Agent 框架假设你坐在电脑前，通过命令行或 Web UI 交互。Hermes 的设计思路不同——它把自己做成了一个可以从任何地方访问的服务：</p>
+
+<pre><code class="language-bash"># 启动消息网关（支持 Telegram、Discord、Slack、WhatsApp、Signal）
+hermes gateway start
+
+# 之后可以从手机 Telegram 给 Agent 发消息，Agent 在云端工作
+# 支持跨平台会话连续性：从 Telegram 开始的对话，可以在 CLI 继续
+</code></pre>
+
+<p>支持的平台：</p>
+<ul>
+<li><strong>Telegram</strong>：最成熟的集成，支持语音消息转录</li>
+<li><strong>Discord / Slack</strong>：团队协作场景</li>
+<li><strong>WhatsApp / Signal</strong>：个人消息</li>
+<li><strong>Home Assistant</strong>：智能家居集成</li>
+<li><strong>CLI</strong>：完整的 TUI，支持多行编辑、slash 命令自动补全、流式工具输出</li>
+</ul>
+
+<p>所有平台共享同一份记忆和技能系统，对话历史跨平台互通。</p>
+
+
+<h2 id="模型无关设计">五、模型无关：不锁定任何 LLM</h2>
+
+<p>Hermes 的另一个核心设计原则是<strong>模型无关（Model-Agnostic）</strong>。切换模型只需一条命令：</p>
+
+<pre><code class="language-bash">hermes model
+# 交互式选择：
+# > Nous Portal (Hermes 3, Hermes 2 Pro...)
+#   OpenRouter (200+ models)
+#   NVIDIA NIM (Nemotron...)
+#   OpenAI (GPT-4o, o3...)
+#   Anthropic (Claude...)
+#   Hugging Face
+#   Custom endpoint
+
+# 也可以直接指定
+hermes config set model openrouter:anthropic/claude-opus-4
+hermes config set model nous:hermes-3-70b
+</code></pre>
+
+<p>支持的提供商覆盖了市面上几乎所有主流模型服务：Nous Portal、OpenRouter（200+ 模型）、NVIDIA NIM、Xiaomi MiMo、Kimi/Moonshot、MiniMax、Hugging Face、OpenAI、Anthropic，以及任意自定义 OpenAI 兼容端点。</p>
+
+<p>不同任务用不同模型是一个很实用的场景：日常对话用便宜的小模型，复杂代码生成切换到 Claude Opus 或 Hermes 3 70B，批量数据处理用本地部署的模型。Hermes 让这种切换毫无成本。</p>
+
+
+<h2 id="定时任务">六、定时任务：用自然语言写 Cron</h2>
+
+<p>Hermes 内置了 Cron 调度器，可以用自然语言描述定时任务，结果推送到任意平台：</p>
+
+<pre><code class="language-bash"># 每天早上 8 点生成日报，推送到 Telegram
+"每天早上 8 点，整理昨天的 GitHub PR 合并情况和待处理 issue，发给我的 Telegram"
+
+# 每周一生成周报
+"每周一 9 点，分析上周的项目进展，对比 OKR，发到 Slack 的 #weekly-report 频道"
+
+# 每晚自动备份
+"每天凌晨 2 点，备份数据库到 S3，如果失败发告警邮件"
+</code></pre>
+
+<p>这些任务运行在云端，完全无人值守，结果通过消息平台通知你。</p>
+
+
+<h2 id="安全设计">七、安全设计</h2>
+
+<p>给 Agent 执行命令的权限是一把双刃剑。Hermes 的安全设计：</p>
+<ul>
+<li><strong>命令审批（Command Approval）</strong>：可以配置哪些命令需要人工确认才能执行，哪些可以自动放行。白名单里的 <code>git status</code>、<code>ls</code> 等只读命令自动放行，<code>rm -rf</code> 类操作需要确认</li>
+<li><strong>DM 配对（DM Pairing）</strong>：消息平台上的 Agent 只响应授权用户，通过配对码绑定</li>
+<li><strong>容器隔离</strong>：使用 Docker 后端时，Agent 的代码执行在隔离容器内，不影响宿主机</li>
+</ul>
+
+
+<h2 id="RL训练集成">八、RL 训练集成：为下一代模型生成数据</h2>
+
+<p>这是 Hermes 最「研究向」的功能，也揭示了 Nous Research 的长期目标。</p>
+
+<p>Hermes 内置了与 <a href="https://github.com/NousResearch/atropos" target="_blank" rel="noopener">Atropos</a>（Nous Research 的 RL 训练框架）的集成：</p>
+<ul>
+<li><strong>批量轨迹生成</strong>：可以批量运行任务，收集 Agent 的完整决策轨迹（observation → action → result）</li>
+<li><strong>Atropos RL 环境</strong>：将 Hermes 的工具环境包装成标准 RL 环境，用于强化学习训练</li>
+<li><strong>轨迹压缩</strong>：将高质量的 Agent 轨迹压缩成训练数据，用于训练下一代 tool-calling 模型</li>
+</ul>
+
+<p>这形成了一个完整的飞轮：<strong>Hermes Agent 在真实任务中积累的高质量轨迹 → 训练更强的工具调用模型 → 更强的模型驱动更好的 Agent 表现</strong>。这正是 Nous Research 作为 AI 研究机构的核心布局。</p>
+
+
+<h2 id="快速上手">九、快速上手</h2>
+
+<pre><code class="language-bash"># 一键安装（Linux / macOS / WSL2）
+curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+
+source ~/.bashrc
+
+# 运行配置向导
+hermes setup
+
+# 开始对话
+hermes
+
+# 常用命令
+hermes model        # 切换模型
+hermes tools        # 配置工具
+hermes gateway      # 启动消息网关
+hermes doctor       # 诊断问题
+hermes update       # 更新版本
+</code></pre>
+
+<p>从 OpenClaw（Hermes 的前身）迁移：</p>
+
+<pre><code class="language-bash">hermes claw migrate          # 迁移设置、记忆、技能、API Key
+hermes claw migrate --dry-run # 预览迁移内容
+</code></pre>
+
+
+<h2 id="与其他框架的对比">十、与其他框架的对比</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>特性</th>
+      <th>Hermes Agent</th>
+      <th>AutoGPT</th>
+      <th>CrewAI</th>
+      <th>Claude Code</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>学习闭环</strong></td>
+      <td>✅ 技能自动生成+改进</td>
+      <td>❌</td>
+      <td>❌</td>
+      <td>✅ CLAUDE.md</td>
+    </tr>
+    <tr>
+      <td><strong>跨会话记忆</strong></td>
+      <td>✅ 主动积累+用户建模</td>
+      <td>部分</td>
+      <td>❌</td>
+      <td>✅ Memory files</td>
+    </tr>
+    <tr>
+      <td><strong>多平台接入</strong></td>
+      <td>✅ 6 个平台</td>
+      <td>❌</td>
+      <td>❌</td>
+      <td>❌ 仅 CLI/IDE</td>
+    </tr>
+    <tr>
+      <td><strong>模型无关</strong></td>
+      <td>✅ 200+ 模型</td>
+      <td>部分</td>
+      <td>✅</td>
+      <td>❌ 仅 Claude</td>
+    </tr>
+    <tr>
+      <td><strong>Serverless 部署</strong></td>
+      <td>✅ Daytona / Modal</td>
+      <td>❌</td>
+      <td>❌</td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td><strong>RL 训练集成</strong></td>
+      <td>✅ Atropos</td>
+      <td>❌</td>
+      <td>❌</td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td><strong>定时任务</strong></td>
+      <td>✅ 内置 Cron</td>
+      <td>❌</td>
+      <td>❌</td>
+      <td>✅ CronCreate</td>
+    </tr>
+  </tbody>
+</table>
+
+
+<h2 id="总结">十一、总结</h2>
+
+<p>Hermes Agent 的核心价值主张很清晰：<strong>一个真正能自我成长的 Agent，而不只是一个有工具的聊天机器人</strong>。</p>
+
+<p>它的技能系统把「解决问题的方法」沉淀为可复用的程序性知识；它的用户建模让 Agent 随着时间推移越来越了解你；它的多平台接入和 Serverless 部署让 Agent 真正从「桌面工具」变成「随时可用的助手」。</p>
+
+<p>对于研究者来说，Atropos 集成让它同时是一个优质的 RL 训练数据生成工具。对于开发者来说，模型无关的设计和 MCP 支持让它可以轻松嵌入已有工作流。</p>
+
+<p>Hermes Agent 目前仍在快速迭代中，感兴趣可以从 GitHub 直接体验：</p>
+<ul>
+<li>GitHub：<a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noopener">github.com/NousResearch/hermes-agent</a></li>
+<li>文档：<a href="https://hermes-agent.nousresearch.com/docs/" target="_blank" rel="noopener">hermes-agent.nousresearch.com/docs</a></li>
+<li>技能社区：<a href="https://agentskills.io" target="_blank" rel="noopener">agentskills.io</a></li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/AI-Agent/" rel="tag"><i class="fa fa-tag"></i> AI Agent</a>
+          <a href="/tags/LLM/" rel="tag"><i class="fa fa-tag"></i> LLM</a>
+          <a href="/tags/NousResearch/" rel="tag"><i class="fa fa-tag"></i> NousResearch</a>
+          <a href="/tags/开源/" rel="tag"><i class="fa fa-tag"></i> 开源</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#核心设计理念"><span class="nav-number">1.</span> <span class="nav-text">一、核心设计理念：学习闭环</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#技能系统"><span class="nav-number">2.</span> <span class="nav-text">二、技能系统（Skills System）</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#工具系统"><span class="nav-number">3.</span> <span class="nav-text">三、工具系统：40+ 内置工具</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#多平台接入"><span class="nav-number">4.</span> <span class="nav-text">四、多平台接入</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#模型无关设计"><span class="nav-number">5.</span> <span class="nav-text">五、模型无关设计</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#定时任务"><span class="nav-number">6.</span> <span class="nav-text">六、定时任务</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#安全设计"><span class="nav-number">7.</span> <span class="nav-text">七、安全设计</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#RL训练集成"><span class="nav-number">8.</span> <span class="nav-text">八、RL 训练集成</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#快速上手"><span class="nav-number">9.</span> <span class="nav-text">九、快速上手</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#与其他框架的对比"><span class="nav-number">10.</span> <span class="nav-text">十、与其他框架的对比</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">十一、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">212</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">28</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+  <style>
+    pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+    pre[class*="language-"]::before { display: none !important; }
+    body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+    body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+    body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+    body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+  </style>
+  <script>
+    (function() {
+      function syncPrismTheme() {
+        var isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('prism-theme-light').disabled = isDark;
+        document.getElementById('prism-theme-dark').disabled = !isDark;
+      }
+      document.addEventListener('DOMContentLoaded', syncPrismTheme);
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+          if (m.attributeName === 'class') syncPrismTheme();
+        });
+      });
+      observer.observe(document.body, { attributes: true });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+</body>
+</html>
