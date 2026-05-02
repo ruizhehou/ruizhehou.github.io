@@ -199,6 +199,37 @@
 
 
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/02/Hermes-Agent%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8FTS5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+      <meta itemprop="description" content="记录我的工作与生活，分享一些想法">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/05/02/Hermes-Agent%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8FTS5/" class="post-title-link" itemprop="url">Hermes Agent 如何用 SQLite FTS5 实现跨会话记忆召回</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time title="创建时间：2026-05-02 10:00:00 / 修改时间：10:00:00" itemprop="dateCreated datePublished" datetime="2026-05-02T10:00:00+08:00">2026-05-02</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>通过阅读 Hermes Agent 真实源码，深度解析一个生产级 AI Agent 如何用 SQLite FTS5 实现跨会话记忆召回：双 FTS5 索引（unicode61+trigram）的设计、FTS5+LLM 两阶段检索流程、智能窗口截取算法，以及多进程写入竞争的处理方案。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/02/SQLite-FTS5%E5%85%A8%E6%96%87%E6%A3%80%E7%B4%A2/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2229,102 +2260,7 @@
       
   
   
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/09/26/%E9%98%BF%E9%87%8C%E4%BA%91%E5%A4%A9%E6%B1%A0-9%E6%9C%8826%E6%97%A5-%E6%97%A5%E5%B8%B8%E5%91%A8%E8%B5%9B/">
 
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-      <meta itemprop="description" content="记录我的工作与生活，分享一些想法">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/09/26/%E9%98%BF%E9%87%8C%E4%BA%91%E5%A4%A9%E6%B1%A0-9%E6%9C%8826%E6%97%A5-%E6%97%A5%E5%B8%B8%E5%91%A8%E8%B5%9B/" class="post-title-link" itemprop="url">阿里云天池 9月26日 日常周赛</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              
-
-              <time title="创建时间：2020-09-26 16:11:34 / 修改时间：16:19:50" itemprop="dateCreated datePublished" datetime="2020-09-26T16:11:34+08:00">2020-09-26</time>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine：</span>
-    
-    <a title="valine" href="/2020/09/26/%E9%98%BF%E9%87%8C%E4%BA%91%E5%A4%A9%E6%B1%A0-9%E6%9C%8826%E6%97%A5-%E6%97%A5%E5%B8%B8%E5%91%A8%E8%B5%9B/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2020/09/26/%E9%98%BF%E9%87%8C%E4%BA%91%E5%A4%A9%E6%B1%A0-9%E6%9C%8826%E6%97%A5-%E6%97%A5%E5%B8%B8%E5%91%A8%E8%B5%9B/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="k步编辑">1. K步编辑</h3>
-<p>描述</p>
-<p>给出一个只含有小写字母的字符串的集合以及一个目标串(target)，输出所有可以经过不多于 <code>k</code> 次操作得到目标字符串的字符串。</p>
-<p>你可以对字符串进行一下的3种操作:</p>
-<ul>
-<li>加入1个字母</li>
-<li>删除1个字母</li>
-<li>替换1个字母</li>
-</ul>
-<p>思路：一个应用编辑距离的问题，使用python语言会超时。</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span> &#123;</span></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * @param words: a set of stirngs</span></span><br><span class="line"><span class="comment">     * @param target: a target string</span></span><br><span class="line"><span class="comment">     * @param k: An integer</span></span><br><span class="line"><span class="comment">     * @return: output all the strings that meet the requirements</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">int</span> <span class="title">minDistance</span><span class="params">(<span class="built_in">string</span> word1, <span class="built_in">string</span> word2, <span class="keyword">int</span> k)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">int</span> m = word1.<span class="built_in">size</span>();</span><br><span class="line">        <span class="keyword">int</span> n = word2.<span class="built_in">size</span>();</span><br><span class="line">        <span class="keyword">if</span> (m - n &gt; k || n - m &gt; k) <span class="keyword">return</span> k + <span class="number">1</span>;</span><br><span class="line">        <span class="function"><span class="built_in">vector</span>&lt;<span class="built_in">vector</span>&lt;<span class="keyword">int</span>&gt;&gt; <span class="title">dp</span><span class="params">(m + <span class="number">1</span>, <span class="built_in">vector</span>&lt;<span class="keyword">int</span>&gt;(n + <span class="number">1</span>))</span></span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt;= m; i++) &#123;</span><br><span class="line">            dp[i][<span class="number">0</span>] = i;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> j = <span class="number">0</span>; j &lt;= n; j++) &#123;</span><br><span class="line">            dp[<span class="number">0</span>][j] = j;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">1</span>; i &lt;= m; i++) &#123;</span><br><span class="line">            <span class="keyword">for</span> (<span class="keyword">int</span> j = <span class="number">1</span>; j &lt;= n; j++) &#123;</span><br><span class="line">                <span class="keyword">if</span> (word1[i - <span class="number">1</span>] == word2[j - <span class="number">1</span>])</span><br><span class="line">                    dp[i][j] = dp[i - <span class="number">1</span>][j - <span class="number">1</span>];</span><br><span class="line">                <span class="keyword">else</span> &#123;</span><br><span class="line">                    dp[i][j] = <span class="number">1</span> + <span class="built_in">min</span>(dp[i - <span class="number">1</span>][j - <span class="number">1</span>], <span class="built_in">min</span>(dp[i][j - <span class="number">1</span>], dp[i - <span class="number">1</span>][j]));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> dp[m][n];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="built_in">vector</span>&lt;<span class="built_in">string</span>&gt; <span class="title">kDistance</span><span class="params">(<span class="built_in">vector</span>&lt;<span class="built_in">string</span>&gt; &amp;words, <span class="built_in">string</span> &amp;target, <span class="keyword">int</span> k)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// write your code here</span></span><br><span class="line">        <span class="built_in">vector</span>&lt;<span class="built_in">string</span>&gt; res;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span> &amp;<span class="keyword">word</span>: words) &#123;</span><br><span class="line">            <span class="keyword">if</span> (minDistance(<span class="keyword">word</span>, target, k) &lt;= k) &#123;</span><br><span class="line">                res.push_back(<span class="keyword">word</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> res;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<h3 id="折纸">2. 折纸</h3>
-<p>描述</p>
-<p>折纸，每次都是将纸从右向左对折，凹痕为 0，凸痕为 1，求折 <code>n</code> 次后，将纸展开所得折痕组成的 01 序列。</p>
-<p>1&lt;=n&lt;=20</p>
-<p>思路：类似中序遍历，加入一个是正是反的变量，模拟折纸过程</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span>:</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    @param n: The folding times</span></span><br><span class="line"><span class="string">    @return: the 01 string</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">getString</span>(<span class="params">self, n</span>):</span></span><br><span class="line">        <span class="comment"># Write your code here</span></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">printProcess</span>(<span class="params">i, N, down</span>):</span></span><br><span class="line">            <span class="keyword">if</span> i &gt; N:</span><br><span class="line">                <span class="keyword">return</span></span><br><span class="line">            printProcess(i + <span class="number">1</span>, N, <span class="literal">True</span>)</span><br><span class="line">            <span class="keyword">if</span> down <span class="keyword">is</span> <span class="literal">True</span>:</span><br><span class="line">                res.append(<span class="string">&#x27;0&#x27;</span>)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                res.append(<span class="string">&#x27;1&#x27;</span>)</span><br><span class="line">            printProcess(i + <span class="number">1</span>, N, <span class="literal">False</span>)</span><br><span class="line"></span><br><span class="line">        res = []</span><br><span class="line">        printProcess(<span class="number">1</span>, n, <span class="literal">True</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;&quot;</span>.join(res)</span><br></pre></td></tr></table></figure>
-<h3 id="字符串的不同排列">3. 字符串的不同排列</h3>
-<p>描述</p>
-<p>给出一个字符串，找到它的所有排列，注意同一个字符串不要打印两次。 请以字典序从小到大输出。 0&lt;=n&lt;=20</p>
-<p>思路：提前去重，输出排序</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span>:</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    @param str: A string</span></span><br><span class="line"><span class="string">    @return: all permutations</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">stringPermutation</span>(<span class="params">self, s</span>):</span></span><br><span class="line">        <span class="comment"># write your code here</span></span><br><span class="line">        li = list(s)</span><br><span class="line">        li.sort()</span><br><span class="line">        q, nq = [<span class="string">&quot;&quot;</span>], []</span><br><span class="line">        <span class="keyword">for</span> char <span class="keyword">in</span> li:</span><br><span class="line">            <span class="keyword">for</span> ans <span class="keyword">in</span> q:</span><br><span class="line">                <span class="keyword">for</span> i <span class="keyword">in</span> range(len(ans), <span class="number">-1</span>, <span class="number">-1</span>):</span><br><span class="line">                    <span class="keyword">if</span> i &lt; len(ans) <span class="keyword">and</span> char == ans[i]:</span><br><span class="line">                        <span class="keyword">break</span></span><br><span class="line">                    nq.append(ans[:i] + char + ans[i:])</span><br><span class="line">            q, nq = nq, []</span><br><span class="line">        q.sort()</span><br><span class="line">        <span class="keyword">return</span> q</span><br></pre></td></tr></table></figure>
-<h3 id="硬币排成线">4. 硬币排成线</h3>
-<p>描述</p>
-<p>有 <code>n</code> 个硬币排成一条线, 第 <code>i</code> 枚硬币的价值为 <code>values[i]</code>.</p>
-<p>两个参赛者轮流从任意一边取一枚硬币, 直到没有硬币为止. 拿到硬币总价值更高的获胜.</p>
-<p>请判定 <strong>第一个玩家</strong> 会赢还是会输.</p>
-<p>1&lt;=n&lt;=2000 0&lt;=value[i]&lt;=1e7</p>
-<p>思路：一个常见的dp问题</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span>:</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    @param values: a vector of integers</span></span><br><span class="line"><span class="string">    @return: a boolean which equals to true if the first player will win</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">firstWillWin</span>(<span class="params">self, values</span>):</span></span><br><span class="line">        <span class="comment"># write your code here</span></span><br><span class="line">        n = len(values)</span><br><span class="line">        dp = [[[<span class="number">0</span>, <span class="number">0</span>] <span class="keyword">for</span> _ <span class="keyword">in</span> range(n)] <span class="keyword">for</span> _ <span class="keyword">in</span> range(n)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(n):</span><br><span class="line">            dp[i][i][<span class="number">0</span>] = values[i]</span><br><span class="line">        <span class="keyword">for</span> gap <span class="keyword">in</span> range(<span class="number">1</span>, n):</span><br><span class="line">            <span class="keyword">for</span> i <span class="keyword">in</span> range(n - gap):</span><br><span class="line">                j = i + gap</span><br><span class="line">                left = dp[i + <span class="number">1</span>][j][<span class="number">1</span>] + values[i]</span><br><span class="line">                right = dp[i][j - <span class="number">1</span>][<span class="number">1</span>] + values[j]</span><br><span class="line">                <span class="keyword">if</span> left &gt; right:</span><br><span class="line">                    dp[i][j][<span class="number">0</span>] = left</span><br><span class="line">                    dp[i][j][<span class="number">1</span>] = dp[i + <span class="number">1</span>][j][<span class="number">0</span>]</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j][<span class="number">0</span>] = right</span><br><span class="line">                    dp[i][j][<span class="number">1</span>] = dp[i][j - <span class="number">1</span>][<span class="number">0</span>]</span><br><span class="line">        <span class="keyword">return</span> dp[<span class="number">0</span>][n - <span class="number">1</span>][<span class="number">0</span>] &gt; dp[<span class="number">0</span>][n - <span class="number">1</span>][<span class="number">1</span>]</span><br></pre></td></tr></table></figure>
-<p>PS: 今天第一次答阿里云，阿里云的罚时有点多，罚时时间还没有写出来，要注意有十足的保证再提交</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
   
   
   
@@ -2432,7 +2368,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">213</span>
+          <span class="site-state-item-count">214</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

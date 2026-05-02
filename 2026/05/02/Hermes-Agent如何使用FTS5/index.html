@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="深度解析 Hermes Agent 如何使用 SQLite FTS5 实现跨会话记忆召回：数据库 Schema 设计、双 FTS5 索引（unicode61 + trigram）、会话搜索工具的完整实现流程与工程细节。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hermes Agent 如何用 SQLite FTS5 实现跨会话记忆召回">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/02/Hermes-Agent如何使用FTS5/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="深度解析 Hermes Agent 如何使用 SQLite FTS5 实现跨会话记忆召回：数据库 Schema 设计、双 FTS5 索引（unicode61 + trigram）、会话搜索工具的完整实现流程与工程细节。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-02T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-02T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="SQLite">
+<meta property="article:tag" content="全文检索">
+<meta property="article:tag" content="AI Agent">
+<meta property="article:tag" content="NousResearch">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/02/Hermes-Agent如何使用FTS5/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>Hermes Agent 如何用 SQLite FTS5 实现跨会话记忆召回 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-02T10:00:00+08:00" content="2026-05-02">
+      05-02
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      Hermes Agent 如何用 SQLite FTS5 实现跨会话记忆召回
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>上一篇文章介绍了 SQLite FTS5 的原理和用法。这篇文章通过阅读 Hermes Agent 的真实源码，看一个生产级 AI Agent 是怎样把 FTS5 用于跨会话记忆召回的。</p>
+
+<p>Hermes 把每次对话的完整消息历史存在 SQLite 数据库里，并对消息内容建立 FTS5 全文索引。当用户说"上次我们是怎么解决那个 Docker 问题的？"时，Agent 能在毫秒内从几十个历史会话中找到相关内容，然后用一个小模型做摘要返回——整个过程不需要把所有历史对话塞进上下文窗口。</p>
+
+
+<h2 id="整体架构">一、整体架构</h2>
+
+<p>Hermes 的持久化存储是 <code>~/.hermes/state.db</code>，一个单文件 SQLite 数据库，包含以下核心表：</p>
+
+<pre><code class="language-text">~/.hermes/state.db (SQLite, WAL 模式)
+├── sessions              — 会话元数据（来源平台、模型、token 用量、费用）
+├── messages              — 完整消息历史（每条消息一行）
+├── messages_fts          — FTS5 虚拟表（unicode61 分词，英文/通用）
+├── messages_fts_trigram  — FTS5 虚拟表（trigram 分词，CJK/子串搜索）
+├── state_meta            — 键值元数据
+└── schema_version        — Schema 版本号（用于迁移）
+</code></pre>
+
+<p>几个关键的工程决策：</p>
+<ul>
+<li><strong>WAL 模式</strong>：支持多进程并发访问（CLI + 消息网关同时运行时不互相阻塞）</li>
+<li><strong>双 FTS5 索引</strong>：一个 unicode61 分词器用于英文/通用，一个 trigram 分词器专门处理中日韩字符和子串搜索</li>
+<li><strong>外部内容表（Content Table）</strong>：FTS5 不重复存储原始文本，引用 <code>messages</code> 表，节省空间</li>
+</ul>
+
+
+<h2 id="数据库Schema">二、数据库 Schema</h2>
+
+<h3 id="messages表">messages 表</h3>
+
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS messages (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      TEXT NOT NULL REFERENCES sessions(id),
+    role            TEXT NOT NULL,     -- 'user', 'assistant', 'tool'
+    content         TEXT,              -- 消息正文
+    tool_call_id    TEXT,
+    tool_calls      TEXT,              -- JSON 字符串（工具调用列表）
+    tool_name       TEXT,              -- 工具名
+    timestamp       REAL NOT NULL,     -- Unix epoch float
+    token_count     INTEGER,
+    finish_reason   TEXT,
+    reasoning       TEXT,              -- 思维链内容（CoT 模型）
+    reasoning_content TEXT,
+    reasoning_details TEXT,
+    codex_reasoning_items TEXT,
+    codex_message_items   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_session
+    ON messages(session_id, timestamp);
+</code></pre>
+
+<h3 id="FTS5虚拟表">FTS5 虚拟表</h3>
+
+<p>Hermes 建了<strong>两张 FTS5 表</strong>，覆盖不同的搜索场景（Schema version 11 之后的最终形态）：</p>
+
+<pre><code class="language-sql">-- 标准 FTS5 索引（unicode61 分词器）
+-- 适合英文关键词搜索、布尔查询、前缀查询
+CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+    content,
+    content='messages',      -- 外部内容表
+    content_rowid='id'
+);
+
+-- Trigram FTS5 索引（trigram 分词器）
+-- 适合中日韩字符（CJK）和任意子串搜索
+-- Schema version 10 新增，version 11 扩展索引字段
+CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts_trigram USING fts5(
+    content,
+    content='messages',
+    content_rowid='id',
+    tokenize='trigram'
+);
+</code></pre>
+
+<p><strong>trigram 分词器</strong>是 SQLite 3.38.0（2022 年）新增的内置分词器。它把文本按每 3 个字符一组的方式切分（如 "hello" → "hel", "ell", "llo"），不依赖语言规则，对任何语言的子串搜索都有效。代价是索引体积更大（约为原文的 3-5 倍），但对中文用户体验大幅提升。</p>
+
+<h3 id="触发器">触发器：保持 FTS 索引同步</h3>
+
+<pre><code class="language-sql">-- INSERT 触发器：新消息写入时同步更新两个 FTS 索引
+CREATE TRIGGER IF NOT EXISTS messages_fts_insert
+AFTER INSERT ON messages BEGIN
+    INSERT INTO messages_fts(rowid, content)
+        VALUES (new.id, new.content);
+    INSERT INTO messages_fts_trigram(rowid, content)
+        VALUES (new.id, new.content);
+END;
+
+-- DELETE 触发器
+CREATE TRIGGER IF NOT EXISTS messages_fts_delete
+AFTER DELETE ON messages BEGIN
+    INSERT INTO messages_fts(messages_fts, rowid, content)
+        VALUES ('delete', old.id, old.content);
+    INSERT INTO messages_fts_trigram(messages_fts_trigram, rowid, content)
+        VALUES ('delete', old.id, old.content);
+END;
+
+-- UPDATE 触发器：先删旧记录，再插新记录
+CREATE TRIGGER IF NOT EXISTS messages_fts_update
+AFTER UPDATE ON messages BEGIN
+    INSERT INTO messages_fts(messages_fts, rowid, content)
+        VALUES ('delete', old.id, old.content);
+    INSERT INTO messages_fts(rowid, content)
+        VALUES (new.id, new.content);
+    INSERT INTO messages_fts_trigram(messages_fts_trigram, rowid, content)
+        VALUES ('delete', old.id, old.content);
+    INSERT INTO messages_fts_trigram(rowid, content)
+        VALUES (new.id, new.content);
+END;
+</code></pre>
+
+<p>值得注意的是，从 Schema version 11 开始，Hermes 把 FTS5 改成了<strong>内联模式（Inline Mode）</strong>，不再使用外部内容表。这是因为外部内容表模式在 <code>messages</code> 表被修改时需要手动维护 FTS，而内联模式下 FTS 表自己存储内容，触发器更可靠。</p>
+
+
+<h2 id="写入竞争处理">三、写入竞争：多进程共享一个 DB</h2>
+
+<p>Hermes 同时支持 CLI、Telegram、Discord 等多个入口，意味着可能有多个进程并发写同一个 <code>state.db</code>。SQLite 单写的限制在这里是挑战。Hermes 的解法：</p>
+
+<pre><code class="language-python"># hermes_state.py 中的写入重试配置
+_WRITE_MAX_RETRIES    = 15
+_WRITE_RETRY_MIN_S    = 0.020   # 20ms
+_WRITE_RETRY_MAX_S    = 0.150   # 150ms
+_CHECKPOINT_EVERY_N_WRITES = 50
+
+def _write_with_retry(self, fn):
+    """带随机抖动的写入重试，避免多进程竞争时的「护卫效应」"""
+    for attempt in range(_WRITE_MAX_RETRIES):
+        try:
+            with self.conn:  # BEGIN IMMEDIATE — 在事务开始时就抢锁
+                return fn()
+        except sqlite3.OperationalError as e:
+            if "database is locked" not in str(e) or attempt == _WRITE_MAX_RETRIES - 1:
+                raise
+            # 随机抖动：避免所有进程以相同间隔重试（确定性退避的「护卫效应」）
+            jitter = random.uniform(_WRITE_RETRY_MIN_S, _WRITE_RETRY_MAX_S)
+            time.sleep(jitter)
+
+    # 每 50 次成功写入做一次 WAL checkpoint
+    self._write_count += 1
+    if self._write_count % _CHECKPOINT_EVERY_N_WRITES == 0:
+        self.conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
+</code></pre>
+
+<p>几个关键点：</p>
+<ul>
+<li><strong>BEGIN IMMEDIATE</strong>：在事务开始时就申请写锁，而不是等到第一次写操作——这样可以更早发现锁冲突</li>
+<li><strong>随机抖动</strong>：避免所有进程在同一时刻重试（「护卫效应」，convoy effect）</li>
+<li><strong>定期 WAL checkpoint</strong>：WAL 模式会让 WAL 文件持续增大，定期 checkpoint 把 WAL 内容合并回主库文件</li>
+</ul>
+
+
+<h2 id="会话搜索工具">四、会话搜索工具：FTS5 + LLM 摘要的两阶段流程</h2>
+
+<p>核心工具在 <code>tools/session_search_tool.py</code>，Agent 在需要回忆历史时调用它。整个流程分两个阶段：</p>
+
+<pre><code class="language-text">第一阶段：FTS5 索引检索（毫秒级）
+  ↓
+  db.search_messages(query, limit=50)  — 从 FTS5 拿到 50 条相关消息
+  ↓
+  按 session_id 分组，去重，取 top-N 个唯一会话（默认 3 个）
+  ↓
+  解析委托链（parent_session_id），找到根会话
+  ↓
+  排除当前会话（Agent 已有当前上下文，不需要搜索自己）
+
+第二阶段：LLM 摘要（并发，秒级）
+  ↓
+  加载每个匹配会话的完整消息历史
+  ↓
+  _truncate_around_matches() — 截取包含匹配词的上下文片段（max 100k 字符）
+  ↓
+  并发调用辅助模型（Gemini Flash / 便宜快速模型）生成聚焦摘要
+  ↓
+  返回 JSON：session_id + 时间 + 摘要
+</code></pre>
+
+<p>这个设计的精妙之处：<strong>FTS5 只负责「找到哪些会话相关」，LLM 负责「把相关内容理解成人话」</strong>。两阶段分离让搜索既快速又语义丰富，同时不会把几十个历史对话全部塞进 Agent 的上下文窗口。</p>
+
+<h3 id="search_messages实现">search_messages 的 SQL 实现</h3>
+
+<pre><code class="language-python">def search_messages(
+    self,
+    query: str,
+    role_filter: list = None,
+    exclude_sources: list = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list:
+    """
+    FTS5 搜索消息，按相关性排序，关联 session 元数据
+    """
+    sql = """
+        SELECT
+            m.session_id,
+            m.role,
+            m.content,
+            m.timestamp,
+            s.source,
+            s.model,
+            s.started_at  AS session_started,
+            bm25(messages_fts) AS relevance_score
+        FROM messages_fts
+        JOIN messages m  ON messages_fts.rowid = m.id
+        JOIN sessions s  ON m.session_id = s.id
+        WHERE messages_fts MATCH ?
+        {role_filter}
+        {source_filter}
+        ORDER BY bm25(messages_fts)   -- 升序：分数越小越相关
+        LIMIT ? OFFSET ?
+    """
+    params = [query]
+
+    role_clause = ""
+    if role_filter:
+        placeholders = ",".join("?" * len(role_filter))
+        role_clause = f"AND m.role IN ({placeholders})"
+        params.extend(role_filter)
+
+    source_clause = ""
+    if exclude_sources:
+        placeholders = ",".join("?" * len(exclude_sources))
+        source_clause = f"AND s.source NOT IN ({placeholders})"
+        params.extend(exclude_sources)
+
+    sql = sql.format(role_filter=role_clause, source_filter=source_clause)
+    params.extend([limit, offset])
+
+    cursor = self.conn.execute(sql, params)
+    cols = [d[0] for d in cursor.description]
+    return [dict(zip(cols, row)) for row in cursor.fetchall()]
+</code></pre>
+
+<h3 id="截取匹配上下文">截取匹配上下文的算法</h3>
+
+<p>找到匹配会话后，不能把整个会话（可能有几万字）都发给摘要模型，需要截取最相关的片段。Hermes 的 <code>_truncate_around_matches()</code> 用了一个巧妙的算法：</p>
+
+<pre><code class="language-python">def _truncate_around_matches(
+    full_text: str, query: str, max_chars: int = 100_000
+) -> str:
+    """
+    在 max_chars 限制内，找到覆盖最多查询词命中位置的最优窗口。
+
+    策略（优先级递降）：
+    1. 整句短语匹配（精确）
+    2. 所有查询词在 200 字符内共现（近似）
+    3. 任意单词位置（兜底）
+
+    窗口选择：穷举所有命中位置作为候选窗口起点，选覆盖命中数最多的那个。
+    """
+    if len(full_text) <= max_chars:
+        return full_text  # 文本够短，直接返回
+
+    text_lower = full_text.lower()
+    query_lower = query.lower().strip()
+    match_positions = []
+
+    # 1. 短语精确匹配
+    phrase_pat = re.compile(re.escape(query_lower))
+    match_positions = [m.start() for m in phrase_pat.finditer(text_lower)]
+
+    # 2. 多词共现（200 字符内）
+    if not match_positions:
+        terms = query_lower.split()
+        if len(terms) > 1:
+            term_positions = {
+                t: [m.start() for m in re.finditer(re.escape(t), text_lower)]
+                for t in terms
+            }
+            # 以出现最少的词为锚点，检查其他词是否在 200 字符内共现
+            rarest = min(terms, key=lambda t: len(term_positions.get(t, [])))
+            for pos in term_positions.get(rarest, []):
+                if all(
+                    any(abs(p - pos) < 200 for p in term_positions.get(t, []))
+                    for t in terms if t != rarest
+                ):
+                    match_positions.append(pos)
+
+    # 3. 兜底：任意单词位置
+    if not match_positions:
+        for t in query_lower.split():
+            for m in re.finditer(re.escape(t), text_lower):
+                match_positions.append(m.start())
+
+    # 选最优窗口：覆盖最多命中位置（窗口偏前 25%，文本偏后 75%）
+    match_positions.sort()
+    best_start, best_count = 0, 0
+    for candidate in match_positions:
+        ws = max(0, candidate - max_chars // 4)  # 在命中词前留 25% 的上下文
+        we = ws + max_chars
+        if we > len(full_text):
+            ws = max(0, len(full_text) - max_chars)
+        count = sum(1 for p in match_positions if ws <= p < ws + max_chars)
+        if count > best_count:
+            best_count = count
+            best_start = ws
+
+    start = best_start
+    end = min(len(full_text), start + max_chars)
+    prefix = "...[earlier conversation truncated]...\n\n" if start > 0 else ""
+    suffix = "\n\n...[later conversation truncated]..." if end < len(full_text) else ""
+    return prefix + full_text[start:end] + suffix
+</code></pre>
+
+<p>这个算法的核心思想是：<strong>不是简单地截取命中词前后 N 个字符，而是找一个最大化覆盖所有命中位置的滑动窗口</strong>。对于长达几十轮的对话，某个话题可能在多处被提及，这个算法能找到"提及最密集"的那一段。</p>
+
+
+<h2 id="并发摘要">五、并发摘要：asyncio + Semaphore</h2>
+
+<p>找到匹配会话后，Hermes 并发地用辅助模型（便宜的小模型，如 Gemini Flash）对每个会话生成摘要：</p>
+
+<pre><code class="language-python">async def _summarize_all() -> list:
+    """并发摘要，限制最大并发数（默认 3，最大 5）"""
+    max_concurrency = _get_session_search_max_concurrency()  # 从配置读取
+    semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def _bounded_summary(text: str, meta: dict) -> str:
+        async with semaphore:  # 用 Semaphore 限制并发，避免同时发太多 API 请求
+            return await _summarize_session(text, query, meta)
+
+    coros = [_bounded_summary(text, meta) for _, _, text, meta in tasks]
+    return await asyncio.gather(*coros, return_exceptions=True)
+
+# 摘要 Prompt：聚焦在搜索话题上
+SYSTEM_PROMPT = """
+You are reviewing a past conversation transcript to help recall what happened.
+Summarize the conversation with a focus on the search topic. Include:
+1. What the user asked about or wanted to accomplish
+2. What actions were taken and what the outcomes were
+3. Key decisions, solutions found, or conclusions reached
+4. Any specific commands, files, URLs, or technical details that were important
+5. Anything left unresolved or notable
+
+Be thorough but concise. Preserve specific details (commands, paths, error messages).
+Write in past tense as a factual recap.
+"""
+</code></pre>
+
+<p>如果辅助模型不可用或超时，Hermes 会<strong>降级到原始文本预览</strong>，而不是直接报错：</p>
+
+<pre><code class="language-python"># 摘要失败时的降级处理
+if result:
+    entry["summary"] = result
+else:
+    # Fallback: 截取原始会话文本的前 500 字符
+    preview = (conversation_text[:500] + "\n…[truncated]") if conversation_text else "No preview available."
+    entry["summary"] = f"[Raw preview — summarization unavailable]\n{preview}"
+</code></pre>
+
+
+<h2 id="搜索模式">六、两种搜索模式</h2>
+
+<p><code>session_search</code> 工具支持两种模式，由 Agent 根据用户意图自动选择：</p>
+
+<h3 id="关键词搜索模式">模式一：关键词搜索（有 query 参数）</h3>
+
+<pre><code class="language-python"># Agent 调用示例
+session_search(query="docker networking error")
+# → FTS5 检索 → 按会话分组 → LLM 摘要 → 返回 JSON
+
+# 支持 FTS5 的完整查询语法
+session_search(query='"docker networking"')          # 短语查询
+session_search(query="docker OR kubernetes")         # OR 查询（召回更广）
+session_search(query="deploy*")                      # 前缀查询
+session_search(query="deploy NOT rollback")          # 排除词
+session_search(query="NEAR(deploy production, 5)")   # 近距离查询
+</code></pre>
+
+<p>工具描述中有一句重要的提示给 Agent：<em>"Use OR between keywords for best results — FTS5 defaults to AND which misses sessions that only mention some terms"</em>（用 OR 连接关键词召回更广，因为 FTS5 默认是 AND，可能漏掉只包含部分词的会话）。</p>
+
+<h3 id="最近会话模式">模式二：最近会话浏览（空 query）</h3>
+
+<pre><code class="language-python"># 不传 query，直接查看最近的会话列表（零 LLM 开销）
+session_search()
+# → 纯 DB 查询 → 返回最近 N 个会话的标题、预览、时间戳
+# 适用于："我们最近在做什么？" 这类问题
+</code></pre>
+
+<p>这个模式完全不调用 LLM，只是普通的 SQL 查询，用于用户想浏览最近对话历史时的快速响应。</p>
+
+
+<h2 id="Schema演进">七、Schema 演进：11 次迁移的历程</h2>
+
+<p>Hermes 的数据库 Schema 经历了 11 个版本，FTS5 相关的几个关键版本：</p>
+
+<table>
+  <thead>
+    <tr><th>版本</th><th>变化</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>v1</td><td>初始 Schema：sessions + messages + FTS5（外部内容表）</td></tr>
+    <tr><td>v10</td><td>新增 <code>messages_fts_trigram</code>（trigram 分词器），补填历史数据</td></tr>
+    <tr><td>v11</td><td>重建 <code>messages_fts</code>，改为内联模式，同时索引 <code>tool_name</code> 和 <code>tool_calls</code> 字段；重新补填所有消息</td></tr>
+  </tbody>
+</table>
+
+<p>v11 的变化值得关注：把 <code>tool_name</code> 和 <code>tool_calls</code> 加入 FTS5 索引，意味着搜索"上次调用了哪个工具处理 X 问题"也变得可行了——搜索不只覆盖消息文本，也覆盖工具调用记录。</p>
+
+
+<h2 id="总结">八、总结：Hermes 的 FTS5 使用模式</h2>
+
+<p>从源码中总结出几个值得借鉴的工程模式：</p>
+
+<ol>
+<li><strong>双 FTS5 索引</strong>：unicode61 + trigram 并存，覆盖不同搜索场景，对多语言用户友好</li>
+<li><strong>外部内容表 → 内联模式</strong>：从省存储空间的外部内容表迁移到更可靠的内联模式，说明可靠性优先于空间节省</li>
+<li><strong>FTS5 + LLM 两阶段</strong>：FTS5 负责快速召回，LLM 负责语义理解，两者职责分离</li>
+<li><strong>智能窗口截取</strong>：不是简单截取前 N 个字符，而是找命中密度最高的滑动窗口</li>
+<li><strong>优雅降级</strong>：LLM 不可用时降级为原始文本预览，保证工具总有输出</li>
+<li><strong>写入竞争处理</strong>：随机抖动重试 + BEGIN IMMEDIATE + WAL checkpoint，解决多进程共享单 SQLite 的并发问题</li>
+</ol>
+
+<p>这套方案的整体成本极低：SQLite 零部署，FTS5 是内置扩展，存储仅需几十 MB 即可支撑几年的对话历史。对于个人 AI Agent 来说，这是远比 Elasticsearch 或向量数据库更务实的选择。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/SQLite/" rel="tag"><i class="fa fa-tag"></i> SQLite</a>
+          <a href="/tags/全文检索/" rel="tag"><i class="fa fa-tag"></i> 全文检索</a>
+          <a href="/tags/AI-Agent/" rel="tag"><i class="fa fa-tag"></i> AI Agent</a>
+          <a href="/tags/NousResearch/" rel="tag"><i class="fa fa-tag"></i> NousResearch</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构"><span class="nav-number">1.</span> <span class="nav-text">一、整体架构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#数据库Schema"><span class="nav-number">2.</span> <span class="nav-text">二、数据库 Schema</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#写入竞争处理"><span class="nav-number">3.</span> <span class="nav-text">三、写入竞争处理</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#会话搜索工具"><span class="nav-number">4.</span> <span class="nav-text">四、会话搜索工具：FTS5 + LLM 摘要</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#并发摘要"><span class="nav-number">5.</span> <span class="nav-text">五、并发摘要</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#搜索模式"><span class="nav-number">6.</span> <span class="nav-text">六、两种搜索模式</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Schema演进"><span class="nav-number">7.</span> <span class="nav-text">七、Schema 演进</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">8.</span> <span class="nav-text">八、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">214</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">28</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+  <style>
+    pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+    pre[class*="language-"]::before { display: none !important; }
+    body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+    body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+    body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+    body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+  </style>
+  <script>
+    (function() {
+      function syncPrismTheme() {
+        var isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('prism-theme-light').disabled = isDark;
+        document.getElementById('prism-theme-dark').disabled = !isDark;
+      }
+      document.addEventListener('DOMContentLoaded', syncPrismTheme);
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+          if (m.attributeName === 'class') syncPrismTheme();
+        });
+      });
+      observer.observe(document.body, { attributes: true });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+</body>
+</html>
