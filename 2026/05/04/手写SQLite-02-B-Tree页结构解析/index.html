@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="从零实现 SQLite 系列第 02 篇：深入解析 B-Tree 页头结构（8/12 字节），实现 Rust 页读取器，遍历 Cell 指针数组，读取叶节点页的 Cell 数量和偏移量。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="手写 SQLite 02：B-Tree 页结构解析与 Rust 实现">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/04/手写SQLite-02-B-Tree页结构解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="从零实现 SQLite 系列第 02 篇：深入解析 B-Tree 页头结构（8/12 字节），实现 Rust 页读取器，遍历 Cell 指针数组，读取叶节点页的 Cell 数量和偏移量。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-04T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-04T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="Rust">
+<meta property="article:tag" content="SQLite">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="手写系列">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/04/手写SQLite-02-B-Tree页结构解析/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>手写 SQLite 02：B-Tree 页结构解析与 Rust 实现 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-04T10:00:00+08:00" content="2026-05-04">
+      05-04
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      手写 SQLite 02：B-Tree 页结构解析与 Rust 实现
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>上一篇我们解析了 SQLite 文件的前 100 字节（文件头），知道了页大小和总页数。这一篇进入 B-Tree 的核心：<strong>页的内部结构</strong>。每个页里有什么？数据行（Cell）在哪里？页头告诉了我们什么？</p>
+
+<p>本篇结束时，我们能读取任意一页的 B-Tree 页头，并拿到该页包含的所有 Cell 的偏移量列表——这是后续读取实际数据行的基础。</p>
+
+
+<h2 id="页的内存布局">一、页的内存布局</h2>
+
+<p>每一页从头到尾的布局如下：</p>
+
+<pre><code class="language-text">┌───────────────────────────────────────────────────────┐
+│  页头（Page Header）                                   │
+│  叶节点：8 字节   内部节点：12 字节                    │
+├───────────────────────────────────────────────────────┤
+│  Cell 指针数组（Cell Pointer Array）                   │
+│  每个指针 2 字节，共 cell_count 个                     │
+├───────────────────────────────────────────────────────┤
+│  未分配空间（Unallocated Space）                       │
+│  用于分配新的 Cell                                     │
+├───────────────────────────────────────────────────────┤
+│  Cell 内容区（Cell Content Area）                      │
+│  Cell 从页尾向页头方向增长                             │
+└───────────────────────────────────────────────────────┘
+</code></pre>
+
+<p>关键点：<strong>Cell 从页的末尾向前增长</strong>，而 Cell 指针数组从页头向后增长。两者之间的空隙是未分配空间。Cell 指针数组记录每个 Cell 在页内的偏移量，通过它可以随机访问任意 Cell，不需要顺序扫描。</p>
+
+<p>注意 <strong>Page 1 比较特殊</strong>：它的前 100 字节是文件头，所以 Page 1 的 B-Tree 页头从偏移 100 开始，而不是从 0 开始。其他页的页头都从偏移 0 开始。</p>
+
+
+<h2 id="页头格式">二、页头格式</h2>
+
+<p>叶节点页头 8 字节，内部节点页头 12 字节（多了一个"最右子页"指针）：</p>
+
+<table>
+  <thead>
+    <tr><th>偏移</th><th>大小</th><th>字段</th><th>说明</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>0</td><td>1</td><td>page_type</td><td>页类型：0x0D=叶表, 0x05=内部表, 0x0A=叶索引, 0x02=内部索引</td></tr>
+    <tr><td>1</td><td>2</td><td>first_freeblock</td><td>页内第一个空闲块的偏移（0 表示没有空闲块）</td></tr>
+    <tr><td>3</td><td>2</td><td>cell_count</td><td>本页包含的 Cell 数量</td></tr>
+    <tr><td>5</td><td>2</td><td>cell_content_start</td><td>Cell 内容区起始偏移（0 代表 65536）</td></tr>
+    <tr><td>7</td><td>1</td><td>fragmented_bytes</td><td>碎片化的空闲字节数</td></tr>
+    <tr><td>8</td><td>4</td><td>right_most_pointer</td><td><strong>仅内部节点有</strong>：最右子页的页号</td></tr>
+  </tbody>
+</table>
+
+<p>页头之后紧跟 Cell 指针数组，每个指针是 2 字节大端序整数，代表对应 Cell 在<strong>页内</strong>的字节偏移量。</p>
+
+
+<h2 id="实现">三、Rust 实现</h2>
+
+<h3 id="页类型枚举">页类型枚举</h3>
+
+<pre><code class="language-rust">// src/page.rs
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum PageType {
+    LeafTable,      // 0x0D — 叶节点表页（存行数据）
+    InteriorTable,  // 0x05 — 内部节点表页（存子页指针）
+    LeafIndex,      // 0x0A — 叶节点索引页
+    InteriorIndex,  // 0x02 — 内部节点索引页
+}
+
+impl PageType {
+    pub fn from_byte(b: u8) -> Option&lt;Self&gt; {
+        match b {
+            0x0D =&gt; Some(PageType::LeafTable),
+            0x05 =&gt; Some(PageType::InteriorTable),
+            0x0A =&gt; Some(PageType::LeafIndex),
+            0x02 =&gt; Some(PageType::InteriorIndex),
+            _    =&gt; None,
+        }
+    }
+
+    pub fn is_leaf(&self) -> bool {
+        matches!(self, PageType::LeafTable | PageType::LeafIndex)
+    }
+
+    pub fn is_interior(&self) -> bool {
+        !self.is_leaf()
+    }
+
+    /// 页头大小：叶节点 8 字节，内部节点 12 字节
+    pub fn header_size(&self) -> usize {
+        if self.is_interior() { 12 } else { 8 }
+    }
+}
+</code></pre>
+
+<h3 id="页头结构体">页头结构体</h3>
+
+<pre><code class="language-rust">// src/page.rs （续）
+
+#[derive(Debug)]
+pub struct PageHeader {
+    pub page_type:          PageType,
+    pub first_freeblock:    u16,
+    pub cell_count:         u16,
+    pub cell_content_start: u32,   // u32 因为 0 需要解释为 65536
+    pub fragmented_bytes:   u8,
+    pub right_most_pointer: Option&lt;u32&gt;,  // 仅内部节点有
+}
+
+impl PageHeader {
+    /// 从页字节切片解析页头
+    /// `data` 是整个页的字节数组
+    /// `page_offset` 是页头在 data 中的起始偏移（Page 1 为 100，其他为 0）
+    pub fn parse(data: &amp;[u8], page_offset: usize) -&gt; Result&lt;Self, &amp;'static str&gt; {
+        if data.len() &lt; page_offset + 8 {
+            return Err("page data too short for header");
+        }
+
+        let b = &amp;data[page_offset..];
+
+        // 字节 0：页类型
+        let page_type = PageType::from_byte(b[0])
+            .ok_or("unknown page type")?;
+
+        // 字节 1-2：第一个空闲块偏移
+        let first_freeblock = u16::from_be_bytes([b[1], b[2]]);
+
+        // 字节 3-4：Cell 数量
+        let cell_count = u16::from_be_bytes([b[3], b[4]]);
+
+        // 字节 5-6：Cell 内容区起始偏移（0 代表 65536）
+        let raw_start = u16::from_be_bytes([b[5], b[6]]);
+        let cell_content_start = if raw_start == 0 { 65536 } else { raw_start as u32 };
+
+        // 字节 7：碎片化空闲字节数
+        let fragmented_bytes = b[7];
+
+        // 字节 8-11（仅内部节点）：最右子页页号
+        let right_most_pointer = if page_type.is_interior() {
+            if data.len() &lt; page_offset + 12 {
+                return Err("page data too short for interior header");
+            }
+            Some(u32::from_be_bytes([b[8], b[9], b[10], b[11]]))
+        } else {
+            None
+        };
+
+        Ok(PageHeader {
+            page_type,
+            first_freeblock,
+            cell_count,
+            cell_content_start,
+            fragmented_bytes,
+            right_most_pointer,
+        })
+    }
+}
+</code></pre>
+
+<h3 id="页读取器">页读取器</h3>
+
+<pre><code class="language-rust">// src/pager.rs
+
+use std::fs::File;
+use std::io::{self, Read, Seek, SeekFrom};
+
+pub struct Pager {
+    file:      File,
+    page_size: u32,
+}
+
+impl Pager {
+    pub fn open(path: &amp;str, page_size: u32) -&gt; io::Result&lt;Self&gt; {
+        let file = File::open(path)?;
+        Ok(Pager { file, page_size })
+    }
+
+    /// 读取第 page_num 页（从 1 开始编号），返回页的完整字节数组
+    pub fn read_page(&amp;mut self, page_num: u32) -&gt; io::Result&lt;Vec&lt;u8&gt;&gt; {
+        assert!(page_num &gt;= 1, "page numbers start from 1");
+        let offset = (page_num - 1) as u64 * self.page_size as u64;
+        self.file.seek(SeekFrom::Start(offset))?;
+        let mut buf = vec![0u8; self.page_size as usize];
+        self.file.read_exact(&amp;mut buf)?;
+        Ok(buf)
+    }
+}
+</code></pre>
+
+<h3 id="读取Cell指针数组">读取 Cell 指针数组</h3>
+
+<p>Cell 指针数组紧跟在页头之后，每个指针 2 字节，共 <code>cell_count</code> 个：</p>
+
+<pre><code class="language-rust">// src/page.rs （续）
+
+/// 从页数据中读取所有 Cell 的页内偏移量
+/// 返回 Vec&lt;u16&gt;，每个元素是对应 Cell 在页内的字节偏移
+pub fn read_cell_pointers(
+    data: &amp;[u8],
+    header: &amp;PageHeader,
+    page_header_offset: usize,  // Page 1 为 100，其他为 0
+) -&gt; Vec&lt;u16&gt; {
+    // Cell 指针数组紧跟在页头之后
+    let array_start = page_header_offset + header.page_type.header_size();
+    let count = header.cell_count as usize;
+
+    (0..count)
+        .map(|i| {
+            let pos = array_start + i * 2;
+            u16::from_be_bytes([data[pos], data[pos + 1]])
+        })
+        .collect()
+}
+</code></pre>
+
+
+<h2 id="组装起来">四、组装起来</h2>
+
+<p>更新 <code>main.rs</code>，在读取文件头之后，再读取 Page 1 的页头和 Cell 指针：</p>
+
+<pre><code class="language-rust">// src/main.rs
+
+mod header;
+mod page;
+mod pager;
+
+use header::{DbHeader, format_version};
+use page::{PageHeader, read_cell_pointers};
+use pager::Pager;
+
+fn main() {
+    let path = std::env::args().nth(1).unwrap_or_else(|| {
+        eprintln!("Usage: sqlite-rs &lt;database.db&gt;");
+        std::process::exit(1);
+    });
+
+    // 1. 解析文件头
+    let db_header = DbHeader::read_from_file(&amp;path).unwrap_or_else(|e| {
+        eprintln!("Error reading header: {}", e);
+        std::process::exit(1);
+    });
+
+    println!("=== Database Info ===");
+    println!("Page size:    {} bytes", db_header.page_size);
+    println!("Page count:   {}", db_header.page_count);
+    println!("SQLite ver:   {}", format_version(db_header.sqlite_version));
+    println!();
+
+    // 2. 读取 Page 1
+    let mut pager = Pager::open(&amp;path, db_header.page_size).unwrap();
+    let page1_data = pager.read_page(1).unwrap();
+
+    // Page 1 的页头从偏移 100 开始（前 100 字节是文件头）
+    let page_header_offset = 100;
+    let page_header = PageHeader::parse(&amp;page1_data, page_header_offset).unwrap();
+
+    println!("=== Page 1 (sqlite_schema root) ===");
+    println!("Page type:    {:?}", page_header.page_type);
+    println!("Cell count:   {}", page_header.cell_count);
+    println!("Content area: {} (offset from page start)", page_header.cell_content_start);
+    println!("Freeblock:    {}", page_header.first_freeblock);
+    if let Some(rmp) = page_header.right_most_pointer {
+        println!("Rightmost ptr: page {}", rmp);
+    }
+    println!();
+
+    // 3. 读取 Cell 指针数组
+    let cell_pointers = read_cell_pointers(&amp;page1_data, &amp;page_header, page_header_offset);
+    println!("=== Cell Pointers (page-relative offsets) ===");
+    for (i, offset) in cell_pointers.iter().enumerate() {
+        println!("  Cell {:2}: offset = {}", i, offset);
+    }
+}
+</code></pre>
+
+<h3 id="运行结果">运行结果</h3>
+
+<pre><code class="language-bash">cargo run -- test.db
+</code></pre>
+
+<pre><code class="language-text">=== Database Info ===
+Page size:    4096 bytes
+Page count:   2
+SQLite ver:   3.46.0
+
+=== Page 1 (sqlite_schema root) ===
+Page type:    LeafTable
+Cell count:   1
+Content area: 3964 (offset from page start)
+Freeblock:    0
+
+=== Cell Pointers (page-relative offsets) ===
+  Cell  0: offset = 3964
+</code></pre>
+
+<p>Page 1 是叶节点，包含 1 个 Cell（即 <code>sqlite_schema</code> 表中的一行——我们只建了一张 <code>users</code> 表，所以 schema 里只有 1 条记录）。Cell 存储在页内偏移 3964 处（靠近页末尾，符合"从尾部向前增长"的规则）。</p>
+
+<h3 id="hexdump验证">用 hexdump 验证</h3>
+
+<pre><code class="language-bash"># 查看 Page 1 偏移 100 处的页头（8 字节）
+hexdump -C test.db | grep -A 3 "^00000060"
+</code></pre>
+
+<pre><code class="language-text">00000060  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000070  00 2e 44 06 00 00 00 00  00 00 00 00 00 00 00 00  |..D.............|
+</code></pre>
+
+<pre><code class="language-bash"># 专门看偏移 0x64 (100) 处的页头
+python3 -c "
+data = open('test.db', 'rb').read()
+h = data[100:110]
+print(f'page_type:         0x{h[0]:02x} ({h[0]})')
+print(f'first_freeblock:   {int.from_bytes(h[1:3], \"big\")}')
+print(f'cell_count:        {int.from_bytes(h[3:5], \"big\")}')
+print(f'cell_content_start:{int.from_bytes(h[5:7], \"big\")}')
+print(f'fragmented_bytes:  {h[7]}')
+print(f'cell_ptr[0]:       {int.from_bytes(data[108:110], \"big\")}')
+"
+</code></pre>
+
+<pre><code class="language-text">page_type:          0x0d (13)   ← LeafTable ✓
+first_freeblock:    0           ✓
+cell_count:         1           ✓
+cell_content_start: 3964        ✓
+fragmented_bytes:   0           ✓
+cell_ptr[0]:        3964        ✓
+</code></pre>
+
+<p>每个字段都和我们的 Rust 解析结果完全一致。</p>
+
+
+<h2 id="当前代码结构">五、当前代码结构</h2>
+
+<pre><code class="language-text">sqlite-rs/
+├── Cargo.toml
+├── test.db
+└── src/
+    ├── main.rs       ← 入口
+    ├── header.rs     ← 文件头解析（第 01 篇）
+    ├── page.rs       ← 页头解析 + Cell 指针读取（本篇）
+    └── pager.rs      ← 页读取器（本篇）
+</code></pre>
+
+
+<h2 id="关键点总结">六、关键点总结</h2>
+
+<ul>
+<li>每页 = 页头 + Cell 指针数组 + 未分配空间 + Cell 内容区</li>
+<li>Cell 从页末尾向前增长，Cell 指针数组从页头向后增长</li>
+<li>叶节点页头 8 字节，内部节点多一个 4 字节的"最右子页"指针（12 字节）</li>
+<li>Cell 指针数组每项 2 字节，记录 Cell 在页内的字节偏移</li>
+<li>Page 1 特殊：页头从偏移 100 开始，其他页从偏移 0 开始</li>
+<li><code>cell_content_start</code> 为 0 时代表 65536</li>
+</ul>
+
+<p><strong>下一篇</strong>会实现 B-Tree 的遍历：从根节点出发，处理内部节点（读取子页指针），一路走到叶节点，把所有叶节点页的 Cell 地址全部收集起来——这是实现全表扫描的前提。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/Rust/" rel="tag"><i class="fa fa-tag"></i> Rust</a>
+          <a href="/tags/SQLite/" rel="tag"><i class="fa fa-tag"></i> SQLite</a>
+          <a href="/tags/数据库/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/手写系列/" rel="tag"><i class="fa fa-tag"></i> 手写系列</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#页的内存布局"><span class="nav-number">1.</span> <span class="nav-text">一、页的内存布局</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#页头格式"><span class="nav-number">2.</span> <span class="nav-text">二、页头格式</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#实现"><span class="nav-number">3.</span> <span class="nav-text">三、Rust 实现</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#组装起来"><span class="nav-number">4.</span> <span class="nav-text">四、组装起来</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#当前代码结构"><span class="nav-number">5.</span> <span class="nav-text">五、当前代码结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">6.</span> <span class="nav-text">六、关键点总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">216</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">28</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+  <style>
+    pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+    pre[class*="language-"]::before { display: none !important; }
+    body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+    body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+    body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+    body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+  </style>
+  <script>
+    (function() {
+      function syncPrismTheme() {
+        var isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('prism-theme-light').disabled = isDark;
+        document.getElementById('prism-theme-dark').disabled = !isDark;
+      }
+      document.addEventListener('DOMContentLoaded', syncPrismTheme);
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+          if (m.attributeName === 'class') syncPrismTheme();
+        });
+      });
+      observer.observe(document.body, { attributes: true });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+</body>
+</html>
