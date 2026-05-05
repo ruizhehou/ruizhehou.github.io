@@ -199,6 +199,35 @@
 
 
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/05/%E6%89%8B%E5%86%99SQLite-04-Record%E6%A0%BC%E5%BC%8F%E8%A7%A3%E6%9E%90/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/05/05/%E6%89%8B%E5%86%99SQLite-04-Record%E6%A0%BC%E5%BC%8F%E8%A7%A3%E6%9E%90/" class="post-title-link" itemprop="url">手写 SQLite 04：Record 格式解析——varint、Serial Type 与列值还原</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2026-05-05T10:00:00+08:00">2026-05-05</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>「从零用 Rust 实现 SQLite」系列第 04 篇。解析叶节点 Cell 完整格式，实现 varint 可变长整数解码、Serial Type 类型映射（NULL/整数/浮点/TEXT/BLOB），最终从字节流还原出 rowid 和所有列值，并用 hexdump 逐字节验证。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/05/%E6%89%8B%E5%86%99SQLite-03-%E9%81%8D%E5%8E%86B-Tree/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -2024,81 +2053,7 @@
 
 
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/10/11/LeetCode-210-%E5%91%A8%E8%B5%9B/">
 
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-      <meta itemprop="description" content="记录我的工作与生活，分享一些想法">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/10/11/LeetCode-210-%E5%91%A8%E8%B5%9B/" class="post-title-link" itemprop="url">LeetCode 210 周赛</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              
-
-              <time title="创建时间：2020-10-11 12:04:50 / 修改时间：15:15:03" itemprop="dateCreated datePublished" datetime="2020-10-11T12:04:50+08:00">2020-10-11</time>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine：</span>
-    
-    <a title="valine" href="/2020/10/11/LeetCode-210-%E5%91%A8%E8%B5%9B/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2020/10/11/LeetCode-210-%E5%91%A8%E8%B5%9B/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="5535-括号的最大嵌套深度"><a href="#5535-括号的最大嵌套深度" class="headerlink" title="5535. 括号的最大嵌套深度"></a>5535. 括号的最大嵌套深度</h3><p>比较简单，不贴代码了</p>
-<h3 id="5536-最大网络秩"><a href="#5536-最大网络秩" class="headerlink" title="5536. 最大网络秩"></a>5536. 最大网络秩</h3><p>计算每个点的边，如果两点相连，减去一条重复的边</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">maximalNetworkRank</span>(<span class="params">self, n: int, roads: List[List[int]]</span>) -&gt; int:</span></span><br><span class="line">        neigh = defaultdict(set)</span><br><span class="line">        <span class="keyword">for</span> x, y <span class="keyword">in</span> roads:</span><br><span class="line">            neigh[x].add(y)</span><br><span class="line">            neigh[y].add(x)</span><br><span class="line">        res = <span class="number">0</span></span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">maxRank</span>(<span class="params">x, y</span>):</span></span><br><span class="line">            <span class="keyword">if</span> y <span class="keyword">in</span> neigh[x]:</span><br><span class="line">                <span class="keyword">return</span> len(neigh[x]) + len(neigh[y]) - <span class="number">1</span></span><br><span class="line">            <span class="keyword">return</span> len(neigh[x]) + len(neigh[y])</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> x <span class="keyword">in</span> range(n):</span><br><span class="line">            <span class="keyword">for</span> y <span class="keyword">in</span> range(x + <span class="number">1</span>, n):</span><br><span class="line">                res = max(res, maxRank(x, y))</span><br><span class="line">        <span class="keyword">return</span> res</span><br></pre></td></tr></table></figure>
-
-<h3 id="5537-分割两个字符串得到回文串"><a href="#5537-分割两个字符串得到回文串" class="headerlink" title="5537. 分割两个字符串得到回文串"></a>5537. 分割两个字符串得到回文串</h3><p>找到a b从中心开始的最长回文串，从al, ar, bl, br，然后比较a[:al] == b[ar+1:] or a[:bl] == b[br + 1] or b[:al] == a[ar+1:] or b[:bl] == a[br+1:]</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">checkPalindromeFormation</span>(<span class="params">self, a: str, b: str</span>) -&gt; bool:</span></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">isPalindrome</span>(<span class="params">s</span>):</span></span><br><span class="line">            <span class="keyword">return</span> s == s[::<span class="number">-1</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> isPalindrome(a) <span class="keyword">and</span> isPalindrome(b):</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">        n = len(a)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> n &amp; <span class="number">1</span>:</span><br><span class="line">            l = r = n &gt;&gt; <span class="number">1</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            l, r = (n &gt;&gt; <span class="number">1</span>) - <span class="number">1</span>, n &gt;&gt; <span class="number">1</span></span><br><span class="line">        <span class="comment"># print(len(a))</span></span><br><span class="line">        <span class="comment"># print(l, r)</span></span><br><span class="line">        al, ar = l, r</span><br><span class="line">        <span class="keyword">while</span> al &gt;= <span class="number">0</span> <span class="keyword">and</span> ar &lt; n <span class="keyword">and</span> a[al] == a[ar]:</span><br><span class="line">            al -= <span class="number">1</span></span><br><span class="line">            ar += <span class="number">1</span></span><br><span class="line">        bl, br = l, r</span><br><span class="line">        <span class="keyword">while</span> bl &gt;= <span class="number">0</span> <span class="keyword">and</span> br &lt; n <span class="keyword">and</span> b[bl] == b[br]:</span><br><span class="line">            bl -= <span class="number">1</span></span><br><span class="line">            br += <span class="number">1</span></span><br><span class="line">        <span class="comment"># print(a[:al + 1], b[ar:][::-1])</span></span><br><span class="line">        <span class="comment"># print(b[:bl + 1], a[br:][::-1])</span></span><br><span class="line">        <span class="keyword">return</span> a[:al + <span class="number">1</span>] == b[ar:][::<span class="number">-1</span>] <span class="keyword">or</span> b[:bl + <span class="number">1</span>] == a[br:][::<span class="number">-1</span>] \</span><br><span class="line">               <span class="keyword">or</span> b[:al + <span class="number">1</span>] == a[ar:][::<span class="number">-1</span>] <span class="keyword">or</span> a[:bl + <span class="number">1</span>] == b[br:][::<span class="number">-1</span>]</span><br></pre></td></tr></table></figure>
-<h3 id="5538-统计子树中城市之间最大距离"><a href="#5538-统计子树中城市之间最大距离" class="headerlink" title="5538. 统计子树中城市之间最大距离"></a>5538. 统计子树中城市之间最大距离</h3><p>状压枚举所有集合，以集合的每一个点为根顶点，bfs计算这个点为根顶点时的树的高度，最大值即为这个集合构成子树的最大距离</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span>(<span class="params">object</span>):</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">countSubgraphsForEachDiameter</span>(<span class="params">self, n, edges</span>):</span></span><br><span class="line">        G = [[] <span class="keyword">for</span> _ <span class="keyword">in</span> range(n)]</span><br><span class="line">        <span class="keyword">for</span> i, j <span class="keyword">in</span> edges:</span><br><span class="line">            G[i - <span class="number">1</span>].append(j - <span class="number">1</span>)</span><br><span class="line">            G[j - <span class="number">1</span>].append(i - <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">maxd</span>(<span class="params">mask0</span>):</span></span><br><span class="line">            res = <span class="number">0</span></span><br><span class="line">            <span class="keyword">for</span> i <span class="keyword">in</span> range(n):</span><br><span class="line">                <span class="keyword">if</span> (<span class="number">1</span> &lt;&lt; i) &amp; mask0:</span><br><span class="line">                    mask = mask0</span><br><span class="line">                    bfs, bfs2 = [i], []</span><br><span class="line">                    cur = <span class="number">0</span></span><br><span class="line">                    <span class="keyword">while</span> bfs:</span><br><span class="line">                        <span class="keyword">for</span> i <span class="keyword">in</span> bfs:</span><br><span class="line">                            mask ^= <span class="number">1</span> &lt;&lt; i</span><br><span class="line">                            <span class="keyword">for</span> j <span class="keyword">in</span> G[i]:</span><br><span class="line">                                <span class="keyword">if</span> mask &amp; (<span class="number">1</span> &lt;&lt; j):</span><br><span class="line">                                    bfs2.append(j)</span><br><span class="line">                        cur += <span class="number">1</span></span><br><span class="line">                        bfs, bfs2 = bfs2, []</span><br><span class="line">                    <span class="keyword">if</span> mask:</span><br><span class="line">                        <span class="keyword">return</span> <span class="number">0</span></span><br><span class="line">                    res = max(res, cur - <span class="number">1</span>)</span><br><span class="line">            <span class="keyword">return</span> res</span><br><span class="line"></span><br><span class="line">        res = [<span class="number">0</span>] * (n - <span class="number">1</span>)</span><br><span class="line">        <span class="keyword">for</span> mask <span class="keyword">in</span> range(<span class="number">1</span> &lt;&lt; n):</span><br><span class="line">            <span class="keyword">if</span> mask &amp; (mask - <span class="number">1</span>) == <span class="number">0</span>:</span><br><span class="line">                <span class="keyword">continue</span></span><br><span class="line">            d = maxd(mask)</span><br><span class="line">            <span class="keyword">if</span> d:</span><br><span class="line">                res[d - <span class="number">1</span>] += <span class="number">1</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> res</span><br></pre></td></tr></table></figure>
-
-<p>AcWing《LeetCode究极班》拼团优惠！<span class="exturl" data-url="aHR0cHM6Ly93d3cuYWN3aW5nLmNvbS9hY3Rpdml0eS9jb250ZW50L2ludHJvZHVjdGlvbi8zMS9ncm91cF9idXkvMTE1NC8=">https://www.acwing.com/activity/content/introduction/31/group_buy/1154/<i class="fa fa-external-link-alt"></i></span></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
   
   
   
@@ -2238,7 +2193,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">217</span>
+          <span class="site-state-item-count">218</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
