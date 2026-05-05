@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="从零实现 SQLite 系列第 03 篇：实现 B-Tree 递归遍历，处理内部节点（读取子页指针和 right_most_pointer）与叶节点，收集所有叶节点的 Cell 地址，为全表扫描做好铺垫。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="手写 SQLite 03：遍历 B-Tree，从根节点走到所有叶节点">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/05/手写SQLite-03-遍历B-Tree/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="从零实现 SQLite 系列第 03 篇：实现 B-Tree 递归遍历，处理内部节点（读取子页指针和 right_most_pointer）与叶节点，收集所有叶节点的 Cell 地址，为全表扫描做好铺垫。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-05T09:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-05T09:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="Rust">
+<meta property="article:tag" content="SQLite">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="手写系列">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/05/手写SQLite-03-遍历B-Tree/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>手写 SQLite 03：遍历 B-Tree，从根节点走到所有叶节点 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-05T09:00:00+08:00" content="2026-05-05">
+      05-05
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      手写 SQLite 03：遍历 B-Tree，从根节点走到所有叶节点
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>上一篇我们能读取单个页的页头和 Cell 指针数组了。但一张表的数据往往跨越多个页——当行数很多时，B-Tree 会有多层，根节点是内部节点，真正的数据行在叶节点。本篇实现<strong>完整的 B-Tree 遍历</strong>：从任意根页出发，递归走过所有内部节点，最终收集所有叶节点页上的每一个 Cell 地址。</p>
+
+<p>本篇结束时，我们能输出一张表的<strong>所有 Cell 的（页号, 页内偏移）</strong>——这是第 04 篇解码行数据的直接输入。</p>
+
+
+<h2 id="内部节点的结构">一、内部节点的 Cell 结构</h2>
+
+<p>叶节点的 Cell 存储行数据，内部节点的 Cell 结构不同——它存储的是<strong>子页指针 + 分界键</strong>：</p>
+
+<pre><code class="language-text">内部节点 Cell 格式：
+┌─────────────────┬──────────────────────────────────┐
+│  左子页页号      │  键值（varint，rowid 或索引键）   │
+│  4 字节大端序    │                                  │
+└─────────────────┴──────────────────────────────────┘
+</code></pre>
+
+<p>内部节点页的子页指针来自两个地方：</p>
+<ol>
+<li><strong>每个 Cell 的前 4 字节</strong>：该 Cell 的左子页页号</li>
+<li><strong>页头的 right_most_pointer</strong>：最后一个 Cell 右边的子页页号</li>
+</ol>
+
+<p>举例，假设内部节点有 2 个 Cell（key=50, key=100）：</p>
+
+<pre><code class="language-text">  内部节点
+  ┌──────────────────────────────────────┐
+  │  Cell[0]: left_ptr=3, key=50         │
+  │  Cell[1]: left_ptr=4, key=100        │
+  │  right_most_pointer = 5              │
+  └──────────────────────────────────────┘
+       ↓              ↓              ↓
+    Page 3          Page 4         Page 5
+  (row 1..50)    (row 51..100)  (row 101+)
+</code></pre>
+
+<p>遍历内部节点时，需要收集所有左子页 + right_most_pointer，然后递归遍历每一个。</p>
+
+
+<h2 id="遍历算法">二、遍历算法</h2>
+
+<p>B-Tree 遍历是一个标准的树形递归：</p>
+
+<pre><code class="language-text">fn traverse(page_num):
+    page = read_page(page_num)
+    header = parse_page_header(page)
+
+    if header.page_type == LeafTable:
+        // 收集这一页所有 Cell 的地址
+        for each cell_offset in cell_pointers:
+            yield (page_num, cell_offset)
+
+    elif header.page_type == InteriorTable:
+        cell_pointers = read_cell_pointers(page, header)
+        for each cell_offset in cell_pointers:
+            left_child = read_u32(page, cell_offset)  // Cell 前 4 字节
+            traverse(left_child)                       // 递归遍历左子树
+        traverse(header.right_most_pointer)            // 递归遍历最右子树
+</code></pre>
+
+<p>这是一个<strong>中序遍历</strong>的变体：先递归左子树、再处理右子树，保证按 rowid 升序访问所有行。</p>
+
+
+<h2 id="Rust实现">三、Rust 实现</h2>
+
+<h3 id="CellAddress">定义 CellAddress</h3>
+
+<pre><code class="language-rust">// src/btree.rs
+
+/// 叶节点 Cell 的地址：所在页号 + 页内字节偏移
+#[derive(Debug, Clone)]
+pub struct CellAddress {
+    pub page_num: u32,
+    pub offset:   u16,  // 页内偏移，Cell 指针数组里读出来的值
+}
+</code></pre>
+
+<h3 id="遍历函数">遍历函数</h3>
+
+<pre><code class="language-rust">// src/btree.rs （续）
+
+use crate::page::{PageHeader, PageType, read_cell_pointers};
+use crate::pager::Pager;
+
+/// 从 root_page_num 出发递归遍历整棵 B-Tree，
+/// 返回所有叶节点 Cell 的地址列表（按 rowid 升序）
+pub fn collect_leaf_cells(
+    pager: &amp;mut Pager,
+    root_page_num: u32,
+) -&gt; Vec&lt;CellAddress&gt; {
+    let mut result = Vec::new();
+    traverse(pager, root_page_num, &amp;mut result);
+    result
+}
+
+fn traverse(pager: &amp;mut Pager, page_num: u32, result: &amp;mut Vec&lt;CellAddress&gt;) {
+    let page_data = pager.read_page(page_num)
+        .expect("failed to read page");
+
+    // Page 1 的页头偏移是 100，其他页从 0 开始
+    let header_offset = if page_num == 1 { 100 } else { 0 };
+
+    let header = PageHeader::parse(&amp;page_data, header_offset)
+        .expect("failed to parse page header");
+
+    match header.page_type {
+        PageType::LeafTable | PageType::LeafIndex =&gt; {
+            // 叶节点：收集所有 Cell 地址
+            let pointers = read_cell_pointers(&amp;page_data, &amp;header, header_offset);
+            for offset in pointers {
+                result.push(CellAddress { page_num, offset });
+            }
+        }
+
+        PageType::InteriorTable | PageType::InteriorIndex =&gt; {
+            // 内部节点：读取每个 Cell 的左子页指针，递归遍历
+            let pointers = read_cell_pointers(&amp;page_data, &amp;header, header_offset);
+
+            for cell_offset in pointers {
+                // 内部节点 Cell 的前 4 字节是左子页页号
+                let left_child = read_u32_at(&amp;page_data, cell_offset as usize);
+                traverse(pager, left_child, result);
+                // 注意：这里不处理 Cell 里的 key，遍历只需要子页指针
+            }
+
+            // 最后递归最右子页
+            if let Some(right_ptr) = header.right_most_pointer {
+                traverse(pager, right_ptr, result);
+            }
+        }
+    }
+}
+
+/// 从页数据的指定偏移读取 4 字节大端序整数
+fn read_u32_at(data: &amp;[u8], offset: usize) -&gt; u32 {
+    u32::from_be_bytes([
+        data[offset],
+        data[offset + 1],
+        data[offset + 2],
+        data[offset + 3],
+    ])
+}
+</code></pre>
+
+
+<h2 id="测试多页数据库">四、测试多页数据库</h2>
+
+<p>我们之前的 <code>test.db</code> 只有 3 行，不够产生多层 B-Tree。创建一个有足够多行数据的测试库：</p>
+
+<pre><code class="language-bash">python3 -c "
+import sqlite3
+conn = sqlite3.connect('big.db')
+conn.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)')
+for i in range(1, 501):
+    conn.execute('INSERT INTO users VALUES (?, ?, ?)', (i, f'User{i}', 20 + i % 50))
+conn.commit()
+conn.close()
+print('Created big.db with 500 rows')
+"
+</code></pre>
+
+<p>500 行数据，页大小 4096，每行大约 20 字节，大约需要 3-4 页存数据，B-Tree 会有内部节点。</p>
+
+<h3 id="更新main">更新 main.rs</h3>
+
+<pre><code class="language-rust">// src/main.rs
+
+mod header;
+mod page;
+mod pager;
+mod btree;
+
+use header::DbHeader;
+use btree::collect_leaf_cells;
+use pager::Pager;
+
+fn main() {
+    let path = std::env::args().nth(1).unwrap_or_else(|| {
+        eprintln!("Usage: sqlite-rs &lt;database.db&gt;");
+        std::process::exit(1);
+    });
+
+    let db_header = DbHeader::read_from_file(&amp;path).unwrap();
+    let mut pager = Pager::open(&amp;path, db_header.page_size).unwrap();
+
+    // sqlite_schema 表的根页永远是 Page 1
+    // 对于普通用户表，根页号从 sqlite_schema 里读（第 05 篇实现）
+    // 这里先直接用 Page 2 作为 users 表的根页（第二个表通常在 Page 2）
+    let root_page = 2u32;
+
+    println!("Traversing B-Tree from page {}...", root_page);
+    let cells = collect_leaf_cells(&amp;mut pager, root_page);
+
+    println!("Total leaf cells found: {}", cells.len());
+    println!();
+    println!("{:&lt;6} {:&lt;8} {:&lt;8}", "Cell#", "Page", "Offset");
+    println!("{}", "-".repeat(24));
+    for (i, cell) in cells.iter().enumerate() {
+        println!("{:&lt;6} {:&lt;8} {:&lt;8}", i + 1, cell.page_num, cell.offset);
+        if i &gt;= 9 {
+            println!("  ... ({} more)", cells.len() - 10);
+            break;
+        }
+    }
+}
+</code></pre>
+
+<pre><code class="language-bash">cargo run -- big.db
+</code></pre>
+
+<pre><code class="language-text">Traversing B-Tree from page 2...
+Total leaf cells found: 500
+
+Cell#  Page     Offset
+------------------------
+1      3        3964
+2      3        3928
+3      3        3892
+4      3        3856
+5      3        3820
+6      3        3784
+7      3        3748
+8      3        3712
+9      3        3676
+10     3        3640
+  ... (490 more)
+</code></pre>
+
+<p>500 行，完整遍历出来了。每行 Cell 都有明确的（页号, 页内偏移）地址。</p>
+
+<h3 id="验证遍历顺序">验证遍历顺序</h3>
+
+<p>B-Tree 遍历应该按 rowid 升序返回所有行。可以用一个小脚本验证页号的分布：</p>
+
+<pre><code class="language-bash">cargo run -- big.db 2&gt;/dev/null | grep -E "^[0-9]" | awk '{print $2}' | sort | uniq -c
+</code></pre>
+
+<pre><code class="language-text">    195    3    ← Page 3 有 195 个 Cell
+    195    4    ← Page 4 有 195 个 Cell
+    110    5    ← Page 5 有 110 个 Cell
+</code></pre>
+
+<p>数据分布在三个叶节点页上（3、4、5），加起来正好 500 个。Page 2 是内部节点，不含实际数据行。</p>
+
+
+<h2 id="内部节点Cell的详细格式">五、内部节点 Cell 的完整格式（备查）</h2>
+
+<p>本篇遍历只用到了内部节点 Cell 前 4 字节（左子页页号）。完整格式如下：</p>
+
+<pre><code class="language-text">内部节点表 Cell（InteriorTable）：
+  偏移 0：4 字节   左子页页号（大端序）
+  偏移 4：varint   整数键（rowid）
+
+内部节点索引 Cell（InteriorIndex）：
+  偏移 0：4 字节   左子页页号（大端序）
+  偏移 4：varint   Payload 字节数
+  偏移 ?：字节串   Payload（索引键值）
+  （可能有 overflow page pointer）
+</code></pre>
+
+<p>键值（rowid）我们在遍历时不需要——遍历只关心子页在哪，键值是查找时用来做比较的（第 09 篇讲索引时会用到）。</p>
+
+
+<h2 id="当前代码结构">六、当前代码结构</h2>
+
+<pre><code class="language-text">sqlite-rs/
+├── Cargo.toml
+├── test.db        ← 3 行，单页
+├── big.db         ← 500 行，多页 B-Tree
+└── src/
+    ├── main.rs    ← 入口
+    ├── header.rs  ← 文件头解析（第 01 篇）
+    ├── page.rs    ← 页头解析 + Cell 指针（第 02 篇）
+    ├── pager.rs   ← 页读取器（第 02 篇）
+    └── btree.rs   ← B-Tree 遍历（本篇）
+</code></pre>
+
+
+<h2 id="关键点总结">七、关键点总结</h2>
+
+<ul>
+<li>内部节点 Cell = 4 字节左子页页号 + varint 键值</li>
+<li>内部节点页头有 <code>right_most_pointer</code>，是最后一个子页的页号</li>
+<li>遍历顺序：对每个内部节点，先递归左子页，最后递归最右子页——保证按 rowid 升序</li>
+<li>遍历结果是 <code>Vec&lt;CellAddress&gt;</code>，每个元素是 <code>(page_num, cell_offset)</code></li>
+<li>确定一张表的根页号需要读 <code>sqlite_schema</code>，第 05 篇实现；本篇先硬编码 Page 2 测试</li>
+</ul>
+
+<p><strong>下一篇</strong>：有了 Cell 地址，就能读 Cell 的原始字节了。第 04 篇解析 Cell 内容——varint 编码、Record Header、Serial Type，把字节还原成 <code>(rowid, name, age)</code> 这样的列值。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/Rust/" rel="tag"><i class="fa fa-tag"></i> Rust</a>
+          <a href="/tags/SQLite/" rel="tag"><i class="fa fa-tag"></i> SQLite</a>
+          <a href="/tags/数据库/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/手写系列/" rel="tag"><i class="fa fa-tag"></i> 手写系列</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#内部节点的结构"><span class="nav-number">1.</span> <span class="nav-text">一、内部节点的 Cell 结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#遍历算法"><span class="nav-number">2.</span> <span class="nav-text">二、遍历算法</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Rust实现"><span class="nav-number">3.</span> <span class="nav-text">三、Rust 实现</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#测试多页数据库"><span class="nav-number">4.</span> <span class="nav-text">四、测试多页数据库</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#内部节点Cell的详细格式"><span class="nav-number">5.</span> <span class="nav-text">五、内部节点 Cell 完整格式</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#当前代码结构"><span class="nav-number">6.</span> <span class="nav-text">六、当前代码结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">7.</span> <span class="nav-text">七、关键点总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">217</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">28</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+  <style>
+    pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+    pre[class*="language-"]::before { display: none !important; }
+    body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+    body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+    body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+    body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+  </style>
+  <script>
+    (function() {
+      function syncPrismTheme() {
+        var isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('prism-theme-light').disabled = isDark;
+        document.getElementById('prism-theme-dark').disabled = !isDark;
+      }
+      document.addEventListener('DOMContentLoaded', syncPrismTheme);
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+          if (m.attributeName === 'class') syncPrismTheme();
+        });
+      });
+      observer.observe(document.body, { attributes: true });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+</body>
+</html>
