@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="从零实现 SQLite 系列第 06 篇：解析 CREATE TABLE SQL 语句提取列定义，处理 INTEGER PRIMARY KEY 别名 rowid，实现完整的 SELECT * FROM table 带列名输出。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="手写 SQLite 06：实现 SELECT * FROM table 带列名输出">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/05/手写SQLite-06-SELECT星号全表扫描/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="从零实现 SQLite 系列第 06 篇：解析 CREATE TABLE SQL 语句提取列定义，处理 INTEGER PRIMARY KEY 别名 rowid，实现完整的 SELECT * FROM table 带列名输出。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-05T12:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-05T12:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="Rust">
+<meta property="article:tag" content="SQLite">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="手写系列">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/05/手写SQLite-06-SELECT星号全表扫描/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>手写 SQLite 06：实现 SELECT * FROM table 带列名输出 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-05T12:00:00+08:00" content="2026-05-05">
+      05-05
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      手写 SQLite 06：实现 SELECT * FROM table 带列名输出
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>上一篇我们实现了全表扫描，但输出是 <code>Alice|30</code> 这样无列名的格式。这一篇做两件事：</p>
+<ol>
+<li><strong>从 <code>sqlite_schema.sql</code> 解析列定义</strong>，拿到每列的名字</li>
+<li><strong>正确处理 <code>INTEGER PRIMARY KEY</code> 列</strong>——它是 rowid 的别名，不存在 Record 里，需要特殊填充</li>
+</ol>
+<p>完成后，<code>SELECT * FROM users</code> 能输出：</p>
+<pre><code class="language-text">id|name|age
+1|Alice|30
+2|Bob|25
+3|Charlie|35</code></pre>
+
+
+<h2 id="列定义从哪来">一、列定义从哪来</h2>
+
+<p><code>sqlite_schema</code> 的 <code>sql</code> 列存储了建表 SQL，例如：</p>
+<pre><code class="language-sql">CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)</code></pre>
+
+<p>从这段 SQL 中解析出列名列表，是本篇的核心工作。我们不需要实现完整的 SQL 解析器——只需要提取括号内的列定义，然后按逗号切分，取每段的第一个 token 作为列名。</p>
+
+
+<h2 id="解析列定义">二、解析列定义</h2>
+
+<pre><code class="language-rust">// src/schema.rs （新增函数）
+
+/// 列定义：列名 + 是否是 INTEGER PRIMARY KEY（rowid 别名）
+#[derive(Debug, Clone)]
+pub struct ColumnDef {
+    pub name:          String,
+    pub is_rowid_alias: bool,  // INTEGER PRIMARY KEY 列
+}
+
+/// 从 CREATE TABLE SQL 中提取列定义列表
+/// 输入示例：
+///   "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)"
+pub fn parse_column_defs(create_sql: &amp;str) -> Vec&lt;ColumnDef&gt; {
+    // 1. 找到第一个 '(' 和最后一个 ')'，取括号内的内容
+    let start = match create_sql.find('(') {
+        Some(i) =&gt; i + 1,
+        None    =&gt; return vec![],
+    };
+    let end = match create_sql.rfind(')') {
+        Some(i) =&gt; i,
+        None    =&gt; return vec![],
+    };
+    let cols_str = &amp;create_sql[start..end];
+
+    // 2. 按顶层逗号切分（需要处理括号嵌套，如 CHECK(..., ...) 中的逗号）
+    let col_segments = split_top_level_commas(cols_str);
+
+    // 3. 解析每个列段
+    let mut defs = Vec::new();
+    for seg in col_segments {
+        let seg = seg.trim();
+        if seg.is_empty() { continue; }
+
+        // 跳过表级约束（PRIMARY KEY(...), UNIQUE(...), FOREIGN KEY(...)等）
+        let upper = seg.to_uppercase();
+        if upper.starts_with("PRIMARY KEY")
+            || upper.starts_with("UNIQUE")
+            || upper.starts_with("CHECK")
+            || upper.starts_with("FOREIGN KEY")
+            || upper.starts_with("CONSTRAINT")
+        {
+            continue;
+        }
+
+        // 列名是第一个 token（可能被引号包裹）
+        let name = extract_identifier(seg);
+        if name.is_empty() { continue; }
+
+        // 判断是否是 INTEGER PRIMARY KEY（rowid 别名）
+        // 条件：类型包含 INTEGER，且有 PRIMARY KEY 约束
+        let is_rowid_alias = upper.contains("INTEGER")
+            &amp;&amp; upper.contains("PRIMARY")
+            &amp;&amp; upper.contains("KEY")
+            &amp;&amp; !upper.contains("FOREIGN");
+
+        defs.push(ColumnDef { name, is_rowid_alias });
+    }
+    defs
+}
+
+/// 按顶层逗号切分（括号内的逗号不切）
+fn split_top_level_commas(s: &amp;str) -&gt; Vec&lt;&amp;str&gt; {
+    let mut result = Vec::new();
+    let mut depth  = 0usize;
+    let mut start  = 0usize;
+
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '(' =&gt; depth += 1,
+            ')' =&gt; depth = depth.saturating_sub(1),
+            ',' if depth == 0 =&gt; {
+                result.push(&amp;s[start..i]);
+                start = i + 1;
+            }
+            _ =&gt; {}
+        }
+    }
+    result.push(&amp;s[start..]);
+    result
+}
+
+/// 从列定义段提取标识符（处理引号和反引号）
+fn extract_identifier(s: &amp;str) -&gt; String {
+    let s = s.trim();
+    // 处理 `name`、"name"、[name] 三种引号形式
+    if let Some(stripped) = s.strip_prefix('`') {
+        return stripped.split('`').next().unwrap_or("").to_string();
+    }
+    if let Some(stripped) = s.strip_prefix('"') {
+        return stripped.split('"').next().unwrap_or("").to_string();
+    }
+    if let Some(stripped) = s.strip_prefix('[') {
+        return stripped.split(']').next().unwrap_or("").to_string();
+    }
+    // 无引号：取第一个空白前的内容
+    s.split_whitespace().next().unwrap_or("").to_string()
+}
+</code></pre>
+
+
+<h2 id="INTEGER-PRIMARY-KEY的特殊处理">三、INTEGER PRIMARY KEY 的特殊处理</h2>
+
+<p>这是 SQLite 最重要的特殊规则之一：</p>
+<ul>
+<li>如果某列声明为 <code>INTEGER PRIMARY KEY</code>，它成为 rowid 的别名</li>
+<li>该列的值<strong>不存储在 Record 里</strong>，Record 中对应位置的 Serial Type 为 0（NULL）</li>
+<li>读取时需要用 rowid 填充这一列</li>
+</ul>
+
+<p>实际验证：</p>
+<pre><code class="language-bash">python3 -c "
+data = open('test.db','rb').read()
+# Page 1 Cell[0] 偏移
+cell_off = int.from_bytes(data[108:110], 'big')
+b = data[cell_off:]
+print('payload_size:', b[0])
+print('rowid:', b[1])
+header_size = b[2]
+print('header_size:', header_size)
+# serial types: b[3] ~ b[3+header_size-1]
+sts = list(b[3:3+header_size-1])
+print('serial_types:', sts)
+# 第一个 serial type 是 0 (NULL)，对应 id 列（rowid 别名）
+# 第二个是 23（TEXT 5字节），对应 name='Alice'
+# 第三个是 4（INT32），对应 age=30
+"
+</code></pre>
+<pre><code class="language-text">serial_types: [0, 23, 4]
+              ↑ id 列是 NULL（用 rowid 填充）
+</code></pre>
+
+
+<h2 id="完整实现">四、完整实现</h2>
+
+<pre><code class="language-rust">// src/sql.rs  — SQL 查询执行器
+
+use crate::btree::collect_leaf_cells;
+use crate::pager::Pager;
+use crate::record::{parse_leaf_cell, Value};
+use crate::schema::{read_schema, parse_column_defs, ColumnDef};
+
+pub struct QueryResult {
+    pub columns: Vec&lt;String&gt;,
+    pub rows:    Vec&lt;Vec&lt;String&gt;&gt;,
+}
+
+/// 执行 SELECT * FROM &lt;table_name&gt;
+pub fn select_all(pager: &amp;mut Pager, table_name: &amp;str) -&gt; Result&lt;QueryResult, String&gt; {
+    // 1. 从 sqlite_schema 找到表定义
+    let entries = read_schema(pager);
+    let entry = entries.iter()
+        .find(|e| e.object_type == "table" &amp;&amp; e.name == table_name)
+        .ok_or_else(|| format!("table '{}' not found", table_name))?;
+
+    let root_page = entry.root_page;
+    let col_defs: Vec&lt;ColumnDef&gt; = entry.sql.as_deref()
+        .map(parse_column_defs)
+        .unwrap_or_default();
+
+    let col_names: Vec&lt;String&gt; = col_defs.iter().map(|c| c.name.clone()).collect();
+
+    // 2. 遍历 B-Tree，解析每一行
+    let cells = collect_leaf_cells(pager, root_page);
+    let mut rows = Vec::new();
+
+    for cell_addr in &amp;cells {
+        let page_data = pager.read_page(cell_addr.page_num).unwrap();
+        let (rowid, values) = parse_leaf_cell(&amp;page_data, cell_addr.offset as usize);
+
+        // 3. 按列定义顺序组装行
+        //    values 对应 Record 里的列，可能比 col_defs 少一列（rowid 别名列）
+        let mut row = Vec::new();
+        let mut val_idx = 0usize;
+
+        for col_def in &amp;col_defs {
+            if col_def.is_rowid_alias {
+                // INTEGER PRIMARY KEY：用 rowid 填充，不消耗 values
+                row.push(rowid.to_string());
+            } else {
+                // 普通列：从 values 取下一个值
+                let v = values.get(val_idx)
+                    .map(value_to_string)
+                    .unwrap_or_else(|| "NULL".to_string());
+                row.push(v);
+                val_idx += 1;
+            }
+        }
+        rows.push(row);
+    }
+
+    Ok(QueryResult { columns: col_names, rows })
+}
+
+fn value_to_string(v: &amp;Value) -&gt; String {
+    match v {
+        Value::Null       =&gt; "NULL".to_string(),
+        Value::Integer(n) =&gt; n.to_string(),
+        Value::Float(f)   =&gt; {
+            // 去掉多余的小数零：500000.0 → "500000"
+            if *f == f.trunc() &amp;&amp; f.abs() &lt; 1e15 {
+                format!("{}", *f as i64)
+            } else {
+                format!("{}", f)
+            }
+        }
+        Value::Text(s)    =&gt; s.clone(),
+        Value::Blob(b)    =&gt; format!("&lt;blob {}&gt;", b.len()),
+    }
+}
+</code></pre>
+
+<h3 id="更新main">更新 main.rs</h3>
+
+<pre><code class="language-rust">// src/main.rs
+
+mod header; mod page; mod pager; mod btree;
+mod varint; mod record; mod schema; mod sql;
+
+use header::DbHeader;
+use pager::Pager;
+use schema::read_schema;
+use sql::select_all;
+
+fn main() {
+    let args: Vec&lt;String&gt; = std::env::args().collect();
+    if args.len() &lt; 3 {
+        eprintln!("Usage: sqlite-rs &lt;db&gt; &lt;.tables | SELECT * FROM &lt;table&gt;&gt;");
+        std::process::exit(1);
+    }
+
+    let db_path = &amp;args[1];
+    // 把剩余参数拼成一条"SQL"
+    let command = args[2..].join(" ");
+
+    let db_header = DbHeader::read_from_file(db_path).unwrap();
+    let mut pager = Pager::open(db_path, db_header.page_size).unwrap();
+
+    if command == ".tables" {
+        let entries = read_schema(&amp;mut pager);
+        let names: Vec&lt;&amp;str&gt; = entries.iter()
+            .filter(|e| e.object_type == "table" &amp;&amp; !e.name.starts_with("sqlite_"))
+            .map(|e| e.name.as_str())
+            .collect();
+        println!("{}", names.join(" "));
+        return;
+    }
+
+    // 简单解析 SELECT * FROM &lt;table&gt;
+    if let Some(table_name) = parse_select_star(&amp;command) {
+        match select_all(&amp;mut pager, table_name) {
+            Ok(result) =&gt; {
+                println!("{}", result.columns.join("|"));
+                for row in &amp;result.rows {
+                    println!("{}", row.join("|"));
+                }
+            }
+            Err(e) =&gt; {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        eprintln!("Unsupported command: {}", command);
+        eprintln!("Supported: .tables | SELECT * FROM &lt;table&gt;");
+        std::process::exit(1);
+    }
+}
+
+/// 从 "SELECT * FROM users" 解析出表名 "users"
+fn parse_select_star(sql: &amp;str) -&gt; Option&lt;&amp;str&gt; {
+    let upper = sql.to_uppercase();
+    // 匹配 SELECT * FROM &lt;name&gt; 或 SELECT * FROM &lt;name&gt; (忽略后续条件)
+    let rest = upper.strip_prefix("SELECT")?.trim_start()
+        .strip_prefix('*')?.trim_start()
+        .strip_prefix("FROM")?
+        .trim_start();
+    // 从原始 sql 里找对应位置（保持大小写）
+    let offset = sql.len() - rest.len();
+    // 表名到下一个空格或字符串结尾
+    let name = sql[offset..].split_whitespace().next()?;
+    Some(name)
+}
+</code></pre>
+
+
+<h2 id="测试">五、测试</h2>
+
+<pre><code class="language-bash">cargo run -- test.db "SELECT * FROM users"
+</code></pre>
+<pre><code class="language-text">id|name|age
+1|Alice|30
+2|Bob|25
+3|Charlie|35</code></pre>
+
+<p><code>id</code> 列现在正确填入了 rowid 值。</p>
+
+<pre><code class="language-bash">cargo run -- multi.db "SELECT * FROM employees"
+</code></pre>
+<pre><code class="language-text">id|name|dept
+1|Alice|Engineering
+2|Bob|Marketing</code></pre>
+
+<pre><code class="language-bash">cargo run -- multi.db "SELECT * FROM departments"
+</code></pre>
+<pre><code class="language-text">id|name|budget
+1|Engineering|500000
+2|Marketing|200000</code></pre>
+
+<p>浮点数 500000.0 被正确格式化为 <code>500000</code>（去掉多余小数零）。</p>
+
+<pre><code class="language-bash">cargo run -- big.db "SELECT * FROM users" | head -5
+</code></pre>
+<pre><code class="language-text">id|name|age
+1|User1|21
+2|User2|22
+3|User3|23
+4|User4|24</code></pre>
+
+<p>500 行，全部输出正确，列名也对了。</p>
+
+
+<h2 id="边界情况">六、边界情况处理</h2>
+
+<h3 id="无PRIMARY-KEY的表">无 PRIMARY KEY 的表</h3>
+<p>如果表没有 <code>INTEGER PRIMARY KEY</code> 列，所有列都从 Record 直接读，没有 rowid 填充逻辑，正常工作。</p>
+
+<h3 id="列名带引号">列名带引号</h3>
+<pre><code class="language-sql">CREATE TABLE t ("my col" TEXT, `other` INTEGER)
+</code></pre>
+<p><code>extract_identifier()</code> 处理了三种引号形式（<code>`</code>、<code>"</code>、<code>[</code>），能正确提取列名。</p>
+
+<h3 id="多列主键">多列主键 / 表级 PRIMARY KEY</h3>
+<pre><code class="language-sql">CREATE TABLE t (a INTEGER, b TEXT, PRIMARY KEY(a, b))
+</code></pre>
+<p>这种情况下没有 rowid 别名列（SQLite 文档明确：只有单列 <code>INTEGER PRIMARY KEY</code> 才是 rowid 别名），所有列都正常读 Record。<code>split_top_level_commas</code> 会把 <code>PRIMARY KEY(a, b)</code> 作为一个表级约束段，被 <code>starts_with("PRIMARY KEY")</code> 过滤掉，不产生列定义。</p>
+
+
+<h2 id="当前代码结构">七、当前代码结构</h2>
+
+<pre><code class="language-text">sqlite-rs/
+└── src/
+    ├── main.rs     ← SELECT * / .tables 命令路由（本篇）
+    ├── header.rs   ← 文件头（第 01 篇）
+    ├── page.rs     ← 页头 + Cell 指针（第 02 篇）
+    ├── pager.rs    ← 页读取器（第 02 篇）
+    ├── btree.rs    ← B-Tree 遍历（第 03 篇）
+    ├── varint.rs   ← varint 解码（第 04 篇）
+    ├── record.rs   ← Record 解析（第 04 篇）
+    ├── schema.rs   ← sqlite_schema 解析 + 列定义解析（第 05、06 篇）
+    └── sql.rs      ← SQL 执行器（本篇）
+</code></pre>
+
+
+<h2 id="关键点总结">八、关键点总结</h2>
+
+<ul>
+<li><code>sqlite_schema.sql</code> 字段存有 CREATE TABLE SQL，从中可解析列定义</li>
+<li>只需要提取括号内容、按顶层逗号切分、取每段第一个 token 作为列名</li>
+<li><code>INTEGER PRIMARY KEY</code> 是 rowid 别名：Record 里该列 Serial Type 为 0（NULL），需要用 rowid 值填充</li>
+<li>多列主键或表级 PRIMARY KEY 不是 rowid 别名，不需要特殊处理</li>
+<li>浮点数格式化需要去掉多余小数零（<code>500000.0</code> → <code>500000</code>）</li>
+</ul>
+
+<p><strong>下一篇</strong>：实现 <code>SELECT count(*) FROM table</code>——只统计行数，不解码每行数据，直接用 B-Tree 遍历收集到的 Cell 数量作为结果，速度极快。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/Rust/" rel="tag"><i class="fa fa-tag"></i> Rust</a>
+          <a href="/tags/SQLite/" rel="tag"><i class="fa fa-tag"></i> SQLite</a>
+          <a href="/tags/数据库/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/手写系列/" rel="tag"><i class="fa fa-tag"></i> 手写系列</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#列定义从哪来"><span class="nav-number">1.</span> <span class="nav-text">一、列定义从哪来</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#解析列定义"><span class="nav-number">2.</span> <span class="nav-text">二、解析列定义</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#INTEGER-PRIMARY-KEY的特殊处理"><span class="nav-number">3.</span> <span class="nav-text">三、INTEGER PRIMARY KEY 的特殊处理</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#完整实现"><span class="nav-number">4.</span> <span class="nav-text">四、完整实现</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#测试"><span class="nav-number">5.</span> <span class="nav-text">五、测试</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#边界情况"><span class="nav-number">6.</span> <span class="nav-text">六、边界情况处理</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#当前代码结构"><span class="nav-number">7.</span> <span class="nav-text">七、当前代码结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">8.</span> <span class="nav-text">八、关键点总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">220</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">28</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+  <style>
+    pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+    pre[class*="language-"]::before { display: none !important; }
+    body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+    body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+    body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+    body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+  </style>
+  <script>
+    (function() {
+      function syncPrismTheme() {
+        var isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('prism-theme-light').disabled = isDark;
+        document.getElementById('prism-theme-dark').disabled = !isDark;
+      }
+      document.addEventListener('DOMContentLoaded', syncPrismTheme);
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+          if (m.attributeName === 'class') syncPrismTheme();
+        });
+      });
+      observer.observe(document.body, { attributes: true });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+</body>
+</html>
