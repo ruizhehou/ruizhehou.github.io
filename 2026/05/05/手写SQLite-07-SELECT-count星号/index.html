@@ -23,22 +23,22 @@
     var NexT = window.NexT || {};
     var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
-  <meta name="description" content="从零实现 SQLite 系列第 06 篇：解析 CREATE TABLE SQL 语句提取列定义，处理 INTEGER PRIMARY KEY 别名 rowid，实现完整的 SELECT * FROM table 带列名输出。">
+  <meta name="description" content="从零实现 SQLite 系列第 07 篇：实现 SELECT count(*) FROM table，无需解码行数据，直接统计 B-Tree 叶节点的 Cell 数量，并与 SELECT * 的性能差异作对比分析。">
 <meta property="og:type" content="article">
-<meta property="og:title" content="手写 SQLite 06：实现 SELECT * FROM table 带列名输出">
-<meta property="og:url" content="https://ruizhehou.github.io/2026/05/05/手写SQLite-06-SELECT星号全表扫描/index.html">
+<meta property="og:title" content="手写 SQLite 07：实现 SELECT count(*) FROM table">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/05/手写SQLite-07-SELECT-count星号/index.html">
 <meta property="og:site_name" content="侯瑞哲的博客">
-<meta property="og:description" content="从零实现 SQLite 系列第 06 篇：解析 CREATE TABLE SQL 语句提取列定义，处理 INTEGER PRIMARY KEY 别名 rowid，实现完整的 SELECT * FROM table 带列名输出。">
+<meta property="og:description" content="从零实现 SQLite 系列第 07 篇：实现 SELECT count(*) FROM table，无需解码行数据，直接统计 B-Tree 叶节点的 Cell 数量，并与 SELECT * 的性能差异作对比分析。">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2026-05-05T12:00:00.000Z">
-<meta property="article:modified_time" content="2026-05-05T12:00:00.000Z">
+<meta property="article:published_time" content="2026-05-05T13:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-05T13:00:00.000Z">
 <meta property="article:author" content="侯瑞哲">
 <meta property="article:tag" content="Rust">
 <meta property="article:tag" content="SQLite">
 <meta property="article:tag" content="数据库">
 <meta property="article:tag" content="手写系列">
 <meta name="twitter:card" content="summary">
-<link rel="canonical" href="https://ruizhehou.github.io/2026/05/05/手写SQLite-06-SELECT星号全表扫描/">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/05/手写SQLite-07-SELECT-count星号/">
 <script id="page-configurations">
   CONFIG.page = {
     sidebar: "",
@@ -47,7 +47,7 @@
     lang   : 'zh-CN'
   };
 </script>
-  <title>手写 SQLite 06：实现 SELECT * FROM table 带列名输出 | 侯瑞哲的博客</title>
+  <title>手写 SQLite 07：实现 SELECT count(*) FROM table | 侯瑞哲的博客</title>
   <noscript>
   <style>
   .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
@@ -133,252 +133,102 @@
   <div class="post-header">
       <div class="post-meta-container">
   <div class="post-meta">
-    <time itemprop="dateCreated" datetime="2026-05-05T12:00:00+08:00" content="2026-05-05">
+    <time itemprop="dateCreated" datetime="2026-05-05T13:00:00+08:00" content="2026-05-05">
       05-05
     </time>
   </div>
   </div>
   <h1 class="post-title" itemprop="name headline">
-      手写 SQLite 06：实现 SELECT * FROM table 带列名输出
+      手写 SQLite 07：实现 SELECT count(*) FROM table
   </h1>
   </div>
 
   <div class="post-body" itemprop="articleBody">
 
-<p>上一篇我们实现了全表扫描，但输出是 <code>Alice|30</code> 这样无列名的格式。这一篇做两件事：</p>
-<ol>
-<li><strong>从 <code>sqlite_schema.sql</code> 解析列定义</strong>，拿到每列的名字</li>
-<li><strong>正确处理 <code>INTEGER PRIMARY KEY</code> 列</strong>——它是 rowid 的别名，不存在 Record 里，需要特殊填充</li>
-</ol>
-<p>完成后，<code>SELECT * FROM users</code> 能输出：</p>
-<pre><code class="language-text">id|name|age
-1|Alice|30
-2|Bob|25
-3|Charlie|35</code></pre>
+<p>这是"从零手写 SQLite 读取器"系列的第 07 篇。前六篇中，我们依次实现了：文件头解析（第 01 篇）、页读取器（第 02 篇）、B-Tree 遍历（第 03 篇）、varint 与 Record 解码（第 04 篇）、<code>sqlite_schema</code> 读取与 <code>.tables</code> 命令（第 05 篇）、<code>SELECT * FROM table</code> 带列名输出（第 06 篇）。本篇在此基础上增加 <code>SELECT count(*) FROM &lt;table&gt;</code> 支持——只输出一个整数，代表表中的行数。</p>
 
 
-<h2 id="列定义从哪来">一、列定义从哪来</h2>
+<h2 id="count-star-为何特殊">一、count(*) 为何特殊</h2>
 
-<p><code>sqlite_schema</code> 的 <code>sql</code> 列存储了建表 SQL，例如：</p>
-<pre><code class="language-sql">CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)</code></pre>
+<p><code>SELECT count(*)</code> 与 <code>SELECT *</code> 的本质差别在于：<strong>前者不需要解码任何行数据</strong>。</p>
 
-<p>从这段 SQL 中解析出列名列表，是本篇的核心工作。我们不需要实现完整的 SQL 解析器——只需要提取括号内的列定义，然后按逗号切分，取每段的第一个 token 作为列名。</p>
+<p>在我们的实现中，B-Tree 遍历的核心是 <code>collect_leaf_cells()</code>，它返回所有叶节点 Cell 的地址列表（<code>Vec&lt;CellAddr&gt;</code>）。每个 <code>CellAddr</code> 对应表中的一行。因此：</p>
 
-
-<h2 id="解析列定义">二、解析列定义</h2>
-
-<pre><code class="language-rust">// src/schema.rs （新增函数）
-
-/// 列定义：列名 + 是否是 INTEGER PRIMARY KEY（rowid 别名）
-#[derive(Debug, Clone)]
-pub struct ColumnDef {
-    pub name:          String,
-    pub is_rowid_alias: bool,  // INTEGER PRIMARY KEY 列
-}
-
-/// 从 CREATE TABLE SQL 中提取列定义列表
-/// 输入示例：
-///   "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)"
-pub fn parse_column_defs(create_sql: &amp;str) -> Vec&lt;ColumnDef&gt; {
-    // 1. 找到第一个 '(' 和最后一个 ')'，取括号内的内容
-    let start = match create_sql.find('(') {
-        Some(i) =&gt; i + 1,
-        None    =&gt; return vec![],
-    };
-    let end = match create_sql.rfind(')') {
-        Some(i) =&gt; i,
-        None    =&gt; return vec![],
-    };
-    let cols_str = &amp;create_sql[start..end];
-
-    // 2. 按顶层逗号切分（需要处理括号嵌套，如 CHECK(..., ...) 中的逗号）
-    let col_segments = split_top_level_commas(cols_str);
-
-    // 3. 解析每个列段
-    let mut defs = Vec::new();
-    for seg in col_segments {
-        let seg = seg.trim();
-        if seg.is_empty() { continue; }
-
-        // 跳过表级约束（PRIMARY KEY(...), UNIQUE(...), FOREIGN KEY(...)等）
-        let upper = seg.to_uppercase();
-        if upper.starts_with("PRIMARY KEY")
-            || upper.starts_with("UNIQUE")
-            || upper.starts_with("CHECK")
-            || upper.starts_with("FOREIGN KEY")
-            || upper.starts_with("CONSTRAINT")
-        {
-            continue;
-        }
-
-        // 列名是第一个 token（可能被引号包裹）
-        let name = extract_identifier(seg);
-        if name.is_empty() { continue; }
-
-        // 判断是否是 INTEGER PRIMARY KEY（rowid 别名）
-        // 条件：类型包含 INTEGER，且有 PRIMARY KEY 约束
-        let is_rowid_alias = upper.contains("INTEGER")
-            &amp;&amp; upper.contains("PRIMARY")
-            &amp;&amp; upper.contains("KEY")
-            &amp;&amp; !upper.contains("FOREIGN");
-
-        defs.push(ColumnDef { name, is_rowid_alias });
-    }
-    defs
-}
-
-/// 按顶层逗号切分（括号内的逗号不切）
-fn split_top_level_commas(s: &amp;str) -&gt; Vec&lt;&amp;str&gt; {
-    let mut result = Vec::new();
-    let mut depth  = 0usize;
-    let mut start  = 0usize;
-
-    for (i, ch) in s.char_indices() {
-        match ch {
-            '(' =&gt; depth += 1,
-            ')' =&gt; depth = depth.saturating_sub(1),
-            ',' if depth == 0 =&gt; {
-                result.push(&amp;s[start..i]);
-                start = i + 1;
-            }
-            _ =&gt; {}
-        }
-    }
-    result.push(&amp;s[start..]);
-    result
-}
-
-/// 从列定义段提取标识符（处理引号和反引号）
-fn extract_identifier(s: &amp;str) -&gt; String {
-    let s = s.trim();
-    // 处理 `name`、"name"、[name] 三种引号形式
-    if let Some(stripped) = s.strip_prefix('`') {
-        return stripped.split('`').next().unwrap_or("").to_string();
-    }
-    if let Some(stripped) = s.strip_prefix('"') {
-        return stripped.split('"').next().unwrap_or("").to_string();
-    }
-    if let Some(stripped) = s.strip_prefix('[') {
-        return stripped.split(']').next().unwrap_or("").to_string();
-    }
-    // 无引号：取第一个空白前的内容
-    s.split_whitespace().next().unwrap_or("").to_string()
-}
-</code></pre>
-
-
-<h2 id="INTEGER-PRIMARY-KEY的特殊处理">三、INTEGER PRIMARY KEY 的特殊处理</h2>
-
-<p>这是 SQLite 最重要的特殊规则之一：</p>
 <ul>
-<li>如果某列声明为 <code>INTEGER PRIMARY KEY</code>，它成为 rowid 的别名</li>
-<li>该列的值<strong>不存储在 Record 里</strong>，Record 中对应位置的 Serial Type 为 0（NULL）</li>
-<li>读取时需要用 rowid 填充这一列</li>
+<li><code>SELECT *</code>：遍历所有 Cell 地址，对每个地址读取页数据、解码 varint、解析 Record、格式化每个字段值</li>
+<li><code>SELECT count(*)</code>：遍历所有 Cell 地址，直接取 <code>cells.len()</code>，结束</li>
 </ul>
 
-<p>实际验证：</p>
-<pre><code class="language-bash">python3 -c "
-data = open('test.db','rb').read()
-# Page 1 Cell[0] 偏移
-cell_off = int.from_bytes(data[108:110], 'big')
-b = data[cell_off:]
-print('payload_size:', b[0])
-print('rowid:', b[1])
-header_size = b[2]
-print('header_size:', header_size)
-# serial types: b[3] ~ b[3+header_size-1]
-sts = list(b[3:3+header_size-1])
-print('serial_types:', sts)
-# 第一个 serial type 是 0 (NULL)，对应 id 列（rowid 别名）
-# 第二个是 23（TEXT 5字节），对应 name='Alice'
-# 第三个是 4（INT32），对应 age=30
-"
-</code></pre>
-<pre><code class="language-text">serial_types: [0, 23, 4]
-              ↑ id 列是 NULL（用 rowid 填充）
-</code></pre>
+<p>不需要读取任何 Cell 的实际内容，不需要解析 varint，不需要解码 Record。唯一的开销是遍历 B-Tree 的内部节点以收集叶节点指针——这在任何情况下都无法省略，因为我们需要知道有多少叶节点 Cell。</p>
+
+<p>对于多页 B-Tree（如 big.db 的 500 行数据），<code>count(*)</code> 只需访问内部节点页和叶节点的 Cell 指针区（每个 Cell 指针仅 2 字节），而 <code>SELECT *</code> 还要额外读取每个 Cell 的完整 payload。</p>
 
 
-<h2 id="完整实现">四、完整实现</h2>
+<h2 id="实现-count_all">二、实现 count_all()</h2>
 
-<pre><code class="language-rust">// src/sql.rs  — SQL 查询执行器
+<p>在 <code>src/sql.rs</code> 中添加 <code>count_all()</code> 函数。它复用已有的 <code>collect_leaf_cells()</code> 和 <code>read_schema()</code>，只需在拿到 Cell 地址列表后返回其长度：</p>
 
-use crate::btree::collect_leaf_cells;
-use crate::pager::Pager;
-use crate::record::{parse_leaf_cell, Value};
-use crate::schema::{read_schema, parse_column_defs, ColumnDef};
+<pre><code class="language-rust">// src/sql.rs  — 在 select_all() 之后追加
 
-pub struct QueryResult {
-    pub columns: Vec&lt;String&gt;,
-    pub rows:    Vec&lt;Vec&lt;String&gt;&gt;,
-}
-
-/// 执行 SELECT * FROM &lt;table_name&gt;
-pub fn select_all(pager: &amp;mut Pager, table_name: &amp;str) -&gt; Result&lt;QueryResult, String&gt; {
-    // 1. 从 sqlite_schema 找到表定义
+/// 执行 SELECT count(*) FROM &lt;table_name&gt;
+/// 返回表中的行数，不解码任何行数据。
+pub fn count_all(pager: &amp;mut Pager, table_name: &amp;str) -&gt; Result&lt;usize, String&gt; {
+    // 1. 从 sqlite_schema 找到表的根页号
     let entries = read_schema(pager);
     let entry = entries.iter()
         .find(|e| e.object_type == "table" &amp;&amp; e.name == table_name)
         .ok_or_else(|| format!("table '{}' not found", table_name))?;
 
     let root_page = entry.root_page;
-    let col_defs: Vec&lt;ColumnDef&gt; = entry.sql.as_deref()
-        .map(parse_column_defs)
-        .unwrap_or_default();
 
-    let col_names: Vec&lt;String&gt; = col_defs.iter().map(|c| c.name.clone()).collect();
-
-    // 2. 遍历 B-Tree，解析每一行
+    // 2. 遍历 B-Tree，收集所有叶节点 Cell 地址
     let cells = collect_leaf_cells(pager, root_page);
-    let mut rows = Vec::new();
 
-    for cell_addr in &amp;cells {
-        let page_data = pager.read_page(cell_addr.page_num).unwrap();
-        let (rowid, values) = parse_leaf_cell(&amp;page_data, cell_addr.offset as usize);
-
-        // 3. 按列定义顺序组装行
-        //    values 对应 Record 里的列，可能比 col_defs 少一列（rowid 别名列）
-        let mut row = Vec::new();
-        let mut val_idx = 0usize;
-
-        for col_def in &amp;col_defs {
-            if col_def.is_rowid_alias {
-                // INTEGER PRIMARY KEY：用 rowid 填充，不消耗 values
-                row.push(rowid.to_string());
-            } else {
-                // 普通列：从 values 取下一个值
-                let v = values.get(val_idx)
-                    .map(value_to_string)
-                    .unwrap_or_else(|| "NULL".to_string());
-                row.push(v);
-                val_idx += 1;
-            }
-        }
-        rows.push(row);
-    }
-
-    Ok(QueryResult { columns: col_names, rows })
-}
-
-fn value_to_string(v: &amp;Value) -&gt; String {
-    match v {
-        Value::Null       =&gt; "NULL".to_string(),
-        Value::Integer(n) =&gt; n.to_string(),
-        Value::Float(f)   =&gt; {
-            // 去掉多余的小数零：500000.0 → "500000"
-            if *f == f.trunc() &amp;&amp; f.abs() &lt; 1e15 {
-                format!("{}", *f as i64)
-            } else {
-                format!("{}", f)
-            }
-        }
-        Value::Text(s)    =&gt; s.clone(),
-        Value::Blob(b)    =&gt; format!("&lt;blob {}&gt;", b.len()),
-    }
+    // 3. Cell 数量即行数，直接返回，无需解码 payload
+    Ok(cells.len())
 }
 </code></pre>
 
-<h3 id="更新main">更新 main.rs</h3>
+<p>完整的 <code>sql.rs</code> 顶部 <code>use</code> 声明保持不变，<code>count_all</code> 与 <code>select_all</code> 共享同一组依赖：</p>
+
+<pre><code class="language-rust">// src/sql.rs 顶部（已有，无需修改）
+
+use crate::btree::collect_leaf_cells;
+use crate::pager::Pager;
+use crate::record::{parse_leaf_cell, Value};
+use crate::schema::{read_schema, parse_column_defs, ColumnDef};
+</code></pre>
+
+
+<h2 id="扩展-main-rs">三、扩展 main.rs</h2>
+
+<p>在 <code>main.rs</code> 中增加两处改动：</p>
+<ol>
+<li>新增 <code>parse_count_star()</code> 辅助函数，从命令字符串中识别 <code>SELECT count(*) FROM &lt;table&gt;</code> 模式并提取表名</li>
+<li>在 <code>main()</code> 的命令分发逻辑中，优先尝试 <code>count(*)</code> 模式，再尝试 <code>SELECT *</code> 模式</li>
+</ol>
+
+<h3 id="parse_count_star">parse_count_star() 辅助函数</h3>
+
+<pre><code class="language-rust">/// 从 "SELECT count(*) FROM users" 解析出表名 "users"
+/// 大小写不敏感，支持 count(*) / COUNT(*) / Count(*)
+fn parse_count_star(sql: &amp;str) -&gt; Option&lt;&amp;str&gt; {
+    let upper = sql.to_uppercase();
+    // 去掉前缀 "SELECT"
+    let rest = upper.strip_prefix("SELECT")?.trim_start();
+    // 去掉 "COUNT(*)"（忽略大小写已经由 upper 处理）
+    let rest = rest.strip_prefix("COUNT(*)")?.trim_start();
+    // 去掉 "FROM"
+    let rest = rest.strip_prefix("FROM")?.trim_start();
+    // 在原始 sql 中定位对应位置（保持原始大小写）
+    let offset = sql.len() - rest.len();
+    // 表名到下一个空白或字符串末尾
+    let name = sql[offset..].split_whitespace().next()?;
+    Some(name)
+}
+</code></pre>
+
+<h3 id="更新-main-dispatch">更新 main() 命令分发</h3>
 
 <pre><code class="language-rust">// src/main.rs
 
@@ -388,17 +238,16 @@ mod varint; mod record; mod schema; mod sql;
 use header::DbHeader;
 use pager::Pager;
 use schema::read_schema;
-use sql::select_all;
+use sql::{select_all, count_all};
 
 fn main() {
     let args: Vec&lt;String&gt; = std::env::args().collect();
     if args.len() &lt; 3 {
-        eprintln!("Usage: sqlite-rs &lt;db&gt; &lt;.tables | SELECT * FROM &lt;table&gt;&gt;");
+        eprintln!("Usage: sqlite-rs &lt;db&gt; &lt;.tables | SELECT * FROM &lt;table&gt; | SELECT count(*) FROM &lt;table&gt;&gt;");
         std::process::exit(1);
     }
 
     let db_path = &amp;args[1];
-    // 把剩余参数拼成一条"SQL"
     let command = args[2..].join(" ");
 
     let db_header = DbHeader::read_from_file(db_path).unwrap();
@@ -414,7 +263,19 @@ fn main() {
         return;
     }
 
-    // 简单解析 SELECT * FROM &lt;table&gt;
+    // 优先尝试 SELECT count(*) FROM &lt;table&gt;
+    if let Some(table_name) = parse_count_star(&amp;command) {
+        match count_all(&amp;mut pager, table_name) {
+            Ok(n) =&gt; println!("{}", n),
+            Err(e) =&gt; {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
+    // 再尝试 SELECT * FROM &lt;table&gt;
     if let Some(table_name) = parse_select_star(&amp;command) {
         match select_all(&amp;mut pager, table_name) {
             Ok(result) =&gt; {
@@ -428,31 +289,50 @@ fn main() {
                 std::process::exit(1);
             }
         }
-    } else {
-        eprintln!("Unsupported command: {}", command);
-        eprintln!("Supported: .tables | SELECT * FROM &lt;table&gt;");
-        std::process::exit(1);
+        return;
     }
+
+    eprintln!("Unsupported command: {}", command);
+    eprintln!("Supported: .tables | SELECT * FROM &lt;table&gt; | SELECT count(*) FROM &lt;table&gt;");
+    std::process::exit(1);
 }
 
 /// 从 "SELECT * FROM users" 解析出表名 "users"
 fn parse_select_star(sql: &amp;str) -&gt; Option&lt;&amp;str&gt; {
     let upper = sql.to_uppercase();
-    // 匹配 SELECT * FROM &lt;name&gt; 或 SELECT * FROM &lt;name&gt; (忽略后续条件)
     let rest = upper.strip_prefix("SELECT")?.trim_start()
         .strip_prefix('*')?.trim_start()
         .strip_prefix("FROM")?
         .trim_start();
-    // 从原始 sql 里找对应位置（保持大小写）
     let offset = sql.len() - rest.len();
-    // 表名到下一个空格或字符串结尾
+    let name = sql[offset..].split_whitespace().next()?;
+    Some(name)
+}
+
+/// 从 "SELECT count(*) FROM users" 解析出表名 "users"
+fn parse_count_star(sql: &amp;str) -&gt; Option&lt;&amp;str&gt; {
+    let upper = sql.to_uppercase();
+    let rest = upper.strip_prefix("SELECT")?.trim_start();
+    let rest = rest.strip_prefix("COUNT(*)")?.trim_start();
+    let rest = rest.strip_prefix("FROM")?.trim_start();
+    let offset = sql.len() - rest.len();
     let name = sql[offset..].split_whitespace().next()?;
     Some(name)
 }
 </code></pre>
 
+<p>注意 <code>parse_count_star</code> 在 <code>main()</code> 中被调用时，函数定义可以放在文件任意位置（Rust 不要求先声明后使用）。上面把两个解析函数都列在 <code>main()</code> 之后，保持代码结构一致。</p>
 
-<h2 id="测试">五、测试</h2>
+
+<h2 id="测试">四、测试</h2>
+
+<h3 id="test-db-3行">test.db（3 行）</h3>
+
+<pre><code class="language-bash">cargo run -- test.db "SELECT count(*) FROM users"
+</code></pre>
+<pre><code class="language-text">3</code></pre>
+
+<p>与 <code>SELECT *</code> 的输出对照：</p>
 
 <pre><code class="language-bash">cargo run -- test.db "SELECT * FROM users"
 </code></pre>
@@ -461,76 +341,121 @@ fn parse_select_star(sql: &amp;str) -&gt; Option&lt;&amp;str&gt; {
 2|Bob|25
 3|Charlie|35</code></pre>
 
-<p><code>id</code> 列现在正确填入了 rowid 值。</p>
+<p>行数确认一致。</p>
 
-<pre><code class="language-bash">cargo run -- multi.db "SELECT * FROM employees"
+<h3 id="big-db-500行">big.db（500 行）</h3>
+
+<pre><code class="language-bash">cargo run -- big.db "SELECT count(*) FROM users"
 </code></pre>
-<pre><code class="language-text">id|name|dept
-1|Alice|Engineering
-2|Bob|Marketing</code></pre>
+<pre><code class="language-text">500</code></pre>
 
-<pre><code class="language-bash">cargo run -- multi.db "SELECT * FROM departments"
+<p>big.db 的 B-Tree 跨越多个页，<code>collect_leaf_cells()</code> 递归遍历所有叶节点后返回 500 个地址，<code>cells.len()</code> 即 500。</p>
+
+<h3 id="multi-db-多表">multi.db（多表）</h3>
+
+<pre><code class="language-bash">cargo run -- multi.db "SELECT count(*) FROM employees"
 </code></pre>
-<pre><code class="language-text">id|name|budget
-1|Engineering|500000
-2|Marketing|200000</code></pre>
+<pre><code class="language-text">2</code></pre>
 
-<p>浮点数 500000.0 被正确格式化为 <code>500000</code>（去掉多余小数零）。</p>
-
-<pre><code class="language-bash">cargo run -- big.db "SELECT * FROM users" | head -5
+<pre><code class="language-bash">cargo run -- multi.db "SELECT count(*) FROM departments"
 </code></pre>
-<pre><code class="language-text">id|name|age
-1|User1|21
-2|User2|22
-3|User3|23
-4|User4|24</code></pre>
+<pre><code class="language-text">2</code></pre>
 
-<p>500 行，全部输出正确，列名也对了。</p>
+<h3 id="大小写不敏感">大小写不敏感</h3>
 
-
-<h2 id="边界情况">六、边界情况处理</h2>
-
-<h3 id="无PRIMARY-KEY的表">无 PRIMARY KEY 的表</h3>
-<p>如果表没有 <code>INTEGER PRIMARY KEY</code> 列，所有列都从 Record 直接读，没有 rowid 填充逻辑，正常工作。</p>
-
-<h3 id="列名带引号">列名带引号</h3>
-<pre><code class="language-sql">CREATE TABLE t ("my col" TEXT, `other` INTEGER)
+<pre><code class="language-bash">cargo run -- test.db "select COUNT(*) from users"
 </code></pre>
-<p><code>extract_identifier()</code> 处理了三种引号形式（<code>`</code>、<code>"</code>、<code>[</code>），能正确提取列名。</p>
+<pre><code class="language-text">3</code></pre>
 
-<h3 id="多列主键">多列主键 / 表级 PRIMARY KEY</h3>
-<pre><code class="language-sql">CREATE TABLE t (a INTEGER, b TEXT, PRIMARY KEY(a, b))
-</code></pre>
-<p>这种情况下没有 rowid 别名列（SQLite 文档明确：只有单列 <code>INTEGER PRIMARY KEY</code> 才是 rowid 别名），所有列都正常读 Record。<code>split_top_level_commas</code> 会把 <code>PRIMARY KEY(a, b)</code> 作为一个表级约束段，被 <code>starts_with("PRIMARY KEY")</code> 过滤掉，不产生列定义。</p>
+<p><code>parse_count_star()</code> 对整个命令字符串调用 <code>to_uppercase()</code> 后匹配，因此 <code>select</code>、<code>SELECT</code>、<code>count(*)</code>、<code>COUNT(*)</code> 均可识别。</p>
 
 
-<h2 id="当前代码结构">七、当前代码结构</h2>
+<h2 id="性能对比">五、count(*) 与 SELECT * 的性能对比</h2>
+
+<p>两条路径在 B-Tree 遍历阶段完全相同——都调用 <code>collect_leaf_cells()</code>，都需要读取每一个内部节点页来找到叶节点，都需要读取每一个叶节点页来枚举 Cell 指针。差别发生在拿到 <code>Vec&lt;CellAddr&gt;</code> 之后：</p>
+
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>SELECT count(*)</th>
+<th>SELECT *</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>遍历内部节点</td>
+<td>是</td>
+<td>是</td>
+</tr>
+<tr>
+<td>读取叶节点页（Cell 指针区）</td>
+<td>是</td>
+<td>是</td>
+</tr>
+<tr>
+<td>读取 Cell payload（行数据）</td>
+<td><strong>否</strong></td>
+<td>是（每行）</td>
+</tr>
+<tr>
+<td>解码 varint（payload 长度、rowid）</td>
+<td><strong>否</strong></td>
+<td>是（每行）</td>
+</tr>
+<tr>
+<td>解析 Record header（serial types）</td>
+<td><strong>否</strong></td>
+<td>是（每行）</td>
+</tr>
+<tr>
+<td>解码每列值（整数、文本、浮点）</td>
+<td><strong>否</strong></td>
+<td>是（每行每列）</td>
+</tr>
+<tr>
+<td>格式化输出</td>
+<td>一次 <code>println!</code></td>
+<td>每行一次 <code>println!</code></td>
+</tr>
+</tbody>
+</table>
+
+<p>实际上，SQLite 官方对 <code>count(*)</code> 有更激进的优化：对于不含 <code>WITHOUT ROWID</code> 的普通表，可以通过读取 B-Tree 统计信息（<code>sqlite_stat1</code>）直接返回近似行数，或者只扫描 Cell 指针而不读取页内容。我们的实现没有做到这一步——仍然需要将所有叶节点页读入内存——但已经省去了所有的数据解码开销。</p>
+
+<p>对于行数极大、每行数据量又很大的表（例如每行存储几 KB 的 BLOB），<code>count(*)</code> 的优势会非常显著：B-Tree 的叶节点数量与行数成正比，而每行 payload 的大小对 <code>count(*)</code> 完全不影响（我们根本不读 payload）。</p>
+
+
+<h2 id="当前代码结构">六、当前代码结构</h2>
 
 <pre><code class="language-text">sqlite-rs/
 └── src/
-    ├── main.rs     ← SELECT * / .tables 命令路由（本篇）
-    ├── header.rs   ← 文件头（第 01 篇）
+    ├── main.rs     ← 命令路由：.tables / SELECT * / SELECT count(*)（本篇更新）
+    ├── header.rs   ← 文件头解析（第 01 篇）
     ├── page.rs     ← 页头 + Cell 指针（第 02 篇）
     ├── pager.rs    ← 页读取器（第 02 篇）
     ├── btree.rs    ← B-Tree 遍历（第 03 篇）
     ├── varint.rs   ← varint 解码（第 04 篇）
     ├── record.rs   ← Record 解析（第 04 篇）
     ├── schema.rs   ← sqlite_schema 解析 + 列定义解析（第 05、06 篇）
-    └── sql.rs      ← SQL 执行器（本篇）
+    └── sql.rs      ← SQL 执行器：select_all + count_all（本篇更新）
 </code></pre>
 
+<p>本篇只改动了两个文件：<code>sql.rs</code>（新增 <code>count_all</code> 函数）和 <code>main.rs</code>（新增 <code>parse_count_star</code> 函数和分发逻辑）。其余 7 个文件原封不动。</p>
 
-<h2 id="关键点总结">八、关键点总结</h2>
+
+<h2 id="关键点总结">七、关键点总结</h2>
 
 <ul>
-<li><code>sqlite_schema.sql</code> 字段存有 CREATE TABLE SQL，从中可解析列定义</li>
-<li>只需要提取括号内容、按顶层逗号切分、取每段第一个 token 作为列名</li>
-<li><code>INTEGER PRIMARY KEY</code> 是 rowid 别名：Record 里该列 Serial Type 为 0（NULL），需要用 rowid 值填充</li>
-<li>多列主键或表级 PRIMARY KEY 不是 rowid 别名，不需要特殊处理</li>
-<li>浮点数格式化需要去掉多余小数零（<code>500000.0</code> → <code>500000</code>）</li>
+<li><code>SELECT count(*)</code> 只需统计 B-Tree 叶节点的 Cell 数量，无需解码任何行数据</li>
+<li><code>collect_leaf_cells()</code> 返回的 <code>Vec&lt;CellAddr&gt;</code> 长度直接等于表的行数</li>
+<li><code>count_all()</code> 与 <code>select_all()</code> 共享同一个 B-Tree 遍历和 schema 查找逻辑，代码复用度高</li>
+<li><code>parse_count_star()</code> 通过 <code>to_uppercase()</code> 实现大小写不敏感匹配，与 <code>parse_select_star()</code> 风格一致</li>
+<li>命令分发中 <code>count(*)</code> 模式先于 <code>SELECT *</code> 模式匹配，避免后者误识别（两者都以 <code>SELECT</code> 开头）</li>
+<li><code>count(*)</code> 相比 <code>SELECT *</code> 省去了读取 Cell payload、解码 varint、解析 Record、格式化输出等所有行级操作</li>
 </ul>
 
-<p><strong>下一篇</strong>：实现 <code>SELECT count(*) FROM table</code>——只统计行数，不解码每行数据，直接用 B-Tree 遍历收集到的 Cell 数量作为结果，速度极快。</p>
+<p><strong>下一篇</strong>：实现 <code>WHERE</code> 过滤——在 <code>SELECT * FROM &lt;table&gt; WHERE &lt;col&gt; = &lt;value&gt;</code> 中，解析简单等值条件，在遍历每一行时比较指定列的值，只输出满足条件的行。</p>
 
   </div>
 
@@ -568,14 +493,13 @@ fn parse_select_star(sql: &amp;str) -&gt; Option&lt;&amp;str&gt; {
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
         <div class="post-toc motion-element"><ol class="nav">
-<li class="nav-item nav-level-2"><a class="nav-link" href="#列定义从哪来"><span class="nav-number">1.</span> <span class="nav-text">一、列定义从哪来</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#解析列定义"><span class="nav-number">2.</span> <span class="nav-text">二、解析列定义</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#INTEGER-PRIMARY-KEY的特殊处理"><span class="nav-number">3.</span> <span class="nav-text">三、INTEGER PRIMARY KEY 的特殊处理</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#完整实现"><span class="nav-number">4.</span> <span class="nav-text">四、完整实现</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#测试"><span class="nav-number">5.</span> <span class="nav-text">五、测试</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#边界情况"><span class="nav-number">6.</span> <span class="nav-text">六、边界情况处理</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#当前代码结构"><span class="nav-number">7.</span> <span class="nav-text">七、当前代码结构</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">8.</span> <span class="nav-text">八、关键点总结</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#count-star-为何特殊"><span class="nav-number">1.</span> <span class="nav-text">一、count(*) 为何特殊</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#实现-count_all"><span class="nav-number">2.</span> <span class="nav-text">二、实现 count_all()</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#扩展-main-rs"><span class="nav-number">3.</span> <span class="nav-text">三、扩展 main.rs</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#测试"><span class="nav-number">4.</span> <span class="nav-text">四、测试</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#性能对比"><span class="nav-number">5.</span> <span class="nav-text">五、count(*) 与 SELECT * 的性能对比</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#当前代码结构"><span class="nav-number">6.</span> <span class="nav-text">六、当前代码结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">7.</span> <span class="nav-text">七、关键点总结</span></a></li>
 </ol></div>
       </div>
       <!--/noindex-->

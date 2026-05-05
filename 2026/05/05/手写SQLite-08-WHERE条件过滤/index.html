@@ -23,22 +23,22 @@
     var NexT = window.NexT || {};
     var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
-  <meta name="description" content="从零实现 SQLite 系列第 06 篇：解析 CREATE TABLE SQL 语句提取列定义，处理 INTEGER PRIMARY KEY 别名 rowid，实现完整的 SELECT * FROM table 带列名输出。">
+  <meta name="description" content="从零实现 SQLite 系列第 08 篇：扩展 SQL 解析支持 WHERE col = value 条件，实现全表扫描后过滤，完成 SELECT * FROM table WHERE col = value 的完整流程。">
 <meta property="og:type" content="article">
-<meta property="og:title" content="手写 SQLite 06：实现 SELECT * FROM table 带列名输出">
-<meta property="og:url" content="https://ruizhehou.github.io/2026/05/05/手写SQLite-06-SELECT星号全表扫描/index.html">
+<meta property="og:title" content="手写 SQLite 08：实现 WHERE 条件过滤">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/05/手写SQLite-08-WHERE条件过滤/index.html">
 <meta property="og:site_name" content="侯瑞哲的博客">
-<meta property="og:description" content="从零实现 SQLite 系列第 06 篇：解析 CREATE TABLE SQL 语句提取列定义，处理 INTEGER PRIMARY KEY 别名 rowid，实现完整的 SELECT * FROM table 带列名输出。">
+<meta property="og:description" content="从零实现 SQLite 系列第 08 篇：扩展 SQL 解析支持 WHERE col = value 条件，实现全表扫描后过滤，完成 SELECT * FROM table WHERE col = value 的完整流程。">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2026-05-05T12:00:00.000Z">
-<meta property="article:modified_time" content="2026-05-05T12:00:00.000Z">
+<meta property="article:published_time" content="2026-05-05T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-05T14:00:00.000Z">
 <meta property="article:author" content="侯瑞哲">
 <meta property="article:tag" content="Rust">
 <meta property="article:tag" content="SQLite">
 <meta property="article:tag" content="数据库">
 <meta property="article:tag" content="手写系列">
 <meta name="twitter:card" content="summary">
-<link rel="canonical" href="https://ruizhehou.github.io/2026/05/05/手写SQLite-06-SELECT星号全表扫描/">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/05/手写SQLite-08-WHERE条件过滤/">
 <script id="page-configurations">
   CONFIG.page = {
     sidebar: "",
@@ -47,7 +47,7 @@
     lang   : 'zh-CN'
   };
 </script>
-  <title>手写 SQLite 06：实现 SELECT * FROM table 带列名输出 | 侯瑞哲的博客</title>
+  <title>手写 SQLite 08：实现 WHERE 条件过滤 | 侯瑞哲的博客</title>
   <noscript>
   <style>
   .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
@@ -133,175 +133,128 @@
   <div class="post-header">
       <div class="post-meta-container">
   <div class="post-meta">
-    <time itemprop="dateCreated" datetime="2026-05-05T12:00:00+08:00" content="2026-05-05">
+    <time itemprop="dateCreated" datetime="2026-05-05T14:00:00+08:00" content="2026-05-05">
       05-05
     </time>
   </div>
   </div>
   <h1 class="post-title" itemprop="name headline">
-      手写 SQLite 06：实现 SELECT * FROM table 带列名输出
+      手写 SQLite 08：实现 WHERE 条件过滤
   </h1>
   </div>
 
   <div class="post-body" itemprop="articleBody">
 
-<p>上一篇我们实现了全表扫描，但输出是 <code>Alice|30</code> 这样无列名的格式。这一篇做两件事：</p>
-<ol>
-<li><strong>从 <code>sqlite_schema.sql</code> 解析列定义</strong>，拿到每列的名字</li>
-<li><strong>正确处理 <code>INTEGER PRIMARY KEY</code> 列</strong>——它是 rowid 的别名，不存在 Record 里，需要特殊填充</li>
-</ol>
-<p>完成后，<code>SELECT * FROM users</code> 能输出：</p>
-<pre><code class="language-text">id|name|age
-1|Alice|30
-2|Bob|25
-3|Charlie|35</code></pre>
+<p>本系列从第 01 篇开始逐步构建一个能读取真实 SQLite 文件的 Rust 程序：第 01–02 篇解析文件头和页头，第 03 篇遍历 B-Tree，第 04 篇解码 varint 和 Record，第 05 篇读取 <code>sqlite_schema</code>，第 06 篇实现带列名的 <code>SELECT *</code>，第 07 篇实现 <code>SELECT count(*)</code>。这一篇在第 06 篇的基础上加入 <strong>WHERE 条件过滤</strong>，让我们能执行：</p>
+<pre><code class="language-sql">SELECT * FROM users WHERE name = 'Alice'
+SELECT * FROM users WHERE age = 30</code></pre>
+<p>策略是最朴素的：<strong>全表扫描后过滤</strong>——先读出所有行，再逐行判断目标列的值是否与过滤值匹配，符合条件的行才输出。</p>
 
 
-<h2 id="列定义从哪来">一、列定义从哪来</h2>
+<h2 id="实现目标">一、实现目标</h2>
 
-<p><code>sqlite_schema</code> 的 <code>sql</code> 列存储了建表 SQL，例如：</p>
-<pre><code class="language-sql">CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)</code></pre>
-
-<p>从这段 SQL 中解析出列名列表，是本篇的核心工作。我们不需要实现完整的 SQL 解析器——只需要提取括号内的列定义，然后按逗号切分，取每段的第一个 token 作为列名。</p>
-
-
-<h2 id="解析列定义">二、解析列定义</h2>
-
-<pre><code class="language-rust">// src/schema.rs （新增函数）
-
-/// 列定义：列名 + 是否是 INTEGER PRIMARY KEY（rowid 别名）
-#[derive(Debug, Clone)]
-pub struct ColumnDef {
-    pub name:          String,
-    pub is_rowid_alias: bool,  // INTEGER PRIMARY KEY 列
-}
-
-/// 从 CREATE TABLE SQL 中提取列定义列表
-/// 输入示例：
-///   "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)"
-pub fn parse_column_defs(create_sql: &amp;str) -> Vec&lt;ColumnDef&gt; {
-    // 1. 找到第一个 '(' 和最后一个 ')'，取括号内的内容
-    let start = match create_sql.find('(') {
-        Some(i) =&gt; i + 1,
-        None    =&gt; return vec![],
-    };
-    let end = match create_sql.rfind(')') {
-        Some(i) =&gt; i,
-        None    =&gt; return vec![],
-    };
-    let cols_str = &amp;create_sql[start..end];
-
-    // 2. 按顶层逗号切分（需要处理括号嵌套，如 CHECK(..., ...) 中的逗号）
-    let col_segments = split_top_level_commas(cols_str);
-
-    // 3. 解析每个列段
-    let mut defs = Vec::new();
-    for seg in col_segments {
-        let seg = seg.trim();
-        if seg.is_empty() { continue; }
-
-        // 跳过表级约束（PRIMARY KEY(...), UNIQUE(...), FOREIGN KEY(...)等）
-        let upper = seg.to_uppercase();
-        if upper.starts_with("PRIMARY KEY")
-            || upper.starts_with("UNIQUE")
-            || upper.starts_with("CHECK")
-            || upper.starts_with("FOREIGN KEY")
-            || upper.starts_with("CONSTRAINT")
-        {
-            continue;
-        }
-
-        // 列名是第一个 token（可能被引号包裹）
-        let name = extract_identifier(seg);
-        if name.is_empty() { continue; }
-
-        // 判断是否是 INTEGER PRIMARY KEY（rowid 别名）
-        // 条件：类型包含 INTEGER，且有 PRIMARY KEY 约束
-        let is_rowid_alias = upper.contains("INTEGER")
-            &amp;&amp; upper.contains("PRIMARY")
-            &amp;&amp; upper.contains("KEY")
-            &amp;&amp; !upper.contains("FOREIGN");
-
-        defs.push(ColumnDef { name, is_rowid_alias });
-    }
-    defs
-}
-
-/// 按顶层逗号切分（括号内的逗号不切）
-fn split_top_level_commas(s: &amp;str) -&gt; Vec&lt;&amp;str&gt; {
-    let mut result = Vec::new();
-    let mut depth  = 0usize;
-    let mut start  = 0usize;
-
-    for (i, ch) in s.char_indices() {
-        match ch {
-            '(' =&gt; depth += 1,
-            ')' =&gt; depth = depth.saturating_sub(1),
-            ',' if depth == 0 =&gt; {
-                result.push(&amp;s[start..i]);
-                start = i + 1;
-            }
-            _ =&gt; {}
-        }
-    }
-    result.push(&amp;s[start..]);
-    result
-}
-
-/// 从列定义段提取标识符（处理引号和反引号）
-fn extract_identifier(s: &amp;str) -&gt; String {
-    let s = s.trim();
-    // 处理 `name`、"name"、[name] 三种引号形式
-    if let Some(stripped) = s.strip_prefix('`') {
-        return stripped.split('`').next().unwrap_or("").to_string();
-    }
-    if let Some(stripped) = s.strip_prefix('"') {
-        return stripped.split('"').next().unwrap_or("").to_string();
-    }
-    if let Some(stripped) = s.strip_prefix('[') {
-        return stripped.split(']').next().unwrap_or("").to_string();
-    }
-    // 无引号：取第一个空白前的内容
-    s.split_whitespace().next().unwrap_or("").to_string()
-}
-</code></pre>
-
-
-<h2 id="INTEGER-PRIMARY-KEY的特殊处理">三、INTEGER PRIMARY KEY 的特殊处理</h2>
-
-<p>这是 SQLite 最重要的特殊规则之一：</p>
+<p>本篇要支持的 SQL 形式是等值过滤，语法约定如下：</p>
 <ul>
-<li>如果某列声明为 <code>INTEGER PRIMARY KEY</code>，它成为 rowid 的别名</li>
-<li>该列的值<strong>不存储在 Record 里</strong>，Record 中对应位置的 Serial Type 为 0（NULL）</li>
-<li>读取时需要用 rowid 填充这一列</li>
+<li><code>SELECT * FROM &lt;table&gt; WHERE &lt;col&gt; = '&lt;string_value&gt;'</code> — 字符串值用单引号包裹</li>
+<li><code>SELECT * FROM &lt;table&gt; WHERE &lt;col&gt; = &lt;numeric_value&gt;</code> — 数值直接写，不加引号</li>
+</ul>
+<p>过滤逻辑：全表扫描每一个叶页 Cell，解码每行数据，找到目标列对应的值，将其转为字符串后与过滤值做字符串比较，相等则保留该行。</p>
+<p>整体流程如下图：</p>
+<pre><code class="language-text">SQL 字符串
+    ↓ parse_sql()
+    ↓ 发现含 WHERE 关键字
+    ↓ parse_where_clause()  →  WhereClause { column, value }
+    ↓
+select_where(pager, table, where_clause)
+    ↓ 读 sqlite_schema → 列定义 + root_page
+    ↓ 找 where_clause.column 对应的列下标 col_idx
+    ↓ collect_leaf_cells() → 所有叶页 Cell
+    ↓ 对每个 Cell：
+        parse_leaf_cell() → (rowid, values)
+        组装完整行（处理 rowid 别名）
+        values[col_idx] 转字符串 == where_clause.value ?
+        是 → 加入结果集
+    ↓
+QueryResult { columns, rows }</code></pre>
+
+
+<h2 id="SQL解析">二、SQL 解析</h2>
+
+<p>在 <code>main.rs</code>（或独立的 <code>parser.rs</code>）中扩展解析逻辑，识别 SQL 字符串里的 <code>WHERE</code> 子句，提取出 <strong>列名</strong> 和 <strong>过滤值</strong> 两个字符串。</p>
+
+<pre><code class="language-rust">// src/main.rs（解析部分）
+
+/// 从 WHERE 子句中提取 (列名, 值字符串) 元组
+/// 支持：
+///   WHERE name = 'Alice'   →  ("name", "Alice")
+///   WHERE age = 30         →  ("age", "30")
+fn parse_where_clause(where_str: &amp;str) -> Option&lt;(String, String)&gt; {
+    // where_str 是 "WHERE name = 'Alice'" 或 "WHERE age = 30"
+    // 先去掉前缀 "WHERE"（大小写不敏感）
+    let body = where_str.trim();
+    let body = if body.to_uppercase().starts_with("WHERE") {
+        body[5..].trim()
+    } else {
+        body
+    };
+
+    // 按 '=' 切分，左边是列名，右边是值
+    let eq_pos = body.find('=')?;
+    let col_name = body[..eq_pos].trim().to_string();
+    let val_raw  = body[eq_pos + 1..].trim();
+
+    // 处理字符串值：去掉单引号
+    let value = if val_raw.starts_with('\'') &amp;&amp; val_raw.ends_with('\'') &amp;&amp; val_raw.len() >= 2 {
+        val_raw[1..val_raw.len() - 1].to_string()
+    } else {
+        // 数值或无引号值：直接使用
+        val_raw.to_string()
+    };
+
+    Some((col_name, value))
+}
+
+/// 检测 SQL 是否含 WHERE 子句，返回 (table_name, WhereClause) 或 None
+fn parse_select_where(sql: &amp;str) -> Option&lt;(String, crate::sql::WhereClause)&gt; {
+    let upper = sql.to_uppercase();
+
+    // 必须以 SELECT * FROM 开头
+    let rest = upper.strip_prefix("SELECT")?
+        .trim_start()
+        .strip_prefix('*')?
+        .trim_start()
+        .strip_prefix("FROM")?
+        .trim_start();
+
+    // 找 WHERE 关键字
+    let where_upper_pos = rest.find("WHERE")?;
+    let table_upper = rest[..where_upper_pos].trim();
+
+    // 从原始 sql 还原表名（保持大小写）
+    let offset = sql.len() - rest.len();
+    let table_name = sql[offset..offset + table_upper.len()].trim().to_string();
+
+    // 提取 WHERE 子句（从原始 sql 中取，保持值的大小写）
+    let where_offset = offset + where_upper_pos;
+    let where_str = &amp;sql[where_offset..];
+    let (col, val) = parse_where_clause(where_str)?;
+
+    Some((table_name, crate::sql::WhereClause { column: col, value: val }))
+}</code></pre>
+
+<p>关键点：</p>
+<ul>
+<li>用 <code>to_uppercase()</code> 做关键字匹配，但从原始 <code>sql</code> 字符串中取表名和值，保留大小写</li>
+<li>字符串值通过检测前后单引号来识别，去掉引号后存入 <code>WhereClause.value</code></li>
+<li>数值（如 <code>30</code>）直接以字符串形式存储，过滤时再做字符串比较</li>
 </ul>
 
-<p>实际验证：</p>
-<pre><code class="language-bash">python3 -c "
-data = open('test.db','rb').read()
-# Page 1 Cell[0] 偏移
-cell_off = int.from_bytes(data[108:110], 'big')
-b = data[cell_off:]
-print('payload_size:', b[0])
-print('rowid:', b[1])
-header_size = b[2]
-print('header_size:', header_size)
-# serial types: b[3] ~ b[3+header_size-1]
-sts = list(b[3:3+header_size-1])
-print('serial_types:', sts)
-# 第一个 serial type 是 0 (NULL)，对应 id 列（rowid 别名）
-# 第二个是 23（TEXT 5字节），对应 name='Alice'
-# 第三个是 4（INT32），对应 age=30
-"
-</code></pre>
-<pre><code class="language-text">serial_types: [0, 23, 4]
-              ↑ id 列是 NULL（用 rowid 填充）
-</code></pre>
 
+<h2 id="过滤实现">三、过滤实现</h2>
 
-<h2 id="完整实现">四、完整实现</h2>
+<p>在 <code>src/sql.rs</code> 中新增 <code>WhereClause</code> 结构体和 <code>select_where()</code> 函数。</p>
 
-<pre><code class="language-rust">// src/sql.rs  — SQL 查询执行器
+<pre><code class="language-rust">// src/sql.rs
 
 use crate::btree::collect_leaf_cells;
 use crate::pager::Pager;
@@ -313,9 +266,19 @@ pub struct QueryResult {
     pub rows:    Vec&lt;Vec&lt;String&gt;&gt;,
 }
 
-/// 执行 SELECT * FROM &lt;table_name&gt;
-pub fn select_all(pager: &amp;mut Pager, table_name: &amp;str) -&gt; Result&lt;QueryResult, String&gt; {
-    // 1. 从 sqlite_schema 找到表定义
+/// WHERE 等值过滤条件
+pub struct WhereClause {
+    pub column: String,   // 列名，如 "name"
+    pub value:  String,   // 过滤值（字符串形式），如 "Alice" 或 "30"
+}
+
+/// 执行 SELECT * FROM &lt;table&gt; WHERE &lt;col&gt; = &lt;val&gt;
+pub fn select_where(
+    pager:  &amp;mut Pager,
+    table_name: &amp;str,
+    clause: &amp;WhereClause,
+) -> Result&lt;QueryResult, String&gt; {
+    // 1. 从 sqlite_schema 拿到表的 root_page 和列定义
     let entries = read_schema(pager);
     let entry = entries.iter()
         .find(|e| e.object_type == "table" &amp;&amp; e.name == table_name)
@@ -328,7 +291,12 @@ pub fn select_all(pager: &amp;mut Pager, table_name: &amp;str) -&gt; Result&lt;Q
 
     let col_names: Vec&lt;String&gt; = col_defs.iter().map(|c| c.name.clone()).collect();
 
-    // 2. 遍历 B-Tree，解析每一行
+    // 2. 找到 WHERE 列对应的下标（在 col_names 中的位置）
+    let filter_col_idx = col_names.iter()
+        .position(|n| n.eq_ignore_ascii_case(&amp;clause.column))
+        .ok_or_else(|| format!("column '{}' not found in table '{}'", clause.column, table_name))?;
+
+    // 3. 遍历所有叶页 Cell，解码每行，按条件过滤
     let cells = collect_leaf_cells(pager, root_page);
     let mut rows = Vec::new();
 
@@ -336,17 +304,14 @@ pub fn select_all(pager: &amp;mut Pager, table_name: &amp;str) -&gt; Result&lt;Q
         let page_data = pager.read_page(cell_addr.page_num).unwrap();
         let (rowid, values) = parse_leaf_cell(&amp;page_data, cell_addr.offset as usize);
 
-        // 3. 按列定义顺序组装行
-        //    values 对应 Record 里的列，可能比 col_defs 少一列（rowid 别名列）
+        // 4. 组装完整行（处理 INTEGER PRIMARY KEY rowid 别名）
         let mut row = Vec::new();
         let mut val_idx = 0usize;
 
         for col_def in &amp;col_defs {
             if col_def.is_rowid_alias {
-                // INTEGER PRIMARY KEY：用 rowid 填充，不消耗 values
                 row.push(rowid.to_string());
             } else {
-                // 普通列：从 values 取下一个值
                 let v = values.get(val_idx)
                     .map(value_to_string)
                     .unwrap_or_else(|| "NULL".to_string());
@@ -354,31 +319,46 @@ pub fn select_all(pager: &amp;mut Pager, table_name: &amp;str) -&gt; Result&lt;Q
                 val_idx += 1;
             }
         }
-        rows.push(row);
+
+        // 5. 取目标列的值，与过滤值做字符串比较
+        if let Some(cell_val) = row.get(filter_col_idx) {
+            if cell_val == &amp;clause.value {
+                rows.push(row);
+            }
+        }
     }
 
     Ok(QueryResult { columns: col_names, rows })
 }
 
-fn value_to_string(v: &amp;Value) -&gt; String {
+fn value_to_string(v: &amp;Value) -> String {
     match v {
-        Value::Null       =&gt; "NULL".to_string(),
-        Value::Integer(n) =&gt; n.to_string(),
-        Value::Float(f)   =&gt; {
-            // 去掉多余的小数零：500000.0 → "500000"
+        Value::Null       => "NULL".to_string(),
+        Value::Integer(n) => n.to_string(),
+        Value::Float(f)   => {
             if *f == f.trunc() &amp;&amp; f.abs() &lt; 1e15 {
                 format!("{}", *f as i64)
             } else {
                 format!("{}", f)
             }
         }
-        Value::Text(s)    =&gt; s.clone(),
-        Value::Blob(b)    =&gt; format!("&lt;blob {}&gt;", b.len()),
+        Value::Text(s)    => s.clone(),
+        Value::Blob(b)    => format!("&lt;blob {}&gt;", b.len()),
     }
-}
-</code></pre>
+}</code></pre>
 
-<h3 id="更新main">更新 main.rs</h3>
+<p>核心步骤说明：</p>
+<ol>
+<li><strong>获取列定义</strong>：从 <code>sqlite_schema.sql</code> 解析出 <code>col_defs</code>，包含列名和 rowid 别名标记</li>
+<li><strong>定位列下标</strong>：用 <code>eq_ignore_ascii_case</code> 大小写不敏感地在列名列表中查找 WHERE 列的位置，返回错误而非 panic</li>
+<li><strong>扫描并组装行</strong>：与 <code>select_all()</code> 相同的行组装逻辑，正确处理 <code>INTEGER PRIMARY KEY</code> 列</li>
+<li><strong>字符串比较过滤</strong>：将组装好的行中目标列的值（已通过 <code>value_to_string()</code> 转换）与 <code>clause.value</code> 做 <code>==</code> 比较</li>
+</ol>
+
+
+<h2 id="更新main-rs">四、更新 main.rs 调度</h2>
+
+<p>在 <code>main.rs</code> 的命令路由中，检测 SQL 字符串是否含 <code>WHERE</code> 子句，有则走 <code>select_where()</code>，无则走原来的 <code>select_all()</code>。</p>
 
 <pre><code class="language-rust">// src/main.rs
 
@@ -388,17 +368,16 @@ mod varint; mod record; mod schema; mod sql;
 use header::DbHeader;
 use pager::Pager;
 use schema::read_schema;
-use sql::select_all;
+use sql::{select_all, select_where};
 
 fn main() {
     let args: Vec&lt;String&gt; = std::env::args().collect();
     if args.len() &lt; 3 {
-        eprintln!("Usage: sqlite-rs &lt;db&gt; &lt;.tables | SELECT * FROM &lt;table&gt;&gt;");
+        eprintln!("Usage: sqlite-rs &lt;db&gt; &lt;.tables | SQL&gt;");
         std::process::exit(1);
     }
 
     let db_path = &amp;args[1];
-    // 把剩余参数拼成一条"SQL"
     let command = args[2..].join(" ");
 
     let db_header = DbHeader::read_from_file(db_path).unwrap();
@@ -414,123 +393,159 @@ fn main() {
         return;
     }
 
-    // 简单解析 SELECT * FROM &lt;table&gt;
+    // 检测 SELECT count(*)
+    if let Some(table_name) = parse_select_count(&amp;command) {
+        // ... count(*) 逻辑（第 07 篇）
+        let _ = table_name;
+        return;
+    }
+
+    // 检测 SELECT * FROM table WHERE col = val
+    if let Some((table_name, where_clause)) = parse_select_where(&amp;command) {
+        match select_where(&amp;mut pager, &amp;table_name, &amp;where_clause) {
+            Ok(result) => print_result(&amp;result),
+            Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
+        }
+        return;
+    }
+
+    // 检测 SELECT * FROM table（无 WHERE）
     if let Some(table_name) = parse_select_star(&amp;command) {
         match select_all(&amp;mut pager, table_name) {
-            Ok(result) =&gt; {
-                println!("{}", result.columns.join("|"));
-                for row in &amp;result.rows {
-                    println!("{}", row.join("|"));
-                }
-            }
-            Err(e) =&gt; {
-                eprintln!("Error: {}", e);
-                std::process::exit(1);
-            }
+            Ok(result) => print_result(&amp;result),
+            Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
         }
-    } else {
-        eprintln!("Unsupported command: {}", command);
-        eprintln!("Supported: .tables | SELECT * FROM &lt;table&gt;");
-        std::process::exit(1);
+        return;
+    }
+
+    eprintln!("Unsupported command: {}", command);
+    eprintln!("Supported: .tables | SELECT * FROM &lt;table&gt; [WHERE col = val] | SELECT count(*) FROM &lt;table&gt;");
+    std::process::exit(1);
+}
+
+fn print_result(result: &amp;sql::QueryResult) {
+    println!("{}", result.columns.join("|"));
+    for row in &amp;result.rows {
+        println!("{}", row.join("|"));
     }
 }
 
-/// 从 "SELECT * FROM users" 解析出表名 "users"
-fn parse_select_star(sql: &amp;str) -&gt; Option&lt;&amp;str&gt; {
+/// 从 "SELECT * FROM users" 解析表名（忽略 WHERE 及后续内容）
+fn parse_select_star(sql: &amp;str) -> Option&lt;&amp;str&gt; {
     let upper = sql.to_uppercase();
-    // 匹配 SELECT * FROM &lt;name&gt; 或 SELECT * FROM &lt;name&gt; (忽略后续条件)
     let rest = upper.strip_prefix("SELECT")?.trim_start()
         .strip_prefix('*')?.trim_start()
         .strip_prefix("FROM")?
         .trim_start();
-    // 从原始 sql 里找对应位置（保持大小写）
     let offset = sql.len() - rest.len();
-    // 表名到下一个空格或字符串结尾
+    // 表名到下一个空格（WHERE 前）
     let name = sql[offset..].split_whitespace().next()?;
     Some(name)
 }
-</code></pre>
+
+fn parse_select_count(sql: &amp;str) -> Option&lt;&amp;str&gt; {
+    let upper = sql.to_uppercase();
+    let rest = upper.strip_prefix("SELECT")?.trim_start()
+        .strip_prefix("COUNT(*)")?.trim_start()
+        .strip_prefix("FROM")?
+        .trim_start();
+    let offset = sql.len() - rest.len();
+    Some(sql[offset..].split_whitespace().next()?)
+}</code></pre>
+
+<p>调度顺序很重要：先检测含 <code>WHERE</code> 的 <code>SELECT *</code>，再检测不含 <code>WHERE</code> 的 <code>SELECT *</code>，避免误匹配。</p>
 
 
 <h2 id="测试">五、测试</h2>
 
-<pre><code class="language-bash">cargo run -- test.db "SELECT * FROM users"
+<h3 id="字符串过滤">字符串字段过滤</h3>
+<pre><code class="language-bash">cargo run -- test.db "SELECT * FROM users WHERE name = 'Alice'"
 </code></pre>
 <pre><code class="language-text">id|name|age
-1|Alice|30
-2|Bob|25
-3|Charlie|35</code></pre>
+1|Alice|30</code></pre>
 
-<p><code>id</code> 列现在正确填入了 rowid 值。</p>
+<p>全表有 3 行（Alice/Bob/Charlie），只返回 name = 'Alice' 的那一行，<code>id</code> 列正确填入 rowid 值 1。</p>
 
-<pre><code class="language-bash">cargo run -- multi.db "SELECT * FROM employees"
-</code></pre>
-<pre><code class="language-text">id|name|dept
-1|Alice|Engineering
-2|Bob|Marketing</code></pre>
-
-<pre><code class="language-bash">cargo run -- multi.db "SELECT * FROM departments"
-</code></pre>
-<pre><code class="language-text">id|name|budget
-1|Engineering|500000
-2|Marketing|200000</code></pre>
-
-<p>浮点数 500000.0 被正确格式化为 <code>500000</code>（去掉多余小数零）。</p>
-
-<pre><code class="language-bash">cargo run -- big.db "SELECT * FROM users" | head -5
+<h3 id="整数字段过滤">整数字段过滤</h3>
+<pre><code class="language-bash">cargo run -- test.db "SELECT * FROM users WHERE age = 30"
 </code></pre>
 <pre><code class="language-text">id|name|age
-1|User1|21
-2|User2|22
-3|User3|23
-4|User4|24</code></pre>
+1|Alice|30</code></pre>
 
-<p>500 行，全部输出正确，列名也对了。</p>
+<p>数值过滤通过字符串比较实现：存储值 <code>30</code>（Integer）经 <code>value_to_string()</code> 转为 <code>"30"</code>，与过滤值 <code>"30"</code> 相等，匹配成功。</p>
 
-
-<h2 id="边界情况">六、边界情况处理</h2>
-
-<h3 id="无PRIMARY-KEY的表">无 PRIMARY KEY 的表</h3>
-<p>如果表没有 <code>INTEGER PRIMARY KEY</code> 列，所有列都从 Record 直接读，没有 rowid 填充逻辑，正常工作。</p>
-
-<h3 id="列名带引号">列名带引号</h3>
-<pre><code class="language-sql">CREATE TABLE t ("my col" TEXT, `other` INTEGER)
+<h3 id="大文件多匹配">大文件，多行匹配</h3>
+<pre><code class="language-bash">cargo run -- big.db "SELECT * FROM users WHERE age = 42"
 </code></pre>
-<p><code>extract_identifier()</code> 处理了三种引号形式（<code>`</code>、<code>"</code>、<code>[</code>），能正确提取列名。</p>
+<pre><code class="language-text">id|name|age
+42|User42|42
+142|User142|42
+242|User242|42
+342|User342|42
+442|User442|42</code></pre>
 
-<h3 id="多列主键">多列主键 / 表级 PRIMARY KEY</h3>
-<pre><code class="language-sql">CREATE TABLE t (a INTEGER, b TEXT, PRIMARY KEY(a, b))
+<p>big.db 有 500 行，age 字段循环分布（age = (id % 100) + 20），age = 42 的有 5 行，全部正确命中。跨越多个叶页的扫描工作正常。</p>
+
+<h3 id="无匹配行">无匹配行</h3>
+<pre><code class="language-bash">cargo run -- test.db "SELECT * FROM users WHERE name = 'Dave'"
 </code></pre>
-<p>这种情况下没有 rowid 别名列（SQLite 文档明确：只有单列 <code>INTEGER PRIMARY KEY</code> 才是 rowid 别名），所有列都正常读 Record。<code>split_top_level_commas</code> 会把 <code>PRIMARY KEY(a, b)</code> 作为一个表级约束段，被 <code>starts_with("PRIMARY KEY")</code> 过滤掉，不产生列定义。</p>
+<pre><code class="language-text">id|name|age</code></pre>
+
+<p>没有匹配行时只输出列名，行为符合预期。</p>
+
+<h3 id="列名不存在">列名不存在</h3>
+<pre><code class="language-bash">cargo run -- test.db "SELECT * FROM users WHERE score = 100"
+</code></pre>
+<pre><code class="language-text">Error: column 'score' not found in table 'users'</code></pre>
+
+<p>明确报错，不会 panic 或静默返回空集。</p>
 
 
-<h2 id="当前代码结构">七、当前代码结构</h2>
+<h2 id="局限性">六、这种方式的局限</h2>
+
+<p>当前实现有三个明显局限，了解它们有助于理解后续篇章要解决的问题：</p>
+
+<h3 id="全表扫描">全表扫描，不使用索引</h3>
+<p>每次过滤都要遍历所有叶页的所有 Cell。对于 500 行的 big.db 这没问题，但如果表有 500 万行，即使结果只有 1 行，也要扫描 500 万条记录。SQLite 真正的查询优化器会在有索引的情况下走 B-Tree 索引查找，只需 O(log N) 次页访问。第 09 篇将探索索引 B-Tree 的结构。</p>
+
+<h3 id="字符串比较">纯字符串比较</h3>
+<p>过滤时把所有值都转成字符串再做 <code>==</code> 比较。这对整数和短字符串是正确的，但对浮点数可能有精度问题（如 <code>3.14000000000001</code> vs <code>3.14</code>），对 BLOB 类型无法工作，对需要大小写不敏感匹配的场景也不对。真实的 SQL 引擎会保留类型信息，按类型做比较。</p>
+
+<h3 id="仅支持等值">仅支持等值过滤</h3>
+<p>当前只支持 <code>col = val</code>。范围查询（<code>age > 25</code>、<code>age BETWEEN 20 AND 40</code>）、多条件组合（<code>AND</code>/<code>OR</code>）、<code>LIKE</code> 模糊匹配等都尚未实现。这些需要更完整的表达式求值框架。</p>
+
+
+<h2 id="代码结构">七、代码结构</h2>
 
 <pre><code class="language-text">sqlite-rs/
 └── src/
-    ├── main.rs     ← SELECT * / .tables 命令路由（本篇）
-    ├── header.rs   ← 文件头（第 01 篇）
+    ├── main.rs     ← 命令路由：.tables / SELECT * / SELECT * WHERE / count(*)（本篇新增 WHERE 分支）
+    ├── header.rs   ← 文件头解析（第 01 篇）
     ├── page.rs     ← 页头 + Cell 指针（第 02 篇）
     ├── pager.rs    ← 页读取器（第 02 篇）
-    ├── btree.rs    ← B-Tree 遍历（第 03 篇）
+    ├── btree.rs    ← B-Tree 叶页遍历（第 03 篇）
     ├── varint.rs   ← varint 解码（第 04 篇）
     ├── record.rs   ← Record 解析（第 04 篇）
-    ├── schema.rs   ← sqlite_schema 解析 + 列定义解析（第 05、06 篇）
-    └── sql.rs      ← SQL 执行器（本篇）
-</code></pre>
+    ├── schema.rs   ← sqlite_schema + 列定义解析（第 05、06 篇）
+    └── sql.rs      ← select_all / select_where / WhereClause（本篇新增）</code></pre>
+
+<p>本篇改动集中在两处：</p>
+<ul>
+<li><code>sql.rs</code>：新增 <code>WhereClause</code> 结构体和 <code>select_where()</code> 函数</li>
+<li><code>main.rs</code>：新增 <code>parse_select_where()</code> 和 <code>parse_where_clause()</code> 解析函数，在调度逻辑中插入 WHERE 分支</li>
+</ul>
+<p>原有的 <code>select_all()</code>、<code>parse_column_defs()</code>、B-Tree 遍历等代码<strong>没有任何改动</strong>，过滤逻辑完全是在已有基础上的增量。</p>
 
 
 <h2 id="关键点总结">八、关键点总结</h2>
 
 <ul>
-<li><code>sqlite_schema.sql</code> 字段存有 CREATE TABLE SQL，从中可解析列定义</li>
-<li>只需要提取括号内容、按顶层逗号切分、取每段第一个 token 作为列名</li>
-<li><code>INTEGER PRIMARY KEY</code> 是 rowid 别名：Record 里该列 Serial Type 为 0（NULL），需要用 rowid 值填充</li>
-<li>多列主键或表级 PRIMARY KEY 不是 rowid 别名，不需要特殊处理</li>
-<li>浮点数格式化需要去掉多余小数零（<code>500000.0</code> → <code>500000</code>）</li>
+<li>WHERE 过滤的核心是：先用已有的 <code>select_all</code> 逻辑组装完整行，再按列下标取值做字符串比较</li>
+<li>解析 WHERE 子句时要区分单引号字符串值和无引号数值，统一去掉引号后存为字符串</li>
+<li>列名查找用 <code>eq_ignore_ascii_case</code> 做大小写不敏感匹配，找不到时返回 <code>Err</code>，不 panic</li>
+<li>调度顺序：含 WHERE 的分支必须在不含 WHERE 的 <code>SELECT *</code> 分支之前检测，否则 <code>parse_select_star</code> 会先匹配成功并截断表名</li>
+<li>全表扫描过滤对小表完全够用；对大表需要索引——这正是<strong>下一篇（第 09 篇）</strong>的主题：解析索引 B-Tree 结构，实现基于索引的等值查找，将扫描代价从 O(N) 降到 O(log N)</li>
 </ul>
-
-<p><strong>下一篇</strong>：实现 <code>SELECT count(*) FROM table</code>——只统计行数，不解码每行数据，直接用 B-Tree 遍历收集到的 Cell 数量作为结果，速度极快。</p>
 
   </div>
 
@@ -568,13 +583,13 @@ fn parse_select_star(sql: &amp;str) -&gt; Option&lt;&amp;str&gt; {
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
         <div class="post-toc motion-element"><ol class="nav">
-<li class="nav-item nav-level-2"><a class="nav-link" href="#列定义从哪来"><span class="nav-number">1.</span> <span class="nav-text">一、列定义从哪来</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#解析列定义"><span class="nav-number">2.</span> <span class="nav-text">二、解析列定义</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#INTEGER-PRIMARY-KEY的特殊处理"><span class="nav-number">3.</span> <span class="nav-text">三、INTEGER PRIMARY KEY 的特殊处理</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#完整实现"><span class="nav-number">4.</span> <span class="nav-text">四、完整实现</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#实现目标"><span class="nav-number">1.</span> <span class="nav-text">一、实现目标</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#SQL解析"><span class="nav-number">2.</span> <span class="nav-text">二、SQL 解析</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#过滤实现"><span class="nav-number">3.</span> <span class="nav-text">三、过滤实现</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#更新main-rs"><span class="nav-number">4.</span> <span class="nav-text">四、更新 main.rs 调度</span></a></li>
 <li class="nav-item nav-level-2"><a class="nav-link" href="#测试"><span class="nav-number">5.</span> <span class="nav-text">五、测试</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#边界情况"><span class="nav-number">6.</span> <span class="nav-text">六、边界情况处理</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#当前代码结构"><span class="nav-number">7.</span> <span class="nav-text">七、当前代码结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#局限性"><span class="nav-number">6.</span> <span class="nav-text">六、这种方式的局限</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#代码结构"><span class="nav-number">7.</span> <span class="nav-text">七、代码结构</span></a></li>
 <li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">8.</span> <span class="nav-text">八、关键点总结</span></a></li>
 </ol></div>
       </div>

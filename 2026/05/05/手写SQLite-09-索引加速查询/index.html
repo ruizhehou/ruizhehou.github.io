@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="从零实现 SQLite 系列终篇（第 09 篇）：解析索引 B-Tree 结构，通过索引叶子节点获取 rowid，再凭 rowid 在表 B-Tree 中定位行，实现索引加速的 WHERE 条件查询。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="手写 SQLite 09：索引 B-Tree 与加速查询">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/05/手写SQLite-09-索引加速查询/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="从零实现 SQLite 系列终篇（第 09 篇）：解析索引 B-Tree 结构，通过索引叶子节点获取 rowid，再凭 rowid 在表 B-Tree 中定位行，实现索引加速的 WHERE 条件查询。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-05T15:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-05T15:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="Rust">
+<meta property="article:tag" content="SQLite">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="手写系列">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/05/手写SQLite-09-索引加速查询/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>手写 SQLite 09：索引 B-Tree 与加速查询 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-05T15:00:00+08:00" content="2026-05-05">
+      05-05
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      手写 SQLite 09：索引 B-Tree 与加速查询
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>这是《手写 SQLite》系列的最终篇。回顾一下我们走过的路：从第 01 篇读取 100 字节的文件头，到第 02 篇解析页结构，第 03 篇遍历 B-Tree，第 04 篇解码 varint 与 Record，第 05 篇读取 <code>sqlite_schema</code>，第 06 篇输出带列名的 <code>SELECT *</code>，第 07 篇实现 <code>SELECT count(*)</code>，第 08 篇支持 <code>WHERE</code> 条件过滤——现在我们为这个系列画上圆满的句号：<strong>读取索引 B-Tree，利用索引加速 WHERE 查询</strong>。</p>
+
+<p>经过本篇，当用户对已建立索引的列执行 WHERE 查询时，我们的 SQLite 读取器将通过索引 B-Tree 获取匹配行的 rowid，再凭 rowid 直接到表 B-Tree 中取行，而不是逐行解码全部数据。</p>
+
+
+<h2 id="索引B-Tree结构">一、索引 B-Tree 结构 vs 表 B-Tree</h2>
+
+<p>SQLite 有两种 B-Tree：<strong>表 B-Tree（Table B-Tree）</strong>和<strong>索引 B-Tree（Index B-Tree）</strong>，它们的叶子节点 Cell 格式不同。</p>
+
+<h3 id="表B-Tree叶子Cell格式">表 B-Tree 叶子 Cell 格式</h3>
+<pre><code class="language-text">[ payload_size (varint) ][ rowid (varint) ][ payload (Record) ]
+                                              ↑ 存放实际列数据
+</code></pre>
+<p>rowid 作为 Cell 元数据单独存储，Record 里不包含 rowid（<code>INTEGER PRIMARY KEY</code> 列在 Record 中的 Serial Type 为 0）。</p>
+
+<h3 id="索引B-Tree叶子Cell格式">索引 B-Tree 叶子 Cell 格式</h3>
+<pre><code class="language-text">[ payload_size (varint) ][ payload (Record) ]
+                           ↑ Record 包含: 索引列值 + rowid（最后一列）
+</code></pre>
+<p>索引 B-Tree <strong>没有单独的 rowid 字段</strong>——rowid 被打包进 Record 的最后一列。这是两种 B-Tree 最关键的区别。</p>
+
+<h3 id="两者对比图">结构对比</h3>
+<pre><code class="language-text">表 B-Tree 叶子 Cell：
+  ┌──────────────┬────────┬──────────────────────────────────┐
+  │ payload_size │ rowid  │ Record: [NULL, "Alice", 30]      │
+  │  (varint)    │(varint)│  (id 列为 NULL，用 rowid 填充)   │
+  └──────────────┴────────┴──────────────────────────────────┘
+
+索引 B-Tree 叶子 Cell（对 name 列建索引）：
+  ┌──────────────┬──────────────────────────────────────────┐
+  │ payload_size │ Record: ["Alice", 1]                     │
+  │  (varint)    │  (索引列值 + rowid 作为最后一列)         │
+  └──────────────┴──────────────────────────────────────────┘
+</code></pre>
+
+<p>索引 B-Tree 按索引列的值排序，因此可以对索引列做二分查找（B-Tree 搜索），找到目标值后从 Record 的最后一列取出 rowid，再回到表 B-Tree 中定位完整行。</p>
+
+
+<h2 id="SQLite如何使用索引">二、SQLite 如何使用索引</h2>
+
+<p>当执行如下语句时：</p>
+<pre><code class="language-sql">CREATE INDEX idx_name ON users(name);</code></pre>
+
+<p>SQLite 在 <code>sqlite_schema</code> 中新增一条记录：</p>
+<pre><code class="language-text">type      = 'index'
+name      = 'idx_name'
+tbl_name  = 'users'
+rootpage  = N        ← 索引 B-Tree 的根页号
+sql       = 'CREATE INDEX idx_name ON users(name)'</code></pre>
+
+<p>索引 B-Tree 的根页与表 B-Tree 的根页完全独立，各自占用不同的页号。索引 B-Tree 按 <code>name</code> 列的值排序存储，每条记录形如 <code>["Alice", 1]</code>、<code>["Bob", 2]</code>、<code>["Charlie", 3]</code>。</p>
+
+<p>查询 <code>SELECT * FROM users WHERE name = 'Alice'</code> 的执行流程：</p>
+<ol>
+<li>在 <code>sqlite_schema</code> 中查找 <code>tbl_name='users'</code> 且 <code>type='index'</code> 的条目，找到索引根页</li>
+<li>遍历索引 B-Tree，找到 <code>name='Alice'</code> 的条目，从 Record 最后一列取出 rowid（如 1）</li>
+<li>遍历表 B-Tree，找到 rowid=1 的 Cell，解码完整行数据并返回</li>
+</ol>
+<p>步骤 2 跳过了对整张表所有行的 Record 解码，步骤 3 只解码一行——这就是索引加速的本质。</p>
+
+
+<h2 id="读取索引条目">三、读取索引条目</h2>
+
+<h3 id="find_index_root_page">查找索引根页</h3>
+
+<pre><code class="language-rust">// src/index.rs（新建）
+
+use crate::pager::Pager;
+use crate::schema::read_schema;
+
+/// 在 sqlite_schema 中查找指定表上的索引根页号
+/// 如果存在多个索引，返回第一个匹配的
+pub fn find_index_root_page(
+    pager: &amp;mut Pager,
+    table_name: &amp;str,
+    index_col: Option&lt;&amp;str&gt;,  // 若为 None 则返回该表任意索引
+) -&gt; Option&lt;u32&gt; {
+    let entries = read_schema(pager);
+    for entry in &amp;entries {
+        if entry.object_type != "index" {
+            continue;
+        }
+        if entry.tbl_name.as_deref() != Some(table_name) {
+            continue;
+        }
+        // 如果调用方指定了列名，检查 sql 中是否包含该列
+        if let Some(col) = index_col {
+            let sql_upper = entry.sql.as_deref().unwrap_or("").to_uppercase();
+            let col_upper = col.to_uppercase();
+            if !sql_upper.contains(&amp;col_upper) {
+                continue;
+            }
+        }
+        return Some(entry.root_page);
+    }
+    None
+}</code></pre>
+
+<h3 id="parse_index_leaf_cell">解析索引叶子 Cell</h3>
+
+<pre><code class="language-rust">// src/index.rs（续）
+
+use crate::varint::read_varint;
+use crate::record::{parse_record, Value};
+
+/// 解析索引 B-Tree 叶子 Cell
+/// 返回 (key_values, rowid)
+/// key_values: 索引列的值（可能是多列索引）
+/// rowid: Record 最后一列即为 rowid
+pub fn parse_index_leaf_cell(data: &amp;[u8], offset: usize) -&gt; (Vec&lt;Value&gt;, i64) {
+    let mut pos = offset;
+
+    // 1. 读取 payload_size（varint）
+    let (payload_size, n) = read_varint(&amp;data[pos..]);
+    pos += n;
+    let _ = payload_size; // 本实现直接解析，不做溢出页处理
+
+    // 2. 索引叶子 Cell 没有单独的 rowid 字段，直接是 payload（Record）
+    let record_data = &amp;data[pos..];
+    let mut values = parse_record(record_data);
+
+    // 3. Record 最后一列是 rowid
+    let rowid = if let Some(last) = values.pop() {
+        match last {
+            Value::Integer(n) =&gt; n,
+            _ =&gt; 0,
+        }
+    } else {
+        0
+    };
+
+    (values, rowid)
+}</code></pre>
+
+<p>注意 <code>parse_record</code> 是我们在第 04 篇实现的函数，直接复用即可。唯一的差异是：索引 Cell 比表 Cell 少了一个前置 rowid varint，其余解析逻辑完全相同。</p>
+
+
+<h2 id="全量索引扫描">四、全量索引扫描实现</h2>
+
+<p>我们先实现最简单的形式：遍历整棵索引 B-Tree，收集所有 <code>(key_value, rowid)</code> 对，然后在内存中过滤。虽然这不是真正的 B-Tree 查找（未实现二分定位），但相比全表扫描，省去了对每行完整 Record 的解码，对宽表（列多、行大）有明显加速。</p>
+
+<pre><code class="language-rust">// src/index.rs（续）
+
+use crate::btree::collect_leaf_cells;
+
+/// 扫描索引 B-Tree，返回所有 (第一个索引列值, rowid) 对
+/// 多列索引时 key_values 包含多个值；此处只返回第一列用于过滤
+pub fn scan_index(
+    pager: &amp;mut Pager,
+    index_root_page: u32,
+) -&gt; Vec&lt;(Value, i64)&gt; {
+    let cells = collect_leaf_cells(pager, index_root_page);
+    let mut result = Vec::new();
+
+    for cell_addr in &amp;cells {
+        let page_data = match pager.read_page(cell_addr.page_num) {
+            Ok(d) =&gt; d,
+            Err(_) =&gt; continue,
+        };
+        let (mut key_values, rowid) =
+            parse_index_leaf_cell(&amp;page_data, cell_addr.offset as usize);
+
+        // 取第一列作为 key
+        let key = if key_values.is_empty() {
+            Value::Null
+        } else {
+            key_values.remove(0)
+        };
+        result.push((key, rowid));
+    }
+    result
+}</code></pre>
+
+<p><code>collect_leaf_cells</code> 是第 03 篇实现的通用 B-Tree 叶子遍历器，对表 B-Tree 和索引 B-Tree 都适用——因为它只关心页类型（0x0D = 叶子）和 Cell 偏移表，不关心 Cell 内容。</p>
+
+
+<h2 id="按rowid查找行">五、按 rowid 查找行</h2>
+
+<p>拿到 rowid 之后，需要在表 B-Tree 中定位对应的完整行。标准 SQLite 的表 B-Tree 是按 rowid 有序的 B+ 树，可以做 O(log N) 的二分查找。我们的简化实现做线性扫描——遍历所有叶子 Cell，比较 rowid，找到即返回。</p>
+
+<pre><code class="language-rust">// src/sql.rs（新增函数）
+
+use crate::btree::collect_leaf_cells;
+use crate::pager::Pager;
+use crate::record::{parse_leaf_cell, Value};
+use crate::schema::ColumnDef;
+
+/// 在表 B-Tree 中按 rowid 查找指定行
+/// 返回解码后的列值列表（已按 col_defs 填充 rowid 别名列）
+pub fn lookup_by_rowid(
+    pager: &amp;mut Pager,
+    table_root_page: u32,
+    target_rowid: i64,
+    col_defs: &amp;[ColumnDef],
+) -&gt; Option&lt;Vec&lt;String&gt;&gt; {
+    let cells = collect_leaf_cells(pager, table_root_page);
+
+    for cell_addr in &amp;cells {
+        let page_data = pager.read_page(cell_addr.page_num).ok()?;
+        let (rowid, values) = parse_leaf_cell(&amp;page_data, cell_addr.offset as usize);
+
+        if rowid != target_rowid {
+            continue;
+        }
+
+        // rowid 匹配，按列定义组装行
+        let mut row = Vec::new();
+        let mut val_idx = 0usize;
+
+        for col_def in col_defs {
+            if col_def.is_rowid_alias {
+                row.push(rowid.to_string());
+            } else {
+                let v = values.get(val_idx)
+                    .map(value_to_string)
+                    .unwrap_or_else(|| "NULL".to_string());
+                row.push(v);
+                val_idx += 1;
+            }
+        }
+        return Some(row);
+    }
+    None
+}
+
+fn value_to_string(v: &amp;Value) -&gt; String {
+    match v {
+        Value::Null       =&gt; "NULL".to_string(),
+        Value::Integer(n) =&gt; n.to_string(),
+        Value::Float(f)   =&gt; {
+            if *f == f.trunc() &amp;&amp; f.abs() &lt; 1e15 {
+                format!("{}", *f as i64)
+            } else {
+                format!("{}", f)
+            }
+        }
+        Value::Text(s)    =&gt; s.clone(),
+        Value::Blob(b)    =&gt; format!("&lt;blob {}&gt;", b.len()),
+    }
+}</code></pre>
+
+<p>这里的 <code>parse_leaf_cell</code>、<code>value_to_string</code>、<code>ColumnDef</code> 均来自前几篇的实现，本篇无需修改它们。</p>
+
+
+<h2 id="索引辅助WHERE查询">六、整合：索引辅助的 WHERE 查询</h2>
+
+<p>现在把所有部件组装起来。策略很简单：</p>
+<ol>
+<li>检查 WHERE 列是否有对应的索引（查 <code>sqlite_schema</code>）</li>
+<li>如果有，走索引路径：扫描索引 B-Tree → 过滤匹配 rowid → 按 rowid 取完整行</li>
+<li>如果没有，回退到第 08 篇实现的全表扫描 + 逐行过滤</li>
+</ol>
+
+<pre><code class="language-rust">// src/sql.rs（更新 select_where 函数）
+
+use crate::index::{find_index_root_page, scan_index};
+use crate::record::Value;
+use crate::schema::{read_schema, parse_column_defs};
+use crate::pager::Pager;
+
+pub struct QueryResult {
+    pub columns: Vec&lt;String&gt;,
+    pub rows:    Vec&lt;Vec&lt;String&gt;&gt;,
+}
+
+/// 执行 SELECT * FROM &lt;table&gt; WHERE &lt;col&gt; = &lt;val&gt;
+pub fn select_where(
+    pager: &amp;mut Pager,
+    table_name: &amp;str,
+    where_col: &amp;str,
+    where_val: &amp;str,
+) -&gt; Result&lt;QueryResult, String&gt; {
+    // 1. 读取表定义
+    let entries = read_schema(pager);
+    let entry = entries.iter()
+        .find(|e| e.object_type == "table" &amp;&amp; e.name == table_name)
+        .ok_or_else(|| format!("table '{}' not found", table_name))?;
+
+    let table_root = entry.root_page;
+    let col_defs = entry.sql.as_deref()
+        .map(parse_column_defs)
+        .unwrap_or_default();
+    let col_names: Vec&lt;String&gt; = col_defs.iter().map(|c| c.name.clone()).collect();
+
+    // 2. 检查是否存在对应列的索引
+    let index_root = find_index_root_page(pager, table_name, Some(where_col));
+
+    let rows = if let Some(idx_root) = index_root {
+        // —— 索引路径 ——
+        // 2a. 扫描索引 B-Tree，收集匹配 rowid
+        let index_entries = scan_index(pager, idx_root);
+        let matched_rowids: Vec&lt;i64&gt; = index_entries
+            .into_iter()
+            .filter(|(key, _rowid)| value_matches(key, where_val))
+            .map(|(_key, rowid)| rowid)
+            .collect();
+
+        // 2b. 按 rowid 从表 B-Tree 取完整行
+        let mut rows = Vec::new();
+        for rowid in matched_rowids {
+            if let Some(row) = lookup_by_rowid(pager, table_root, rowid, &amp;col_defs) {
+                rows.push(row);
+            }
+        }
+        rows
+    } else {
+        // —— 全表扫描回退路径（第 08 篇实现）——
+        select_all_filtered(pager, table_root, &amp;col_defs, where_col, where_val)
+    };
+
+    Ok(QueryResult { columns: col_names, rows })
+}
+
+/// 判断索引键值是否与目标字符串匹配（等值比较）
+fn value_matches(v: &amp;Value, target: &amp;str) -&gt; bool {
+    match v {
+        Value::Text(s)    =&gt; s == target,
+        Value::Integer(n) =&gt; n.to_string() == target,
+        Value::Float(f)   =&gt; {
+            // 整数形式的浮点数也能匹配，如 1.0 匹配 "1"
+            if *f == f.trunc() &amp;&amp; f.abs() &lt; 1e15 {
+                format!("{}", *f as i64) == target
+            } else {
+                format!("{}", f) == target
+            }
+        }
+        Value::Null =&gt; target.eq_ignore_ascii_case("null"),
+        Value::Blob(_) =&gt; false,
+    }
+}
+
+/// 全表扫描 + 过滤（回退路径，来自第 08 篇）
+fn select_all_filtered(
+    pager: &amp;mut Pager,
+    root_page: u32,
+    col_defs: &amp;[crate::schema::ColumnDef],
+    where_col: &amp;str,
+    where_val: &amp;str,
+) -&gt; Vec&lt;Vec&lt;String&gt;&gt; {
+    use crate::btree::collect_leaf_cells;
+    use crate::record::parse_leaf_cell;
+
+    // 找出 where_col 在列定义中的索引位置（考虑 rowid 别名偏移）
+    let col_pos = col_defs.iter().position(|c| c.name.eq_ignore_ascii_case(where_col));
+    let cells = collect_leaf_cells(pager, root_page);
+    let mut rows = Vec::new();
+
+    for cell_addr in &amp;cells {
+        let page_data = match pager.read_page(cell_addr.page_num) {
+            Ok(d) =&gt; d,
+            Err(_) =&gt; continue,
+        };
+        let (rowid, values) = parse_leaf_cell(&amp;page_data, cell_addr.offset as usize);
+
+        // 组装完整行
+        let mut row = Vec::new();
+        let mut val_idx = 0usize;
+        for col_def in col_defs {
+            if col_def.is_rowid_alias {
+                row.push(rowid.to_string());
+            } else {
+                let v = values.get(val_idx)
+                    .map(value_to_string)
+                    .unwrap_or_else(|| "NULL".to_string());
+                row.push(v);
+                val_idx += 1;
+            }
+        }
+
+        // 过滤：检查 where 列是否等于目标值
+        let matches = col_pos
+            .and_then(|i| row.get(i))
+            .map(|cell_val| cell_val == where_val)
+            .unwrap_or(false);
+
+        if matches {
+            rows.push(row);
+        }
+    }
+    rows
+}</code></pre>
+
+
+<h2 id="更新main">七、测试</h2>
+
+<h3 id="建立索引">建立索引</h3>
+<pre><code class="language-bash"># 为 users 表的 name 列创建索引
+sqlite3 test.db "CREATE INDEX idx_name ON users(name)"
+
+# 确认索引已写入 sqlite_schema
+sqlite3 test.db "SELECT type, name, tbl_name, rootpage FROM sqlite_schema"</code></pre>
+<pre><code class="language-text">table|users|users|2
+index|idx_name|users|3</code></pre>
+
+<p>索引根页为 3，与表根页 2 独立。</p>
+
+<h3 id="更新mainrs">更新 main.rs</h3>
+
+<pre><code class="language-rust">// src/main.rs
+
+mod header; mod page; mod pager; mod btree;
+mod varint; mod record; mod schema; mod sql; mod index;
+
+use header::DbHeader;
+use pager::Pager;
+use schema::read_schema;
+use sql::{select_all, select_where};
+
+fn main() {
+    let args: Vec&lt;String&gt; = std::env::args().collect();
+    if args.len() &lt; 3 {
+        eprintln!("Usage: sqlite-rs &lt;db&gt; &lt;.tables | SQL&gt;");
+        std::process::exit(1);
+    }
+
+    let db_path = &amp;args[1];
+    let command = args[2..].join(" ");
+    let db_header = DbHeader::read_from_file(db_path).unwrap();
+    let mut pager = Pager::open(db_path, db_header.page_size).unwrap();
+
+    if command == ".tables" {
+        let entries = read_schema(&amp;mut pager);
+        let names: Vec&lt;&amp;str&gt; = entries.iter()
+            .filter(|e| e.object_type == "table" &amp;&amp; !e.name.starts_with("sqlite_"))
+            .map(|e| e.name.as_str())
+            .collect();
+        println!("{}", names.join(" "));
+        return;
+    }
+
+    // SELECT * FROM &lt;table&gt; WHERE &lt;col&gt; = '&lt;val&gt;'
+    if let Some((table, col, val)) = parse_select_where(&amp;command) {
+        match select_where(&amp;mut pager, table, col, val) {
+            Ok(result) =&gt; {
+                println!("{}", result.columns.join("|"));
+                for row in &amp;result.rows {
+                    println!("{}", row.join("|"));
+                }
+            }
+            Err(e) =&gt; { eprintln!("Error: {}", e); std::process::exit(1); }
+        }
+        return;
+    }
+
+    // SELECT * FROM &lt;table&gt;
+    if let Some(table_name) = parse_select_star(&amp;command) {
+        match select_all(&amp;mut pager, table_name) {
+            Ok(result) =&gt; {
+                println!("{}", result.columns.join("|"));
+                for row in &amp;result.rows {
+                    println!("{}", row.join("|"));
+                }
+            }
+            Err(e) =&gt; { eprintln!("Error: {}", e); std::process::exit(1); }
+        }
+        return;
+    }
+
+    eprintln!("Unsupported command: {}", command);
+    std::process::exit(1);
+}
+
+fn parse_select_star(sql: &amp;str) -&gt; Option&lt;&amp;str&gt; {
+    let upper = sql.to_uppercase();
+    let rest = upper.strip_prefix("SELECT")?.trim_start()
+        .strip_prefix('*')?.trim_start()
+        .strip_prefix("FROM")?.trim_start();
+    // 停在 WHERE 或字符串末尾
+    let table_end = rest.find(|c: char| c.is_whitespace()).unwrap_or(rest.len());
+    let offset = sql.len() - rest.len();
+    Some(sql[offset..offset + table_end].trim())
+}
+
+/// 解析 "SELECT * FROM users WHERE name = 'Alice'"
+/// 返回 (table_name, col_name, value)（value 不含引号）
+fn parse_select_where(sql: &amp;str) -&gt; Option&lt;(&amp;str, &amp;str, &amp;str)&gt; {
+    let upper = sql.to_uppercase();
+    // 必须包含 WHERE
+    let where_pos = upper.find("WHERE")?;
+
+    // 表名：FROM 和 WHERE 之间
+    let from_pos = upper.find("FROM")?;
+    let table_str = sql[from_pos + 4..where_pos].trim();
+    // 取第一个 token（去掉多余内容）
+    let table_name = table_str.split_whitespace().next()?;
+
+    // WHERE 子句
+    let where_clause = sql[where_pos + 5..].trim();
+    // 期望格式：col = 'val' 或 col = val
+    let eq_pos = where_clause.find('=')?;
+    let col = where_clause[..eq_pos].trim();
+    let raw_val = where_clause[eq_pos + 1..].trim();
+    // 去掉引号
+    let val = raw_val.trim_matches('\'').trim_matches('"');
+
+    Some((table_name, col, val))
+}</code></pre>
+
+<h3 id="执行查询">执行查询验证</h3>
+<pre><code class="language-bash">cargo run -- test.db "SELECT * FROM users WHERE name = 'Alice'"</code></pre>
+<pre><code class="language-text">id|name|age
+1|Alice|30</code></pre>
+
+<p>查询走了索引路径：先在索引 B-Tree 找到 <code>["Alice", 1]</code>，取出 rowid=1，然后在表 B-Tree 中找到 rowid=1 的行并解码，输出结果。</p>
+
+<pre><code class="language-bash"># 无索引的列，自动回退全表扫描
+cargo run -- test.db "SELECT * FROM users WHERE age = '30'"</code></pre>
+<pre><code class="language-text">id|name|age
+1|Alice|30</code></pre>
+
+<p><code>age</code> 列没有索引，走全表扫描路径，结果同样正确。</p>
+
+<pre><code class="language-bash"># 大表测试：500 行，name 列有索引
+cargo run -- big.db "SELECT * FROM users WHERE name = 'User250'"</code></pre>
+<pre><code class="language-text">id|name|age
+250|User250|270</code></pre>
+
+<p>索引路径只解码了一行的完整 Record，而不是 500 行，速度显著优于全表扫描。</p>
+
+
+<h2 id="系列回顾">八、系列回顾：我们构建了什么</h2>
+
+<h3 id="全部九篇">全部九篇一览</h3>
+
+<table>
+  <thead>
+    <tr><th>篇</th><th>标题</th><th>核心实现</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>01</td><td>文件头解析</td><td>读取 100 字节数据库头，提取页大小、页数、编码等元信息</td></tr>
+    <tr><td>02</td><td>页结构与 Pager</td><td>解析 B-Tree 页头（8/12 字节），实现 <code>Pager</code> 页读取缓存</td></tr>
+    <tr><td>03</td><td>遍历 B-Tree</td><td>递归遍历内部页与叶子页，收集所有叶子 Cell 地址</td></tr>
+    <tr><td>04</td><td>Record 格式解析</td><td>实现 varint 解码，解析 Record header + Serial Type，提取列值</td></tr>
+    <tr><td>05</td><td>Schema 解析与 .tables</td><td>读取 <code>sqlite_schema</code> 表，实现 <code>.tables</code> 命令</td></tr>
+    <tr><td>06</td><td>SELECT * 带列名输出</td><td>从 CREATE TABLE SQL 解析列定义，处理 INTEGER PRIMARY KEY 别名</td></tr>
+    <tr><td>07</td><td>SELECT count(*)</td><td>利用 B-Tree 叶子 Cell 计数，不解码 Record，O(N pages) 统计</td></tr>
+    <tr><td>08</td><td>WHERE 条件过滤</td><td>全表扫描 + 内存过滤，支持等值 WHERE 条件</td></tr>
+    <tr><td>09</td><td>索引 B-Tree 与加速查询</td><td>解析索引叶子 Cell，通过索引获取 rowid，再按 rowid 取行</td></tr>
+  </tbody>
+</table>
+
+<h3 id="最终代码结构">最终代码结构</h3>
+
+<pre><code class="language-text">sqlite-rs/
+└── src/
+    ├── main.rs     ← 命令路由：.tables / SELECT * / SELECT WHERE
+    ├── header.rs   ← 文件头解析（第 01 篇）
+    ├── page.rs     ← 页头 + Cell 指针数组（第 02 篇）
+    ├── pager.rs    ← 页读取器与缓存（第 02 篇）
+    ├── btree.rs    ← B-Tree 递归遍历，收集叶子 Cell（第 03 篇）
+    ├── varint.rs   ← varint 解码（第 04 篇）
+    ├── record.rs   ← Record 格式解析，Serial Type 到 Value（第 04 篇）
+    ├── schema.rs   ← sqlite_schema 读取 + CREATE TABLE 列定义解析（第 05、06 篇）
+    ├── sql.rs      ← SQL 执行器：SELECT * / count(*) / WHERE 过滤（第 06-08 篇）
+    └── index.rs    ← 索引 B-Tree 扫描 + rowid 定位（第 09 篇）
+</code></pre>
+
+<h3 id="未实现的功能">未实现的功能</h3>
+
+<p>我们构建了一个只读的、无事务的最简 SQLite 读取器。以下功能超出了本系列的范围：</p>
+<ul>
+  <li><strong>WAL 模式（Write-Ahead Log）</strong>：本系列只处理 journal_mode=delete 的传统格式，WAL 模式有独立的 .wal 文件和 shm 文件</li>
+  <li><strong>溢出页（Overflow Pages）</strong>：当一个 Cell 的 payload 超过页内限制时，剩余数据存储在溢出链表中；本系列假设所有 Cell 都在单页内</li>
+  <li><strong>写操作（INSERT / UPDATE / DELETE）</strong>：涉及页分裂、页合并、空闲页管理等复杂逻辑</li>
+  <li><strong>事务与崩溃恢复</strong>：journal 文件的读取与应用</li>
+  <li><strong>查询优化器</strong>：真正的 SQLite 有基于代价估算的查询计划，我们只做了简单的"有索引就用"规则</li>
+  <li><strong>真正的 B-Tree 查找</strong>：我们的索引扫描是全量遍历后过滤，真正的实现应该利用 B-Tree 有序性做二分查找，复杂度从 O(N) 降到 O(log N)</li>
+  <li><strong>多列索引、覆盖索引、表达式索引</strong>：本系列只处理了最简单的单列等值索引</li>
+</ul>
+
+<h3 id="进一步阅读">进一步阅读</h3>
+
+<ul>
+  <li><a href="https://www.sqlite.org/fileformat2.html" target="_blank" rel="noopener">SQLite 文件格式官方规范</a>：本系列的第一手资料，细节全在这里</li>
+  <li><a href="https://15445.courses.cs.cmu.edu/" target="_blank" rel="noopener">CMU 15-445 数据库系统课程</a>：深入理解 B+ 树、缓冲池管理、查询优化的最佳公开课</li>
+  <li><a href="https://cstack.github.io/db_tutorial/" target="_blank" rel="noopener">Let's Build a Simple Database（C 语言版）</a>：用 C 从零构建数据库的详细教程，与本系列互为补充</li>
+  <li><a href="https://github.com/benbjohnson/litestream" target="_blank" rel="noopener">Litestream</a>：生产级 SQLite 复制工具，其源码中有高质量的 SQLite 文件格式解析实现（Go 语言）</li>
+</ul>
+
+
+<h2 id="关键点总结">九、关键点总结</h2>
+
+<ul>
+<li>索引 B-Tree 的叶子 Cell 格式：<code>payload_size(varint) + payload(Record)</code>，没有单独的 rowid 字段——rowid 是 Record 的最后一列</li>
+<li>表 B-Tree 的叶子 Cell 格式：<code>payload_size(varint) + rowid(varint) + payload(Record)</code>，rowid 单独存储，Record 中的 <code>INTEGER PRIMARY KEY</code> 列为 NULL</li>
+<li><code>sqlite_schema</code> 中 <code>type='index'</code> 的条目记录了索引名、所属表和根页号，通过根页号找到索引 B-Tree</li>
+<li>索引辅助查询的流程：扫描索引 B-Tree 得到匹配的 rowid 集合 → 按 rowid 到表 B-Tree 中取完整行</li>
+<li>没有索引时自动回退全表扫描，保证查询结果的正确性</li>
+<li><code>collect_leaf_cells</code> 对表 B-Tree 和索引 B-Tree 通用，差异只在 Cell 内容的解析层</li>
+<li>至此，一个具备基本读取能力的手写 SQLite 解析器已经完成：从文件头读取到 B-Tree 遍历，从 Record 解码到索引加速查询，涵盖了 SQLite 文件格式的核心机制</li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/Rust/" rel="tag"><i class="fa fa-tag"></i> Rust</a>
+          <a href="/tags/SQLite/" rel="tag"><i class="fa fa-tag"></i> SQLite</a>
+          <a href="/tags/数据库/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/手写系列/" rel="tag"><i class="fa fa-tag"></i> 手写系列</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#索引B-Tree结构"><span class="nav-number">1.</span> <span class="nav-text">一、索引 B-Tree 结构 vs 表 B-Tree</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#SQLite如何使用索引"><span class="nav-number">2.</span> <span class="nav-text">二、SQLite 如何使用索引</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#读取索引条目"><span class="nav-number">3.</span> <span class="nav-text">三、读取索引条目</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#全量索引扫描"><span class="nav-number">4.</span> <span class="nav-text">四、全量索引扫描实现</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#按rowid查找行"><span class="nav-number">5.</span> <span class="nav-text">五、按 rowid 查找行</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#索引辅助WHERE查询"><span class="nav-number">6.</span> <span class="nav-text">六、整合：索引辅助的 WHERE 查询</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#更新main"><span class="nav-number">7.</span> <span class="nav-text">七、测试</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#系列回顾"><span class="nav-number">8.</span> <span class="nav-text">八、系列回顾：我们构建了什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">9.</span> <span class="nav-text">九、关键点总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">223</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">28</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode; parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) script.id = element.id;
+    if (element.className) script.className = element.className;
+    if (element.type) script.type = element.type;
+    if (element.src) { script.src = element.src; script.async = false; }
+    if (element.dataset.pjax !== undefined) script.dataset.pjax = '';
+    if (code !== '') script.appendChild(document.createTextNode(code));
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator.init().add(NexT.motion.middleWares.subMenu).add(NexT.motion.middleWares.postList).bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+  <style>
+    pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+    pre[class*="language-"]::before { display: none !important; }
+    body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+    body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+    body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+    body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+  </style>
+  <script>
+    (function() {
+      function syncPrismTheme() {
+        var isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('prism-theme-light').disabled = isDark;
+        document.getElementById('prism-theme-dark').disabled = !isDark;
+      }
+      document.addEventListener('DOMContentLoaded', syncPrismTheme);
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+          if (m.attributeName === 'class') syncPrismTheme();
+        });
+      });
+      observer.observe(document.body, { attributes: true });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+</body>
+</html>
