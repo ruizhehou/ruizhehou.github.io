@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="从架构、性能、并发、运维、适用场景多维度对比 Apache Doris、ClickHouse、Hive，帮助在实时 OLAP、数据仓库、离线分析等场景中做出合理的技术选型决策。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OLAP 选型对比：Doris vs ClickHouse vs Hive">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/07/Doris-vs-ClickHouse-vs-Hive选型对比/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="从架构、性能、并发、运维、适用场景多维度对比 Apache Doris、ClickHouse、Hive，帮助在实时 OLAP、数据仓库、离线分析等场景中做出合理的技术选型决策。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-07T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-07T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="大数据">
+<meta property="article:tag" content="架构">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/07/Doris-vs-ClickHouse-vs-Hive选型对比/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>OLAP 选型对比：Doris vs ClickHouse vs Hive | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-07T10:00:00+08:00" content="2026-05-07">
+      05-07
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      OLAP 选型对比：Doris vs ClickHouse vs Hive
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>在大数据分析领域，Hive、ClickHouse、Apache Doris 是三个绕不开的名字，但它们解决的问题并不完全相同。选错了技术栈，轻则查询慢几十倍，重则整个数仓架构推倒重来。</p>
+
+<p>本文从架构原理出发，逐一剖析三者的设计哲学，再在性能、并发、运维、成本、适用场景等维度做横向对比，最后给出不同业务场景下的选型建议。</p>
+
+
+<h2 id="三者定位">一、三者的定位与诞生背景</h2>
+
+<h3 id="hive">Hive：离线数仓的奠基者</h3>
+
+<p>Hive 诞生于 2008 年的 Facebook，核心思路是：<strong>把 SQL 翻译成 MapReduce/Tez/Spark 任务，跑在 HDFS 上</strong>。它解决的是"如何用熟悉的 SQL 语法操作海量数据"的问题，而不是"如何快速查询"。</p>
+
+<pre><code class="language-text">用户 SQL
+   ↓
+Hive 编译器（生成执行计划）
+   ↓
+MapReduce / Tez / Spark 任务
+   ↓
+HDFS 数据读取 → 计算 → 结果输出
+</code></pre>
+
+<p>Hive 的设计是为<strong>批处理吞吐量</strong>优化的，单个查询可以处理 PB 级数据，但延迟通常在分钟到小时级别，根本原因是 MapReduce 的任务启动开销和磁盘 I/O 极重。</p>
+
+<h3 id="clickhouse">ClickHouse：单机极致性能的列存引擎</h3>
+
+<p>ClickHouse 诞生于 2016 年的 Yandex（俄罗斯版 Google），为<strong>Yandex.Metrica 网站分析</strong>场景量身打造。核心设计哲学是：<strong>在单台机器上把列存 + 向量化执行做到极致，让一台服务器的性能超过竞品的整个集群</strong>。</p>
+
+<pre><code class="language-text">查询 → MergeTree 列存引擎 → 向量化执行（SIMD）→ 结果
+         ↑
+    数据按列存储，每列独立压缩
+    稀疏索引（每 8192 行一个索引点）
+</code></pre>
+
+<p>ClickHouse 的优势是<strong>单查极快</strong>，在宽表聚合场景下性能常常是同类产品的 5-10 倍。但它的并发能力相对弱——大查询会占满 CPU，并发超过几十个查询时性能急剧下降。</p>
+
+<h3 id="doris">Apache Doris：为高并发实时分析而生</h3>
+
+<p>Apache Doris（原百度 Palo，2018 年开源）的设计目标是：<strong>在保持接近 ClickHouse 查询速度的同时，支持高并发、数据实时可见、兼容 MySQL 协议</strong>。</p>
+
+<pre><code class="language-text">                   ┌──────────────────────────────┐
+                   │         FE（Frontend）        │
+                   │  SQL 解析 / 查询规划 / 元数据  │
+                   └──────────┬───────────────────┘
+                              │ 查询下发
+            ┌─────────────────┼─────────────────┐
+            ↓                 ↓                 ↓
+     ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+     │  BE（Backend）│  │  BE（Backend）│  │  BE（Backend）│
+     │  列存 + 索引  │  │  列存 + 索引  │  │  列存 + 索引  │
+     │  向量化执行   │  │  向量化执行   │  │  向量化执行   │
+     └─────────────┘  └─────────────┘  └─────────────┘
+</code></pre>
+
+<p>Doris 采用 FE/BE 分离架构：FE 负责 SQL 解析和查询计划，BE 负责存储和计算。数据在 BE 之间按 Tablet 分片存储，多副本保证高可用。</p>
+
+<p>Doris 的关键差异化特性：</p>
+<ul>
+  <li><strong>Unique Key 模型</strong>：支持基于主键的 Upsert（更新插入），解决了 ClickHouse 数据修改困难的问题</li>
+  <li><strong>实时导入</strong>：Stream Load / Routine Load 支持秒级数据可见</li>
+  <li><strong>行列混存（1.2+）</strong>：Unique Key 模型支持行存，点查性能媲美 MySQL</li>
+  <li><strong>MySQL 协议兼容</strong>：现有 MySQL 客户端、BI 工具直接连接，零改造</li>
+</ul>
+
+
+<h2 id="架构对比">二、架构深度对比</h2>
+
+<h3 id="存储模型">存储模型</h3>
+
+<table>
+  <thead>
+    <tr><th>维度</th><th>Hive</th><th>ClickHouse</th><th>Doris</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>存储格式</td><td>ORC / Parquet（外部文件）</td><td>MergeTree（自研列存）</td><td>Segment（自研列存）</td></tr>
+    <tr><td>存储位置</td><td>HDFS / 对象存储</td><td>本地磁盘</td><td>本地磁盘（支持冷热分层到 S3）</td></tr>
+    <tr><td>数据更新</td><td>不支持（覆盖分区）</td><td>有限支持（ReplacingMergeTree，异步合并）</td><td>原生支持（Unique Key Upsert）</td></tr>
+    <tr><td>索引</td><td>分区裁剪</td><td>稀疏主键索引 + 跳数索引</td><td>前缀索引 + ZoneMap + Bloom Filter</td></tr>
+    <tr><td>压缩</td><td>Snappy / ZSTD</td><td>LZ4 / ZSTD（列级独立压缩）</td><td>LZ4 / ZSTD</td></tr>
+  </tbody>
+</table>
+
+<h3 id="查询执行">查询执行引擎</h3>
+
+<table>
+  <thead>
+    <tr><th>维度</th><th>Hive</th><th>ClickHouse</th><th>Doris</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>执行模型</td><td>MapReduce / Tez / Spark（磁盘）</td><td>向量化（内存，Pipeline）</td><td>向量化（内存，Pipeline，1.2+）</td></tr>
+    <tr><td>JOIN 策略</td><td>Sort-Merge / Broadcast（依赖执行引擎）</td><td>Hash Join（右表需全量内存）</td><td>Hash Join + Colocate Join（同分桶免 Shuffle）</td></tr>
+    <tr><td>物化视图</td><td>不原生支持</td><td>支持（Materialized View）</td><td>支持（同步/异步物化视图）</td></tr>
+    <tr><td>查询延迟</td><td>分钟级</td><td>毫秒～秒级</td><td>毫秒～秒级</td></tr>
+  </tbody>
+</table>
+
+<h3 id="数据导入">数据导入</h3>
+
+<table>
+  <thead>
+    <tr><th>方式</th><th>Hive</th><th>ClickHouse</th><th>Doris</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>批量导入</td><td>LOAD DATA / INSERT INTO SELECT</td><td>clickhouse-client / INSERT</td><td>Broker Load / INSERT INTO SELECT</td></tr>
+    <tr><td>实时流式</td><td>不支持（需外部工具写 HDFS）</td><td>Kafka Engine（实验性）</td><td>Routine Load（Kafka 消费，稳定）</td></tr>
+    <tr><td>HTTP 导入</td><td>不支持</td><td>HTTP Interface</td><td>Stream Load（推荐，原子性强）</td></tr>
+    <tr><td>实时可见延迟</td><td>小时级（分区粒度）</td><td>秒级（Insert 后即可见）</td><td>秒级（提交即可见）</td></tr>
+    <tr><td>Flink 连接器</td><td>Flink-Hive Catalog（成熟）</td><td>flink-connector-clickhouse（社区）</td><td>Flink Doris Connector（官方维护）</td></tr>
+  </tbody>
+</table>
+
+
+<h2 id="性能对比">三、性能横向对比</h2>
+
+<h3 id="benchmark数据">业界 Benchmark 数据（SSB / TPC-H）</h3>
+
+<p>以 SSB（Star Schema Benchmark）100GB 数据集为参考：</p>
+
+<pre><code class="language-text">查询延迟（毫秒，越低越好）：
+
+ClickHouse:   ████░░░░░░  ~200ms   ← 单查最快
+Doris:        ██████░░░░  ~350ms   ← 接近 ClickHouse
+Hive(Tez):    ██████████  ~30000ms ← 慢 100x+
+</code></pre>
+
+<p>ClickHouse 在单表宽表聚合场景下通常比 Doris 快 30-50%，主要原因是 ClickHouse 的向量化引擎发展更早、优化更深，以及稀疏索引粒度（8192 行）比 Doris 的索引更轻量。</p>
+
+<h3 id="并发能力">并发能力对比</h3>
+
+<pre><code class="language-text">并发 QPS（相同硬件，简单聚合查询）：
+
+Doris:        ██████████  ~1000 QPS  ← 高并发场景首选
+ClickHouse:   ████░░░░░░  ~100 QPS   ← 并发受限于 CPU 占用
+Hive:         █░░░░░░░░░  ~10 QPS    ← 任务调度开销大
+</code></pre>
+
+<p>Doris 并发能力远超 ClickHouse 的根本原因：</p>
+<ol>
+  <li><strong>资源隔离</strong>：Doris 支持 Workload Group，不同查询分组限制 CPU/内存</li>
+  <li><strong>缓存机制</strong>：Partition Cache / SQL Cache 大幅降低重复查询开销</li>
+  <li><strong>短路执行</strong>：Unique Key 模型的点查走行存，不需要列解压，极快</li>
+</ol>
+
+<h3 id="存储压缩比">存储压缩比</h3>
+
+<pre><code class="language-text">原始数据 100GB 压缩后（列存 + ZSTD）：
+
+ClickHouse:   ~15GB   （压缩比约 6.5x，列存 + 列级独立压缩）
+Doris:        ~18GB   （压缩比约 5.5x）
+Hive(ORC):    ~20GB   （压缩比约 5x）
+</code></pre>
+
+<p>ClickHouse 压缩比略优于 Doris，因为其列级独立压缩算法选择更激进（不同列可以选不同编码方式）。</p>
+
+
+<h2 id="运维对比">四、运维复杂度对比</h2>
+
+<h3 id="集群依赖">集群依赖</h3>
+
+<table>
+  <thead>
+    <tr><th>组件</th><th>Hive</th><th>ClickHouse</th><th>Doris</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>必须依赖</td><td>HDFS + YARN + Metastore</td><td>无（ZooKeeper 用于副本同步，可选）</td><td>无（自带元数据管理）</td></tr>
+    <tr><td>HA 方案</td><td>依赖 HDFS HA + YARN HA</td><td>ZooKeeper + 副本表</td><td>FE 多主 + BE 多副本（内置）</td></tr>
+    <tr><td>扩容方式</td><td>增加 DataNode，Hive 自动感知</td><td>手动 Reshard（数据迁移复杂）</td><td>在线扩容，自动均衡（Tablet 迁移）</td></tr>
+    <tr><td>运维复杂度</td><td>高（多组件联动）</td><td>中（单进程简单，但扩容麻烦）</td><td>中（FE/BE 二进制，但调优参数多）</td></tr>
+  </tbody>
+</table>
+
+<h3 id="SQL兼容性">SQL 兼容性</h3>
+
+<table>
+  <thead>
+    <tr><th>特性</th><th>Hive</th><th>ClickHouse</th><th>Doris</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>SQL 方言</td><td>HiveQL（与标准 SQL 有差异）</td><td>ClickHouse SQL（部分不兼容）</td><td>MySQL 语法（高度兼容）</td></tr>
+    <tr><td>JDBC 连接</td><td>HiveServer2 JDBC</td><td>clickhouse-jdbc</td><td>MySQL JDBC（直接复用）</td></tr>
+    <tr><td>BI 工具接入</td><td>需要适配 Hive 驱动</td><td>需要适配 ClickHouse 驱动</td><td>选 MySQL 驱动即可</td></tr>
+    <tr><td>子查询支持</td><td>有限（HQL 限制）</td><td>支持但性能差异大</td><td>完整支持（优化器较好）</td></tr>
+  </tbody>
+</table>
+
+<p>Doris 兼容 MySQL 协议这一点在工程实践中价值巨大——现有的 BI 工具（Superset、Grafana、Tableau）、数据库管理工具（DBeaver、Navicat）、ORM 框架全部可以零改造接入。</p>
+
+
+<h2 id="场景对比">五、适用场景深度对比</h2>
+
+<h3 id="实时报表">场景一：实时 BI 报表（高并发点查）</h3>
+
+<pre><code class="language-text">需求：百人团队同时查看各自负责的业务看板，QPS 峰值 500+，
+      数据需要 T+0（当天数据当天可查），部分指标需 5 分钟内可见。
+
+推荐：Doris ✓✓✓   ClickHouse ✓✓   Hive ✗
+
+原因：
+- Doris Routine Load 消费 Kafka，5 分钟内数据可见
+- Doris 高并发 QPS 可达 1000+，轻松支撑多人同时查询
+- Doris MySQL 兼容，BI 工具接入无缝
+- ClickHouse 并发受限，500 QPS 下 CPU 打满，查询超时率高
+- Hive 延迟小时级，T+0 无法实现
+</code></pre>
+
+<h3 id="离线大ETL">场景二：离线大规模 ETL（PB 级数据处理）</h3>
+
+<pre><code class="language-text">需求：每天凌晨处理 10TB 原始日志，经过多层 JOIN 和聚合，
+      生成 DWD/DWS 层数据，写入下游。
+
+推荐：Hive(Spark) ✓✓✓   Doris ✓   ClickHouse ✗
+
+原因：
+- Hive+Spark 生态成熟，支持 PB 级数据处理
+- Spark 的内存管理和 Shuffle 优化专为大 ETL 设计
+- Doris 不擅长超大规模 ETL，JOIN 时内存压力大
+- ClickHouse 的分布式 JOIN 实现较弱，PB 级场景容易 OOM
+</code></pre>
+
+<h3 id="用户画像">场景三：用户画像（标签圈人）</h3>
+
+<pre><code class="language-text">需求：2 亿用户，每人 500+ 标签，运营人员按标签组合圈人，
+      要求 10 秒内返回圈人结果，每天数据更新一次。
+
+推荐：Doris ✓✓✓   ClickHouse ✓✓   Hive ✗
+
+原因：
+- Doris Aggregate 模型天然支持标签的位图（Bitmap）聚合
+- Doris 的 BITMAP_UNION、INTERSECT_COUNT 等函数专为圈人优化
+- Doris 支持数据每日 Upsert 更新标签，ClickHouse 更新困难
+- ClickHouse 也有 Bitmap 函数，但数据更新只能通过 Replace 表，维护成本高
+</code></pre>
+
+<h3 id="日志分析">场景四：日志分析（时序数据，写多读少）</h3>
+
+<pre><code class="language-text">需求：每秒百万条日志写入，按时间范围 + 关键字查询，
+      数据保留 30 天，查询 SLA 5 秒以内。
+
+推荐：ClickHouse ✓✓✓   Doris ✓✓   Hive ✗
+
+原因：
+- ClickHouse MergeTree 的时序写入性能极高（顺序写）
+- ClickHouse 列存对时序数据压缩率极高（同一列值相近，LZ4 压缩效果好）
+- ClickHouse 的 Token Bloom Filter 支持字符串关键字过滤
+- Doris 在日志写入吞吐量上略逊于 ClickHouse（Tablet 元数据管理有开销）
+</code></pre>
+
+<h3 id="数据仓库">场景五：企业级数据仓库（ODS→DWD→DWS→ADS）</h3>
+
+<pre><code class="language-text">需求：搭建完整数仓，ODS 层接原始数据，DWD 清洗，
+      DWS 聚合，ADS 层服务查询，兼顾批处理和实时。
+
+推荐：Hive(ODS/DWD) + Doris(DWS/ADS) 混合架构
+
+原因：
+- ODS/DWD 层数据量大、以 ETL 为主 → Hive + Spark
+- DWS/ADS 层数据量小、查询频繁 → Doris（实时导入 + 高并发查询）
+- Doris 的 Hive Catalog 特性可以直接查询 Hive 表，两侧打通
+- 这是目前国内大厂最常见的数仓架构组合
+</code></pre>
+
+
+<h2 id="选型决策树">六、选型决策树</h2>
+
+<pre><code class="language-text">数据规模是否 PB 级，以离线 ETL 为主？
+├── 是 → Hive + Spark
+└── 否 → 需要数据实时可见（秒级）？
+          ├── 是 → 并发 QPS 是否 > 100？
+          │         ├── 是 → Doris
+          │         └── 否 → ClickHouse 或 Doris 均可
+          └── 否 → 查询是否以单表宽表聚合为主（无复杂 JOIN）？
+                    ├── 是 → ClickHouse（性能最极致）
+                    └── 否 → Doris（SQL 兼容性更好，JOIN 优化更强）
+</code></pre>
+
+<h3 id="一句话总结">一句话总结</h3>
+
+<table>
+  <thead>
+    <tr><th>系统</th><th>一句话定位</th><th>杀手级场景</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Hive</strong></td><td>海量数据的批处理流水线</td><td>PB 级离线 ETL、数仓 ODS/DWD 层</td></tr>
+    <tr><td><strong>ClickHouse</strong></td><td>单台机器的极致查询性能</td><td>日志分析、单表宽表聚合、低并发高吞吐分析</td></tr>
+    <tr><td><strong>Doris</strong></td><td>高并发实时分析的全能选手</td><td>实时报表、用户画像、数仓 DWS/ADS 层</td></tr>
+  </tbody>
+</table>
+
+
+<h2 id="关键点总结">七、关键点总结</h2>
+
+<ul>
+<li><strong>Hive</strong> 本质是 SQL-on-Hadoop，延迟高（分钟级）但吞吐量大，适合离线批处理；数据存在 HDFS，不锁定计算引擎，可随时切换 Tez/Spark</li>
+<li><strong>ClickHouse</strong> 的核心优势是<strong>单查极快</strong>，列存 + SIMD 向量化是其底气；但并发能力弱（大查询占满 CPU），数据更新麻烦（ReplacingMergeTree 异步合并，读时去重）</li>
+<li><strong>Doris</strong> 的核心优势是<strong>高并发 + 实时可见 + MySQL 兼容</strong>；Unique Key 模型原生支持 Upsert；FE/BE 架构无外部依赖，运维比 Hive 简单得多</li>
+<li>三者并非互斥，实际生产中最常见的是 <strong>Hive（离线层）+ Doris（实时服务层）</strong> 的组合，通过 Doris 的 Hive Catalog 打通查询</li>
+<li>如果业务以<strong>日志/时序数据写入</strong>为主，查询并发不高，ClickHouse 是更合适的选择，其写入吞吐和压缩比都优于 Doris</li>
+<li>如果团队 MySQL 背景强、BI 工具已有大量 MySQL 连接，Doris 的零改造接入优势明显</li>
+<li>Doris 2.0+ 引入了存算分离架构（对接 S3），正在补齐对象存储场景的短板，与 ClickHouse 的差距在持续缩小</li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/数据库/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#三者定位"><span class="nav-number">1.</span> <span class="nav-text">一、三者的定位与诞生背景</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#架构对比"><span class="nav-number">2.</span> <span class="nav-text">二、架构深度对比</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#性能对比"><span class="nav-number">3.</span> <span class="nav-text">三、性能横向对比</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#运维对比"><span class="nav-number">4.</span> <span class="nav-text">四、运维复杂度对比</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#场景对比"><span class="nav-number">5.</span> <span class="nav-text">五、适用场景深度对比</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#选型决策树"><span class="nav-number">6.</span> <span class="nav-text">六、选型决策树</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">7.</span> <span class="nav-text">七、关键点总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">225</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">33</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+<style>
+  pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+  pre[class*="language-"]::before { display: none !important; }
+  body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+  body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+  body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+  body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+<script>
+(function() {
+  var lightTheme = document.getElementById('prism-theme-light');
+  var darkTheme = document.getElementById('prism-theme-dark');
+  function applyTheme() {
+    var isDark = document.body.classList.contains('dark-mode');
+    lightTheme.disabled = isDark;
+    darkTheme.disabled = !isDark;
+  }
+  applyTheme();
+  var observer = new MutationObserver(applyTheme);
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
+</script>
+</body>
+</html>
