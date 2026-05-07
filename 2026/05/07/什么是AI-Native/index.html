@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="从零理解 AI Native：它不是「给产品加个 AI 功能」，而是一种全新的软件构建方式。本文用具体例子解释 AI Native 的本质、与传统软件的区别、典型特征，以及它对工程师意味着什么。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="什么是 AI Native？从零理解这个正在改变软件行业的概念">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/07/什么是AI-Native/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="从零理解 AI Native：它不是「给产品加个 AI 功能」，而是一种全新的软件构建方式。本文用具体例子解释 AI Native 的本质、与传统软件的区别、典型特征，以及它对工程师意味着什么。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-07T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-07T14:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="AI">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="云原生">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/07/什么是AI-Native/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>什么是 AI Native？从零理解这个正在改变软件行业的概念 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-07T14:00:00+08:00" content="2026-05-07">
+      05-07
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      什么是 AI Native？从零理解这个正在改变软件行业的概念
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>你可能已经听过很多次"AI Native"这个词了——某个产品说自己是 AI Native 的，某家公司的招聘 JD 里写着"我们在构建 AI Native 应用"，某个 CEO 在演讲里说"AI Native 会颠覆所有行业"。</p>
+
+<p>但它到底是什么意思？</p>
+
+<p>本文试图用最直白的语言解释清楚这个概念，不堆砌术语，只讲清楚一件事：<strong>AI Native 和你以前见过的软件有什么本质不同</strong>。</p>
+
+
+<h2 id="从一个类比开始">一、从一个类比开始：云原生（Cloud Native）</h2>
+
+<p>理解 AI Native，先看一个更老的词：<strong>Cloud Native（云原生）</strong>。</p>
+
+<p>2010 年代初，云计算兴起。很多传统软件公司的做法是：把原来跑在自己机房的软件，原封不动地搬到 AWS 或阿里云的虚拟机上。结果呢？用了云，但没有真正享受到云的弹性、高可用、按需付费这些好处——因为软件本身的设计没有变，只是换了个"跑的地方"。</p>
+
+<p>云原生的意思不是"在云上运行的软件"，而是<strong>"为云而生、从一开始就按照云的特性来设计的软件"</strong>。云原生应用天然就是微服务、容器化、无状态的，能弹性扩缩容，能自动故障恢复。</p>
+
+<p>同样的逻辑适用于 AI Native。</p>
+
+<p>现在很多公司的做法是：在原有的传统软件上，加一个"AI 助手"按钮，或者把某个流程里接入一个 GPT 的 API 调用。这是给传统软件"贴 AI 标签"，不是 AI Native。</p>
+
+<p><strong>AI Native 的意思是：软件从一开始就假设 AI 是其核心能力，整个产品的设计逻辑、用户交互方式、数据流向，都围绕着"AI 可以做什么"来构建。</strong></p>
+
+
+<h2 id="一个具体的例子">二、一个具体的例子：搜索引擎的演变</h2>
+
+<p>用搜索引擎来感受一下这个区别。</p>
+
+<h3 id="传统搜索">传统搜索引擎（非 AI Native）</h3>
+
+<p>你想知道"北京今天适合穿什么衣服"，你打开百度，输入这句话，得到一堆链接。你点开第一个，是天气网站，看到"今天 12°C 多云"，自己判断：嗯，穿外套。</p>
+
+<p>在这个过程里，AI（或者说搜索算法）做的事情只是：把你的问题匹配到最相关的网页。<strong>决策由人完成，AI 只是信息检索的工具</strong>。</p>
+
+<h3 id="AI-Native搜索">AI Native 搜索</h3>
+
+<p>你打开 Perplexity 或者问 ChatGPT，输入同样的问题，得到的是：</p>
+
+<blockquote>
+<p>"北京今天 12°C，多云，有轻风。建议穿一件薄外套或毛衣，如果下午要出门可以带一件稍厚的外套备用。"</p>
+</blockquote>
+
+<p>AI 不只是检索信息，它<strong>理解了你真正想要的答案</strong>（穿衣建议），综合了天气数据，直接给出了结论。</p>
+
+<p>这里有一个根本性的变化：<strong>软件的核心不再是"找到信息"，而是"理解意图、生成答案"</strong>。这不是在原有搜索引擎上加了一个 AI 功能，而是整个产品的工作方式变了。</p>
+
+
+<h2 id="AI-Native的本质">三、AI Native 的本质：从"确定性系统"到"概率性系统"</h2>
+
+<p>这是理解 AI Native 最重要的一个角度。</p>
+
+<h3 id="传统软件是确定性系统">传统软件是确定性系统</h3>
+
+<p>传统软件的逻辑是：给定输入 A，一定输出 B。</p>
+
+<pre><code class="language-text">用户点击"购买"按钮
+  → 扣款
+  → 库存 -1
+  → 发送确认邮件
+  → 订单状态变为"已支付"
+
+每次执行结果完全相同，可预测，可测试，可调试。
+</code></pre>
+
+<p>工程师的工作是：把业务规则翻译成代码，代码精确执行规则。所有的"智能"都来自工程师事先写好的 if-else 逻辑。</p>
+
+<h3 id="AI-Native系统是概率性系统">AI Native 系统是概率性系统</h3>
+
+<p>AI Native 软件的核心组件是大语言模型（LLM）或其他 AI 模型。这类模型的特点是：</p>
+
+<ul>
+  <li>同样的输入，每次输出可能略有不同（temperature &gt; 0 时）</li>
+  <li>模型可以处理它从未被显式编程过的情况</li>
+  <li>模型的"推理过程"无法像代码一样被完整审计</li>
+  <li>输出结果可能正确、可能幻觉、可能拒绝回答</li>
+</ul>
+
+<pre><code class="language-text">用户输入"帮我起草一封拒绝这个候选人的邮件"
+  → LLM 理解上下文
+  → 生成一封邮件草稿
+  → 结果每次可能不同，但都合理
+  → 没有一行代码显式规定"邮件怎么写"
+</code></pre>
+
+<p>这意味着构建 AI Native 软件，工程师的工作模式变了：不是"写所有规则"，而是"设计提示词（Prompt）、构建上下文、编排模型调用流程、处理不确定性输出"。</p>
+
+
+<h2 id="AI-Native的五个特征">四、AI Native 软件的五个典型特征</h2>
+
+<h3 id="特征1-自然语言是主要交互界面">特征 1：自然语言是主要交互界面</h3>
+
+<p>传统软件靠按钮、表单、下拉菜单。用户必须学会软件的操作方式。</p>
+
+<p>AI Native 软件的核心交互是<strong>对话或自然语言指令</strong>。用户不需要学操作，只需要说清楚自己想要什么。</p>
+
+<p>这不是说 AI Native 软件就没有 UI——而是说，即使有 UI，背后的执行逻辑也是由 AI 驱动的，而不是硬编码的操作流程。</p>
+
+<p>举例：</p>
+<ul>
+  <li>传统数据分析工具：你要学会 SQL、学会图表配置</li>
+  <li>AI Native 数据工具（如 Julius、Chat2DB）：你说"画一张过去 3 个月销售额的折线图"，直接出结果</li>
+</ul>
+
+<h3 id="特征2-AI是核心逻辑而非辅助功能">特征 2：AI 是核心逻辑，而非辅助功能</h3>
+
+<p>判断一个产品是不是 AI Native，有一个简单的测试：<strong>如果把 AI 组件去掉，这个产品还能用吗？</strong></p>
+
+<ul>
+  <li>Word 加了 Copilot → 去掉 Copilot，Word 还是 Word。AI 是辅助功能，不是 AI Native。</li>
+  <li>Cursor（AI 代码编辑器）→ 去掉 AI 能力，Cursor 就是一个普通的 VS Code 克隆，失去了存在的核心理由。AI 是核心逻辑，是 AI Native。</li>
+  <li>GitHub Copilot → 去掉 AI，就只剩代码补全的外壳。AI 是核心，是 AI Native。</li>
+</ul>
+
+<h3 id="特征3-系统可以处理开放性任务">特征 3：系统可以处理开放性任务</h3>
+
+<p>传统软件只能处理被提前定义好的任务。收银台系统不会帮你分析库存趋势，库存系统不会自动给你写采购邮件——每个功能都需要被单独开发。</p>
+
+<p>AI Native 系统天然具备一定的<strong>泛化能力</strong>。同一个 AI 助手，可以：</p>
+<ul>
+  <li>回答关于产品的问题</li>
+  <li>帮你起草文案</li>
+  <li>分析你上传的数据</li>
+  <li>执行你没有预先定义过的任务</li>
+</ul>
+
+<p>这种泛化能力来自底层 LLM 的通用理解和生成能力，不需要为每种任务单独写代码。</p>
+
+<h3 id="特征4-上下文是系统的核心资产">特征 4：上下文（Context）是系统的核心资产</h3>
+
+<p>传统软件的核心资产是<strong>数据</strong>（存在数据库里）和<strong>代码</strong>（业务逻辑）。</p>
+
+<p>AI Native 系统多了一个核心资产：<strong>上下文</strong>。上下文包括：</p>
+<ul>
+  <li>用户历史对话记录</li>
+  <li>用户的偏好和习惯</li>
+  <li>当前任务的背景信息</li>
+  <li>企业的知识库、文档、数据</li>
+</ul>
+
+<p>给 AI 的上下文越好，AI 的输出质量越高。这催生了一整套工程方法：RAG（检索增强生成）、Memory 管理、Prompt 工程、Agent 的工具调用设计……</p>
+
+<p>好的 AI Native 产品，本质上是在解决一个问题：<strong>如何把正确的上下文，在正确的时机，以正确的方式喂给 AI</strong>。</p>
+
+<h3 id="特征5-产品会随使用而变得更好">特征 5：产品会随使用而变得更好（自我进化）</h3>
+
+<p>传统软件不会因为有人用它而自动变好——除非工程师主动迭代。</p>
+
+<p>AI Native 产品可以：</p>
+<ul>
+  <li>通过用户反馈（点赞/踩）微调模型</li>
+  <li>积累用户偏好，提供更个性化的回答</li>
+  <li>从错误中学习，减少同类型的幻觉</li>
+</ul>
+
+<p>这不是魔法，而是数据飞轮：<strong>用户越多 → 数据越多 → 模型越好 → 产品越好 → 用户越多</strong>。这个飞轮是 AI Native 产品的核心竞争壁垒。</p>
+
+
+<h2 id="AI-Native-vs-AI-Enhanced">五、AI Native vs AI Enhanced：一张表说清楚</h2>
+
+<table>
+  <thead>
+    <tr><th>维度</th><th>AI Enhanced（传统软件加 AI）</th><th>AI Native</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>AI 的角色</td><td>锦上添花的辅助功能</td><td>产品的核心驱动力</td></tr>
+    <tr><td>去掉 AI 后</td><td>产品还能正常使用</td><td>产品失去存在意义</td></tr>
+    <tr><td>交互方式</td><td>按钮、菜单、表单为主</td><td>自然语言、对话为主</td></tr>
+    <tr><td>能处理的任务</td><td>预先定义好的任务集合</td><td>开放性任务，可泛化</td></tr>
+    <tr><td>工程重心</td><td>业务逻辑代码</td><td>Prompt 设计、上下文管理、Agent 编排</td></tr>
+    <tr><td>不确定性</td><td>几乎没有（确定性系统）</td><td>存在（需要处理模型幻觉和不稳定输出）</td></tr>
+    <tr><td>例子</td><td>Word + Copilot、Excel + AI 公式建议</td><td>Cursor、Perplexity、Notion AI、Claude</td></tr>
+  </tbody>
+</table>
+
+
+<h2 id="真实案例解析">六、三个真实案例解析</h2>
+
+<h3 id="案例1-Cursor">案例 1：Cursor（AI Native 代码编辑器）</h3>
+
+<p>Cursor 的核心假设是：<strong>写代码的主要工作不应该是人打字，而是人审查和引导 AI 的输出</strong>。</p>
+
+<p>它的设计完全围绕这个假设：</p>
+<ul>
+  <li>你描述要做什么，AI 写代码</li>
+  <li>AI 理解整个代码库的上下文，不只是当前文件</li>
+  <li>你可以直接和 AI 讨论"这段代码有什么问题"</li>
+  <li>AI 可以跨文件修改，不只是单行补全</li>
+</ul>
+
+<p>这不是在 VS Code 上加了一个 AI 插件（那是 AI Enhanced），而是从零开始按照"AI 是主力开发者"这个假设重新设计了编辑器。</p>
+
+<h3 id="案例2-Perplexity">案例 2：Perplexity（AI Native 搜索引擎）</h3>
+
+<p>Perplexity 的核心假设是：<strong>用户想要的不是链接，而是答案</strong>。</p>
+
+<p>传统搜索引擎把"找到相关页面"当成终点。Perplexity 把它当成中间步骤——先检索相关页面，然后用 AI 综合这些信息，直接给出答案，并附上来源链接供核实。</p>
+
+<p>产品里没有"搜索结果列表"的概念，只有"答案"和"来源"。整个交互范式都变了。</p>
+
+<h3 id="案例3-Harvey">案例 3：Harvey（AI Native 法律工具）</h3>
+
+<p>Harvey 是专为律师事务所构建的 AI 工具。</p>
+
+<p>传统法律软件：案件管理系统、文书模板库、法规检索数据库——每个是独立的工具，律师手动在工具间切换。</p>
+
+<p>Harvey 的假设：<strong>律师的核心工作（文书起草、案例研究、合规审查）本质上是语言任务，AI 应该直接承担这些工作</strong>。</p>
+
+<p>Harvey 不是给律师的"辅助工具"，而是律师的"AI 同事"：你告诉它案件背景，它帮你起草诉状、分析先例、检查合规风险。工作流程从"律师用工具"变成了"律师指导 AI"。</p>
+
+
+<h2 id="对工程师意味着什么">七、AI Native 对工程师意味着什么</h2>
+
+<p>如果你是软件工程师，AI Native 这个概念直接影响你的工作方式。</p>
+
+<h3 id="新技能栈">新技能栈</h3>
+
+<p>构建 AI Native 应用需要的技能，和传统后端/前端开发有显著不同：</p>
+
+<table>
+  <thead>
+    <tr><th>传统软件开发</th><th>AI Native 开发</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>设计数据模型和 API</td><td>设计 Prompt 和 Agent 工具</td></tr>
+    <tr><td>写业务逻辑代码</td><td>写 RAG Pipeline、上下文管理逻辑</td></tr>
+    <tr><td>单元测试（确定性验证）</td><td>Eval 框架（评估模型输出质量）</td></tr>
+    <tr><td>性能优化（延迟、吞吐）</td><td>Token 成本优化、模型选型</td></tr>
+    <tr><td>监控系统状态</td><td>监控模型行为（幻觉率、拒答率）</td></tr>
+  </tbody>
+</table>
+
+<h3 id="新的不确定性">新的不确定性需要处理</h3>
+
+<p>传统软件的 Bug 是确定性的——同样的输入必然触发同样的问题，可以稳定复现和修复。</p>
+
+<p>AI Native 软件的问题是概率性的——模型偶尔会幻觉、偶尔会拒答、偶尔会产生和预期不符的输出。这需要：</p>
+<ul>
+  <li><strong>防御性输出处理</strong>：解析模型输出时做好异常处理，不假设模型一定按格式返回</li>
+  <li><strong>Guardrails（护栏）</strong>：在模型输出前后加过滤和验证层</li>
+  <li><strong>Human-in-the-loop</strong>：对高风险操作保留人工审核环节</li>
+  <li><strong>Eval 系统</strong>：持续评估模型在真实用例上的表现，像监控线上服务一样监控 AI 行为</li>
+</ul>
+
+<h3 id="架构模式的变化">架构模式的变化</h3>
+
+<p>AI Native 应用催生了一批新的架构模式，这些在传统软件里几乎不存在：</p>
+
+<ul>
+  <li><strong>RAG（Retrieval-Augmented Generation）</strong>：用向量数据库存储企业知识，查询时检索相关片段注入 Prompt，解决模型知识边界问题</li>
+  <li><strong>Agent 编排</strong>：让 AI 自主决定调用哪些工具（搜索、计算、数据库查询），完成多步骤任务</li>
+  <li><strong>Multi-Agent 系统</strong>：多个专职 AI（规划者、执行者、检查者）协同完成复杂任务</li>
+  <li><strong>Memory 管理</strong>：短期记忆（当前对话上下文）、长期记忆（用户历史偏好）的存取和管理</li>
+  <li><strong>Streaming 响应</strong>：模型逐 token 输出，前端流式渲染，降低感知延迟</li>
+</ul>
+
+
+<h2 id="AI-Native的局限性">八、AI Native 也有它的局限性</h2>
+
+<p>不是所有软件都应该 AI Native，也不是 AI Native 就一定比传统软件好。</p>
+
+<h3 id="不适合的场景">不适合 AI Native 的场景</h3>
+
+<ul>
+  <li><strong>需要 100% 精确性的场景</strong>：银行转账、手术设备控制、飞机导航——这些场景不能接受"大概率正确"，必须确定性正确</li>
+  <li><strong>简单、高频、标准化的操作</strong>：收银台结账、考勤打卡——用 AI 是杀鸡用牛刀，增加成本和不确定性</li>
+  <li><strong>强监管合规场景</strong>：某些金融、医疗场景要求决策过程完全可审计、可解释，AI 的黑盒特性是障碍</li>
+</ul>
+
+<h3 id="AI-Native面临的挑战">AI Native 面临的真实挑战</h3>
+
+<ul>
+  <li><strong>推理成本高</strong>：每次调用大模型都有 API 费用，高并发下成本可观</li>
+  <li><strong>延迟不可控</strong>：LLM 的推理延迟通常在 1-10 秒，不适合对响应时间极敏感的场景</li>
+  <li><strong>幻觉问题</strong>：模型可能自信地输出错误信息，需要完善的验证机制</li>
+  <li><strong>Prompt 脆弱性</strong>：精心设计的 Prompt 可能被用户的特殊输入"越狱"，产生非预期行为</li>
+  <li><strong>评估困难</strong>：AI 的输出质量难以用传统测试方法量化，需要专门的 Eval 体系</li>
+</ul>
+
+
+<h2 id="总结">九、总结：一句话说清楚 AI Native</h2>
+
+<p>如果用一句话来定义：</p>
+
+<blockquote>
+<p><strong>AI Native 是指软件从设计之初就把 AI 的理解、生成、推理能力当作核心基础设施，而不是事后加上去的功能。</strong></p>
+</blockquote>
+
+<p>类比一下：</p>
+<ul>
+  <li>云原生 = 为弹性伸缩而生的软件，而不是把传统软件搬到云上</li>
+  <li>移动原生（Mobile Native）= 为触控交互而生的 App，而不是把网页套个壳</li>
+  <li>AI Native = 为 AI 的理解和生成能力而生的软件，而不是给传统软件贴一个 AI 标签</li>
+</ul>
+
+<p>判断标准永远只有一个：<strong>去掉 AI，这个产品还有灵魂吗？</strong></p>
+
+<p>如果有，它是 AI Enhanced。如果没有，它是 AI Native。</p>
+
+<p>我们现在处于 AI Native 的早期。就像 2010 年代初移动原生应用刚刚兴起时一样——有人还在把 PC 网页适配成手机版（AI Enhanced 的类比），也有人已经在从头设计只有在手机上才说得通的产品（AI Native 的类比）。后者最终重塑了整个软件行业。AI Native 正在做同样的事情。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/AI/" rel="tag"><i class="fa fa-tag"></i> AI</a>
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/云原生/" rel="tag"><i class="fa fa-tag"></i> 云原生</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#从一个类比开始"><span class="nav-number">1.</span> <span class="nav-text">一、从一个类比开始：云原生</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#一个具体的例子"><span class="nav-number">2.</span> <span class="nav-text">二、一个具体的例子：搜索引擎的演变</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#AI-Native的本质"><span class="nav-number">3.</span> <span class="nav-text">三、AI Native 的本质：从确定性到概率性</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#AI-Native的五个特征"><span class="nav-number">4.</span> <span class="nav-text">四、AI Native 软件的五个典型特征</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#AI-Native-vs-AI-Enhanced"><span class="nav-number">5.</span> <span class="nav-text">五、AI Native vs AI Enhanced</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#真实案例解析"><span class="nav-number">6.</span> <span class="nav-text">六、三个真实案例解析</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#对工程师意味着什么"><span class="nav-number">7.</span> <span class="nav-text">七、AI Native 对工程师意味着什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#AI-Native的局限性"><span class="nav-number">8.</span> <span class="nav-text">八、AI Native 的局限性</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">9.</span> <span class="nav-text">九、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">226</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">34</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+<style>
+  pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+  pre[class*="language-"]::before { display: none !important; }
+  body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+  body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+  body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+  body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+<script>
+(function() {
+  var lightTheme = document.getElementById('prism-theme-light');
+  var darkTheme = document.getElementById('prism-theme-dark');
+  function applyTheme() {
+    var isDark = document.body.classList.contains('dark-mode');
+    lightTheme.disabled = isDark;
+    darkTheme.disabled = !isDark;
+  }
+  applyTheme();
+  var observer = new MutationObserver(applyTheme);
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
+</script>
+</body>
+</html>
