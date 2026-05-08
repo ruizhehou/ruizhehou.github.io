@@ -49,6 +49,10 @@
 .sidebar-inner {
   opacity: 1 !important;
 }
+/* 分类标题加 scroll-margin，防止被顶部导航遮住 */
+.post-body h2 {
+  scroll-margin-top: 80px;
+}
 .sidebar-inner.affix {
   position: static !important;
   top: auto !important;
@@ -314,5 +318,22 @@ var pjax = new Pjax({
   analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
 });
   </script>
+<script>
+// 覆盖 NexT 的 TOC 点击动画，改用精确滚动（考虑导航栏高度）
+document.addEventListener('DOMContentLoaded', function() {
+  var HEADER_HEIGHT = document.querySelector('.header') ? document.querySelector('.header').offsetHeight : 60;
+  document.querySelectorAll('.post-toc a.nav-link').forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      var id = link.getAttribute('href').replace('#', '');
+      var target = document.getElementById(id);
+      if (!target) return;
+      var top = target.getBoundingClientRect().top + window.scrollY - HEADER_HEIGHT - 16;
+      window.scrollTo({ top: top, behavior: 'smooth' });
+    }, true); // capture 阶段，在 NexT 的 handler 之前执行
+  });
+});
+</script>
 </body>
 </html>
