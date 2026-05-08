@@ -315,7 +315,8 @@ body.dark-mode .catalog-list li a:hover {
 var pjax = new Pjax({
   selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
   switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
-  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable,
+  excludeSelectors: ['.catalog-list a']
 });
   </script>
 <script>
