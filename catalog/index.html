@@ -45,6 +45,17 @@
   </style>
 </noscript>
 <style>
+/* 目录页：让 sidebar-inner 始终可见且不被 Affix 改为 fixed */
+.sidebar-inner {
+  opacity: 1 !important;
+}
+.sidebar-inner.affix {
+  position: static !important;
+  top: auto !important;
+}
+.sidebar-inner.affix-bottom {
+  position: static !important;
+}
 .catalog-list {
   list-style: none;
   padding: 0;
