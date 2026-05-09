@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Apache Doris 深度解析：FE/BE 架构、四种数据模型、存储引擎（Segment/列存/索引）、向量化执行引擎、数据导入方式、Colocate Join 原理，以及与 ClickHouse、Hive 的深度对比。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Apache Doris 深度解析">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/08/Apache-Doris深度解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="Apache Doris 深度解析：FE/BE 架构、四种数据模型、存储引擎（Segment/列存/索引）、向量化执行引擎、数据导入方式、Colocate Join 原理，以及与 ClickHouse、Hive 的深度对比。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-08T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-08T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="大数据">
+<meta property="article:tag" content="OLAP">
+<meta property="article:tag" content="架构">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/08/Apache-Doris深度解析/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>Apache Doris 深度解析 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-08T10:00:00+08:00" content="2026-05-08">
+      05-08
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      Apache Doris 深度解析
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>Apache Doris（原百度 Palo）是一个基于 MPP 架构的实时分析型数据库，专为高并发、低延迟的 OLAP 查询场景设计。它兼容 MySQL 协议，无外部依赖，支持秒级数据导入可见，是目前国内大厂数仓 DWS/ADS 层的主流选型之一。</p>
+
+<p>本文从架构原理出发，深度剖析 Doris 的每一个核心模块：FE/BE 架构、数据模型、存储引擎、查询执行、数据导入，最后给出实战使用要点。</p>
+
+
+<h2 id="整体架构">一、整体架构：FE + BE 分离</h2>
+
+<p>Doris 只有两类进程，无任何外部依赖（不需要 ZooKeeper、HDFS）：</p>
+
+<pre><code class="language-text">                   ┌─────────────────────────────────────────┐
+   客户端           │              Doris 集群                  │
+  MySQL客户端  ───► │                                         │
+  JDBC/ODBC    ───► │  ┌──────────┐  ┌──────────┐            │
+  BI工具       ───► │  │  FE 节点  │  │  FE 节点  │  ← Leader选举 │
+                   │  │ (Leader) │  │(Follower)│            │
+                   │  └────┬─────┘  └──────────┘            │
+                   │       │  查询计划下发                    │
+                   │  ┌────┴──────────────────────┐          │
+                   │  ↓          ↓         ↓       │          │
+                   │ ┌────────┐ ┌────────┐ ┌────────┐        │
+                   │ │ BE节点  │ │ BE节点  │ │ BE节点  │        │
+                   │ │存储+计算│ │存储+计算│ │存储+计算│        │
+                   │ └────────┘ └────────┘ └────────┘        │
+                   └─────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="FE">FE（Frontend）：大脑</h3>
+
+<p>FE 负责集群的元数据管理和 SQL 处理，分三种角色：</p>
+
+<ul>
+  <li><strong>Leader FE</strong>：唯一写入节点，处理所有 DDL、元数据变更，通过 BDB-JE（嵌入式 KV）存储元数据</li>
+  <li><strong>Follower FE</strong>：同步 Leader 的元数据，可以接收读请求，参与 Leader 选举（基于 Paxos）</li>
+  <li><strong>Observer FE</strong>：只同步元数据，不参与选举，用于扩展读能力</li>
+</ul>
+
+<p>FE 的核心工作流：</p>
+<pre><code class="language-text">SQL 输入
+  → 词法/语法解析（MySQL 方言）
+  → 语义分析（类型检查、权限验证）
+  → 查询优化（RBO 规则优化 + CBO 代价优化）
+  → 生成分布式执行计划（Fragment）
+  → 下发到各 BE 执行
+</code></pre>
+
+<h3 id="BE">BE（Backend）：存储与计算</h3>
+
+<p>BE 同时负责数据存储和查询计算，每个 BE 节点上：</p>
+<ul>
+  <li>管理若干 <strong>Tablet</strong>（数据分片），每个 Tablet 多副本分布在不同 BE</li>
+  <li>接收 FE 下发的查询 Fragment，在本地数据上执行向量化计算</li>
+  <li>通过 Exchange 算子和其他 BE 交换中间结果（Shuffle）</li>
+</ul>
+
+<p>BE 间通信走 gRPC，BE 与 FE 通信走 Thrift。</p>
+
+<h3 id="数据分布">数据分布：Partition + Tablet</h3>
+
+<pre><code class="language-text">一张表
+  └── 分区 Partition（按时间/值范围）
+        └── 分桶 Bucket（Hash 分桶）
+              └── Tablet（最小存储单元，默认 3 副本）
+                    └── Rowset（一次导入产生一个 Rowset）
+                          └── Segment 文件（列存）
+</code></pre>
+
+<p>建表时指定分区键和分桶数：</p>
+<pre><code class="language-sql">CREATE TABLE orders (
+    order_id    BIGINT,
+    user_id     INT,
+    order_date  DATE,
+    amount      DECIMAL(10, 2)
+)
+PARTITION BY RANGE(order_date) (
+    PARTITION p202501 VALUES LESS THAN ('2025-02-01'),
+    PARTITION p202502 VALUES LESS THAN ('2025-03-01')
+)
+DISTRIBUTED BY HASH(user_id) BUCKETS 32
+PROPERTIES ("replication_num" = "3");</code></pre>
+
+<p>查询时 FE 先做<strong>分区裁剪</strong>（Partition Pruning），只扫描满足条件的分区；再做<strong>分桶裁剪</strong>（Bucket Pruning），对等值条件只扫描对应的 Bucket，大幅减少扫描量。</p>
+
+
+<h2 id="数据模型">二、四种数据模型</h2>
+
+<p>Doris 的数据模型决定了数据如何存储和聚合，是建表时最重要的选择。</p>
+
+<h3 id="Duplicate-Key">1. Duplicate Key（明细模型）</h3>
+
+<pre><code class="language-sql">CREATE TABLE logs (
+    ts      DATETIME,
+    user_id INT,
+    action  VARCHAR(50),
+    ...
+) DUPLICATE KEY(ts, user_id)
+DISTRIBUTED BY HASH(user_id) BUCKETS 16;</code></pre>
+
+<p>所有数据原样保存，允许完全重复的行。适合<strong>日志、事件流</strong>等不需要去重的场景。Key 列只用于数据排序（Sort Key），不做唯一性约束。</p>
+
+<h3 id="Aggregate-Key">2. Aggregate Key（聚合模型）</h3>
+
+<pre><code class="language-sql">CREATE TABLE user_stats (
+    user_id     INT,
+    date        DATE,
+    pv          BIGINT SUM,      -- 页面浏览次数，SUM 聚合
+    uv          BIGINT REPLACE,  -- 独立访客，取最新值
+    max_amount  DECIMAL MAX      -- 最大金额
+) AGGREGATE KEY(user_id, date)
+DISTRIBUTED BY HASH(user_id) BUCKETS 16;</code></pre>
+
+<p>相同 Key 的行在导入时自动聚合（SUM/MAX/MIN/REPLACE 等）。适合<strong>预聚合报表</strong>，查询时数据量极小，但无法还原明细。</p>
+
+<h3 id="Unique-Key">3. Unique Key（主键模型）</h3>
+
+<pre><code class="language-sql">CREATE TABLE users (
+    user_id   INT,
+    name      VARCHAR(100),
+    email     VARCHAR(100),
+    updated   DATETIME
+) UNIQUE KEY(user_id)
+DISTRIBUTED BY HASH(user_id) BUCKETS 16
+PROPERTIES ("enable_unique_key_merge_on_write" = "true");</code></pre>
+
+<p>相同主键的行保留最新版本（REPLACE 语义），实现 Upsert。有两种实现方式：</p>
+<ul>
+  <li><strong>Merge-on-Read（MoR）</strong>：写入时不合并，查询时实时合并多个版本，写快读慢</li>
+  <li><strong>Merge-on-Write（MoW，推荐）</strong>：写入时立即合并，查询直接读最新数据，读快写稍慢，2.0+ 默认推荐</li>
+</ul>
+
+<p>MoW 还支持<strong>行存（Row Store）</strong>，为点查性能再提一个数量级：</p>
+<pre><code class="language-sql">PROPERTIES (
+    "enable_unique_key_merge_on_write" = "true",
+    "store_row_column" = "true"  -- 开启行存，加速点查
+);</code></pre>
+
+<h3 id="Primary-Key">4. Primary Key（主键模型，2.0+）</h3>
+
+<p>Primary Key 是对 Unique Key MoW 的进一步增强，支持<strong>部分列更新</strong>（Partial Update），不需要提供所有列的值，只更新指定列：</p>
+<pre><code class="language-sql">-- 只更新 email 列，不影响其他列
+INSERT INTO users (user_id, email) VALUES (1001, 'new@example.com');</code></pre>
+
+<p>适合<strong>宽表实时更新</strong>场景，如用户画像、商品属性实时同步。</p>
+
+
+<h2 id="存储引擎">三、存储引擎：Segment 列存</h2>
+
+<h3 id="Segment文件格式">Segment 文件格式</h3>
+
+<pre><code class="language-text">Segment 文件结构：
+┌─────────────────────────────────────────────┐
+│  Column A Data （列数据块，按 1024 行一组）   │
+│  Column B Data                               │
+│  Column C Data                               │
+│  ...                                         │
+├─────────────────────────────────────────────┤
+│  Ordinal Index   （行号 → 数据块偏移）        │
+│  Short Key Index （前缀索引，每隔 1024 行）   │
+│  ZoneMap Index   （每列的 min/max 值）        │
+│  Bloom Filter    （高基数列的存在性过滤）     │
+│  Bitmap Index    （低基数列的精确过滤）       │
+├─────────────────────────────────────────────┤
+│  Footer（列元信息、索引偏移）                 │
+└─────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="三级索引">三层索引过滤</h3>
+
+<p>一个查询 <code>WHERE date = '2025-01-15' AND status = 'paid'</code> 的过滤流程：</p>
+
+<ol>
+  <li><strong>分区裁剪</strong>：只读 date 所在分区，跳过其他月份的所有 Segment</li>
+  <li><strong>ZoneMap 过滤</strong>：每个 Segment 记录了 date 列的 min/max，跳过不含目标日期的 Segment</li>
+  <li><strong>Short Key 索引</strong>：在 Segment 内做二分查找，定位到包含目标行的数据块（1024 行粒度）</li>
+  <li><strong>Bitmap/Bloom Filter</strong>：在数据块内进一步过滤，读取真正满足条件的行</li>
+</ol>
+
+<p>每一层都能跳过大量数据，最终读取的实际行数可能只有全表的千分之一。</p>
+
+<h3 id="Compaction">Compaction：后台合并</h3>
+
+<p>每次导入都会产生一个新的 Rowset，随着导入次数增加，Segment 文件越来越多，查询需要合并多个版本。Doris 后台持续做 Compaction：</p>
+<ul>
+  <li><strong>Cumulative Compaction</strong>：将多个小 Rowset 合并成较大的 Rowset（增量合并）</li>
+  <li><strong>Base Compaction</strong>：将所有 Rowset 合并成一个 Base Rowset（全量合并，触发频率低）</li>
+</ul>
+
+<p>Compaction 完成后，查询无需再做版本合并，性能恢复到最优状态。</p>
+
+
+<h2 id="向量化执行引擎">四、向量化执行引擎</h2>
+
+<p>Doris 1.2 版本引入全面向量化执行引擎，是查询性能提升的核心。</p>
+
+<h3 id="标量vs向量化">标量执行 vs 向量化执行</h3>
+
+<pre><code class="language-text">标量执行（逐行处理）：
+  for row in rows:
+      result = row.amount * row.quantity   ← 每次处理 1 行
+
+向量化执行（批量处理）：
+  for batch in batches:   ← 每批 1024 行
+      result = amount_vec * quantity_vec   ← SIMD 一次处理 4/8/16 个值
+</code></pre>
+
+<p>向量化执行的两个核心收益：</p>
+<ol>
+  <li><strong>SIMD（Single Instruction Multiple Data）</strong>：CPU 的 AVX2/AVX512 指令一次可以处理 8 个 32 位整数，相当于 8 倍吞吐量</li>
+  <li><strong>Cache 友好</strong>：列数据在内存中连续，批量读取的 Cache Miss 极低</li>
+</ol>
+
+<h3 id="Pipeline执行模型">Pipeline 执行模型（2.0+）</h3>
+
+<p>Doris 2.0 引入 Pipeline 执行模型，彻底解决了大查询阻塞小查询的问题：</p>
+
+<pre><code class="language-text">传统阻塞模型：
+  线程1: [Scan]────────[HashJoin]──[Agg]──[结果]   ← 占用线程直到完成
+
+Pipeline 模型：
+  Driver1: [Scan chunk] → 放入队列
+  Driver2: [HashJoin chunk] ← 从队列取 → 放入队列
+  Driver3: [Agg chunk] ← 从队列取 → 输出
+  （各阶段独立调度，不阻塞，可以和其他查询的 Driver 穿插执行）
+</code></pre>
+
+<p>Pipeline 模型让 Doris 在高并发场景下资源利用率更高，小查询不再被大查询饿死。</p>
+
+
+<h2 id="数据导入">五、数据导入</h2>
+
+<p>Doris 提供多种导入方式，适合不同的数据源和延迟要求：</p>
+
+<h3 id="Stream-Load">Stream Load（推荐，实时导入）</h3>
+
+<pre><code class="language-bash"># 通过 HTTP PUT 直接推送数据，原子性强，延迟秒级
+curl -X PUT \
+  -H "label: load_20250108_001" \
+  -H "column_separator: ," \
+  -T orders.csv \
+  http://fe_host:8030/api/mydb/orders/_stream_load \
+  -u admin:password</code></pre>
+
+<p>Stream Load 的特点：同步返回结果、事务性保证（要么全部成功要么全部失败）、适合小批量高频导入（每次几 MB 到几十 MB）。</p>
+
+<h3 id="Routine-Load">Routine Load（Kafka 消费）</h3>
+
+<pre><code class="language-sql">-- 创建 Routine Load 任务，持续消费 Kafka
+CREATE ROUTINE LOAD mydb.orders_load ON orders
+COLUMNS TERMINATED BY ","
+PROPERTIES (
+    "max_batch_interval" = "10",    -- 每 10 秒提交一批
+    "max_batch_rows" = "200000",
+    "format" = "json"
+)
+FROM KAFKA (
+    "kafka_broker_list" = "broker1:9092,broker2:9092",
+    "kafka_topic" = "orders_topic",
+    "kafka_partitions" = "0,1,2,3",
+    "kafka_offsets" = "OFFSET_BEGINNING"
+);</code></pre>
+
+<p>Routine Load 在 BE 内部维护 Kafka Consumer，每隔指定时间提交一批数据，数据延迟通常在 10-30 秒内，无需外部调度。</p>
+
+<h3 id="Broker-Load">Broker Load（批量离线导入）</h3>
+
+<pre><code class="language-sql">-- 从 HDFS 批量导入
+LOAD LABEL mydb.load_20250108 (
+    DATA INFILE("hdfs://namenode/data/orders/2025-01-08/*.parquet")
+    INTO TABLE orders
+    FORMAT AS "parquet"
+    (order_id, user_id, order_date, amount)
+)
+WITH BROKER hdfs_broker
+("username" = "hdfs", "password" = "");
+
+-- 查看导入进度
+SHOW LOAD WHERE LABEL = "load_20250108";</code></pre>
+
+<h3 id="Insert-Into">INSERT INTO SELECT（跨表导入/ETL）</h3>
+
+<pre><code class="language-sql">-- 从 ODS 层聚合写入 DWS 层
+INSERT INTO dws_user_daily_stats
+SELECT
+    user_id,
+    DATE(order_date) AS date,
+    COUNT(*)          AS order_cnt,
+    SUM(amount)       AS total_amount
+FROM ods_orders
+WHERE order_date >= '2025-01-08'
+GROUP BY user_id, DATE(order_date);</code></pre>
+
+<h3 id="导入方式对比">导入方式对比</h3>
+
+<table>
+  <thead>
+    <tr><th>方式</th><th>数据源</th><th>延迟</th><th>吞吐量</th><th>适用场景</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Stream Load</td><td>HTTP 推送</td><td>秒级</td><td>中</td><td>微服务直写、Flink sink</td></tr>
+    <tr><td>Routine Load</td><td>Kafka</td><td>10-30 秒</td><td>中高</td><td>实时流数据消费</td></tr>
+    <tr><td>Broker Load</td><td>HDFS/S3</td><td>分钟级</td><td>高</td><td>T+1 离线批量导入</td></tr>
+    <tr><td>INSERT INTO</td><td>Doris 内部</td><td>秒-分钟</td><td>中</td><td>内部 ETL、数仓分层</td></tr>
+  </tbody>
+</table>
+
+
+<h2 id="查询优化">六、查询优化关键机制</h2>
+
+<h3 id="Colocate-Join">Colocate Join：零 Shuffle 的 JOIN</h3>
+
+<p>普通分布式 JOIN 需要将数据 Shuffle 到同一节点才能 JOIN，网络开销大。Colocate Join 让两张表按相同的分桶键和分桶数分布，JOIN 时直接在本地数据上计算，完全避免网络传输：</p>
+
+<pre><code class="language-sql">-- 两张表使用相同的 Colocate Group
+CREATE TABLE orders (
+    user_id INT,
+    ...
+) DISTRIBUTED BY HASH(user_id) BUCKETS 32
+PROPERTIES ("colocate_with" = "user_group");
+
+CREATE TABLE users (
+    user_id INT,
+    ...
+) DISTRIBUTED BY HASH(user_id) BUCKETS 32
+PROPERTIES ("colocate_with" = "user_group");
+
+-- 查询时自动走 Colocate Join，无 Shuffle
+SELECT u.name, COUNT(*) as order_cnt
+FROM orders o JOIN users u ON o.user_id = u.user_id
+GROUP BY u.name;</code></pre>
+
+<p>Colocate Join 的前提：两表分桶键相同、分桶数相同、副本数相同，且在同一个 Colocate Group 里。</p>
+
+<h3 id="物化视图">物化视图（Materialized View）</h3>
+
+<p>Doris 支持同步物化视图和异步物化视图：</p>
+
+<pre><code class="language-sql">-- 同步物化视图：自动维护，查询自动路由
+CREATE MATERIALIZED VIEW mv_user_daily
+AS SELECT user_id, DATE(order_date), SUM(amount), COUNT(*)
+FROM orders
+GROUP BY user_id, DATE(order_date);
+
+-- 查询 orders 时，如果命中物化视图，自动改写为查询 mv_user_daily
+-- 无需修改查询 SQL，透明加速</code></pre>
+
+<h3 id="SQL-Cache">SQL Cache 与 Partition Cache</h3>
+
+<ul>
+  <li><strong>SQL Cache</strong>：完全相同的 SQL + 参数，直接返回缓存结果，适合固定报表</li>
+  <li><strong>Partition Cache</strong>：缓存已有分区的结果，只对新增分区重新计算，适合时间范围查询</li>
+</ul>
+
+<pre><code class="language-sql">-- 开启 SQL Cache
+SET enable_sql_cache = true;
+
+-- 查询时间范围报表，历史分区走缓存，只计算最新分区
+SELECT date, SUM(amount)
+FROM orders
+WHERE order_date BETWEEN '2025-01-01' AND '2025-01-08'
+GROUP BY date;</code></pre>
+
+<h3 id="Runtime-Filter">Runtime Filter</h3>
+
+<p>大表 JOIN 小表时，Doris 会先扫描小表，构建一个 Bloom Filter，然后下推到大表的扫描层，在读取数据时就过滤掉不可能匹配的行：</p>
+
+<pre><code class="language-text">SELECT * FROM big_table b JOIN small_table s ON b.id = s.id
+WHERE s.type = 'VIP'
+
+执行流程：
+1. 扫描 small_table，过滤 type='VIP'，得到 id 集合 {1, 5, 9, ...}
+2. 构建 Bloom Filter，下推到 big_table 的 scan 阶段
+3. big_table 在读取时，每行先过 Bloom Filter，不在集合里直接跳过
+4. 大幅减少 big_table 实际读取的行数
+</code></pre>
+
+
+<h2 id="Workload-Group">七、资源隔离：Workload Group</h2>
+
+<p>高并发场景下，不同业务的查询需要隔离，防止一个大查询拖垮所有人：</p>
+
+<pre><code class="language-sql">-- 创建 Workload Group，限制 CPU 和内存
+CREATE WORKLOAD GROUP report_group
+PROPERTIES (
+    "cpu_share"          = "10",    -- CPU 权重
+    "memory_limit"       = "30%",   -- 最多使用 30% 内存
+    "max_concurrency"    = "20",    -- 最大并发查询数
+    "max_queue_size"     = "100",   -- 排队上限
+    "queue_timeout"      = "300"    -- 排队超时秒数
+);
+
+-- 将用户绑定到 Workload Group
+ALTER USER report_user DEFAULT WORKLOAD GROUP "report_group";</code></pre>
+
+<p>Workload Group 让不同优先级的业务（实时大屏 vs 离线报表 vs 临时分析）共享集群资源的同时互不影响。</p>
+
+
+<h2 id="Catalog联邦查询">八、Multi-Catalog：联邦查询</h2>
+
+<p>Doris 2.0+ 引入 Multi-Catalog，可以直接查询外部数据源，无需导入：</p>
+
+<pre><code class="language-sql">-- 创建 Hive Catalog
+CREATE CATALOG hive_catalog PROPERTIES (
+    "type" = "hms",
+    "hive.metastore.uris" = "thrift://hms-host:9083"
+);
+
+-- 直接查询 Hive 表
+SELECT * FROM hive_catalog.dwd.orders LIMIT 10;
+
+-- 跨 Catalog JOIN（Hive 大表 + Doris 维度表）
+SELECT h.order_id, d.user_name
+FROM hive_catalog.dwd.orders h
+JOIN doris_internal.dim.users d ON h.user_id = d.user_id
+WHERE h.order_date = '2025-01-08';</code></pre>
+
+<p>支持的外部 Catalog：Hive、Iceberg、Hudi、Delta Lake、MySQL、PostgreSQL、Elasticsearch、S3/HDFS 上的 Parquet/ORC 文件。</p>
+
+
+<h2 id="实战建表要点">九、实战建表要点</h2>
+
+<h3 id="模型选择">数据模型选择</h3>
+
+<table>
+  <thead>
+    <tr><th>场景</th><th>推荐模型</th><th>原因</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>日志、埋点、事件流</td><td>Duplicate Key</td><td>保留所有明细，不去重</td></tr>
+    <tr><td>预聚合报表（UV/PV/金额）</td><td>Aggregate Key</td><td>导入时预聚合，查询极快</td></tr>
+    <tr><td>业务实体（用户、订单状态）</td><td>Unique Key MoW</td><td>支持 Upsert，保证唯一性</td></tr>
+    <tr><td>宽表实时更新（画像标签）</td><td>Primary Key</td><td>支持部分列更新</td></tr>
+  </tbody>
+</table>
+
+<h3 id="分桶数选择">分桶数选择</h3>
+
+<pre><code class="language-text">推荐：每个 Tablet 的数据量控制在 1-10 GB
+公式：分桶数 = 总数据量 / (3GB * BE节点数) 取整，再向上取 2 的幂次
+
+示例：100GB 数据，3 个 BE 节点
+  分桶数 ≈ 100 / (3 * 3) ≈ 11，向上取 16</code></pre>
+
+<h3 id="常见坑">常见坑</h3>
+
+<ul>
+  <li><strong>分桶键选错</strong>：分桶键应选择查询里最常用于 JOIN 或 WHERE 等值过滤的列，而不是时间列（时间列适合做分区键）</li>
+  <li><strong>分桶数过少</strong>：导致单个 Tablet 过大，查询时并行度不足，性能差</li>
+  <li><strong>Aggregate 模型误用</strong>：Aggregate 模型的非 Key 列必须指定聚合函数，不能存原始明细，如果既要聚合又要明细，应用 Duplicate Key + 物化视图</li>
+  <li><strong>Unique Key 忘开 MoW</strong>：默认的 MoR 模式在读多写少场景性能差，生产建议加 <code>"enable_unique_key_merge_on_write" = "true"</code></li>
+  <li><strong>导入频率过高</strong>：每次导入产生一个 Rowset，频繁小批量导入（&lt;1 秒一次）会导致 Compaction 跟不上，查询性能下降，建议 Stream Load 批间隔 ≥ 10 秒</li>
+</ul>
+
+
+<h2 id="关键点总结">十、关键点总结</h2>
+
+<ul>
+  <li><strong>FE/BE 分离架构</strong>：FE 管元数据和查询计划，BE 管存储和计算，无外部依赖，运维简单</li>
+  <li><strong>四种数据模型</strong>：Duplicate（明细）/ Aggregate（预聚合）/ Unique Key（Upsert）/ Primary Key（部分列更新），根据业务特性选择</li>
+  <li><strong>Segment 列存 + 三层索引</strong>：ZoneMap → Short Key → Bitmap/Bloom Filter，层层过滤，极致减少 I/O</li>
+  <li><strong>向量化 + Pipeline</strong>：批量 SIMD 计算 + 非阻塞调度，高并发下吞吐量和延迟兼顾</li>
+  <li><strong>Routine Load</strong>：BE 内置 Kafka Consumer，秒级到分钟级实时导入，无需外部调度</li>
+  <li><strong>Colocate Join</strong>：同 Colocate Group 的表 JOIN 零 Shuffle，是 Doris 多表查询性能超越 ClickHouse 的核心武器</li>
+  <li><strong>Workload Group</strong>：CPU/内存隔离，高优先级业务不被大查询拖垮</li>
+  <li><strong>Multi-Catalog</strong>：直接查 Hive/Iceberg/MySQL，打通数仓上下游，无需数据迁移</li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/数据库/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+          <a href="/tags/OLAP/" rel="tag"><i class="fa fa-tag"></i> OLAP</a>
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构"><span class="nav-number">1.</span> <span class="nav-text">一、整体架构：FE + BE 分离</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#数据模型"><span class="nav-number">2.</span> <span class="nav-text">二、四种数据模型</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#存储引擎"><span class="nav-number">3.</span> <span class="nav-text">三、存储引擎：Segment 列存</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#向量化执行引擎"><span class="nav-number">4.</span> <span class="nav-text">四、向量化执行引擎</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#数据导入"><span class="nav-number">5.</span> <span class="nav-text">五、数据导入</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#查询优化"><span class="nav-number">6.</span> <span class="nav-text">六、查询优化关键机制</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Workload-Group"><span class="nav-number">7.</span> <span class="nav-text">七、资源隔离：Workload Group</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Catalog联邦查询"><span class="nav-number">8.</span> <span class="nav-text">八、Multi-Catalog 联邦查询</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#实战建表要点"><span class="nav-number">9.</span> <span class="nav-text">九、实战建表要点</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">10.</span> <span class="nav-text">十、关键点总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">203</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">34</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+<style>
+  pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+  pre[class*="language-"]::before { display: none !important; }
+  body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+  body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+  body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+  body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+<script>
+(function() {
+  var lightTheme = document.getElementById('prism-theme-light');
+  var darkTheme = document.getElementById('prism-theme-dark');
+  function applyTheme() {
+    var isDark = document.body.classList.contains('dark-mode');
+    lightTheme.disabled = isDark;
+    darkTheme.disabled = !isDark;
+  }
+  applyTheme();
+  var observer = new MutationObserver(applyTheme);
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
+</script>
+</body>
+</html>
