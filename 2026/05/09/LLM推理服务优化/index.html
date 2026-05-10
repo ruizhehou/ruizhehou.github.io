@@ -173,10 +173,17 @@
 成本：按 A100 租金 $2/小时，每小时成本 ~$67 万
 </code></pre>
 
-<p>这个规模告诉我们两件事：</p>
+<p>这是基于 Llama-70B FP16 的悲观估算。实际大厂的做法通常会让数字好看得多：</p>
+<ul>
+  <li>用 INT4/FP8 量化：显存减半，同等卡数并发翻倍</li>
+  <li>用蒸馏的更小模型（7B/14B）：参数量少 5-10 倍，速度对应提升</li>
+  <li>不是所有 140w QPS 都是长输出，很多是短问答（20-50 token），占用时间短</li>
+  <li>Prefix Caching 命中时 prefill 几乎免费，有效吞吐大幅提升</li>
+</ul>
+<p>但无论如何，两件事是确定的：</p>
 <ol>
-  <li>每提升 1% 的吞吐量，就能少用 336 张 A100，每年节省约 600 万美元</li>
-  <li>这是一个显存密集型问题——420 万并发 × 每请求几十 MB KV Cache = 数百 TB 显存需求</li>
+  <li>每提升 1% 的吞吐量，在这个规模下每年节省数百万到数千万美元</li>
+  <li>这是一个<strong>显存带宽密集型</strong>问题，每个优化手段都要从"如何减少显存读写"出发</li>
 </ol>
 
 
@@ -208,12 +215,18 @@ Decode 阶段（逐 token 生成输出）：
 <pre><code class="language-text">KV Cache 大小 = 2（K+V）× 层数 × 注意力头数 × 头维度 × 序列长度 × 精度字节数
 
 以 Llama-70B（80层，64头，128维，FP16）为例：
-单个请求，序列长度 1000 token：
-  2 × 80 × 64 × 128 × 1000 × 2 bytes = 3.28 GB
+单个请求，序列长度 1000 token，整个集群（TP=8 时所有卡合计）：
+  2 × 80 × 64 × 128 × 1000 × 2 bytes
+  = 2,621,440,000 bytes ≈ 2.44 GB（8 卡合计）
 
-单卡 A100-80GB，去掉模型权重（140B × 2bytes / 8卡 = 35GB）：
-  可用于 KV Cache 的显存：80 - 35 = 45 GB
-  最大并发请求数：45 GB ÷ 3.28 GB ≈ 13 个请求
+每张卡只存 1/8：2.44 GB ÷ 8 ≈ 305 MB
+
+8 卡 A100-80GB，模型权重总显存：140B × 2bytes = 280GB，每卡 35GB
+每卡可用于 KV Cache：80 - 35 = 45 GB
+每卡最大并发：45 GB ÷ 305 MB ≈ 147 个请求
+8 卡节点整体：约 150 个并发请求（受限于卡间同步开销）
+
+注意：这是单个节点能服务的并发上限，序列越长、显存越紧张。
 </code></pre>
 
 <p>这就是为什么显存管理是 LLM 推理的核心问题——不是算力不够，而是 KV Cache 把显存占满了。</p>
@@ -334,9 +347,11 @@ outputs = llm.generate(prompts, sampling_params)</code></pre>
 
 <p>接受率取决于 Draft Model 和 Target Model 的分布差异。通常：</p>
 <ul>
-  <li>同系列小模型（如 Llama-7B draft + Llama-70B target）：接受率 70-85%，吞吐提升 2-3x</li>
+  <li>同系列小模型（如 Llama-7B draft + Llama-70B target）：接受率 70-85%，<strong>吞吐提升 2-3x</strong></li>
   <li>n-gram 匹配（不用额外模型，直接用历史文本预测）：接受率 40-60%，吞吐提升 1.5-2x，适合代码生成等重复性强的场景</li>
 </ul>
+
+<p><strong>关于延迟的准确表述</strong>：投机解码提升的是<strong>吞吐量</strong>，对单请求延迟的影响取决于接受率。接受率高时（>70%），同样长度的输出所需步骤更少，端到端延迟可以降低；但如果接受率低，Draft Model 的推理开销会反而增加延迟。因此说"不牺牲延迟"不够严谨——在典型接受率（70%+）下延迟持平或略降，但接受率低时需谨慎。生产上建议先测量具体业务的 Draft 接受率再决定是否启用。</p>
 
 <pre><code class="language-python"># vLLM 中使用投机解码
 llm = LLM(
@@ -381,7 +396,7 @@ quant_config = {
 model.quantize(tokenizer, quant_config=quant_config)
 model.save_quantized("llama3-70b-awq-int4")</code></pre>
 
-<p>INT4 量化后 Llama-70B 只需约 35GB 显存（原来 140GB），一台 A100-80GB 单卡就能跑，不需要多卡张量并行。</p>
+<p>INT4 量化后 Llama-70B 权重约 35GB，但加上 activations、KV Cache 和框架开销，实际需要 45-50GB——A100-80GB 单卡勉强能跑，但 KV Cache 空间只剩 30-35GB，并发能力有限（约 100 个请求）。更现实的方案是 2 卡部署（每卡 ~25GB 权重），留出更多显存给 KV Cache，并发可达 200+。</p>
 
 <h3 id="KV-Cache量化">KV Cache 量化</h3>
 
@@ -470,7 +485,16 @@ Decode 阶段特性：
                             Decode
 </code></pre>
 
-<p>KV Cache 迁移：Prefill 节点计算完 KV Cache 后，通过高速网络（RDMA/NVLink）传输给 Decode 节点，Decode 节点持续生成 token 直到完成。</p>
+<p>KV Cache 迁移：Prefill 节点计算完 KV Cache 后，通过高速网络（RDMA/NVLink-C2C）传输给 Decode 节点，Decode 节点持续生成 token 直到完成。</p>
+
+<p><strong>最大的工程挑战：KV Cache 传输带宽</strong></p>
+<p>一个 Llama-70B 请求的 KV Cache 约 2.44GB（1000 token 序列）。如果每秒新增 140 万请求，理论需要 140w × 2.44GB = 3.4 PB/s 的传输带宽——这远超任何现有网络。实际上需要：</p>
+<ul>
+  <li>尽量缩短 prompt 或启用 Prefix Caching（只传增量 KV Cache，不传缓存部分）</li>
+  <li>Prefill 和 Decode 节点尽量在同一机架或通过 NVLink 直连，而非跨节点 InfiniBand</li>
+  <li>KV Cache 量化到 FP8/INT8 再传输，减少 50-75% 传输量</li>
+  <li>并非所有请求都需要 PD 分离，短 prompt 请求可以走混合部署</li>
+</ul>
 
 <p>收益：</p>
 <ul>
