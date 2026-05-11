@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="从理论角度深度解析流式计算：流 vs 批的数学本质、Event Time 与 Watermark 机制、窗口类型与触发器、有状态计算与 Checkpoint、Exactly-Once 语义的两阶段提交实现，以及流批统一的理论基础。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="流式计算的理论基础：时间、窗口与一致性">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/11/流式计算的理论基础/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="从理论角度深度解析流式计算：流 vs 批的数学本质、Event Time 与 Watermark 机制、窗口类型与触发器、有状态计算与 Checkpoint、Exactly-Once 语义的两阶段提交实现，以及流批统一的理论基础。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-11T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-11T14:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="大数据">
+<meta property="article:tag" content="Flink">
+<meta property="article:tag" content="实时计算">
+<meta property="article:tag" content="架构">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/11/流式计算的理论基础/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>流式计算的理论基础：时间、窗口与一致性 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-11T14:00:00+08:00" content="2026-05-11">
+      05-11
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      流式计算的理论基础：时间、窗口与一致性
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>流式计算不只是"把批处理变快"——它是一个完全不同的计算范式，背后有一套独特的理论体系。这套理论由 Google 的 DataFlow 论文（2015 年）奠定基础，随后被 Apache Flink、Spark Structured Streaming 等系统实现落地。</p>
+
+<p>本文从理论角度系统梳理流式计算的核心概念：时间模型、Watermark、窗口、触发器、状态一致性、Exactly-Once 语义，以及流批统一的理论基础。理解这些理论，是真正掌握 Flink 等流处理系统的前提。</p>
+
+
+<h2 id="流与批的本质区别">一、流与批：两种截然不同的计算模型</h2>
+
+<h3 id="数据的有界性">数据的有界性：根本分歧</h3>
+
+<p>批处理假设数据是<strong>有界的（Bounded）</strong>：先收集，再计算，输出一个确定的结果。</p>
+
+<pre><code class="language-text">批处理模型：
+  f(D) → R
+  D 是有限数据集，f 是计算函数，R 是确定的结果
+
+  一天的订单数据 → 计算 → 今天的总销售额（确定值）</code></pre>
+
+<p>流处理假设数据是<strong>无界的（Unbounded）</strong>：数据像河流一样持续流入，计算结果随时间不断更新。</p>
+
+<pre><code class="language-text">流处理模型：
+  f(S, t) → R(t)
+  S 是无界数据流，f 是持续计算函数，R(t) 是在时刻 t 的当前结果
+
+  持续流入的订单 → 持续计算 → 当前累计销售额（实时更新）</code></pre>
+
+<p>这不只是工程实现的差异，而是<strong>数学模型的根本不同</strong>。批处理求的是一个静态函数的值；流处理求的是一个时序函数，它的"答案"在不断演化。</p>
+
+<h3 id="Lambda架构的妥协">Lambda 架构：批流并存时代的妥协</h3>
+
+<p>早期（2012 年前后），人们没有成熟的流处理框架，于是提出了 Lambda 架构：用批处理保证准确性，用流处理保证低延迟，两套系统并行运行，结果合并：</p>
+
+<pre><code class="language-text">原始数据
+  ├── 批处理层（Hadoop）：每天跑一次，产出精确结果（T+1）
+  ├── 速度层（Storm）：实时处理，产出近似结果（秒级）
+  └── 服务层：合并两层结果对外提供查询
+
+问题：
+  - 维护两套代码（批和流的逻辑必须一致，但实现不同）
+  - 结果合并复杂，边界条件难处理
+  - 运维成本高，出错时难以排查</code></pre>
+
+<p>Lambda 架构的存在本质上是在承认：<strong>当时的流处理系统无法同时保证低延迟和高正确性</strong>。随着 Flink 的成熟，这个妥协方案已经逐渐退出历史舞台。</p>
+
+
+<h2 id="时间模型">二、时间模型：流处理最深的理论问题</h2>
+
+<p>流处理里最核心也最容易被低估的理论问题是：<strong>时间有两个维度，而且它们可以不一致</strong>。</p>
+
+<h3 id="两种时间">Event Time 与 Processing Time</h3>
+
+<pre><code class="language-text">Event Time（事件时间）：
+  事件真实发生的时刻，记录在数据里
+  例：用户在 10:00:01 点击了按钮，这个时间戳写在日志里
+
+Processing Time（处理时间）：
+  数据被流处理系统看到的时刻，即"系统时钟"
+  例：这条日志在 10:00:05 到达 Flink，被处理的时间是 10:00:05</code></pre>
+
+<p>两者之间的差距叫做<strong>摄入延迟（Ingestion Lag）</strong>，来源于：</p>
+<ul>
+  <li>网络传输延迟（手机 App 在弱网下积攒日志，网络恢复后批量上传）</li>
+  <li>消息队列堆积（Kafka 消费者滞后）</li>
+  <li>时钟不同步（不同服务器时钟偏差）</li>
+</ul>
+
+<pre><code class="language-text">真实场景：用户手机在地铁里断网，累积了 5 分钟的行为日志，出站后上传
+
+Event Time 视角：
+  10:00:01 点击 → 10:00:03 点击 → 10:00:05 点击 → 10:04:58 点击
+
+Processing Time 视角（这些数据在 10:05:10 到达系统）：
+  10:05:10 处理 [et=10:00:01]
+  10:05:10 处理 [et=10:00:03]
+  10:05:10 处理 [et=10:00:05]
+  10:05:10 处理 [et=10:04:58]  ← 5 分钟前的数据，现在才到</code></pre>
+
+<p>如果用 Processing Time 统计"每分钟点击次数"，这 4 次点击都会被算进 10:05 这一分钟，结论完全错误。正确答案应该是：10:00 有 3 次，10:04 有 1 次。</p>
+
+<p><strong>结论</strong>：只有基于 Event Time 的计算才能得到语义正确的结果，但这带来了一个根本性的困难：<strong>系统无法知道某个时间窗口的数据是否已经全部到达</strong>。</p>
+
+<h3 id="乱序问题">乱序（Out-of-order）：流处理的常态</h3>
+
+<pre><code class="language-text">即使同一批数据，Event Time 也可能乱序：
+
+数据到达顺序（Processing Time 排序）：
+  [et=10:00:05] [et=10:00:03] [et=10:00:08] [et=10:00:01] [et=10:00:06]
+       ↑                              ↑
+  先到的是 05                    后到的是 01（乱序！）
+
+原因：不同请求走了不同的网络路径，延迟不同；
+      微服务多实例各自攒批发送，攒满触发时间不同
+</code></pre>
+
+<p>乱序是流处理的常态，不是特例。任何实用的流处理系统都必须正确处理乱序数据。</p>
+
+
+<h2 id="Watermark">三、Watermark：对时间进度的系统性断言</h2>
+
+<p>Watermark 是解决"何时关闭窗口"问题的核心机制，也是整个流处理理论最精妙的部分。</p>
+
+<h3 id="Watermark定义">Watermark 的形式化定义</h3>
+
+<p>Watermark(t) 是流中的一个特殊标记，表示：</p>
+
+<blockquote>
+<p><strong>系统断言：在此标记之后，不会再出现 event_time ≤ t 的数据。</strong></p>
+</blockquote>
+
+<pre><code class="language-text">数据流时间轴（Processing Time →）：
+
+  [et=10:00:05] [et=10:00:03] --W(10:00:02)-- [et=10:00:08] --W(10:00:07)-- [et=10:00:01?]
+                                      ↑                              ↑              ↑
+                               Watermark 推进到                Watermark 推进到   这条数据迟到了！
+                               10:00:02，意味着               10:00:07，意味着   et=10:00:01 < W(10:00:07)
+                               ≤10:00:02 的窗口可以关闭       ≤10:00:07 的窗口可以关闭</code></pre>
+
+<p>当 Watermark 超过某个窗口的结束时间，该窗口就可以安全关闭并输出结果了。</p>
+
+<h3 id="Watermark生成">Watermark 的生成策略</h3>
+
+<p>最常见的 Watermark 生成策略是：</p>
+
+<pre><code class="language-text">W(t_processing) = max(event_time seen so far) - allowed_lateness
+
+其中 allowed_lateness 是允许的最大延迟容忍时间（如 5 分钟）
+
+例：
+  已观察到的最大 event_time = 10:05:30
+  allowed_lateness = 5 分钟
+  Watermark = 10:05:30 - 5min = 10:00:30
+
+  意思是：我猜测 ≤ 10:00:30 的数据应该都到了
+  所以 [10:00:00, 10:00:30] 之前的窗口可以关闭</code></pre>
+
+<p>这个 <code>allowed_lateness</code> 参数揭示了一个<strong>无法消除的根本权衡</strong>：</p>
+
+<table>
+  <thead>
+    <tr><th>allowed_lateness 设置</th><th>结果延迟</th><th>正确性</th><th>适用场景</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>0（激进 Watermark）</td><td>最低</td><td>差（大量数据被视为迟到）</td><td>允许一定数据丢失的监控指标</td></tr>
+    <tr><td>5 分钟（保守）</td><td>较高（5 分钟）</td><td>好（覆盖大多数延迟）</td><td>实时报表，对准确性要求高</td></tr>
+    <tr><td>30 分钟（极保守）</td><td>高</td><td>极好</td><td>金融结算等精确场景</td></tr>
+  </tbody>
+</table>
+
+<p>这个权衡没有标准答案，取决于业务对延迟和准确性的相对重视程度。</p>
+
+<h3 id="多流Watermark">多流场景：Watermark 的取最小值原则</h3>
+
+<p>当多个并行流合并时（如 Flink 的多个 Partition），Watermark 取所有上游的<strong>最小值</strong>：</p>
+
+<pre><code class="language-text">Partition 1: --W(10:05:30)-->
+Partition 2: --W(10:03:10)-->   合并后 Watermark = min(10:05:30, 10:03:10) = 10:03:10
+Partition 3: --W(10:05:15)-->
+
+原因：只要有一个 Partition 还可能发出 et=10:03:30 的数据，
+      就不能断言 ≤10:03:30 的数据已经全部到达
+
+这带来一个重要的运维问题：
+  如果某个 Partition 的数据源停了（不再发数据），
+  它的 Watermark 永远不推进，导致整个合并流的 Watermark 停滞，
+  所有窗口永远无法关闭 → Flink 的 idle source 处理机制就是解决这个问题的</code></pre>
+
+
+<h2 id="Window">四、窗口：给无界流分段计算</h2>
+
+<p>无界流必须切成有限片段才能计算聚合，这就是窗口（Window）的作用。窗口定义了"在哪段数据上做计算"。</p>
+
+<h3 id="滚动窗口">滚动窗口（Tumbling Window）</h3>
+
+<pre><code class="language-text">大小固定，不重叠，每条数据恰好属于一个窗口
+
+|---1分钟---|---1分钟---|---1分钟---|---1分钟---|
+   [0,60)     [60,120)   [120,180)  [180,240)
+
+适合：每分钟统计一次、每小时汇总一次
+特点：计算结果之间相互独立，无重叠，状态不复用</code></pre>
+
+<h3 id="滑动窗口">滑动窗口（Sliding Window）</h3>
+
+<pre><code class="language-text">窗口大小固定，但步长小于窗口大小，窗口间有重叠
+
+窗口大小 5 分钟，步长 1 分钟：
+|----5分钟----|
+    |----5分钟----|
+        |----5分钟----|
+
+同一条数据可能属于多个窗口（最多 size/slide 个）
+适合：过去 5 分钟的滑动平均、移动窗口统计
+代价：每条数据被计算 size/slide 次，计算量更大，状态也更多</code></pre>
+
+<h3 id="会话窗口">会话窗口（Session Window）</h3>
+
+<pre><code class="language-text">基于活动间隔动态划分，窗口大小不固定
+
+[点击][点击][点击]   30分钟无活动   [点击][点击]   30分钟无活动   [点击]
+|------session 1---|              |----session 2---|              |-3-|
+
+适合：用户会话分析，同一次访问中的行为归为一组
+特点：窗口边界由数据本身决定，不是预先固定的
+挑战：需要动态合并窗口（当两个 session 之间的间隔被一条数据填上时）</code></pre>
+
+<h3 id="窗口的理论本质">窗口的理论本质：数据分配函数</h3>
+
+<p>从理论角度，窗口可以被看作一个函数：</p>
+
+<pre><code class="language-text">assign(event) → Set&lt;Window&gt;
+
+对每条输入数据，返回它属于哪些窗口
+
+滚动窗口：assign(event) = { [floor(et/size)*size, floor(et/size)*size + size) }
+滑动窗口：assign(event) = { 所有包含 et 的 [n*slide, n*slide+size) }
+会话窗口：assign(event) = { [et, et+gap) }，之后动态合并相交窗口</code></pre>
+
+<p>这个视角揭示了窗口类型之间的统一性——它们只是数据分配策略不同，底层计算机制是一样的。</p>
+
+
+<h2 id="Trigger">五、触发器（Trigger）：何时输出结果</h2>
+
+<p>窗口定义了"在哪算"，触发器定义了"什么时候把结果发出去"。两者是正交的设计，可以自由组合。</p>
+
+<h3 id="三种触发策略">三种基本触发策略</h3>
+
+<pre><code class="language-text">1. Watermark 触发（默认）
+   条件：Watermark 超过窗口结束时间
+   语义："我认为这个窗口的数据差不多到齐了"
+   特点：结果准确，但延迟 = 窗口等待时间 + allowed_lateness
+
+2. Processing Time 触发
+   条件：距离窗口创建已过去 N 秒
+   语义：不管数据到没到齐，每隔 N 秒发一次结果
+   特点：低延迟，但结果可能不完整（Early firing，早期触发）
+
+3. 数据量触发
+   条件：窗口内积累了 N 条数据
+   语义：攒够一批就发
+   特点：吞吐可预测，但时间不确定</code></pre>
+
+<h3 id="组合触发器">组合触发器：DataFlow 模型的精华</h3>
+
+<p>Google DataFlow 论文的核心贡献之一是提出了可组合的触发器：</p>
+
+<pre><code class="language-text">典型生产模式：
+  Early firing（早期）：Processing Time 每 30 秒触发，输出不完整但低延迟的结果
+  On-time firing（准时）：Watermark 触发，输出认为完整的结果
+  Late firing（迟到）：对超过 Watermark 还到来的数据再次触发
+
+// Flink 实现示例
+DataStream&lt;Tuple2&lt;String, Long&gt;&gt; result = stream
+    .keyBy(0)
+    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .trigger(
+        ContinuousEventTimeTrigger.of(Time.seconds(10)) // 早期：每 10 秒一次
+        // 准时触发由 EventTimeTrigger 默认处理
+    )
+    .allowedLateness(Time.minutes(5))   // 允许 5 分钟迟到数据
+    .sideOutputLateData(lateOutputTag)  // 超级迟到数据发到侧输出
+    .sum(1);</code></pre>
+
+<p>这个模式在实践中极为常见：用户先看到一个"大约对"的实时结果，之后等数据到齐了再看到"完全准确"的最终结果，超迟到的数据则进入单独处理流程。</p>
+
+<h3 id="DataFlow四问">DataFlow 模型的四个问题</h3>
+
+<p>Google 的 DataFlow 论文用四个问题统一描述了流处理的所有核心概念：</p>
+
+<table>
+  <thead>
+    <tr><th>问题</th><th>对应概念</th><th>示例</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>What</strong>：计算什么结果？</td><td>聚合函数（Sum/Count/Join...）</td><td>统计点击次数</td></tr>
+    <tr><td><strong>Where</strong>：在哪些数据上算？</td><td>窗口（Tumbling/Sliding/Session）</td><td>每 1 分钟</td></tr>
+    <tr><td><strong>When</strong>：什么时候输出？</td><td>触发器（Watermark/PT/Count）</td><td>数据到齐后 + 每 10 秒早期结果</td></tr>
+    <tr><td><strong>How</strong>：迟到数据怎么处理？</td><td>Accumulation Mode</td><td>替换已有结果 / 累积</td></tr>
+  </tbody>
+</table>
+
+<p>其中 "How" 对应的 Accumulation Mode 有三种：</p>
+<ul>
+  <li><strong>Discarding</strong>：每次触发只输出这次新增的数据的结果，不累积</li>
+  <li><strong>Accumulating</strong>：每次触发输出从窗口开始到现在的累积结果（最常用）</li>
+  <li><strong>Accumulating &amp; Retracting</strong>：不仅发新结果，还发一条"撤回"消息取消上次的结果（下游可以精确维护）</li>
+</ul>
+
+
+<h2 id="State">六、状态（State）：流处理的记忆</h2>
+
+<p>无状态流处理（如过滤、映射）很简单。真正的挑战来自<strong>有状态计算</strong>——需要记住过去的数据才能计算当前结果。</p>
+
+<h3 id="状态类型">状态的类型</h3>
+
+<pre><code class="language-text">Keyed State（键控状态）：
+  每个 Key 维护独立的状态，最常见
+  例：统计每个用户的点击次数，每个 user_id 对应一个计数器
+
+  ValueState&lt;Long&gt; count;        // 单个值
+  ListState&lt;Event&gt; eventList;    // 值列表
+  MapState&lt;String, Long&gt; map;    // 键值对
+  ReducingState&lt;Long&gt; sum;       // 持续聚合
+  AggregatingState&lt;Event, Stats&gt; // 自定义聚合
+
+Operator State（算子状态）：
+  整个算子实例共享一个状态，不按 Key 分区
+  例：Kafka Source 记录每个 Partition 的消费 offset</code></pre>
+
+<h3 id="状态一致性">Checkpoint：状态一致性的保障</h3>
+
+<p>流处理系统长期运行，机器随时可能崩溃。如何保证崩溃恢复后状态仍然正确，是流处理的核心挑战。</p>
+
+<p>Flink 使用 <strong>Chandy-Lamport 算法</strong>的变体来做分布式快照（Checkpoint）：</p>
+
+<pre><code class="language-text">Checkpoint 流程：
+
+1. JobManager 触发 Checkpoint，向所有 Source 注入 Barrier（屏障）
+
+2. Source 收到信号，先对自己的状态做快照（如 Kafka offset），
+   然后把 Barrier 插入数据流中向下游广播
+
+         数据流：[d1][d2][d3][Barrier(ckpt=5)][d4][d5]...
+                               ↑
+                         这是 Checkpoint 5 的 Barrier
+
+3. 中间算子收到某个输入的 Barrier 时：
+   - 对齐（等待所有输入都到了该 Barrier，防止状态不一致）
+   - 对自己的状态做快照
+   - 向下游广播 Barrier
+
+4. 所有算子都完成快照后，Checkpoint 成功
+   快照数据写入持久化存储（HDFS/S3）
+
+崩溃恢复：
+   从最近一次成功的 Checkpoint 恢复所有算子的状态
+   Kafka Source 重置到 Checkpoint 记录的 offset，重放数据
+   → 保证 Exactly-Once 语义（在 Flink 内部）</code></pre>
+
+<h3 id="状态后端">状态后端（State Backend）的选择</h3>
+
+<pre><code class="language-text">HashMapStateBackend（原 MemoryStateBackend）：
+  状态存在 JVM 堆内存
+  优点：访问极快（O(1)，无序列化开销）
+  缺点：受 JVM 堆大小限制，GC 压力大，不适合大状态
+  适合：状态小、延迟要求极低的场景
+
+EmbeddedRocksDBStateBackend（原 RocksDBStateBackend）：
+  状态存在本地磁盘（RocksDB LSM-Tree）
+  优点：状态可以远超内存大小，增量 Checkpoint（只保存变化部分）
+  缺点：访问需要序列化/反序列化，延迟高 10-100 倍
+  适合：状态大（GB 到 TB 级）的场景，如用户画像、设备历史
+
+选择原则：
+  状态 < 几 GB → HashMapStateBackend
+  状态 > 几 GB 或需要增量 Checkpoint → EmbeddedRocksDBStateBackend</code></pre>
+
+<h3 id="状态的大小问题">无界状态：流处理的长期挑战</h3>
+
+<p>无界数据流会产生不断增长的状态。例如"对历史上所有出现过的 user_id 去重"——如果用户 ID 持续增长，状态将无限膨胀。</p>
+
+<p>解决方案：</p>
+<ul>
+  <li><strong>State TTL（状态过期）</strong>：超过一定时间未访问的状态自动清理</li>
+  <li><strong>业务设计约束</strong>：把"全局去重"改为"7 天内去重"，从语义上限制状态大小</li>
+  <li><strong>布隆过滤器</strong>：用概率数据结构近似去重，牺牲极小精度换取 O(1) 的恒定内存</li>
+</ul>
+
+
+<h2 id="Exactly-Once">七、Exactly-Once：流处理的语义圣杯</h2>
+
+<h3 id="三种语义">三种处理语义的对比</h3>
+
+<pre><code class="language-text">At-most-once（至多一次）：
+  实现：不做任何重试或确认
+  结果：数据可能丢失，但不会重复
+  适合：监控告警，偶尔丢一条数据可接受
+
+At-least-once（至少一次）：
+  实现：崩溃后从上次 offset 重放，但不撤销已写入的结果
+  结果：数据不丢失，但可能重复（同一条数据处理两次）
+  适合：大多数日志分析，重复多算一次影响不大
+
+Exactly-once（恰好一次）：
+  实现：复杂，需要 Source 可重放 + Sink 幂等/事务性写入
+  结果：既不丢失也不重复
+  适合：金融交易、精确计费等不能有误差的场景</code></pre>
+
+<h3 id="Exactly-Once实现">Exactly-Once 的两阶段提交实现</h3>
+
+<p>Flink 实现端到端 Exactly-Once（从 Kafka 读到 Kafka 写）的核心是<strong>两阶段提交（2PC）</strong>，与数据库事务中的 2PC 原理相同：</p>
+
+<pre><code class="language-text">正常流程：
+
+Phase 1 - Pre-commit（预提交）：
+  Checkpoint 触发时，Sink 把当前批次数据写入 Kafka Transaction，
+  但不 Commit（数据对消费者不可见）
+  状态快照记录：这个 Transaction 处于 pre-committed 状态
+
+Phase 2 - Commit（提交）：
+  所有算子的 Checkpoint 都完成后（意味着整个系统状态已保存），
+  Sink 调用 Kafka Transaction Commit
+  数据变为对消费者可见
+
+崩溃恢复：
+
+场景 A：Checkpoint 未完成时崩溃
+  → 恢复到上一个 Checkpoint 的状态
+  → 未 Commit 的 Transaction 自动 Abort（Kafka 事务超时回滚）
+  → 从上一个 Checkpoint 的 Kafka offset 重放
+  → 数据重新写入新 Transaction，最终 Commit
+
+场景 B：Checkpoint 完成后，Commit 之前崩溃
+  → 恢复到这个 Checkpoint 的状态
+  → 状态里记录了有一个 pre-committed Transaction
+  → 恢复后执行 Commit，数据补充写入
+  → 不会丢失
+
+结论：
+  无论在哪个时刻崩溃，要么 Transaction 最终被 Commit，
+  要么被 Abort 后重新写入，永远不会丢失也不会重复</code></pre>
+
+<h3 id="Exactly-Once的代价">Exactly-Once 的代价</h3>
+
+<p>Exactly-Once 不是免费的：</p>
+<ul>
+  <li><strong>吞吐降低约 10-30%</strong>：Barrier 对齐需要等待最慢的上游，造成 stall</li>
+  <li><strong>延迟增加</strong>：数据要等到 Checkpoint 完成才对下游可见，延迟 = Checkpoint 间隔</li>
+  <li><strong>Sink 必须支持事务</strong>：HDFS、Kafka 支持；MySQL 要用 JDBC 事务；部分存储不支持</li>
+</ul>
+
+<p>对于非关键路径，At-least-once 往往是更经济的选择；只有金融级业务才需要全链路 Exactly-Once。</p>
+
+<p>Flink 1.11 引入的 <strong>Unaligned Checkpoint</strong>（非对齐 Checkpoint）缓解了这个问题：不等待 Barrier 对齐，把未处理的数据一起纳入快照，以换取更低的 stall 时间，但快照大小会增加。</p>
+
+
+<h2 id="流批统一">八、流批统一：两个世界的终极融合</h2>
+
+<h3 id="批是流的特例">批是流的特例</h3>
+
+<p>从理论角度，<strong>批处理是流处理的特殊情况</strong>：有界数据集可以看作一条带有确定终点的流。</p>
+
+<pre><code class="language-text">批处理 = 流处理中 Watermark = +∞ 的特殊情况
+
+等价关系：
+  批处理"对全量数据计算"
+  = 流处理"Watermark 推进到无穷大，触发所有窗口的最终计算"
+
+Flink 的设计哲学：
+  - 内部只有一套执行引擎（流引擎）
+  - 批处理 = BoundedStream，Watermark 在数据结束时设为 MAX_VALUE
+  - 自动触发所有未关闭的窗口，得到完整结果</code></pre>
+
+<h3 id="Micro-batch">Micro-batch：流是批的极限</h3>
+
+<p>反过来也可以成立：<strong>流处理是批处理的极限情况</strong>——把批的时间窗口缩到无限小，就趋近于流。</p>
+
+<pre><code class="language-text">Spark Streaming / Spark Structured Streaming 的思路：
+  把持续的数据流切成极小的"micro-batch"（如 1 秒一批）
+  对每个 micro-batch 跑一次完整的批处理
+  模拟出"连续流"的效果
+
+批处理 batch_size → ∞：传统离线批处理
+批处理 batch_size → 0：趋近于原生流处理
+
+Micro-batch 的优缺点：
+  优点：利用成熟的批处理引擎，Exactly-Once 更容易实现
+  缺点：延迟有下限（一个 micro-batch 的时间），无法做到毫秒级</code></pre>
+
+<h3 id="两种路径的本质区别">两种路径的本质区别</h3>
+
+<pre><code class="language-text">原生流（Native Streaming）：Flink、Storm
+  每条数据来了就处理
+  延迟：毫秒级
+  状态：持续维护，更复杂
+  Exactly-Once：需要 2PC，有成本
+
+Micro-batch：Spark Streaming
+  每隔一段时间处理一批
+  延迟：秒级（受 batch interval 限制）
+  状态：每个 batch 结束后更新，相对简单
+  Exactly-Once：利用批处理的原子性，相对容易
+
+"Micro-batch 不是真正的流处理"这个判断在理论上是正确的：
+  它的延迟模型、状态模型、时间语义都和原生流有本质差异。
+  但在工程实践上，如果业务不需要毫秒级延迟，Spark Structured Streaming
+  是更简单、更稳定的选择。</code></pre>
+
+
+<h2 id="关键点总结">九、关键点总结</h2>
+
+<ul>
+  <li><strong>流处理的本质是在不完整信息下做决策</strong>：数据永远可能迟到，系统只能用 Watermark 做有根据的猜测</li>
+  <li><strong>Event Time vs Processing Time 是语义正确性的关键</strong>：用 Processing Time 计算的结果语义是错的，但实现最简单；用 Event Time 才能得到真正正确的结果，但需要处理乱序和迟到</li>
+  <li><strong>Watermark 是时间进度的断言，not 保证</strong>：它表达"我认为 ≤t 的数据到齐了"，而不是"一定到齐了"，超过 Watermark 到来的数据就是迟到数据，需要单独处理策略</li>
+  <li><strong>窗口和触发器是正交的设计</strong>：窗口决定"在哪算"，触发器决定"什么时候输出"，DataFlow 模型用 What/Where/When/How 四个维度统一了流处理的所有场景</li>
+  <li><strong>有状态计算是流处理的真正难点</strong>：Checkpoint（基于 Chandy-Lamport 算法）保证状态一致性，状态后端的选择（内存 vs RocksDB）决定了性能上限</li>
+  <li><strong>Exactly-Once 依赖两阶段提交</strong>：Checkpoint 触发时 Pre-commit，所有算子快照完成后 Commit，崩溃恢复时补充提交或回滚重试，代价是吞吐和延迟的损失</li>
+  <li><strong>流批统一是理论上的自然结论</strong>：批处理是 Watermark=∞ 时的流处理；Micro-batch 是 batch_size→0 时趋近于流处理；两条路径在延迟、状态复杂度、Exactly-Once 实现难度上有本质差异</li>
+  <li><strong>多流 Watermark 取最小值</strong>：是保证正确性的必要条件，但 idle source 需要特殊处理，否则会导致 Watermark 停滞</li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+          <a href="/tags/Flink/" rel="tag"><i class="fa fa-tag"></i> Flink</a>
+          <a href="/tags/实时计算/" rel="tag"><i class="fa fa-tag"></i> 实时计算</a>
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#流与批的本质区别"><span class="nav-number">1.</span> <span class="nav-text">一、流与批：两种截然不同的计算模型</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#时间模型"><span class="nav-number">2.</span> <span class="nav-text">二、时间模型：流处理最深的理论问题</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Watermark"><span class="nav-number">3.</span> <span class="nav-text">三、Watermark：对时间进度的系统性断言</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Window"><span class="nav-number">4.</span> <span class="nav-text">四、窗口：给无界流分段计算</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Trigger"><span class="nav-number">5.</span> <span class="nav-text">五、触发器：何时输出结果</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#State"><span class="nav-number">6.</span> <span class="nav-text">六、状态：流处理的记忆</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Exactly-Once"><span class="nav-number">7.</span> <span class="nav-text">七、Exactly-Once：语义圣杯</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#流批统一"><span class="nav-number">8.</span> <span class="nav-text">八、流批统一</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">9.</span> <span class="nav-text">九、关键点总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">206</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">37</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+<style>
+  pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+  pre[class*="language-"]::before { display: none !important; }
+  body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+  body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+  body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+  body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+<script>
+(function() {
+  var lightTheme = document.getElementById('prism-theme-light');
+  var darkTheme = document.getElementById('prism-theme-dark');
+  function applyTheme() {
+    var isDark = document.body.classList.contains('dark-mode');
+    lightTheme.disabled = isDark;
+    darkTheme.disabled = !isDark;
+  }
+  applyTheme();
+  var observer = new MutationObserver(applyTheme);
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
+</script>
+</body>
+</html>
