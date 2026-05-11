@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Apache Flume 深度解析：Source/Channel/Sink 三层架构、事务机制与可靠性保证、拦截器与选择器、Agent 拓扑设计（扇入/扇出/多路复用）、性能调优，以及与 Filebeat/Kafka Connect 的对比与选型建议。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Apache Flume 深度解析">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/11/Apache-Flume深度解析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="Apache Flume 深度解析：Source/Channel/Sink 三层架构、事务机制与可靠性保证、拦截器与选择器、Agent 拓扑设计（扇入/扇出/多路复用）、性能调优，以及与 Filebeat/Kafka Connect 的对比与选型建议。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-11T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-11T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="大数据">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="Hadoop">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/11/Apache-Flume深度解析/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>Apache Flume 深度解析 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-11T10:00:00+08:00" content="2026-05-11">
+      05-11
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      Apache Flume 深度解析
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>Apache Flume 诞生于 2011 年的 Cloudera，是 Hadoop 生态里最早解决"怎么把日志收进 HDFS"问题的工具。它的设计目标很明确：<strong>大规模分布式日志采集，可靠、灵活、可扩展</strong>。</p>
+
+<p>虽然在云原生时代已被更轻量的方案部分取代，但 Flume 的架构设计——特别是它的事务机制和 Agent 拓扑——至今仍是理解日志采集系统设计的最佳教材。本文从架构原理出发，完整剖析 Flume 的每一层。</p>
+
+
+<h2 id="整体架构">一、整体架构：Agent 是一切的基础</h2>
+
+<p>Flume 的核心是 <strong>Agent</strong>——一个 JVM 进程，包含三个组件：</p>
+
+<pre><code class="language-text">┌─────────────────────────────────────────────────────────────┐
+│                        Flume Agent                          │
+│                                                             │
+│  ┌──────────┐    put    ┌──────────┐   take   ┌──────────┐ │
+│  │  Source  │ ────────► │ Channel  │ ────────► │   Sink   │ │
+│  │（数据采集）│           │（数据缓冲）│          │（数据写出）│ │
+│  └──────────┘           └──────────┘           └──────────┘ │
+│       ↑                      ↑                              │
+│   外部数据源              事务保护                            │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<ul>
+  <li><strong>Source</strong>：从外部数据源（文件、网络、消息队列）拉取或接收数据，封装成 Event</li>
+  <li><strong>Channel</strong>：Event 的临时存储，起缓冲作用，是 Source 和 Sink 之间的解耦层</li>
+  <li><strong>Sink</strong>：从 Channel 取出 Event，写入目的地（HDFS、Kafka、HBase 等）</li>
+</ul>
+
+<p>三个组件之间的数据流动由<strong>事务（Transaction）</strong>保护，这是 Flume 可靠性的核心。</p>
+
+<h3 id="Event数据模型">Event：Flume 的基本数据单元</h3>
+
+<pre><code class="language-java">// Event 结构极简：headers + body
+public interface Event {
+    Map&lt;String, String&gt; getHeaders();  // 元数据键值对（可用于路由）
+    byte[] getBody();                   // 实际数据内容（一般是一行日志）
+}
+
+// 示例：一条 Nginx 访问日志对应的 Event
+headers: {
+    "host": "web-server-01",
+    "timestamp": "1715385600000",
+    "source": "/var/log/nginx/access.log"
+}
+body: b'10.0.0.1 - - [11/May/2026:10:00:00] "GET /api/v1/users HTTP/1.1" 200 1234'</code></pre>
+
+
+<h2 id="Source深度解析">二、Source 深度解析</h2>
+
+<p>Source 负责从外部获取数据。Flume 内置了十几种 Source，覆盖主流数据源。</p>
+
+<h3 id="Taildir-Source">Taildir Source（最常用）</h3>
+
+<p>监控一组目录下的文件，支持断点续传，是生产环境日志采集的首选：</p>
+
+<pre><code class="language-properties"># flume-agent.conf
+agent.sources = r1
+agent.sources.r1.type = TAILDIR
+
+# 指定要监控的文件组（支持通配符）
+agent.sources.r1.filegroups = f1 f2
+agent.sources.r1.filegroups.f1 = /var/log/nginx/access.log
+agent.sources.r1.filegroups.f2 = /var/log/app/*.log
+
+# 断点续传文件：记录每个文件已读取到的位置（inode + 偏移量）
+agent.sources.r1.positionFile = /var/flume/taildir_position.json
+
+# 批量读取条数（每次最多从文件读多少行）
+agent.sources.r1.batchSize = 1000</code></pre>
+
+<p>Taildir Source 的断点续传原理：用 JSON 文件记录每个被监控文件的 inode 号和读取偏移量。Agent 重启后从 positionFile 恢复，不会重复读取已发送的数据（注意：不能保证完全 Exactly-Once，极端情况下可能重发最后一批）。</p>
+
+<h3 id="Kafka-Source">Kafka Source</h3>
+
+<p>从 Kafka Topic 消费数据，适合构建"Kafka → Flume → HDFS"的数仓导入链路：</p>
+
+<pre><code class="language-properties">agent.sources.r1.type = org.apache.flume.source.kafka.KafkaSource
+agent.sources.r1.kafka.bootstrap.servers = broker1:9092,broker2:9092
+agent.sources.r1.kafka.topics = app-logs,access-logs
+agent.sources.r1.kafka.consumer.group.id = flume-hdfs-consumer
+agent.sources.r1.batchSize = 1000
+agent.sources.r1.batchDurationMillis = 2000  # 最多等 2 秒凑满一批</code></pre>
+
+<h3 id="其他常用Source">其他常用 Source</h3>
+
+<table>
+  <thead>
+    <tr><th>Source 类型</th><th>说明</th><th>典型场景</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Avro Source</td><td>接收其他 Agent 通过 Avro RPC 发送的数据</td><td>多级 Agent 汇聚</td></tr>
+    <tr><td>Syslog Source</td><td>接收 Syslog UDP/TCP 协议数据</td><td>系统日志采集</td></tr>
+    <tr><td>Exec Source</td><td>执行 shell 命令，将输出作为 Event</td><td>自定义命令输出</td></tr>
+    <tr><td>Spooling Dir Source</td><td>监控目录，将新文件整体作为数据源</td><td>批量文件导入</td></tr>
+    <tr><td>HTTP Source</td><td>接收 HTTP POST 的 JSON 数据</td><td>应用主动上报</td></tr>
+    <tr><td>Thrift Source</td><td>接收 Thrift RPC 数据</td><td>跨语言数据采集</td></tr>
+  </tbody>
+</table>
+
+
+<h2 id="Channel深度解析">三、Channel 深度解析：可靠性的关键</h2>
+
+<p>Channel 是 Source 和 Sink 之间的缓冲区。它的设计决定了 Flume 的可靠性和性能。</p>
+
+<h3 id="事务机制">事务机制：at-least-once 语义</h3>
+
+<p>Flume 通过两个独立的事务保护数据流转：</p>
+
+<pre><code class="language-text">Source → Channel（Put 事务）：
+  1. Source 开启 Put 事务
+  2. Source 把一批 Event put 进 Channel
+  3. 如果全部成功 → commit，Event 持久化到 Channel
+  4. 如果失败 → rollback，Event 丢弃，Source 下次重试
+
+Channel → Sink（Take 事务）：
+  1. Sink 开启 Take 事务
+  2. Sink 从 Channel take 一批 Event
+  3. Sink 写入目的地（HDFS/Kafka...）
+  4. 写入成功 → commit，Channel 删除这批 Event
+  5. 写入失败 → rollback，Event 回到 Channel，等待下次重试
+</code></pre>
+
+<p>这套机制保证了 <strong>at-least-once</strong>（至少一次）语义：数据不会丢失，但在 Sink 成功写入后 Agent 崩溃的极端情况下，可能重复发送。</p>
+
+<h3 id="Memory-Channel">Memory Channel：高吞吐，低可靠</h3>
+
+<pre><code class="language-properties">agent.channels.c1.type = memory
+agent.channels.c1.capacity = 100000      # Channel 最大容纳 Event 数
+agent.channels.c1.transactionCapacity = 1000  # 每个事务最多处理 Event 数
+agent.channels.c1.byteCapacityBufferPercentage = 20
+agent.channels.c1.byteCapacity = 800000000  # Channel 最大字节数（800MB）</code></pre>
+
+<p>数据存在 JVM 堆内存，Agent 崩溃时 Channel 中的数据全部丢失。适合<strong>允许少量丢失、追求高吞吐</strong>的场景（如监控指标采集）。</p>
+
+<h3 id="File-Channel">File Channel：低吞吐，高可靠</h3>
+
+<pre><code class="language-properties">agent.channels.c1.type = file
+agent.channels.c1.checkpointDir = /var/flume/checkpoint
+agent.channels.c1.dataDirs = /var/flume/data1,/var/flume/data2  # 多目录提升吞吐
+agent.channels.c1.capacity = 10000000   # 最大 Event 数
+agent.channels.c1.transactionCapacity = 10000
+agent.channels.c1.checkpointInterval = 30000  # 每 30 秒做一次 checkpoint</code></pre>
+
+<p>数据写入磁盘（WAL，Write-Ahead Log），崩溃恢复后数据完整。代价是吞吐量比 Memory Channel 低 5-10 倍。适合<strong>日志不能丢失</strong>的场景（如交易日志、审计日志）。</p>
+
+<h3 id="Kafka-Channel">Kafka Channel：兼顾可靠与吞吐</h3>
+
+<pre><code class="language-properties">agent.channels.c1.type = org.apache.flume.channel.kafka.KafkaChannel
+agent.channels.c1.kafka.bootstrap.servers = broker1:9092
+agent.channels.c1.kafka.topic = flume-channel-topic
+agent.channels.c1.kafka.consumer.group.id = flume-channel-group</code></pre>
+
+<p>用 Kafka 作为 Channel，把 Event 写入 Kafka Topic。可靠性由 Kafka 保证，同时 Kafka 本身就是高吞吐的。这种模式下 Sink 直接从 Kafka 消费，实际上 Flume 退化成了一个 Kafka Producer。</p>
+
+
+<h2 id="Sink深度解析">四、Sink 深度解析</h2>
+
+<h3 id="HDFS-Sink">HDFS Sink（最重要）</h3>
+
+<p>将 Event 写入 HDFS，是 Flume 最核心的使用场景：</p>
+
+<pre><code class="language-properties">agent.sinks.k1.type = hdfs
+agent.sinks.k1.hdfs.path = /data/logs/%Y/%m/%d/%H  # 按时间分目录
+agent.sinks.k1.hdfs.filePrefix = access-log
+agent.sinks.k1.hdfs.fileSuffix = .log
+
+# 文件滚动策略（三个条件任意一个触发就滚动生成新文件）
+agent.sinks.k1.hdfs.rollInterval = 3600    # 每 1 小时滚动一次
+agent.sinks.k1.hdfs.rollSize = 134217728   # 文件达到 128MB 滚动
+agent.sinks.k1.hdfs.rollCount = 1000000    # 写入 100 万条滚动
+
+# 文件格式
+agent.sinks.k1.hdfs.fileType = DataStream  # 普通文本
+# agent.sinks.k1.hdfs.fileType = CompressedStream  # 压缩文本
+# agent.sinks.k1.hdfs.codeC = snappy       # Snappy 压缩
+
+# 写入批次大小
+agent.sinks.k1.hdfs.batchSize = 1000
+
+# 防止 HDFS 小文件问题：使用 .tmp 后缀标记写入中的文件
+agent.sinks.k1.hdfs.inUseSuffix = .tmp</code></pre>
+
+<p>文件滚动策略是 HDFS Sink 最重要的调优参数。太频繁滚动会产生大量小文件（HDFS 的致命问题）；太不频繁则实时性差，且单文件过大影响后续 MapReduce 的并行度。</p>
+
+<h3 id="Kafka-Sink">Kafka Sink</h3>
+
+<pre><code class="language-properties">agent.sinks.k1.type = org.apache.flume.sink.kafka.KafkaSink
+agent.sinks.k1.kafka.bootstrap.servers = broker1:9092,broker2:9092
+agent.sinks.k1.kafka.topic = app-logs
+agent.sinks.k1.kafka.flumeBatchSize = 2000
+agent.sinks.k1.kafka.producer.acks = 1       # 性能优先
+# agent.sinks.k1.kafka.producer.acks = all   # 可靠性优先</code></pre>
+
+<h3 id="其他Sink">其他常用 Sink</h3>
+
+<table>
+  <thead>
+    <tr><th>Sink 类型</th><th>说明</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Avro Sink</td><td>把 Event 通过 Avro RPC 发给另一个 Agent（多级聚合必用）</td></tr>
+    <tr><td>HBase Sink</td><td>写入 HBase，支持按列族映射</td></tr>
+    <tr><td>Elasticsearch Sink</td><td>写入 ES，适合日志检索场景</td></tr>
+    <tr><td>File Roll Sink</td><td>写本地文件，按时间/大小滚动</td></tr>
+    <tr><td>Logger Sink</td><td>打印到日志，仅用于调试</td></tr>
+    <tr><td>Null Sink</td><td>丢弃所有数据，用于压测 Source/Channel</td></tr>
+  </tbody>
+</table>
+
+
+<h2 id="拦截器与选择器">五、拦截器与通道选择器：数据处理与路由</h2>
+
+<h3 id="拦截器">拦截器（Interceptor）：在 Source 侧处理 Event</h3>
+
+<p>拦截器在 Event 进入 Channel 之前对其进行过滤或修改：</p>
+
+<pre><code class="language-properties"># 时间戳拦截器：给 Event 打上采集时间戳（HDFS Sink 路径用到 %Y/%m/%d 时必须加）
+agent.sources.r1.interceptors = i1
+agent.sources.r1.interceptors.i1.type = timestamp
+
+# Host 拦截器：把采集机器的主机名加入 headers
+agent.sources.r1.interceptors = i1 i2
+agent.sources.r1.interceptors.i1.type = timestamp
+agent.sources.r1.interceptors.i2.type = host
+agent.sources.r1.interceptors.i2.hostHeader = hostname
+
+# 正则过滤拦截器：过滤掉匹配正则的 Event（或只保留匹配的）
+agent.sources.r1.interceptors.i3.type = regex_filter
+agent.sources.r1.interceptors.i3.regex = .*ERROR.*
+agent.sources.r1.interceptors.i3.excludeEvents = false  # false=只保留匹配的
+
+# 正则提取拦截器：从 body 提取字段放入 headers（用于后续路由）
+agent.sources.r1.interceptors.i4.type = regex_extractor
+agent.sources.r1.interceptors.i4.regex = (\\w+)\\s+(\\d+)
+agent.sources.r1.interceptors.i4.serializers = s1 s2
+agent.sources.r1.interceptors.i4.serializers.s1.name = level
+agent.sources.r1.interceptors.i4.serializers.s2.name = code</code></pre>
+
+<h3 id="通道选择器">通道选择器（Channel Selector）：一份数据发给多个 Channel</h3>
+
+<pre><code class="language-properties"># Replicating（复制，默认）：Event 发给所有 Channel（数据备份）
+agent.sources.r1.selector.type = replicating
+agent.sources.r1.channels = c1 c2  # c1 写 HDFS，c2 写 Kafka，两份都有
+
+# Multiplexing（多路复用）：根据 header 值路由到不同 Channel
+agent.sources.r1.selector.type = multiplexing
+agent.sources.r1.selector.header = level         # 按 level header 路由
+agent.sources.r1.selector.mapping.ERROR = c_error   # ERROR 级别 → c_error Channel
+agent.sources.r1.selector.mapping.WARN = c_warn
+agent.sources.r1.selector.mapping.INFO = c_info
+agent.sources.r1.selector.default = c_info          # 未匹配的走默认</code></pre>
+
+
+<h2 id="Agent拓扑设计">六、Agent 拓扑设计</h2>
+
+<p>Flume 的真正威力在于多个 Agent 的组合，构成灵活的数据采集网络。</p>
+
+<h3 id="单Agent">单 Agent（简单场景）</h3>
+
+<pre><code class="language-text">Web Server（日志文件）
+  → [Taildir Source → File Channel → HDFS Sink]
+  → HDFS
+</code></pre>
+
+<h3 id="扇入模式">扇入（Fan-in）：多对一汇聚</h3>
+
+<p>多台 Web 服务器各自运行一个 Collector Agent，把日志发给汇聚层的 Aggregator Agent，再统一写入 HDFS。汇聚层便于统一管理 HDFS 写入，避免数千台服务器直连 HDFS 的连接风暴：</p>
+
+<pre><code class="language-text">Web-01: [Taildir → Memory Channel → Avro Sink] ─────┐
+Web-02: [Taildir → Memory Channel → Avro Sink] ──── ► Aggregator: [Avro Source → File Channel → HDFS Sink] → HDFS
+Web-03: [Taildir → Memory Channel → Avro Sink] ─────┘
+...（数百台）
+</code></pre>
+
+<pre><code class="language-properties"># Collector Agent（部署在每台 Web 服务器）
+collector.sources = r1
+collector.sources.r1.type = TAILDIR
+collector.sources.r1.filegroups.f1 = /var/log/nginx/access.log
+collector.sources.r1.channels = c1
+
+collector.channels = c1
+collector.channels.c1.type = memory
+collector.channels.c1.capacity = 10000
+
+collector.sinks = k1
+collector.sinks.k1.type = avro
+collector.sinks.k1.hostname = aggregator.example.com
+collector.sinks.k1.port = 4141
+collector.sinks.k1.channel = c1
+
+# Aggregator Agent（部署在汇聚层，少量机器）
+aggregator.sources = r1
+aggregator.sources.r1.type = avro
+aggregator.sources.r1.bind = 0.0.0.0
+aggregator.sources.r1.port = 4141
+aggregator.sources.r1.channels = c1
+
+aggregator.channels = c1
+aggregator.channels.c1.type = file
+aggregator.channels.c1.checkpointDir = /var/flume/checkpoint
+aggregator.channels.c1.dataDirs = /var/flume/data
+
+aggregator.sinks = k1
+aggregator.sinks.k1.type = hdfs
+aggregator.sinks.k1.hdfs.path = /data/logs/%Y/%m/%d/%H
+aggregator.sinks.k1.channel = c1</code></pre>
+
+<h3 id="扇出模式">扇出（Fan-out）：一份数据多路输出</h3>
+
+<p>一份日志同时写入 HDFS（离线分析）和 Kafka（实时处理）：</p>
+
+<pre><code class="language-text">日志文件
+  → [Taildir Source]
+      ├── [Memory Channel → HDFS Sink] → HDFS（离线）
+      └── [Memory Channel → Kafka Sink] → Kafka（实时）
+</code></pre>
+
+<pre><code class="language-properties">agent.sources = r1
+agent.channels = c_hdfs c_kafka
+agent.sinks = k_hdfs k_kafka
+
+agent.sources.r1.type = TAILDIR
+agent.sources.r1.filegroups.f1 = /var/log/app/*.log
+# Replicating 选择器把 Event 同时放入两个 Channel
+agent.sources.r1.selector.type = replicating
+agent.sources.r1.channels = c_hdfs c_kafka
+
+# HDFS Channel + Sink
+agent.channels.c_hdfs.type = file
+agent.sinks.k_hdfs.type = hdfs
+agent.sinks.k_hdfs.hdfs.path = /data/logs/%Y/%m/%d
+agent.sinks.k_hdfs.channel = c_hdfs
+
+# Kafka Channel + Sink
+agent.channels.c_kafka.type = memory
+agent.sinks.k_kafka.type = org.apache.flume.sink.kafka.KafkaSink
+agent.sinks.k_kafka.kafka.bootstrap.servers = broker1:9092
+agent.sinks.k_kafka.kafka.topic = app-logs
+agent.sinks.k_kafka.channel = c_kafka</code></pre>
+
+<h3 id="多路复用路由">多路复用路由：按日志级别分流</h3>
+
+<pre><code class="language-text">日志文件
+  → [Taildir Source + RegexExtractor 拦截器]
+      ├── ERROR 级别 → [Channel → HDFS Sink（错误日志目录）]
+      └── INFO/WARN  → [Channel → HDFS Sink（普通日志目录）]
+</code></pre>
+
+
+<h2 id="Sink-Processor">七、Sink Processor：高可用与负载均衡</h2>
+
+<p>当一个 Channel 对应多个 Sink 时，Sink Processor 决定如何使用这些 Sink。</p>
+
+<h3 id="Load-Balancing-Sink-Processor">Load Balancing Sink Processor</h3>
+
+<pre><code class="language-properties">agent.sinkgroups = sg1
+agent.sinkgroups.sg1.sinks = k1 k2 k3
+agent.sinkgroups.sg1.processor.type = load_balance
+agent.sinkgroups.sg1.processor.selector = round_robin  # 或 random
+agent.sinkgroups.sg1.processor.backoff = true   # 失败后退避，不立即重试</code></pre>
+
+<p>三个 Sink 轮询写入，提升吞吐量。适合写入多个 Avro Aggregator Agent 的场景。</p>
+
+<h3 id="Failover-Sink-Processor">Failover Sink Processor</h3>
+
+<pre><code class="language-properties">agent.sinkgroups.sg1.processor.type = failover
+agent.sinkgroups.sg1.processor.priority.k1 = 100  # 主 Sink，优先级最高
+agent.sinkgroups.sg1.processor.priority.k2 = 80   # 备 Sink
+agent.sinkgroups.sg1.processor.maxpenalty = 30000  # 失败后最长等待 30 秒再重试</code></pre>
+
+<p>主 Sink 挂掉后自动切换到备 Sink，主 Sink 恢复后自动切回。适合生产环境的高可用部署。</p>
+
+
+<h2 id="性能调优">八、性能调优关键参数</h2>
+
+<h3 id="批量大小调优">批量大小：最重要的参数</h3>
+
+<pre><code class="language-text">Source batchSize：Source 一次从数据源读多少 Event 放入 Channel
+Channel transactionCapacity：一个事务最多处理多少 Event
+Sink batchSize：Sink 一次从 Channel 取多少 Event 写出
+
+三者的关系：
+  Source batchSize ≤ Channel transactionCapacity
+  Sink batchSize ≤ Channel transactionCapacity
+
+推荐值：
+  低延迟场景：batchSize = 100-500，transactionCapacity = 1000
+  高吞吐场景：batchSize = 1000-5000，transactionCapacity = 10000
+</code></pre>
+
+<h3 id="线程模型调优">线程模型</h3>
+
+<pre><code class="language-properties"># Taildir Source 并发读取线程数（每个文件组一个线程）
+agent.sources.r1.maxBatchCount = 100
+
+# HDFS Sink 写入线程数（多线程写多个 HDFS 文件）
+agent.sinks.k1.hdfs.threadsPoolSize = 10
+agent.sinks.k1.hdfs.rollTimerPoolSize = 1</code></pre>
+
+<h3 id="JVM调优">JVM 参数调优</h3>
+
+<pre><code class="language-bash"># flume-env.sh
+export JAVA_OPTS="-Xms4g -Xmx4g \          # 堆内存（Memory Channel 用堆内存，要给够）
+  -XX:+UseG1GC \                            # G1 GC，减少停顿
+  -XX:MaxGCPauseMillis=100 \               # GC 最大停顿 100ms
+  -XX:+HeapDumpOnOutOfMemoryError \
+  -XX:HeapDumpPath=/var/flume/heapdump"</code></pre>
+
+
+<h2 id="监控">九、监控：生产环境必须关注的指标</h2>
+
+<p>Flume 内置了 JMX 和 HTTP JSON 两种监控接口：</p>
+
+<pre><code class="language-bash"># 启动时开启 HTTP 监控接口
+flume-ng agent \
+  --conf conf \
+  --conf-file flume.conf \
+  --name agent \
+  -Dflume.monitoring.type=http \
+  -Dflume.monitoring.port=34545
+
+# 查看监控数据
+curl http://localhost:34545/metrics | python -m json.tool</code></pre>
+
+<p>输出示例：</p>
+<pre><code class="language-json">{
+  "SOURCE.r1": {
+    "EventReceivedCount": 10000000,   // 已接收 Event 数
+    "EventAcceptedCount": 9999950,    // 成功放入 Channel 的 Event 数
+    "AppendBatchAcceptedCount": 9999  // 成功的批次数
+  },
+  "CHANNEL.c1": {
+    "EventPutSuccessCount": 9999950,
+    "EventTakeSuccessCount": 9999900,
+    "ChannelSize": 50,                // 当前 Channel 中积压的 Event 数（关键指标！）
+    "ChannelCapacity": 100000
+  },
+  "SINK.k1": {
+    "EventDrainSuccessCount": 9999900,
+    "EventDrainAttemptCount": 9999950,
+    "BatchCompleteCount": 9999,
+    "ConnectionFailedCount": 0        // 连接失败次数（>0 说明有问题）
+  }
+}</code></pre>
+
+<p>最重要的监控指标：</p>
+<ul>
+  <li><strong>ChannelSize</strong>：Channel 积压量，持续增长说明 Sink 消费跟不上 Source 生产，需要扩容 Sink 或加大 batchSize</li>
+  <li><strong>EventAcceptedCount vs EventReceivedCount</strong>：差值大说明 Channel 满了，Source 在等待</li>
+  <li><strong>ConnectionFailedCount</strong>：Sink 连接目的地失败次数，>0 需要立即排查</li>
+</ul>
+
+
+<h2 id="与现代方案对比">十、与现代方案对比：何时还应该用 Flume</h2>
+
+<table>
+  <thead>
+    <tr><th>维度</th><th>Flume</th><th>Filebeat</th><th>Kafka Connect</th><th>Fluentd</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>部署重量</td><td>重（JVM）</td><td>轻（Go）</td><td>中（JVM）</td><td>中（Ruby）</td></tr>
+    <tr><td>配置复杂度</td><td>高</td><td>低</td><td>中</td><td>中</td></tr>
+    <tr><td>HDFS 写入</td><td>原生支持，成熟</td><td>不支持</td><td>通过插件</td><td>通过插件</td></tr>
+    <tr><td>Kafka 集成</td><td>支持但非原生</td><td>原生支持</td><td>原生，最强</td><td>支持</td></tr>
+    <tr><td>数据处理</td><td>拦截器（有限）</td><td>处理器（有限）</td><td>Transform（中等）</td><td>过滤器（强）</td></tr>
+    <tr><td>可靠性</td><td>at-least-once</td><td>at-least-once</td><td>exactly-once（部分）</td><td>at-least-once</td></tr>
+    <tr><td>适合场景</td><td>Hadoop 生态，HDFS 写入</td><td>日志→Elasticsearch/Kafka</td><td>数据库→Kafka 变更捕获</td><td>多目的地路由</td></tr>
+  </tbody>
+</table>
+
+<p><strong>还应该用 Flume 的场景</strong>：</p>
+<ul>
+  <li>已有大量 Flume 部署的 Hadoop 生态，迁移成本高</li>
+  <li>需要直接可靠地写入 HDFS，且团队熟悉 Flume 运维</li>
+  <li>需要灵活的多级 Agent 拓扑（扇入/扇出/多路复用组合）</li>
+</ul>
+
+<p><strong>应该换掉 Flume 的场景</strong>：</p>
+<ul>
+  <li>新建系统，目的地是 Kafka 或 Elasticsearch → 用 Filebeat（轻量、运维简单）</li>
+  <li>需要数据库 CDC（Change Data Capture）→ 用 Kafka Connect + Debezium</li>
+  <li>需要强数据处理能力 → 用 Flink 或 Logstash</li>
+  <li>云原生环境（K8s）→ Fluentd/Fluentbit 更适合容器日志采集</li>
+</ul>
+
+
+<h2 id="关键点总结">十一、关键点总结</h2>
+
+<ul>
+  <li><strong>Agent = Source + Channel + Sink</strong>，三者由事务（Transaction）连接，保证 at-least-once 语义</li>
+  <li><strong>Channel 的选择决定可靠性</strong>：Memory Channel 快但会丢数据，File Channel 慢但持久化，Kafka Channel 兼顾两者</li>
+  <li><strong>Taildir Source 是生产环境日志采集的首选</strong>：支持断点续传，positionFile 记录 inode+偏移量，Agent 重启不重复发送</li>
+  <li><strong>HDFS Sink 的文件滚动策略是关键调优点</strong>：rollInterval/rollSize/rollCount 控制文件大小，避免小文件问题</li>
+  <li><strong>拦截器链在 Source 侧处理 Event</strong>：时间戳拦截器是 HDFS 时间分区路径的必要前提</li>
+  <li><strong>通道选择器实现扇出</strong>：Replicating 复制到所有 Channel，Multiplexing 按 header 路由</li>
+  <li><strong>多级 Agent 拓扑解决扩展性问题</strong>：大量采集机器 → 少量汇聚机器 → HDFS，避免直连 HDFS 的连接风暴</li>
+  <li><strong>ChannelSize 是最重要的监控指标</strong>：持续增长意味着消费跟不上生产，是扩容的信号</li>
+  <li><strong>新系统优先考虑 Filebeat/Kafka Connect</strong>：Flume 的优势领域已收窄到 Hadoop 生态的 HDFS 直写场景</li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+          <a href="/tags/数据库/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/Hadoop/" rel="tag"><i class="fa fa-tag"></i> Hadoop</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构"><span class="nav-number">1.</span> <span class="nav-text">一、整体架构：Agent 是一切的基础</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Source深度解析"><span class="nav-number">2.</span> <span class="nav-text">二、Source 深度解析</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Channel深度解析"><span class="nav-number">3.</span> <span class="nav-text">三、Channel 深度解析</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Sink深度解析"><span class="nav-number">4.</span> <span class="nav-text">四、Sink 深度解析</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#拦截器与选择器"><span class="nav-number">5.</span> <span class="nav-text">五、拦截器与通道选择器</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Agent拓扑设计"><span class="nav-number">6.</span> <span class="nav-text">六、Agent 拓扑设计</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Sink-Processor"><span class="nav-number">7.</span> <span class="nav-text">七、Sink Processor</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#性能调优"><span class="nav-number">8.</span> <span class="nav-text">八、性能调优</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#监控"><span class="nav-number">9.</span> <span class="nav-text">九、监控</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#与现代方案对比"><span class="nav-number">10.</span> <span class="nav-text">十、与现代方案对比</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">11.</span> <span class="nav-text">十一、关键点总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">205</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">37</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+<style>
+  pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+  pre[class*="language-"]::before { display: none !important; }
+  body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+  body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+  body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+  body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+<script>
+(function() {
+  var lightTheme = document.getElementById('prism-theme-light');
+  var darkTheme = document.getElementById('prism-theme-dark');
+  function applyTheme() {
+    var isDark = document.body.classList.contains('dark-mode');
+    lightTheme.disabled = isDark;
+    darkTheme.disabled = !isDark;
+  }
+  applyTheme();
+  var observer = new MutationObserver(applyTheme);
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
+</script>
+</body>
+</html>
