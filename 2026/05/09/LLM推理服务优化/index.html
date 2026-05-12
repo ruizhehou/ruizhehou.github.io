@@ -193,18 +193,22 @@
 
 <p>LLM 推理分为两个性质完全不同的阶段：</p>
 
-<pre><code class="language-text">Prefill 阶段（处理输入 prompt）：
-  - 对所有输入 token 并行计算 Attention
-  - 计算密集（Compute-bound），算力是瓶颈
-  - 一次完成，生成初始 KV Cache
-  - 延迟：与 prompt 长度成正比
-
-Decode 阶段（逐 token 生成输出）：
-  - 每步只生成 1 个新 token
-  - 显存带宽密集（Memory-bound），带宽是瓶颈
-  - 串行执行，无法并行化
-  - 延迟：与输出长度成正比，每步约 20-100ms
-</code></pre>
+<pre class="mermaid">
+graph LR
+    subgraph Prefill["Prefill 阶段（处理输入 prompt）"]
+        P1["并行计算所有 token 的 Attention"]
+        P2["Compute-bound，算力是瓶颈"]
+        P3["一次完成，生成初始 KV Cache"]
+        P4["延迟与 prompt 长度成正比"]
+    end
+    subgraph Decode["Decode 阶段（逐 token 生成输出）"]
+        D1["每步只生成 1 个新 token"]
+        D2["Memory-bound，带宽是瓶颈"]
+        D3["串行执行，无法并行化"]
+        D4["每步约 20-100ms"]
+    end
+    Prefill -->|"KV Cache 传递"| Decode
+</pre>
 
 <p>这两个阶段的性质不同，决定了它们需要完全不同的优化策略，甚至需要部署在不同的硬件上。</p>
 
@@ -236,21 +240,23 @@ Decode 阶段（逐 token 生成输出）：
 
 <p>传统批处理（Static Batching）的问题：等所有请求都到齐再一起推理。结果是：短请求生成完了还要等长请求，GPU 大量时间在空转。</p>
 
-<pre><code class="language-text">Static Batching（传统）：
-  Batch = [req1(200tok), req2(50tok), req3(180tok)]
+<pre class="mermaid">
+gantt
+    title Static Batching vs Continuous Batching
+    dateFormat X
+    axisFormat %s步
 
-  时间轴：|==req1(200步)==|
-          |=req2(50步)====等等等等等|  ← req2 完成后 GPU 空转
-          |==req3(180步)==========|
-  GPU 利用率：~30%
+    section Static Batching（GPU利用率~30%）
+    req1 推理中       :active, 0, 200
+    req2 推理+空转等待 :crit,   0, 200
+    req3 推理中       :active, 0, 180
 
-Continuous Batching（连续批处理）：
-  时间轴：|req1 step1|req1 step2|...|req1 step200|
-          在每一步，把已完成的请求移出，把新到的请求加入
-
-  |req1+req2+req3 step1|...|req2完成，req4加入|...
-  GPU 利用率：~80%+
-</code></pre>
+    section Continuous Batching（GPU利用率~80%+）
+    req1            :active, 0, 200
+    req2 完成后移出   :done,   0, 50
+    req3            :active, 0, 180
+    req4 新请求加入   :active, 50, 200
+</pre>
 
 <p>实现原理：每个 decode step 结束后，检查哪些序列已完成（生成了 EOS token），把它们移出 batch，同时把等待队列中的新请求加入。这样 GPU 每一步都满载运行。</p>
 
@@ -276,18 +282,31 @@ Continuous Batching（连续批处理）：
 
 <h3 id="PagedAttention原理">PagedAttention 原理</h3>
 
-<pre><code class="language-text">PagedAttention：KV Cache 不预分配，按需分页（每页 16 token）
-
-Block Table（逻辑页 → 物理页映射）：
-  req1: [逻辑页0 → 物理块3][逻辑页1 → 物理块7][逻辑页2 → 物理块1]
-  req2: [逻辑页0 → 物理块5][逻辑页1 → 物理块9]
-
-物理显存：
-  [块1: req1的token17-32][块2: 空闲][块3: req1的token1-16]
-  [块4: 空闲][块5: req2的token1-16]...
-
-  显存利用率：~90%（只有最后一个不满的块有浪费）
-</code></pre>
+<pre class="mermaid">
+graph TD
+    subgraph LogicPages["逻辑页（Block Table）"]
+        R1P0["req1 逻辑页0"]
+        R1P1["req1 逻辑页1"]
+        R1P2["req1 逻辑页2"]
+        R2P0["req2 逻辑页0"]
+        R2P1["req2 逻辑页1"]
+    end
+    subgraph PhysicalBlocks["物理显存块（按需分配，每块16 token）"]
+        B1["块1: req1 token17-32"]
+        B2["块2: 空闲"]
+        B3["块3: req1 token1-16"]
+        B4["块4: 空闲"]
+        B5["块5: req2 token1-16"]
+        B7["块7: req1 token33-48"]
+        B9["块9: req2 token17-32"]
+    end
+    R1P0 -->|映射| B3
+    R1P1 -->|映射| B1
+    R1P2 -->|映射| B7
+    R2P0 -->|映射| B5
+    R2P1 -->|映射| B9
+    note["显存利用率 ~90%，仅最后一块有碎片"]
+</pre>
 
 <p>更重要的是，PagedAttention 天然支持 <strong>KV Cache 共享</strong>——如果两个请求有相同的前缀（比如相同的 System Prompt），它们可以共享同一批物理块，完全不占额外显存。</p>
 
@@ -469,21 +488,14 @@ Decode 阶段特性：
 
 <h3 id="分离架构设计">分离架构设计</h3>
 
-<pre><code class="language-text">                    ┌─────────────────────────────────────┐
-请求进来              │         路由层（Load Balancer）        │
-   ↓                └──────────────┬──────────────────────┘
-                                   │
-              ┌────────────────────┴───────────────────┐
-              ↓                                         ↓
-  ┌─────────────────────┐               ┌──────────────────────┐
-  │   Prefill 集群       │               │    Decode 集群        │
-  │（算力优化，少量节点） │               │（显存优化，大量节点）  │
-  │  高算力 GPU           │               │  大显存 GPU            │
-  │  小 KV Cache         │   KV Cache    │  大 KV Cache          │
-  │  大 batch prefill    │ ─────────► │  Continuous Batch     │
-  └─────────────────────┘  传输给      └──────────────────────┘
-                            Decode
-</code></pre>
+<pre class="mermaid">
+graph TD
+    Client["请求进来"] --> LB["路由层（Load Balancer）"]
+    LB --> PF["Prefill 集群\n算力优化，少量节点\n高算力 GPU，大 batch prefill"]
+    LB --> DC["Decode 集群\n显存优化，大量节点\n大显存 GPU，Continuous Batch"]
+    PF -->|"KV Cache 传输\n（RDMA/NVLink-C2C）"| DC
+    DC --> Output["输出 token 流"]
+</pre>
 
 <p>KV Cache 迁移：Prefill 节点计算完 KV Cache 后，通过高速网络（RDMA/NVLink-C2C）传输给 Decode 节点，Decode 节点持续生成 token 直到完成。</p>
 
@@ -532,14 +544,25 @@ from vllm.core.scheduler import SchedulingBudget
 
 <p>长 prompt 的 Prefill 会占用 GPU 很长时间，期间所有 Decode 请求无法推进。Chunked Prefill 把长 Prefill 切成小块，穿插在 Decode 步骤之间：</p>
 
-<pre><code class="language-text">不分块：
-  |────── Prefill(2000 tok, 500ms) ──────|Decode|Decode|...
-  其他请求的 Decode 要等 500ms 才能推进 → 长尾延迟
+<pre class="mermaid">
+gantt
+    title Chunked Prefill 对比
+    dateFormat X
+    axisFormat %s ms
 
-Chunked Prefill（每块 256 token）：
-  |Prefill chunk1|Decode×N|Prefill chunk2|Decode×N|...
-  Decode 请求每 ~30ms 就能推进一步 → 延迟更平滑
-</code></pre>
+    section 不分块（其他请求 Decode 被阻塞500ms）
+    Prefill 2000tok   :crit, 0, 500
+    Decode step1      :active, 500, 530
+    Decode step2      :active, 530, 560
+
+    section Chunked Prefill（每块256token，延迟平滑）
+    Prefill chunk1    :active, 0, 60
+    Decode×N          :done,   60, 100
+    Prefill chunk2    :active, 100, 160
+    Decode×N          :done,   160, 200
+    Prefill chunk3    :active, 200, 260
+    Decode×N          :done,   260, 300
+</pre>
 
 
 <h2 id="框架选型">十一、主流框架对比与选型</h2>
@@ -760,6 +783,19 @@ window.addEventListener('pjax:success', () => {
   var observer = new MutationObserver(applyTheme);
   observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
+</script>
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
 </script>
 </body>
 </html>

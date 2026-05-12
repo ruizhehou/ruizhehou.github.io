@@ -179,15 +179,19 @@
 
 <p>早期（2012 年前后），人们没有成熟的流处理框架，于是提出了 Lambda 架构：用批处理保证准确性，用流处理保证低延迟，两套系统并行运行，结果合并：</p>
 
-<pre><code class="language-text">原始数据
-  ├── 批处理层（Hadoop）：每天跑一次，产出精确结果（T+1）
-  ├── 速度层（Storm）：实时处理，产出近似结果（秒级）
-  └── 服务层：合并两层结果对外提供查询
+<pre class="mermaid">
+graph TD
+    RAW[原始数据]
+    RAW --> BATCH[批处理层 Hadoop<br/>每天跑一次<br/>精确结果 T+1]
+    RAW --> SPEED[速度层 Storm<br/>实时处理<br/>近似结果 秒级]
+    BATCH --> SERVE[服务层<br/>合并两层结果<br/>对外提供查询]
+    SPEED --> SERVE
 
-问题：
-  - 维护两套代码（批和流的逻辑必须一致，但实现不同）
-  - 结果合并复杂，边界条件难处理
-  - 运维成本高，出错时难以排查</code></pre>
+    style RAW fill:#f9f,stroke:#333
+    style BATCH fill:#bbf,stroke:#333
+    style SPEED fill:#fbb,stroke:#333
+    style SERVE fill:#bfb,stroke:#333
+</pre>
 
 <p>Lambda 架构的存在本质上是在承认：<strong>当时的流处理系统无法同时保证低延迟和高正确性</strong>。随着 Flink 的成熟，这个妥协方案已经逐渐退出历史舞台。</p>
 
@@ -256,13 +260,21 @@ Processing Time 视角（这些数据在 10:05:10 到达系统）：
 <p><strong>系统断言：在此标记之后，不会再出现 event_time ≤ t 的数据。</strong></p>
 </blockquote>
 
-<pre><code class="language-text">数据流时间轴（Processing Time →）：
+<pre class="mermaid">
+graph LR
+    D1["[et=10:00:05]"]
+    D2["[et=10:00:03]"]
+    W1{{"W(10:00:02)\n窗口≤10:00:02\n可以关闭"}}
+    D3["[et=10:00:08]"]
+    W2{{"W(10:00:07)\n窗口≤10:00:07\n可以关闭"}}
+    D4["[et=10:00:01?]\n迟到数据！\net < W(10:00:07)"]
 
-  [et=10:00:05] [et=10:00:03] --W(10:00:02)-- [et=10:00:08] --W(10:00:07)-- [et=10:00:01?]
-                                      ↑                              ↑              ↑
-                               Watermark 推进到                Watermark 推进到   这条数据迟到了！
-                               10:00:02，意味着               10:00:07，意味着   et=10:00:01 < W(10:00:07)
-                               ≤10:00:02 的窗口可以关闭       ≤10:00:07 的窗口可以关闭</code></pre>
+    D1 --> D2 --> W1 --> D3 --> W2 --> D4
+
+    style W1 fill:#ff9,stroke:#c90
+    style W2 fill:#ff9,stroke:#c90
+    style D4 fill:#fcc,stroke:#c00
+</pre>
 
 <p>当 Watermark 超过某个窗口的结束时间，该窗口就可以安全关闭并输出结果了。</p>
 
@@ -301,17 +313,25 @@ Processing Time 视角（这些数据在 10:05:10 到达系统）：
 
 <p>当多个并行流合并时（如 Flink 的多个 Partition），Watermark 取所有上游的<strong>最小值</strong>：</p>
 
-<pre><code class="language-text">Partition 1: --W(10:05:30)-->
-Partition 2: --W(10:03:10)-->   合并后 Watermark = min(10:05:30, 10:03:10) = 10:03:10
-Partition 3: --W(10:05:15)-->
+<pre class="mermaid">
+graph LR
+    P1["Partition 1\nW(10:05:30)"]
+    P2["Partition 2\nW(10:03:10)"]
+    P3["Partition 3\nW(10:05:15)"]
+    MERGE{{"合并算子\nWatermark = min\n= 10:03:10"}}
+    OUT["下游\nWatermark = 10:03:10"]
+    IDLE["⚠️ 若某 Partition 停止发数据\nWatermark 永远不推进\n→ 所有窗口无法关闭\n→ 需 idle source 处理机制"]
 
-原因：只要有一个 Partition 还可能发出 et=10:03:30 的数据，
-      就不能断言 ≤10:03:30 的数据已经全部到达
+    P1 --> MERGE
+    P2 --> MERGE
+    P3 --> MERGE
+    MERGE --> OUT
+    P2 -. "瓶颈" .-> IDLE
 
-这带来一个重要的运维问题：
-  如果某个 Partition 的数据源停了（不再发数据），
-  它的 Watermark 永远不推进，导致整个合并流的 Watermark 停滞，
-  所有窗口永远无法关闭 → Flink 的 idle source 处理机制就是解决这个问题的</code></pre>
+    style MERGE fill:#ff9,stroke:#c90
+    style IDLE fill:#fcc,stroke:#c00
+    style P2 fill:#fbb,stroke:#c00
+</pre>
 
 
 <h2 id="Window">四、窗口：给无界流分段计算</h2>
@@ -320,37 +340,49 @@ Partition 3: --W(10:05:15)-->
 
 <h3 id="滚动窗口">滚动窗口（Tumbling Window）</h3>
 
-<pre><code class="language-text">大小固定，不重叠，每条数据恰好属于一个窗口
-
-|---1分钟---|---1分钟---|---1分钟---|---1分钟---|
-   [0,60)     [60,120)   [120,180)  [180,240)
-
-适合：每分钟统计一次、每小时汇总一次
-特点：计算结果之间相互独立，无重叠，状态不复用</code></pre>
+<p>大小固定，不重叠，每条数据恰好属于一个窗口。适合：每分钟统计一次、每小时汇总一次。特点：计算结果之间相互独立，无重叠，状态不复用。</p>
+<pre class="mermaid">
+gantt
+    title 滚动窗口（窗口大小 = 1 分钟，无重叠）
+    dateFormat mm:ss
+    axisFormat %M:%S
+    section 窗口
+    W1 [0,60)  : 00:00, 60s
+    W2 [60,120) : 01:00, 60s
+    W3 [120,180) : 02:00, 60s
+    W4 [180,240) : 03:00, 60s
+</pre>
 
 <h3 id="滑动窗口">滑动窗口（Sliding Window）</h3>
 
-<pre><code class="language-text">窗口大小固定，但步长小于窗口大小，窗口间有重叠
-
-窗口大小 5 分钟，步长 1 分钟：
-|----5分钟----|
-    |----5分钟----|
-        |----5分钟----|
-
-同一条数据可能属于多个窗口（最多 size/slide 个）
-适合：过去 5 分钟的滑动平均、移动窗口统计
-代价：每条数据被计算 size/slide 次，计算量更大，状态也更多</code></pre>
+<p>窗口大小固定，但步长小于窗口大小，窗口间有重叠。同一条数据可能属于多个窗口（最多 size/slide 个）。适合：过去 5 分钟的滑动平均、移动窗口统计。代价：每条数据被计算 size/slide 次，计算量更大，状态也更多。</p>
+<pre class="mermaid">
+gantt
+    title 滑动窗口（窗口大小 5 分钟，步长 1 分钟）
+    dateFormat mm:ss
+    axisFormat %M:%S
+    section 窗口
+    W1 [0,5min)   : 00:00, 300s
+    W2 [1,6min)   : 01:00, 300s
+    W3 [2,7min)   : 02:00, 300s
+    W4 [3,8min)   : 03:00, 300s
+</pre>
 
 <h3 id="会话窗口">会话窗口（Session Window）</h3>
 
-<pre><code class="language-text">基于活动间隔动态划分，窗口大小不固定
-
-[点击][点击][点击]   30分钟无活动   [点击][点击]   30分钟无活动   [点击]
-|------session 1---|              |----session 2---|              |-3-|
-
-适合：用户会话分析，同一次访问中的行为归为一组
-特点：窗口边界由数据本身决定，不是预先固定的
-挑战：需要动态合并窗口（当两个 session 之间的间隔被一条数据填上时）</code></pre>
+<p>基于活动间隔动态划分，窗口大小不固定。适合：用户会话分析，同一次访问中的行为归为一组。特点：窗口边界由数据本身决定，不是预先固定的。挑战：需要动态合并窗口（当两个 session 之间的间隔被一条数据填上时）。</p>
+<pre class="mermaid">
+gantt
+    title 会话窗口（间隔超过 30 分钟则分割）
+    dateFormat HH:mm
+    axisFormat %H:%M
+    section 用户活动
+    点击点击点击 (Session 1) : 10:00, 15m
+    30分钟无活动             : crit, 10:15, 30m
+    点击点击 (Session 2)     : 10:45, 10m
+    30分钟无活动             : crit, 10:55, 30m
+    点击 (Session 3)         : 11:25, 5m
+</pre>
 
 <h3 id="窗口的理论本质">窗口的理论本质：数据分配函数</h3>
 
@@ -461,29 +493,25 @@ Operator State（算子状态）：
 
 <p>Flink 使用 <strong>Chandy-Lamport 算法</strong>的变体来做分布式快照（Checkpoint）：</p>
 
-<pre><code class="language-text">Checkpoint 流程：
+<pre class="mermaid">
+sequenceDiagram
+    participant JM as JobManager
+    participant SRC as Source（Kafka）
+    participant OP as 中间算子
+    participant STORE as 持久化存储<br/>HDFS/S3
 
-1. JobManager 触发 Checkpoint，向所有 Source 注入 Barrier（屏障）
+    JM->>SRC: 触发 Checkpoint(ckpt=5)
+    SRC->>SRC: 快照自身状态（Kafka offset）
+    SRC->>OP: 数据流：[d1][d2][d3][Barrier(ckpt=5)][d4]...
+    Note over OP: 收到 Barrier 后<br/>等待所有输入对齐
+    OP->>OP: 对自己的状态做快照
+    OP->>OP: 向下游广播 Barrier
+    SRC->>STORE: 写入状态快照
+    OP->>STORE: 写入状态快照
+    STORE-->>JM: Checkpoint 完成确认
 
-2. Source 收到信号，先对自己的状态做快照（如 Kafka offset），
-   然后把 Barrier 插入数据流中向下游广播
-
-         数据流：[d1][d2][d3][Barrier(ckpt=5)][d4][d5]...
-                               ↑
-                         这是 Checkpoint 5 的 Barrier
-
-3. 中间算子收到某个输入的 Barrier 时：
-   - 对齐（等待所有输入都到了该 Barrier，防止状态不一致）
-   - 对自己的状态做快照
-   - 向下游广播 Barrier
-
-4. 所有算子都完成快照后，Checkpoint 成功
-   快照数据写入持久化存储（HDFS/S3）
-
-崩溃恢复：
-   从最近一次成功的 Checkpoint 恢复所有算子的状态
-   Kafka Source 重置到 Checkpoint 记录的 offset，重放数据
-   → 保证 Exactly-Once 语义（在 Flink 内部）</code></pre>
+    Note over JM,STORE: 崩溃恢复：从最近成功的 Checkpoint<br/>恢复状态，Kafka Source 重置 offset 重放数据
+</pre>
 
 <h3 id="状态后端">状态后端（State Backend）的选择</h3>
 
@@ -538,35 +566,37 @@ Exactly-once（恰好一次）：
 
 <p>Flink 实现端到端 Exactly-Once（从 Kafka 读到 Kafka 写）的核心是<strong>两阶段提交（2PC）</strong>，与数据库事务中的 2PC 原理相同：</p>
 
-<pre><code class="language-text">正常流程：
+<pre class="mermaid">
+sequenceDiagram
+    participant JM as JobManager
+    participant SINK as Sink 算子
+    participant KAFKA as Kafka（下游）
 
-Phase 1 - Pre-commit（预提交）：
-  Checkpoint 触发时，Sink 把当前批次数据写入 Kafka Transaction，
-  但不 Commit（数据对消费者不可见）
-  状态快照记录：这个 Transaction 处于 pre-committed 状态
+    rect rgb(220, 240, 255)
+        Note over JM,KAFKA: Phase 1 — Pre-commit（预提交）
+        JM->>SINK: 触发 Checkpoint
+        SINK->>KAFKA: 写入数据到 Kafka Transaction<br/>（数据对消费者不可见）
+        SINK->>SINK: 快照状态：Transaction = pre-committed
+        SINK-->>JM: Checkpoint 完成
+    end
 
-Phase 2 - Commit（提交）：
-  所有算子的 Checkpoint 都完成后（意味着整个系统状态已保存），
-  Sink 调用 Kafka Transaction Commit
-  数据变为对消费者可见
+    rect rgb(220, 255, 220)
+        Note over JM,KAFKA: Phase 2 — Commit（提交）
+        JM->>SINK: 所有算子 Checkpoint 完成通知
+        SINK->>KAFKA: Kafka Transaction Commit
+        Note over KAFKA: 数据对消费者可见
+    end
 
-崩溃恢复：
+    rect rgb(255, 240, 220)
+        Note over JM,KAFKA: 崩溃恢复 — 场景 A：Checkpoint 未完成时崩溃
+        Note over SINK,KAFKA: 未 Commit 的 Transaction 超时自动 Abort<br/>从上一个 Checkpoint 的 offset 重放<br/>重新写入新 Transaction → 最终 Commit
+    end
 
-场景 A：Checkpoint 未完成时崩溃
-  → 恢复到上一个 Checkpoint 的状态
-  → 未 Commit 的 Transaction 自动 Abort（Kafka 事务超时回滚）
-  → 从上一个 Checkpoint 的 Kafka offset 重放
-  → 数据重新写入新 Transaction，最终 Commit
-
-场景 B：Checkpoint 完成后，Commit 之前崩溃
-  → 恢复到这个 Checkpoint 的状态
-  → 状态里记录了有一个 pre-committed Transaction
-  → 恢复后执行 Commit，数据补充写入
-  → 不会丢失
-
-结论：
-  无论在哪个时刻崩溃，要么 Transaction 最终被 Commit，
-  要么被 Abort 后重新写入，永远不会丢失也不会重复</code></pre>
+    rect rgb(255, 220, 220)
+        Note over JM,KAFKA: 崩溃恢复 — 场景 B：Checkpoint 完成后 Commit 前崩溃
+        Note over SINK,KAFKA: 恢复到该 Checkpoint 状态<br/>状态记录有 pre-committed Transaction<br/>恢复后补充执行 Commit → 不会丢失
+    end
+</pre>
 
 <h3 id="Exactly-Once的代价">Exactly-Once 的代价</h3>
 

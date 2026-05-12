@@ -157,22 +157,30 @@
 
 <p>Doris 只有两类进程，无任何外部依赖（不需要 ZooKeeper、HDFS）：</p>
 
-<pre><code class="language-text">                   ┌─────────────────────────────────────────┐
-   客户端           │              Doris 集群                  │
-  MySQL客户端  ───► │                                         │
-  JDBC/ODBC    ───► │  ┌──────────┐  ┌──────────┐            │
-  BI工具       ───► │  │  FE 节点  │  │  FE 节点  │  ← Leader选举 │
-                   │  │ (Leader) │  │(Follower)│            │
-                   │  └────┬─────┘  └──────────┘            │
-                   │       │  查询计划下发                    │
-                   │  ┌────┴──────────────────────┐          │
-                   │  ↓          ↓         ↓       │          │
-                   │ ┌────────┐ ┌────────┐ ┌────────┐        │
-                   │ │ BE节点  │ │ BE节点  │ │ BE节点  │        │
-                   │ │存储+计算│ │存储+计算│ │存储+计算│        │
-                   │ └────────┘ └────────┘ └────────┘        │
-                   └─────────────────────────────────────────┘
-</code></pre>
+<pre class="mermaid">
+graph TD
+    subgraph Clients["客户端"]
+        C1["MySQL 客户端"]
+        C2["JDBC / ODBC"]
+        C3["BI 工具"]
+    end
+    subgraph FELayer["FE 层（元数据 + 查询规划）"]
+        FEL["FE Leader\n处理 DDL / 元数据写入"]
+        FEF1["FE Follower\n参与 Leader 选举"]
+        FEF2["FE Follower\n参与 Leader 选举"]
+        FEL <-->|"Paxos 同步"| FEF1
+        FEL <-->|"Paxos 同步"| FEF2
+    end
+    subgraph BELayer["BE 层（存储 + 计算）"]
+        BE1["BE 节点\n存储 + 向量化计算"]
+        BE2["BE 节点\n存储 + 向量化计算"]
+        BE3["BE 节点\n存储 + 向量化计算"]
+    end
+    C1 & C2 & C3 --> FEL
+    FEL -->|"查询计划下发（Fragment）"| BE1 & BE2 & BE3
+    BE1 <-->|"数据 Shuffle（gRPC）"| BE2
+    BE2 <-->|"数据 Shuffle（gRPC）"| BE3
+</pre>
 
 <h3 id="FE">FE（Frontend）：大脑</h3>
 
@@ -206,13 +214,15 @@
 
 <h3 id="数据分布">数据分布：Partition + Tablet</h3>
 
-<pre><code class="language-text">一张表
-  └── 分区 Partition（按时间/值范围）
-        └── 分桶 Bucket（Hash 分桶）
-              └── Tablet（最小存储单元，默认 3 副本）
-                    └── Rowset（一次导入产生一个 Rowset）
-                          └── Segment 文件（列存）
-</code></pre>
+<pre class="mermaid">
+graph TD
+    T["一张表 Table"]
+    T --> P1["Partition（按时间/值范围分区）"]
+    P1 --> B1["Bucket（Hash 分桶）"]
+    B1 --> Tab["Tablet（最小存储单元，默认 3 副本）"]
+    Tab --> RS["Rowset（一次导入产生一个 Rowset）"]
+    RS --> Seg["Segment 文件（列存格式）"]
+</pre>
 
 <p>建表时指定分区键和分桶数：</p>
 <pre><code class="language-sql">CREATE TABLE orders (
@@ -317,6 +327,15 @@ INSERT INTO users (user_id, email) VALUES (1001, 'new@example.com');</code></pre
 
 <p>一个查询 <code>WHERE date = '2025-01-15' AND status = 'paid'</code> 的过滤流程：</p>
 
+<pre class="mermaid">
+flowchart TD
+    Q["查询：WHERE date = '2025-01-15' AND status = 'paid'"]
+    Q --> PP["① 分区裁剪\n只读 date 所在分区\n跳过其他月份所有 Segment"]
+    PP --> ZM["② ZoneMap 过滤\n每个 Segment 记录 date 列 min/max\n跳过不含目标日期的 Segment"]
+    ZM --> SK["③ Short Key 索引\nSegment 内二分查找\n定位目标数据块（1024 行粒度）"]
+    SK --> BF["④ Bitmap / Bloom Filter\n数据块内精确过滤\n读取真正满足条件的行"]
+    BF --> Result["最终结果\n实际读取行数可能仅为全表的 1/1000"]
+</pre>
 <ol>
   <li><strong>分区裁剪</strong>：只读 date 所在分区，跳过其他月份的所有 Segment</li>
   <li><strong>ZoneMap 过滤</strong>：每个 Segment 记录了 date 列的 min/max，跳过不含目标日期的 Segment</li>
@@ -477,6 +496,23 @@ SELECT u.name, COUNT(*) as order_cnt
 FROM orders o JOIN users u ON o.user_id = u.user_id
 GROUP BY u.name;</code></pre>
 
+<pre class="mermaid">
+graph LR
+    subgraph NormalJoin["普通分布式 JOIN（需要 Shuffle）"]
+        O1["orders\nBE1: user_id=1,2"]
+        O2["orders\nBE2: user_id=3,4"]
+        U1["users\nBE1: user_id=3,4"]
+        U2["users\nBE2: user_id=1,2"]
+        O1 -->|"网络 Shuffle"| JOIN1["JOIN 节点"]
+        O2 -->|"网络 Shuffle"| JOIN1
+        U1 -->|"网络 Shuffle"| JOIN1
+        U2 -->|"网络 Shuffle"| JOIN1
+    end
+    subgraph ColocateJoin["Colocate JOIN（零 Shuffle）"]
+        CO1["orders+users\nBE1: user_id=1,2\n本地直接 JOIN"]
+        CO2["orders+users\nBE2: user_id=3,4\n本地直接 JOIN"]
+    end
+</pre>
 <p>Colocate Join 的前提：两表分桶键相同、分桶数相同、副本数相同，且在同一个 Colocate Group 里。</p>
 
 <h3 id="物化视图">物化视图（Materialized View）</h3>
@@ -757,6 +793,19 @@ window.addEventListener('pjax:success', () => {
   var observer = new MutationObserver(applyTheme);
   observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
+</script>
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
 </script>
 </body>
 </html>

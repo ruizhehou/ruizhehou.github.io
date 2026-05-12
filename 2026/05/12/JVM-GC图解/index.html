@@ -156,28 +156,28 @@
 
 <p>GC 管理的核心区域是<strong>堆（Heap）</strong>。JVM 启动时会申请一块连续内存作为堆，所有 <code>new</code> 出来的对象都在这里分配。</p>
 
-<pre><code class="language-text">┌─────────────────────────────────────────────────────────────────┐
-│                         JVM 堆内存                               │
-│                                                                 │
-│  ┌──────────────────────────────┐  ┌──────────────────────────┐ │
-│  │           新生代（Young Gen）  │  │      老年代（Old Gen）     │ │
-│  │                              │  │                          │ │
-│  │  ┌────────┐ ┌─────┐ ┌─────┐ │  │  ┌────────────────────┐  │ │
-│  │  │  Eden  │ │ S0  │ │ S1  │ │  │  │  长期存活的对象      │  │ │
-│  │  │        │ │(from│ │(to) │ │  │  │  大对象             │  │ │
-│  │  │  新对象 │ │)    │ │     │ │  │  │  静态变量引用的对象  │  │ │
-│  │  │  在此  │ │     │ │     │ │  │  └────────────────────┘  │ │
-│  │  │  分配  │ │     │ │     │ │  │                          │ │
-│  │  └────────┘ └─────┘ └─────┘ │  │                          │ │
-│  │   ~80%      ~10%    ~10%    │  │                          │ │
-│  └──────────────────────────────┘  └──────────────────────────┘ │
-│                                                                 │
-│         Minor GC 管理新生代              Full GC 管理整个堆       │
-└─────────────────────────────────────────────────────────────────┘
+<pre class="mermaid">
+graph LR
+    subgraph JVM堆内存["JVM 堆内存（由 GC 管理）"]
+        subgraph Young["新生代 Young Gen"]
+            Eden["Eden 区\n新对象在此分配\n~80%"]
+            S0["S0 Survivor\nFrom 区\n~10%"]
+            S1["S1 Survivor\nTo 区\n~10%"]
+        end
+        subgraph Old["老年代 Old Gen"]
+            OldObj["长期存活的对象\n大对象\n静态变量引用的对象"]
+        end
+    end
+    subgraph NonHeap["非堆区域（不由 GC 管理）"]
+        Meta["方法区 Metaspace\n类定义、常量池、静态变量"]
+        Stack["程序计数器\n虚拟机栈\n本地方法栈（线程私有）"]
+    end
 
-非堆区域（不由 GC 管理）：
-  方法区（Metaspace）：类定义、常量池、静态变量
-  程序计数器、虚拟机栈、本地方法栈（线程私有）</code></pre>
+    Eden -->|"Minor GC: 存活对象复制"| S1
+    S0 -->|"Minor GC: 年龄+1"| S1
+    S1 -->|"年龄达阈值或大对象"| OldObj
+    Young -->|"Full GC 管理整个堆"| Old
+</pre>
 
 <p>新生代分三个区：</p>
 <ul>
@@ -243,19 +243,35 @@
 
 <h3 id="MinorGC步骤2">第二步：标记存活对象（可达性分析）</h3>
 
-<pre><code class="language-text">GC Roots（根对象）：
-  · 当前线程栈帧中的局部变量
-  · 方法区中的静态变量
-  · JNI 引用
+<pre class="mermaid">
+graph TD
+    GCRoot1["GC Root\n（线程栈局部变量）"]
+    GCRoot2["GC Root\n（静态变量 / JNI）"]
 
-从 GC Roots 出发，遍历引用链，能到达的对象 = 存活：
+    GCRoot1 -->|引用| A["对象 A ✓ 存活"]
+    GCRoot1 -->|引用| F["对象 F ✓ 存活"]
+    GCRoot2 -->|引用| H["对象 H ✓ 存活"]
+    GCRoot2 -->|引用| X["对象 X ✓ 存活"]
 
-  GC Root ──→ A（存活）──→ C（存活）
-  GC Root ──→ F（存活）
-  GC Root ──→ H（存活）
-  GC Root ──→ X（存活）──→ Y（存活）
+    A -->|引用| C["对象 C ✓ 存活"]
+    X -->|引用| Y["对象 Y ✓ 存活"]
 
-  B D E G I J K：不可达 = 垃圾 ← 等待回收</code></pre>
+    B["对象 B ✗ 不可达\n= 垃圾"]
+    D["对象 D ✗ 不可达\n= 垃圾"]
+    E["对象 E ✗ 不可达\n= 垃圾"]
+    G["对象 G ✗ 不可达\n= 垃圾"]
+
+    style A fill:#d4edda,stroke:#28a745
+    style C fill:#d4edda,stroke:#28a745
+    style F fill:#d4edda,stroke:#28a745
+    style H fill:#d4edda,stroke:#28a745
+    style X fill:#d4edda,stroke:#28a745
+    style Y fill:#d4edda,stroke:#28a745
+    style B fill:#f8d7da,stroke:#dc3545
+    style D fill:#f8d7da,stroke:#dc3545
+    style E fill:#f8d7da,stroke:#dc3545
+    style G fill:#f8d7da,stroke:#dc3545
+</pre>
 
 <h3 id="MinorGC步骤3">第三步：复制存活对象到 S1（To 区），年龄 +1</h3>
 
@@ -309,18 +325,23 @@
 
 <p>Full GC 会回收整个堆（新生代 + 老年代），期间会触发 <strong>Stop-The-World（STW）</strong>——暂停所有用户线程，直到 GC 完成。</p>
 
-<pre><code class="language-text">Stop-The-World 示意：
+<pre class="mermaid">
+gantt
+    title Stop-The-World 示意（Full GC）
+    dateFormat  X
+    axisFormat %s ms
 
-时间轴 →
-─────────────────────────────────────────────────────────────
-用户线程：████████████████  ←暂停→  ████████████████████████
-GC 线程：                ████████████████
-─────────────────────────────────────────────────────────────
-                         ↑ STW 开始    ↑ STW 结束
-                     所有请求在这段时间内无响应！
+    section 用户线程
+    正常运行          :active, u1, 0, 40
+    暂停（STW 期间）  :crit, stw, 40, 80
+    恢复运行          :active, u2, 80, 120
 
-Full GC 的 STW 时间：几百毫秒到几秒不等
-→ 这就是为什么 Full GC 对线上服务是灾难性的</code></pre>
+    section GC 线程
+    等待              :done, g0, 0, 40
+    Full GC 执行      :active, gc1, 40, 80
+    空闲              :done, g1, 80, 120
+</pre>
+<p><strong>STW 期间所有用户请求无响应！</strong> Full GC 的停顿时间从几百毫秒到几秒不等，这就是为什么 Full GC 对线上服务是灾难性的。</p>
 
 <p><strong>触发 Full GC 的常见原因：</strong></p>
 
@@ -345,42 +366,55 @@ Full GC 的 STW 时间：几百毫秒到几秒不等
 
 <p>GC 如何知道哪些对象可以回收？答案是<strong>可达性分析</strong>（Reachability Analysis）。</p>
 
-<pre><code class="language-text">对象引用图示例：
+<pre class="mermaid">
+graph TD
+    GCRoots["GC Roots"]
 
-GC Roots
-    ├──→ 对象A ──→ 对象C ──→ 对象E
-    │         └──→ 对象D（无外部引用指向它，但被 A 引用）
-    └──→ 对象B
+    GCRoots -->|引用| A["对象 A ✓"]
+    GCRoots -->|引用| B["对象 B ✓"]
+    A -->|引用| C["对象 C ✓"]
+    A -->|引用| D["对象 D ✓\n（被 A 引用，可达）"]
+    C -->|引用| E["对象 E ✓"]
 
-    对象F ──→ 对象G
-    （F 和 G 互相引用，但没有 GC Root 能到达它们）
+    F["对象 F ✗\n循环引用孤岛"]
+    G["对象 G ✗\n循环引用孤岛"]
+    F -->|引用| G
+    G -->|引用| F
 
-可达对象（存活）：A B C D E
-不可达对象（垃圾）：F G ← 即使 F→G→F 形成循环引用，也会被回收
+    note1["可达对象（存活）：A B C D E\n不可达对象（垃圾）：F G\n即使 F⇄G 循环引用也会被回收\n引用计数法无法处理此情况"]
 
-这是可达性分析相比"引用计数"的核心优势：
-  引用计数无法处理循环引用（F.count=1, G.count=1，永远不为0）
-  可达性分析从根出发，循环引用的孤岛自然不可达</code></pre>
+    style A fill:#d4edda,stroke:#28a745
+    style B fill:#d4edda,stroke:#28a745
+    style C fill:#d4edda,stroke:#28a745
+    style D fill:#d4edda,stroke:#28a745
+    style E fill:#d4edda,stroke:#28a745
+    style F fill:#f8d7da,stroke:#dc3545
+    style G fill:#f8d7da,stroke:#dc3545
+    style note1 fill:#fff3cd,stroke:#ffc107
+</pre>
 
 <h3 id="GC-Roots">GC Roots 包含哪些？</h3>
 
-<pre><code class="language-text">┌─────────────────────────────────────────────────────────────┐
-│                      GC Roots 来源                           │
-├─────────────────────────────────────────────────────────────┤
-│  1. 虚拟机栈中的引用                                          │
-│     void method() {                                         │
-│         Object obj = new Object();  ← obj 是 GC Root        │
-│     }  // 方法返回后 obj 不再是 GC Root，对象可被回收         │
-│                                                             │
-│  2. 方法区中的静态变量                                        │
-│     static Object shared = new Object();  ← GC Root         │
-│     只要类还被加载，shared 就一直是 GC Root                   │
-│                                                             │
-│  3. 方法区中的常量                                            │
-│     static final String NAME = "hello";  ← GC Root          │
-│                                                             │
-│  4. JNI 引用（本地方法持有的 Java 对象引用）                   │
-└─────────────────────────────────────────────────────────────┘</code></pre>
+<pre class="mermaid">
+graph TD
+    GCRoots["GC Roots（根对象集合）"]
+
+    R1["① 虚拟机栈中的引用\nvoid method() {\n  Object obj = new Object(); ← GC Root\n}\n方法返回后 obj 不再是 GC Root"]
+    R2["② 方法区中的静态变量\nstatic Object shared = new Object();\n只要类被加载，shared 就是 GC Root"]
+    R3["③ 方法区中的常量\nstatic final String NAME = \"hello\";\n← GC Root"]
+    R4["④ JNI 引用\n本地方法（Native）持有的 Java 对象引用"]
+
+    GCRoots --> R1
+    GCRoots --> R2
+    GCRoots --> R3
+    GCRoots --> R4
+
+    style GCRoots fill:#d1ecf1,stroke:#17a2b8,font-weight:bold
+    style R1 fill:#f8f9fa,stroke:#6c757d
+    style R2 fill:#f8f9fa,stroke:#6c757d
+    style R3 fill:#f8f9fa,stroke:#6c757d
+    style R4 fill:#f8f9fa,stroke:#6c757d
+</pre>
 
 
 <h2 id="引用类型">六、四种引用类型：影响 GC 行为的关键</h2>
@@ -417,178 +451,280 @@ if (img == null) {
 
 <h3 id="标记清除">标记-清除（Mark-Sweep）</h3>
 
-<pre><code class="language-text">GC 前：
-┌────────────────────────────────────────────────────────┐
-│ [A活][B死][C活][D死][E死][F活][G死][H活][I死][J活]      │
-└────────────────────────────────────────────────────────┘
+<pre class="mermaid">
+graph LR
+    subgraph Before["GC 前：内存布局"]
+        direction LR
+        b1["A 活"] --- b2["B 死"] --- b3["C 活"] --- b4["D 死"] --- b5["E 死"] --- b6["F 活"] --- b7["G 死"] --- b8["H 活"] --- b9["I 死"] --- b10["J 活"]
+    end
 
-标记阶段：标记所有存活对象
-┌────────────────────────────────────────────────────────┐
-│ [A★] [B  ] [C★] [D  ] [E  ] [F★] [G  ] [H★] [I  ] [J★] │
-│  ↑存活        ↑存活             ↑存活        ↑存活        ↑存活│
-└────────────────────────────────────────────────────────┘
+    Before -->|"① 标记存活对象\n② 清除未标记对象"| After
 
-清除阶段：释放未标记的对象
-┌────────────────────────────────────────────────────────┐
-│ [A  ] [   ] [C  ] [   ] [   ] [F  ] [   ] [H  ] [   ] [J  ] │
-│  ↑存活  ↑空洞  ↑存活  ↑空洞  ↑空洞  ↑存活  ↑空洞  ↑存活  ↑空洞  ↑存活│
-└────────────────────────────────────────────────────────┘
+    subgraph After["GC 后：产生内存碎片"]
+        direction LR
+        a1["A ✓"] --- a2["空洞"] --- a3["C ✓"] --- a4["空洞"] --- a5["空洞"] --- a6["F ✓"] --- a7["空洞"] --- a8["H ✓"] --- a9["空洞"] --- a10["J ✓"]
+    end
 
-问题：内存碎片！大量不连续的小空洞，分配大对象时找不到足够大的连续空间</code></pre>
+    warn["⚠ 问题：大量不连续小空洞\n分配大对象时找不到足够连续空间"]
+
+    style b2 fill:#f8d7da,stroke:#dc3545
+    style b4 fill:#f8d7da,stroke:#dc3545
+    style b5 fill:#f8d7da,stroke:#dc3545
+    style b7 fill:#f8d7da,stroke:#dc3545
+    style b9 fill:#f8d7da,stroke:#dc3545
+    style a1 fill:#d4edda,stroke:#28a745
+    style a3 fill:#d4edda,stroke:#28a745
+    style a6 fill:#d4edda,stroke:#28a745
+    style a8 fill:#d4edda,stroke:#28a745
+    style a10 fill:#d4edda,stroke:#28a745
+    style a2 fill:#e2e3e5,stroke:#6c757d
+    style a4 fill:#e2e3e5,stroke:#6c757d
+    style a5 fill:#e2e3e5,stroke:#6c757d
+    style a7 fill:#e2e3e5,stroke:#6c757d
+    style a9 fill:#e2e3e5,stroke:#6c757d
+    style warn fill:#fff3cd,stroke:#ffc107
+</pre>
 
 <h3 id="标记复制">标记-复制（Mark-Copy）</h3>
 
-<pre><code class="language-text">内存分为两半：From 和 To
+<pre class="mermaid">
+graph LR
+    subgraph GCBefore["GC 前"]
+        direction LR
+        subgraph From["From 半区（有对象）"]
+            f1["A 活"] --- f2["B 死"] --- f3["C 活"] --- f4["D 死"] --- f5["E 活"] --- f6["F 死"] --- f7["G 活"]
+        end
+        subgraph To0["To 半区（空）"]
+            t0["（空）"]
+        end
+    end
 
-GC 前（From 半区有对象，To 为空）：
-From: [A活][B死][C活][D死][E活][F死][G活]
-To:   [                              ]
+    GCBefore -->|"复制存活对象到 To\nFrom 整体清空"| GCAfter
 
-GC 后（存活对象紧凑复制到 To，From 整体清空）：
-From: [                              ]
-To:   [A   ][C   ][E   ][G   ]
-       ↑紧凑排列，无碎片
+    subgraph GCAfter["GC 后"]
+        direction LR
+        subgraph From2["From 半区（清空）"]
+            f8["（空）"]
+        end
+        subgraph To2["To 半区（紧凑排列，无碎片）"]
+            t1["A ✓"] --- t2["C ✓"] --- t3["E ✓"] --- t4["G ✓"]
+        end
+    end
 
-优点：无碎片，分配速度极快（只需移动指针）
-缺点：内存利用率只有 50%
+    note["优点：无碎片，分配极快（移动指针）\n缺点：内存利用率仅 50%\n新生代优化：Eden 80% + S0 10% → S1 10%\n实际利用率 90%，只浪费 10%"]
 
-这就是为什么新生代 Survivor 区只有 10%：
-  Eden(80%) + S0(10%) → 复制到 S1(10%)
-  实际利用率 90%，只浪费 10%（而不是 50%）
-  前提是新生代存活率低（通常 &lt;5%，10% 的 S 区足够）</code></pre>
+    style f2 fill:#f8d7da,stroke:#dc3545
+    style f4 fill:#f8d7da,stroke:#dc3545
+    style f6 fill:#f8d7da,stroke:#dc3545
+    style t1 fill:#d4edda,stroke:#28a745
+    style t2 fill:#d4edda,stroke:#28a745
+    style t3 fill:#d4edda,stroke:#28a745
+    style t4 fill:#d4edda,stroke:#28a745
+    style note fill:#d1ecf1,stroke:#17a2b8
+</pre>
 
 <h3 id="标记整理">标记-整理（Mark-Compact）</h3>
 
-<pre><code class="language-text">GC 前：
-[A活][B死][C活][D死][E死][F活][G死][H活]
+<pre class="mermaid">
+graph LR
+    subgraph Before["GC 前：存活与死亡对象交错"]
+        direction LR
+        b1["A 活"] --- b2["B 死"] --- b3["C 活"] --- b4["D 死"] --- b5["E 死"] --- b6["F 活"] --- b7["G 死"] --- b8["H 活"]
+    end
 
-标记后，将存活对象向一端移动（整理）：
-[A活][C活][F活][H活][         空闲         ]
-  ↑存活对象紧凑排列       ↑连续大块空闲空间
+    Before -->|"① 标记存活对象\n② 向一端移动整理"| After
 
-优点：无碎片，内存利用率 100%
-缺点：需要移动对象，移动时要更新所有引用指针，开销大
+    subgraph After["GC 后：存活对象紧凑排列 + 连续空闲空间"]
+        direction LR
+        a1["A ✓"] --- a2["C ✓"] --- a3["F ✓"] --- a4["H ✓"] --- a5["空闲（连续大块）"]
+    end
 
-适合老年代：老年代对象存活率高，复制算法代价太大；
-           标记-整理能解决碎片问题，偶尔执行一次整理可以接受</code></pre>
+    note["优点：无碎片，内存利用率 100%\n缺点：移动对象需更新所有引用指针，开销大\n适合老年代：存活率高，偶尔整理可接受"]
+
+    style b2 fill:#f8d7da,stroke:#dc3545
+    style b4 fill:#f8d7da,stroke:#dc3545
+    style b5 fill:#f8d7da,stroke:#dc3545
+    style b7 fill:#f8d7da,stroke:#dc3545
+    style a1 fill:#d4edda,stroke:#28a745
+    style a2 fill:#d4edda,stroke:#28a745
+    style a3 fill:#d4edda,stroke:#28a745
+    style a4 fill:#d4edda,stroke:#28a745
+    style a5 fill:#e2e3e5,stroke:#6c757d
+    style note fill:#d1ecf1,stroke:#17a2b8
+</pre>
 
 
 <h2 id="五大收集器">八、五大主流垃圾收集器</h2>
 
 <h3 id="Serial-GC">Serial GC：单线程，最简单</h3>
 
-<pre><code class="language-text">特点：GC 时只用一个线程，STW 期间用户线程全部暂停
+<p>特点：GC 时只用一个线程，STW 期间用户线程全部暂停。适用于客户端应用、单核 CPU、几十到几百 MB 堆。启用：<code>-XX:+UseSerialGC</code></p>
+<pre class="mermaid">
+gantt
+    title Serial GC 时间轴
+    dateFormat  X
+    axisFormat %s
 
-时间轴：
-用户线程: ████████████ ←──── STW ────→ ████████████████
-GC 线程:              ████████████████
+    section 用户线程
+    正常运行        :active, u1, 0, 30
+    暂停（STW）     :crit, stw1, 30, 70
+    恢复运行        :active, u2, 70, 100
 
-适用：客户端应用，单核 CPU，几十到几百 MB 堆
-启用：-XX:+UseSerialGC</code></pre>
+    section GC 线程（单线程）
+    等待            :done, g0, 0, 30
+    串行 GC 执行    :active, gc1, 30, 70
+    空闲            :done, g1, 70, 100
+</pre>
 
 <h3 id="Parallel-GC">Parallel GC：多线程 Serial，吞吐量优先</h3>
 
-<pre><code class="language-text">特点：GC 用多个线程并行工作，缩短 STW 时间，但仍然 STW
+<p>特点：GC 用多个线程并行工作，缩短 STW 时间，但仍然 STW。JDK 8 默认收集器，适用于后台计算任务，吞吐量优先。启用：<code>-XX:+UseParallelGC</code></p>
+<pre class="mermaid">
+gantt
+    title Parallel GC 时间轴（多线程并行，STW 更短）
+    dateFormat  X
+    axisFormat %s
 
-时间轴：
-用户线程: ████████████ ←── STW（更短）──→ ████████████████
-GC 线程1:              ███████████
-GC 线程2:              ███████████
-GC 线程3:              ███████████
+    section 用户线程
+    正常运行           :active, u1, 0, 30
+    暂停（STW 更短）   :crit, stw1, 30, 55
+    恢复运行           :active, u2, 55, 100
 
-适用：后台计算任务，不在意单次暂停，在意总吞吐量
-JDK 8 默认收集器
-启用：-XX:+UseParallelGC</code></pre>
+    section GC 线程 1
+    等待               :done, g0, 0, 30
+    并行 GC            :active, gc1, 30, 55
+    空闲               :done, g10, 55, 100
+
+    section GC 线程 2
+    等待               :done, g20, 0, 30
+    并行 GC            :active, gc2, 30, 55
+    空闲               :done, g21, 55, 100
+
+    section GC 线程 3
+    等待               :done, g30, 0, 30
+    并行 GC            :active, gc3, 30, 55
+    空闲               :done, g31, 55, 100
+</pre>
 
 <h3 id="CMS-GC">CMS GC：并发收集，低停顿（已废弃）</h3>
 
-<pre><code class="language-text">目标：让 GC 和用户线程尽量并发执行，减少 STW 时间
+<p>目标：让 GC 和用户线程尽量并发执行，减少 STW 时间。JDK 14 中被废弃，建议迁移到 G1。</p>
+<pre class="mermaid">
+gantt
+    title CMS GC 四阶段时间轴
+    dateFormat  X
+    axisFormat %s
 
-时间轴：
-用户线程: ████│ STW │████████████████████████████│STW│████████
-GC 线程:       ████  ████████████████████████████  ████
-                初始  ↑──── 并发标记（与用户线程同时跑）────↑  重新
-                标记                                        标记
+    section 用户线程
+    正常运行              :active, u1, 0, 10
+    暂停（初始标记 STW）  :crit, stw1, 10, 18
+    并发阶段同时运行      :active, u2, 18, 75
+    暂停（重新标记 STW）  :crit, stw2, 75, 85
+    并发清除同时运行      :active, u3, 85, 110
 
-CMS 四个阶段：
-1. 初始标记（STW，很短）：只标记 GC Roots 直接引用的对象
-2. 并发标记（与用户线程并发）：从 GC Roots 出发遍历整个引用图
-3. 重新标记（STW，较短）：修正并发标记期间用户线程修改的引用
-4. 并发清除（与用户线程并发）：清除不可达对象
-
-问题：
-1. 并发清除时产生「浮动垃圾」（刚被标记为存活，并发期间变成垃圾）
-2. 使用标记-清除，会产生内存碎片
-3. 如果老年代在并发阶段被填满，会触发 Serial Old 兜底（极慢！）
-
-JDK 14 中被废弃，建议迁移到 G1</code></pre>
+    section GC 线程
+    等待                  :done, g0, 0, 10
+    初始标记（STW 很短）  :crit, gc1, 10, 18
+    并发标记（与用户并发）:active, gc2, 18, 75
+    重新标记（STW 较短）  :crit, gc3, 75, 85
+    并发清除（与用户并发）:active, gc4, 85, 110
+</pre>
+<p><strong>CMS 存在的问题：</strong>① 并发清除时产生「浮动垃圾」；② 使用标记-清除，产生内存碎片；③ 老年代在并发阶段被填满时触发 Serial Old 兜底（极慢！）</p>
 
 <h3 id="G1-GC">G1 GC：分区设计，可预测停顿（JDK 9+ 默认）</h3>
 
-<pre><code class="language-text">G1 最大的创新：把堆划分为大量小的「Region」，每个 Region 约 1-32MB
+<p>G1 最大的创新：把堆划分为大量小的「Region」，每个 Region 约 1-32MB。</p>
+<pre class="mermaid">
+graph TD
+    subgraph G1Heap["G1 堆布局（Region 视图）"]
+        subgraph Row1["第一行 Region"]
+            E1["E\nEden Region"]
+            E2["E\nEden Region"]
+            S1["S\nSurvivor Region"]
+            O1["O\nOld Region"]
+            E3["E\nEden Region"]
+            O2["O\nOld Region"]
+            H1["H\nHumongous Region\n（大对象）"]
+            O3["O\nOld Region"]
+        end
+        subgraph Row2["第二行 Region"]
+            O4["O\nOld Region"]
+            E4["E\nEden Region"]
+            H2["H\nHumongous Region\n（续）"]
+            O5["O\nOld Region"]
+            S2["S\nSurvivor Region"]
+            E5["E\nEden Region"]
+            O6["O\nOld Region"]
+            Free["（空闲）\n待分配"]
+        end
+    end
 
-┌────────────────────────────────────────────────────────────────┐
-│                    G1 堆布局（Region 视图）                      │
-│                                                                │
-│  ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐                    │
-│  │E │ │E │ │S │ │O │ │E │ │O │ │H │ │O │                    │
-│  └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘                    │
-│  ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐                    │
-│  │O │ │E │ │H │ │O │ │S │ │E │ │O │ │  │  （空闲）           │
-│  └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘                    │
-│                                                                │
-│  E = Eden Region    S = Survivor Region                        │
-│  O = Old Region     H = Humongous Region（大对象，跨多个 Region）│
-└────────────────────────────────────────────────────────────────┘
+    Principle["G1 核心原则：优先回收「垃圾最多」的 Region\n每个 Region 记录回收收益和代价\n选择收益/代价最高的 Region 集合回收\n可设定停顿目标：-XX:MaxGCPauseMillis=200"]
 
-G1 的核心优势：优先回收「垃圾最多」的 Region
+    style E1 fill:#fff3cd,stroke:#ffc107
+    style E2 fill:#fff3cd,stroke:#ffc107
+    style E3 fill:#fff3cd,stroke:#ffc107
+    style E4 fill:#fff3cd,stroke:#ffc107
+    style E5 fill:#fff3cd,stroke:#ffc107
+    style S1 fill:#d1ecf1,stroke:#17a2b8
+    style S2 fill:#d1ecf1,stroke:#17a2b8
+    style O1 fill:#f8d7da,stroke:#dc3545
+    style O2 fill:#f8d7da,stroke:#dc3545
+    style O3 fill:#f8d7da,stroke:#dc3545
+    style O4 fill:#f8d7da,stroke:#dc3545
+    style O5 fill:#f8d7da,stroke:#dc3545
+    style O6 fill:#f8d7da,stroke:#dc3545
+    style H1 fill:#e2d9f3,stroke:#6f42c1
+    style H2 fill:#e2d9f3,stroke:#6f42c1
+    style Free fill:#e2e3e5,stroke:#6c757d
+    style Principle fill:#d4edda,stroke:#28a745
+</pre>
 
-每个 Region 都记录了「回收收益」（能回收多少空间）和「回收代价」（需要多少时间）
-G1 每次选择收益/代价最高的 Region 集合进行回收（Garbage First = 垃圾优先）
+<pre class="mermaid">
+flowchart TD
+    Start(["开始 G1 Mixed GC"])
 
-停顿目标：可以设置期望的最大停顿时间
--XX:MaxGCPauseMillis=200  // 期望每次 GC 暂停不超过 200ms
-G1 会根据这个目标动态调整每次回收的 Region 数量</code></pre>
+    Phase1["阶段 1：初始标记\n🔴 STW（很短）\n随 Minor GC 一起执行\n标记 GC Roots 直接引用的对象"]
 
-<pre><code class="language-text">G1 Mixed GC 流程：
+    Phase2["阶段 2：并发标记\n🟢 与用户线程并发\n从 GC Roots 遍历整个堆\n记录每个 Region 的存活数据\n（可能持续几百毫秒）"]
 
-阶段1：初始标记（STW，随 Minor GC 一起执行，几乎无额外停顿）
-  标记 GC Roots 直接引用的对象
+    Phase3["阶段 3：最终标记\n🔴 STW（很短）\n处理 SATB 缓冲区\n修正并发阶段的引用变化"]
 
-阶段2：并发标记（与用户线程并发，可能持续几百毫秒）
-  从 GC Roots 出发，遍历整个堆，记录每个 Region 的存活数据
+    Phase4["阶段 4：筛选回收\n🔴 STW（可控时长）\n按回收价值排序 Region\n在停顿目标内选最有价值的 Region\n复制存活对象到空 Region\n原 Region 整体释放（无碎片）"]
 
-阶段3：最终标记（STW，很短）
-  处理 SATB（Snapshot-At-The-Beginning）缓冲区，修正并发阶段的变化
+    End(["GC 完成\n内存已整理，无碎片"])
 
-阶段4：筛选回收（STW，可控时长）
-  根据各 Region 的回收价值，在停顿时间限制内，选择最有价值的 Region 回收
-  使用复制算法，将存活对象复制到空 Region，原 Region 整体释放（无碎片！）</code></pre>
+    Start --> Phase1 --> Phase2 --> Phase3 --> Phase4 --> End
+
+    style Phase1 fill:#f8d7da,stroke:#dc3545
+    style Phase2 fill:#d4edda,stroke:#28a745
+    style Phase3 fill:#f8d7da,stroke:#dc3545
+    style Phase4 fill:#fff3cd,stroke:#ffc107
+</pre>
 
 <h3 id="ZGC">ZGC：亚毫秒级停顿（JDK 15+ 生产可用）</h3>
 
-<pre><code class="language-text">ZGC 的目标：无论堆多大（TB 级），停顿时间始终 &lt; 10ms（通常 1-2ms）
+<p>ZGC 的目标：无论堆多大（TB 级），停顿时间始终 &lt; 10ms（通常 1-2ms）。适用于金融交易、实时推荐、游戏服务器等延迟敏感场景。启用：<code>-XX:+UseZGC</code>（JDK 11+，生产推荐 JDK 15+）</p>
+<pre class="mermaid">
+gantt
+    title ZGC 时间轴（几乎全程并发，STW 极短）
+    dateFormat  X
+    axisFormat %s
 
-实现原理：几乎所有工作都与用户线程并发执行
+    section 用户线程
+    持续运行（全程）     :active, u1, 0, 100
 
-时间轴：
-用户线程: ████████████████████████████████████████████████
-GC 线程:   ████████████████████████████████████████████████
-STW:             │1ms│                   │1ms│
+    section GC 线程
+    并发标记             :active, gc1, 5, 35
+    并发转移准备         :active, gc2, 35, 55
+    并发转移（移动对象） :active, gc3, 55, 90
+    并发重映射           :active, gc4, 90, 100
 
-关键技术：
-1. 染色指针（Colored Pointer）：在对象指针的高位存储 GC 状态信息
-   64位指针中，高4位用于标记（Marked0/Marked1/Remapped/Finalizable）
-   好处：不需要额外的标记位图，GC 状态和对象绑定
-
-2. 读屏障（Load Barrier）：每次读取对象引用时，检查并修正指针
-   用户线程每次访问对象时，顺带完成"重定位"工作
-   把"移动对象后更新引用"的工作分散到每次对象访问中
-
-3. 并发整理：对象可以在用户线程运行时被移动（配合读屏障保证正确性）
-
-适用：对延迟极度敏感的服务（金融交易、实时推荐、游戏服务器）
-启用：-XX:+UseZGC（JDK 11+，生产推荐 JDK 15+）</code></pre>
+    section STW 停顿
+    初始标记（~1ms）     :crit, stw1, 5, 7
+    再标记（~1ms）       :crit, stw2, 33, 35
+</pre>
+<p><strong>ZGC 关键技术：</strong>① <strong>染色指针</strong>：64位指针高4位存储 GC 状态，无需额外标记位图；② <strong>读屏障</strong>：每次读取引用时顺带完成重定位，将移动对象的引用更新分散到每次访问；③ <strong>并发整理</strong>：对象可在用户线程运行时被移动。</p>
 
 <h3 id="收集器对比">五大收集器对比总结</h3>
 
@@ -814,6 +950,19 @@ window.addEventListener('pjax:success', () => {
   var observer = new MutationObserver(applyTheme);
   observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
+</script>
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%L' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
 </script>
 </body>
 </html>

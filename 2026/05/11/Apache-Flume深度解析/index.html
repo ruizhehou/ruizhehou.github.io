@@ -156,17 +156,13 @@
 
 <p>Flume 的核心是 <strong>Agent</strong>——一个 JVM 进程，包含三个组件：</p>
 
-<pre><code class="language-text">┌─────────────────────────────────────────────────────────────┐
-│                        Flume Agent                          │
-│                                                             │
-│  ┌──────────┐    put    ┌──────────┐   take   ┌──────────┐ │
-│  │  Source  │ ────────► │ Channel  │ ────────► │   Sink   │ │
-│  │（数据采集）│           │（数据缓冲）│          │（数据写出）│ │
-│  └──────────┘           └──────────┘           └──────────┘ │
-│       ↑                      ↑                              │
-│   外部数据源              事务保护                            │
-└─────────────────────────────────────────────────────────────┘
-</code></pre>
+<pre class="mermaid">
+graph LR
+    ExtSrc["外部数据源\n（文件/网络/消息队列）"]
+    ExtSrc -->|"读取/接收"| Source["Source\n数据采集\n封装成 Event"]
+    Source -->|"put（事务保护）"| Channel["Channel\n数据缓冲\n解耦 Source 与 Sink"]
+    Channel -->|"take（事务保护）"| Sink["Sink\n数据写出\n（HDFS/Kafka/HBase）"]
+</pre>
 
 <ul>
   <li><strong>Source</strong>：从外部数据源（文件、网络、消息队列）拉取或接收数据，封装成 Event</li>
@@ -254,19 +250,32 @@ agent.sources.r1.batchDurationMillis = 2000  # 最多等 2 秒凑满一批</code
 
 <p>Flume 通过两个独立的事务保护数据流转：</p>
 
-<pre><code class="language-text">Source → Channel（Put 事务）：
-  1. Source 开启 Put 事务
-  2. Source 把一批 Event put 进 Channel
-  3. 如果全部成功 → commit，Event 持久化到 Channel
-  4. 如果失败 → rollback，Event 丢弃，Source 下次重试
+<pre class="mermaid">
+sequenceDiagram
+    participant Src as Source
+    participant Ch as Channel
+    participant Sk as Sink
+    participant Dest as 目的地（HDFS/Kafka）
 
-Channel → Sink（Take 事务）：
-  1. Sink 开启 Take 事务
-  2. Sink 从 Channel take 一批 Event
-  3. Sink 写入目的地（HDFS/Kafka...）
-  4. 写入成功 → commit，Channel 删除这批 Event
-  5. 写入失败 → rollback，Event 回到 Channel，等待下次重试
-</code></pre>
+    Note over Src,Ch: Put 事务
+    Src->>Ch: 开启 Put 事务
+    Src->>Ch: put 一批 Event
+    alt 全部成功
+        Ch-->>Src: commit，Event 持久化到 Channel
+    else 失败
+        Ch-->>Src: rollback，Source 下次重试
+    end
+
+    Note over Ch,Dest: Take 事务
+    Sk->>Ch: 开启 Take 事务
+    Sk->>Ch: take 一批 Event
+    Sk->>Dest: 写入目的地
+    alt 写入成功
+        Sk->>Ch: commit，Channel 删除这批 Event
+    else 写入失败
+        Sk->>Ch: rollback，Event 回到 Channel 等待重试
+    end
+</pre>
 
 <p>这套机制保证了 <strong>at-least-once</strong>（至少一次）语义：数据不会丢失，但在 Sink 成功写入后 Agent 崩溃的极端情况下，可能重复发送。</p>
 
@@ -414,11 +423,20 @@ agent.sources.r1.selector.default = c_info          # 未匹配的走默认</cod
 
 <p>多台 Web 服务器各自运行一个 Collector Agent，把日志发给汇聚层的 Aggregator Agent，再统一写入 HDFS。汇聚层便于统一管理 HDFS 写入，避免数千台服务器直连 HDFS 的连接风暴：</p>
 
-<pre><code class="language-text">Web-01: [Taildir → Memory Channel → Avro Sink] ─────┐
-Web-02: [Taildir → Memory Channel → Avro Sink] ──── ► Aggregator: [Avro Source → File Channel → HDFS Sink] → HDFS
-Web-03: [Taildir → Memory Channel → Avro Sink] ─────┘
-...（数百台）
-</code></pre>
+<pre class="mermaid">
+graph TD
+    W1["Web-01\nTaildir Source\nMemory Channel\nAvro Sink"]
+    W2["Web-02\nTaildir Source\nMemory Channel\nAvro Sink"]
+    W3["Web-03\nTaildir Source\nMemory Channel\nAvro Sink"]
+    Wn["...（数百台）"]
+    AGG["Aggregator Agent\nAvro Source\nFile Channel\nHDFS Sink"]
+    HDFS["HDFS"]
+    W1 -->|"Avro RPC"| AGG
+    W2 -->|"Avro RPC"| AGG
+    W3 -->|"Avro RPC"| AGG
+    Wn -->|"Avro RPC"| AGG
+    AGG --> HDFS
+</pre>
 
 <pre><code class="language-properties"># Collector Agent（部署在每台 Web 服务器）
 collector.sources = r1
@@ -457,11 +475,17 @@ aggregator.sinks.k1.channel = c1</code></pre>
 
 <p>一份日志同时写入 HDFS（离线分析）和 Kafka（实时处理）：</p>
 
-<pre><code class="language-text">日志文件
-  → [Taildir Source]
-      ├── [Memory Channel → HDFS Sink] → HDFS（离线）
-      └── [Memory Channel → Kafka Sink] → Kafka（实时）
-</code></pre>
+<pre class="mermaid">
+graph TD
+    LogFile["日志文件"]
+    LogFile --> Taildir["Taildir Source\n（Replicating Channel Selector）"]
+    Taildir --> CH["Memory Channel（HDFS）"]
+    Taildir --> CK["Memory Channel（Kafka）"]
+    CH --> HS["HDFS Sink"]
+    CK --> KS["Kafka Sink"]
+    HS --> HDFS["HDFS（离线分析）"]
+    KS --> Kafka["Kafka（实时处理）"]
+</pre>
 
 <pre><code class="language-properties">agent.sources = r1
 agent.channels = c_hdfs c_kafka
@@ -790,6 +814,19 @@ window.addEventListener('pjax:success', () => {
   var observer = new MutationObserver(applyTheme);
   observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
+</script>
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
 </script>
 </body>
 </html>
