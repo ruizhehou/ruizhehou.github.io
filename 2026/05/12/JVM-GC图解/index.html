@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="JVM GC 图解：从堆内存结构、对象分代假说、Minor GC 与 Full GC 执行过程、可达性分析、引用类型，到 Serial/Parallel/CMS/G1/ZGC 五大收集器的工作原理与对比，配以大量 ASCII 图示。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JVM GC 图解：从入门到真正理解垃圾回收">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/12/JVM-GC图解/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="JVM GC 图解：从堆内存结构、对象分代假说、Minor GC 与 Full GC 执行过程、可达性分析、引用类型，到 Serial/Parallel/CMS/G1/ZGC 五大收集器的工作原理与对比，配以大量 ASCII 图示。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-12T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-12T14:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="JVM">
+<meta property="article:tag" content="内存管理">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/12/JVM-GC图解/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>JVM GC 图解：从入门到真正理解垃圾回收 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-12T14:00:00+08:00" content="2026-05-12">
+      05-12
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      JVM GC 图解：从入门到真正理解垃圾回收
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>垃圾回收（Garbage Collection）是 JVM 最核心的运行时机制，也是 Java 性能调优的关键知识点。很多人用了多年 Java，却对 GC 的工作原理一知半解——知道有 Minor GC 和 Full GC，知道要避免频繁 Full GC，但说不清楚 G1 和 CMS 有什么本质区别，也不知道为什么 GC 会让应用暂停。</p>
+
+<p>本文从最基础的内存结构开始，用大量图示一步步拆解 GC 的每个环节，力求让每个概念都有直觉上的理解。</p>
+
+
+<h2 id="堆内存结构">一、JVM 堆内存结构</h2>
+
+<p>GC 管理的核心区域是<strong>堆（Heap）</strong>。JVM 启动时会申请一块连续内存作为堆，所有 <code>new</code> 出来的对象都在这里分配。</p>
+
+<pre><code class="language-text">┌─────────────────────────────────────────────────────────────────┐
+│                         JVM 堆内存                               │
+│                                                                 │
+│  ┌──────────────────────────────┐  ┌──────────────────────────┐ │
+│  │           新生代（Young Gen）  │  │      老年代（Old Gen）     │ │
+│  │                              │  │                          │ │
+│  │  ┌────────┐ ┌─────┐ ┌─────┐ │  │  ┌────────────────────┐  │ │
+│  │  │  Eden  │ │ S0  │ │ S1  │ │  │  │  长期存活的对象      │  │ │
+│  │  │        │ │(from│ │(to) │ │  │  │  大对象             │  │ │
+│  │  │  新对象 │ │)    │ │     │ │  │  │  静态变量引用的对象  │  │ │
+│  │  │  在此  │ │     │ │     │ │  │  └────────────────────┘  │ │
+│  │  │  分配  │ │     │ │     │ │  │                          │ │
+│  │  └────────┘ └─────┘ └─────┘ │  │                          │ │
+│  │   ~80%      ~10%    ~10%    │  │                          │ │
+│  └──────────────────────────────┘  └──────────────────────────┘ │
+│                                                                 │
+│         Minor GC 管理新生代              Full GC 管理整个堆       │
+└─────────────────────────────────────────────────────────────────┘
+
+非堆区域（不由 GC 管理）：
+  方法区（Metaspace）：类定义、常量池、静态变量
+  程序计数器、虚拟机栈、本地方法栈（线程私有）</code></pre>
+
+<p>新生代分三个区：</p>
+<ul>
+  <li><strong>Eden 区</strong>：新对象出生的地方，占新生代约 80%</li>
+  <li><strong>Survivor 0（From）</strong>：上一次 Minor GC 后存活对象的暂居地</li>
+  <li><strong>Survivor 1（To）</strong>：本次 Minor GC 时存活对象的目标地</li>
+</ul>
+
+<p>这个设计来自一个重要的经验观察——<strong>分代假说</strong>。</p>
+
+
+<h2 id="分代假说">二、分代假说：GC 设计的理论基础</h2>
+
+<p>JVM 内存分代设计基于两个经验规律：</p>
+
+<blockquote>
+<p><strong>弱分代假说</strong>：绝大多数对象都是"朝生夕死"的，极短命。<br>
+<strong>强分代假说</strong>：熬过多次 GC 的对象，未来也不太可能死。</p>
+</blockquote>
+
+<p>用数据说话：实际 Java 程序中，一次 Minor GC 通常能回收 95%+ 的新生代对象。也就是说，大多数对象在 Eden 区被创建，在第一次 GC 时就死亡了，根本没有机会进入 Survivor 区。</p>
+
+<pre><code class="language-text">对象存活率随年龄的变化（示意）：
+
+存活率
+100% │
+     │  ███
+ 50% │     ████
+     │         ████
+ 10% │              ████████
+  5% │                      █████████████████（趋于稳定）
+  0% └─────────────────────────────────────────────────→ GC 轮次
+      1次  2次  3次  4次  5次  6次  7次  8次  ...
+
+绝大多数对象在第 1 次 GC 就被回收
+少数"长命"对象在多次 GC 后趋于稳定存活</code></pre>
+
+<p>这个规律决定了：</p>
+<ul>
+  <li>新生代可以用<strong>复制算法</strong>——只有少数对象需要被复制，效率极高</li>
+  <li>老年代对象密度高，不适合复制，用<strong>标记-整理</strong>或<strong>标记-清除</strong></li>
+  <li>新生代 GC（Minor GC）可以频繁运行，开销小；老年代 GC（Full GC）代价大，要尽量避免</li>
+</ul>
+
+
+<h2 id="Minor-GC过程">三、Minor GC：新生代的清理过程</h2>
+
+<p>当 Eden 区满了，就触发 Minor GC。整个过程分四步：</p>
+
+<h3 id="MinorGC步骤1">第一步：Eden 区满，触发 GC</h3>
+
+<pre><code class="language-text">Minor GC 触发前：
+
+┌──────────────────────────────────────────────────────────┐
+│ Eden（已满）                       │ S0（有存活对象）│ S1 │
+│ ████████████████████████████████  │ ████            │    │
+│ A  B  C  D  E  F  G  H  I  J  K  │ X  Y            │    │
+│ ↑活  ↑死 ↑活 ↑死 ↑死 ↑活 ↑死 ↑活 ↑死 ↑死 ↑死│ ↑活↑活         │    │
+└──────────────────────────────────────────────────────────┘
+
+  Eden 区对象：A C F H 存活，其余死亡
+  S0 对象：X Y 存活（已经经历过一次 GC，年龄=1）</code></pre>
+
+<h3 id="MinorGC步骤2">第二步：标记存活对象（可达性分析）</h3>
+
+<pre><code class="language-text">GC Roots（根对象）：
+  · 当前线程栈帧中的局部变量
+  · 方法区中的静态变量
+  · JNI 引用
+
+从 GC Roots 出发，遍历引用链，能到达的对象 = 存活：
+
+  GC Root ──→ A（存活）──→ C（存活）
+  GC Root ──→ F（存活）
+  GC Root ──→ H（存活）
+  GC Root ──→ X（存活）──→ Y（存活）
+
+  B D E G I J K：不可达 = 垃圾 ← 等待回收</code></pre>
+
+<h3 id="MinorGC步骤3">第三步：复制存活对象到 S1（To 区），年龄 +1</h3>
+
+<pre><code class="language-text">复制后状态：
+
+┌──────────────────────────────────────────────────────────┐
+│ Eden（清空）                       │ S0（清空）│  S1       │
+│                                   │           │  A  C     │
+│                                   │           │  F  H     │
+│                                   │           │  X  Y     │
+│                                   │           │ 年龄：1 1 1 1 2 2 │
+└──────────────────────────────────────────────────────────┘
+
+  Eden 中的存活对象（A C F H）复制到 S1，年龄从 0 变为 1
+  S0 中的存活对象（X Y）复制到 S1，年龄从 1 变为 2
+  Eden 和 S0 全部清空（直接丢弃所有对象，无需逐个释放）</code></pre>
+
+<h3 id="MinorGC步骤4">第四步：S0/S1 角色互换</h3>
+
+<pre><code class="language-text">互换后：S1 变为新的 S0（From），原 S0 变为新的 S1（To）
+
+下一次 Minor GC 时，新的存活对象将被复制到新的 To 区（原 S0）
+
+新对象继续在 Eden 分配 ↓
+
+┌──────────────────────────────────────────────────────────┐
+│ Eden（接收新对象）                  │ S0(From)  │  S1(To) │
+│ 新对象...                          │ A C F H   │  空      │
+│                                   │ X Y       │          │
+│                                   │ 年龄：1 1 1 1 2 2     │          │
+└──────────────────────────────────────────────────────────┘</code></pre>
+
+<h3 id="晋升老年代">何时晋升老年代？</h3>
+
+<pre><code class="language-text">两种情况会让对象从新生代晋升到老年代：
+
+1. 年龄阈值（默认 15）：
+   对象每熬过一次 Minor GC，年龄 +1
+   年龄达到 MaxTenuringThreshold（默认 15）时，晋升老年代
+
+   年龄:  1    2    3  ...  15   → 进入老年代
+          ↑    ↑    ↑        ↑
+        GC1  GC2  GC3      GC15
+
+2. 大对象直接进老年代：
+   超过 -XX:PretenureSizeThreshold 的对象直接分配在老年代
+   避免大对象在 Eden/Survivor 区来回复制的巨大开销</code></pre>
+
+
+<h2 id="Full-GC">四、Full GC：最昂贵的操作</h2>
+
+<p>Full GC 会回收整个堆（新生代 + 老年代），期间会触发 <strong>Stop-The-World（STW）</strong>——暂停所有用户线程，直到 GC 完成。</p>
+
+<pre><code class="language-text">Stop-The-World 示意：
+
+时间轴 →
+─────────────────────────────────────────────────────────────
+用户线程：████████████████  ←暂停→  ████████████████████████
+GC 线程：                ████████████████
+─────────────────────────────────────────────────────────────
+                         ↑ STW 开始    ↑ STW 结束
+                     所有请求在这段时间内无响应！
+
+Full GC 的 STW 时间：几百毫秒到几秒不等
+→ 这就是为什么 Full GC 对线上服务是灾难性的</code></pre>
+
+<p><strong>触发 Full GC 的常见原因：</strong></p>
+
+<pre><code class="language-text">1. 老年代空间不足
+   ┌────────────────────────────────────┐
+   │  老年代（95% 已满）                  │  ← 新对象晋升时放不下
+   │  ████████████████████████████████  │     → 触发 Full GC
+   └────────────────────────────────────┘
+
+2. Minor GC 晋升失败（Promotion Failure）
+   老年代剩余空间 < 新生代存活对象总大小
+   JVM 无法保证晋升成功 → 触发 Full GC
+
+3. 显式调用 System.gc()（强烈不建议）
+
+4. Metaspace 空间不足（类加载过多）
+
+5. CMS GC 的并发失败（Concurrent Mode Failure）</code></pre>
+
+
+<h2 id="可达性分析">五、可达性分析：判断对象是否存活</h2>
+
+<p>GC 如何知道哪些对象可以回收？答案是<strong>可达性分析</strong>（Reachability Analysis）。</p>
+
+<pre><code class="language-text">对象引用图示例：
+
+GC Roots
+    ├──→ 对象A ──→ 对象C ──→ 对象E
+    │         └──→ 对象D（无外部引用指向它，但被 A 引用）
+    └──→ 对象B
+
+    对象F ──→ 对象G
+    （F 和 G 互相引用，但没有 GC Root 能到达它们）
+
+可达对象（存活）：A B C D E
+不可达对象（垃圾）：F G ← 即使 F→G→F 形成循环引用，也会被回收
+
+这是可达性分析相比"引用计数"的核心优势：
+  引用计数无法处理循环引用（F.count=1, G.count=1，永远不为0）
+  可达性分析从根出发，循环引用的孤岛自然不可达</code></pre>
+
+<h3 id="GC-Roots">GC Roots 包含哪些？</h3>
+
+<pre><code class="language-text">┌─────────────────────────────────────────────────────────────┐
+│                      GC Roots 来源                           │
+├─────────────────────────────────────────────────────────────┤
+│  1. 虚拟机栈中的引用                                          │
+│     void method() {                                         │
+│         Object obj = new Object();  ← obj 是 GC Root        │
+│     }  // 方法返回后 obj 不再是 GC Root，对象可被回收         │
+│                                                             │
+│  2. 方法区中的静态变量                                        │
+│     static Object shared = new Object();  ← GC Root         │
+│     只要类还被加载，shared 就一直是 GC Root                   │
+│                                                             │
+│  3. 方法区中的常量                                            │
+│     static final String NAME = "hello";  ← GC Root          │
+│                                                             │
+│  4. JNI 引用（本地方法持有的 Java 对象引用）                   │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+
+
+<h2 id="引用类型">六、四种引用类型：影响 GC 行为的关键</h2>
+
+<pre><code class="language-text">强度递减 →
+
+强引用（Strong Reference）      弱引用（Weak Reference）
+Object obj = new Object();     WeakReference&lt;Object&gt; wr = ...
+↓ 只要存在，永远不会被 GC 回收    ↓ 下次 GC 时必然被回收，不管内存是否充足
+
+软引用（Soft Reference）         虚引用（Phantom Reference）
+SoftReference&lt;Object&gt; sr = ... PhantomReference&lt;Object&gt; pr = ...
+↓ 内存充足时保留，内存不足时回收   ↓ 几乎等于没有引用，专门用于追踪 GC 事件
+  （适合实现内存敏感的缓存）</code></pre>
+
+<pre><code class="language-java">// 软引用：实现 LRU 缓存的经典方案
+Map&lt;String, SoftReference&lt;BigImage&gt;&gt; imageCache = new HashMap&lt;&gt;();
+
+// 存入缓存
+imageCache.put("logo", new SoftReference&lt;&gt;(loadImage("logo.png")));
+
+// 取出缓存
+SoftReference&lt;BigImage&gt; ref = imageCache.get("logo");
+BigImage img = ref != null ? ref.get() : null;  // 可能为 null（已被 GC 回收）
+if (img == null) {
+    img = loadImage("logo.png");  // 重新加载
+    imageCache.put("logo", new SoftReference&lt;&gt;(img));
+}
+
+// 优点：内存充足时命中缓存（快），内存紧张时 GC 自动清理（不 OOM）</code></pre>
+
+
+<h2 id="GC算法">七、三种基础 GC 算法</h2>
+
+<h3 id="标记清除">标记-清除（Mark-Sweep）</h3>
+
+<pre><code class="language-text">GC 前：
+┌────────────────────────────────────────────────────────┐
+│ [A活][B死][C活][D死][E死][F活][G死][H活][I死][J活]      │
+└────────────────────────────────────────────────────────┘
+
+标记阶段：标记所有存活对象
+┌────────────────────────────────────────────────────────┐
+│ [A★] [B  ] [C★] [D  ] [E  ] [F★] [G  ] [H★] [I  ] [J★] │
+│  ↑存活        ↑存活             ↑存活        ↑存活        ↑存活│
+└────────────────────────────────────────────────────────┘
+
+清除阶段：释放未标记的对象
+┌────────────────────────────────────────────────────────┐
+│ [A  ] [   ] [C  ] [   ] [   ] [F  ] [   ] [H  ] [   ] [J  ] │
+│  ↑存活  ↑空洞  ↑存活  ↑空洞  ↑空洞  ↑存活  ↑空洞  ↑存活  ↑空洞  ↑存活│
+└────────────────────────────────────────────────────────┘
+
+问题：内存碎片！大量不连续的小空洞，分配大对象时找不到足够大的连续空间</code></pre>
+
+<h3 id="标记复制">标记-复制（Mark-Copy）</h3>
+
+<pre><code class="language-text">内存分为两半：From 和 To
+
+GC 前（From 半区有对象，To 为空）：
+From: [A活][B死][C活][D死][E活][F死][G活]
+To:   [                              ]
+
+GC 后（存活对象紧凑复制到 To，From 整体清空）：
+From: [                              ]
+To:   [A   ][C   ][E   ][G   ]
+       ↑紧凑排列，无碎片
+
+优点：无碎片，分配速度极快（只需移动指针）
+缺点：内存利用率只有 50%
+
+这就是为什么新生代 Survivor 区只有 10%：
+  Eden(80%) + S0(10%) → 复制到 S1(10%)
+  实际利用率 90%，只浪费 10%（而不是 50%）
+  前提是新生代存活率低（通常 &lt;5%，10% 的 S 区足够）</code></pre>
+
+<h3 id="标记整理">标记-整理（Mark-Compact）</h3>
+
+<pre><code class="language-text">GC 前：
+[A活][B死][C活][D死][E死][F活][G死][H活]
+
+标记后，将存活对象向一端移动（整理）：
+[A活][C活][F活][H活][         空闲         ]
+  ↑存活对象紧凑排列       ↑连续大块空闲空间
+
+优点：无碎片，内存利用率 100%
+缺点：需要移动对象，移动时要更新所有引用指针，开销大
+
+适合老年代：老年代对象存活率高，复制算法代价太大；
+           标记-整理能解决碎片问题，偶尔执行一次整理可以接受</code></pre>
+
+
+<h2 id="五大收集器">八、五大主流垃圾收集器</h2>
+
+<h3 id="Serial-GC">Serial GC：单线程，最简单</h3>
+
+<pre><code class="language-text">特点：GC 时只用一个线程，STW 期间用户线程全部暂停
+
+时间轴：
+用户线程: ████████████ ←──── STW ────→ ████████████████
+GC 线程:              ████████████████
+
+适用：客户端应用，单核 CPU，几十到几百 MB 堆
+启用：-XX:+UseSerialGC</code></pre>
+
+<h3 id="Parallel-GC">Parallel GC：多线程 Serial，吞吐量优先</h3>
+
+<pre><code class="language-text">特点：GC 用多个线程并行工作，缩短 STW 时间，但仍然 STW
+
+时间轴：
+用户线程: ████████████ ←── STW（更短）──→ ████████████████
+GC 线程1:              ███████████
+GC 线程2:              ███████████
+GC 线程3:              ███████████
+
+适用：后台计算任务，不在意单次暂停，在意总吞吐量
+JDK 8 默认收集器
+启用：-XX:+UseParallelGC</code></pre>
+
+<h3 id="CMS-GC">CMS GC：并发收集，低停顿（已废弃）</h3>
+
+<pre><code class="language-text">目标：让 GC 和用户线程尽量并发执行，减少 STW 时间
+
+时间轴：
+用户线程: ████│ STW │████████████████████████████│STW│████████
+GC 线程:       ████  ████████████████████████████  ████
+                初始  ↑──── 并发标记（与用户线程同时跑）────↑  重新
+                标记                                        标记
+
+CMS 四个阶段：
+1. 初始标记（STW，很短）：只标记 GC Roots 直接引用的对象
+2. 并发标记（与用户线程并发）：从 GC Roots 出发遍历整个引用图
+3. 重新标记（STW，较短）：修正并发标记期间用户线程修改的引用
+4. 并发清除（与用户线程并发）：清除不可达对象
+
+问题：
+1. 并发清除时产生「浮动垃圾」（刚被标记为存活，并发期间变成垃圾）
+2. 使用标记-清除，会产生内存碎片
+3. 如果老年代在并发阶段被填满，会触发 Serial Old 兜底（极慢！）
+
+JDK 14 中被废弃，建议迁移到 G1</code></pre>
+
+<h3 id="G1-GC">G1 GC：分区设计，可预测停顿（JDK 9+ 默认）</h3>
+
+<pre><code class="language-text">G1 最大的创新：把堆划分为大量小的「Region」，每个 Region 约 1-32MB
+
+┌────────────────────────────────────────────────────────────────┐
+│                    G1 堆布局（Region 视图）                      │
+│                                                                │
+│  ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐                    │
+│  │E │ │E │ │S │ │O │ │E │ │O │ │H │ │O │                    │
+│  └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘                    │
+│  ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐                    │
+│  │O │ │E │ │H │ │O │ │S │ │E │ │O │ │  │  （空闲）           │
+│  └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘                    │
+│                                                                │
+│  E = Eden Region    S = Survivor Region                        │
+│  O = Old Region     H = Humongous Region（大对象，跨多个 Region）│
+└────────────────────────────────────────────────────────────────┘
+
+G1 的核心优势：优先回收「垃圾最多」的 Region
+
+每个 Region 都记录了「回收收益」（能回收多少空间）和「回收代价」（需要多少时间）
+G1 每次选择收益/代价最高的 Region 集合进行回收（Garbage First = 垃圾优先）
+
+停顿目标：可以设置期望的最大停顿时间
+-XX:MaxGCPauseMillis=200  // 期望每次 GC 暂停不超过 200ms
+G1 会根据这个目标动态调整每次回收的 Region 数量</code></pre>
+
+<pre><code class="language-text">G1 Mixed GC 流程：
+
+阶段1：初始标记（STW，随 Minor GC 一起执行，几乎无额外停顿）
+  标记 GC Roots 直接引用的对象
+
+阶段2：并发标记（与用户线程并发，可能持续几百毫秒）
+  从 GC Roots 出发，遍历整个堆，记录每个 Region 的存活数据
+
+阶段3：最终标记（STW，很短）
+  处理 SATB（Snapshot-At-The-Beginning）缓冲区，修正并发阶段的变化
+
+阶段4：筛选回收（STW，可控时长）
+  根据各 Region 的回收价值，在停顿时间限制内，选择最有价值的 Region 回收
+  使用复制算法，将存活对象复制到空 Region，原 Region 整体释放（无碎片！）</code></pre>
+
+<h3 id="ZGC">ZGC：亚毫秒级停顿（JDK 15+ 生产可用）</h3>
+
+<pre><code class="language-text">ZGC 的目标：无论堆多大（TB 级），停顿时间始终 &lt; 10ms（通常 1-2ms）
+
+实现原理：几乎所有工作都与用户线程并发执行
+
+时间轴：
+用户线程: ████████████████████████████████████████████████
+GC 线程:   ████████████████████████████████████████████████
+STW:             │1ms│                   │1ms│
+
+关键技术：
+1. 染色指针（Colored Pointer）：在对象指针的高位存储 GC 状态信息
+   64位指针中，高4位用于标记（Marked0/Marked1/Remapped/Finalizable）
+   好处：不需要额外的标记位图，GC 状态和对象绑定
+
+2. 读屏障（Load Barrier）：每次读取对象引用时，检查并修正指针
+   用户线程每次访问对象时，顺带完成"重定位"工作
+   把"移动对象后更新引用"的工作分散到每次对象访问中
+
+3. 并发整理：对象可以在用户线程运行时被移动（配合读屏障保证正确性）
+
+适用：对延迟极度敏感的服务（金融交易、实时推荐、游戏服务器）
+启用：-XX:+UseZGC（JDK 11+，生产推荐 JDK 15+）</code></pre>
+
+<h3 id="收集器对比">五大收集器对比总结</h3>
+
+<table>
+  <thead>
+    <tr><th>收集器</th><th>新生代算法</th><th>老年代算法</th><th>停顿特点</th><th>适用场景</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Serial</td><td>复制</td><td>标记整理</td><td>STW，单线程</td><td>客户端/单核/小堆</td></tr>
+    <tr><td>Parallel</td><td>复制</td><td>标记整理</td><td>STW，多线程</td><td>后台批处理，吞吐优先</td></tr>
+    <tr><td>CMS</td><td>（配合 ParNew）</td><td>标记清除</td><td>短暂 STW + 并发</td><td>已废弃，迁移到 G1</td></tr>
+    <tr><td><strong>G1</strong></td><td>复制</td><td>复制</td><td>可设定目标停顿</td><td>大堆（4GB+），通用服务</td></tr>
+    <tr><td><strong>ZGC</strong></td><td colspan="2">并发，全堆统一</td><td>&lt;10ms，与堆大小无关</td><td>超大堆，延迟敏感服务</td></tr>
+  </tbody>
+</table>
+
+
+<h2 id="GC调优实践">九、GC 调优实践</h2>
+
+<h3 id="关键参数">关键 JVM 参数</h3>
+
+<pre><code class="language-bash"># 堆大小
+-Xms4g -Xmx4g          # 初始和最大堆大小，建议设成相同值（避免动态扩容开销）
+-Xmn1g                 # 新生代大小（一般为堆的 1/4 到 1/3）
+
+# 选择收集器
+-XX:+UseG1GC           # 使用 G1（JDK 9+ 默认）
+-XX:+UseZGC            # 使用 ZGC（延迟敏感场景）
+
+# G1 调优
+-XX:MaxGCPauseMillis=200    # 期望停顿不超过 200ms
+-XX:G1HeapRegionSize=16m    # Region 大小（1-32m，2 的幂次）
+
+# GC 日志（必须开，出问题时救命）
+-Xlog:gc*:file=/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=20m</code></pre>
+
+<h3 id="常见GC问题诊断">常见问题诊断</h3>
+
+<pre><code class="language-text">问题 1：频繁 Full GC
+
+诊断步骤：
+  1. jstat -gcutil &lt;pid&gt; 1000   # 每秒看一次 GC 情况
+  2. 观察 OU（Old 使用率）是否持续增长
+  3. 如果 OU 线性增长 → 内存泄漏（对象无法被回收）
+  4. 如果 OU 周期性满 → 老年代容量不足，考虑扩大 -Xmx 或 -Xmn
+
+问题 2：GC 停顿过长
+
+诊断步骤：
+  1. 分析 GC 日志，找出停顿 > SLA 的 GC 事件
+  2. 查看是 Minor GC 还是 Full GC
+  3. Minor GC 慢 → 新生代太大，或存活对象太多（阈值设太高）
+  4. Full GC 慢 → 老年代碎片（CMS），或堆太大（G1 Region 太多）
+
+问题 3：OOM（OutOfMemoryError）
+
+常见原因：
+  java.lang.OutOfMemoryError: Java heap space
+    → 堆内存不足，对象太多或内存泄漏
+
+  java.lang.OutOfMemoryError: Metaspace
+    → 动态生成类太多（如 AOP、反射、动态代理），
+      增大 -XX:MaxMetaspaceSize
+
+  java.lang.OutOfMemoryError: GC overhead limit exceeded
+    → GC 时间占总时间比例超过 98%，几乎不做实际工作
+      通常是内存严重不足的信号</code></pre>
+
+
+<h2 id="关键点总结">十、关键点总结</h2>
+
+<ul>
+  <li><strong>堆分新生代和老年代</strong>，基于分代假说：大多数对象短命，少数长寿；不同代用不同算法</li>
+  <li><strong>Minor GC 用复制算法</strong>：Eden → Survivor，年龄到阈值晋升老年代；快速、频繁，影响小</li>
+  <li><strong>Full GC 触发 Stop-The-World</strong>：整个堆暂停，代价极大，要尽量避免；老年代满、晋升失败是主要触发原因</li>
+  <li><strong>可达性分析</strong>从 GC Roots 出发判断存活，能正确处理循环引用（引用计数做不到）</li>
+  <li><strong>三种基础算法</strong>：标记-清除（有碎片）、标记-复制（无碎片但费内存）、标记-整理（无碎片，但移动对象开销大）</li>
+  <li><strong>G1 是当前通用默认选择</strong>：Region 化设计，可设定停顿目标，无碎片，适合 4GB+ 的堆</li>
+  <li><strong>ZGC 是延迟敏感场景的终极方案</strong>：染色指针 + 读屏障实现并发整理，停顿 &lt;10ms 且与堆大小无关</li>
+  <li><strong>GC 日志是调优的基础</strong>：生产环境必须开启 GC 日志，出问题时是最重要的诊断依据</li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/Java/" rel="tag"><i class="fa fa-tag"></i> Java</a>
+          <a href="/tags/JVM/" rel="tag"><i class="fa fa-tag"></i> JVM</a>
+          <a href="/tags/内存管理/" rel="tag"><i class="fa fa-tag"></i> 内存管理</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#堆内存结构"><span class="nav-number">1.</span> <span class="nav-text">一、JVM 堆内存结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#分代假说"><span class="nav-number">2.</span> <span class="nav-text">二、分代假说</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Minor-GC过程"><span class="nav-number">3.</span> <span class="nav-text">三、Minor GC 执行过程</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Full-GC"><span class="nav-number">4.</span> <span class="nav-text">四、Full GC 与 Stop-The-World</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#可达性分析"><span class="nav-number">5.</span> <span class="nav-text">五、可达性分析</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#引用类型"><span class="nav-number">6.</span> <span class="nav-text">六、四种引用类型</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#GC算法"><span class="nav-number">7.</span> <span class="nav-text">七、三种基础 GC 算法</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#五大收集器"><span class="nav-number">8.</span> <span class="nav-text">八、五大主流收集器</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#GC调优实践"><span class="nav-number">9.</span> <span class="nav-text">九、GC 调优实践</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">10.</span> <span class="nav-text">十、关键点总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">208</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" id="prism-theme-light">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-one-dark.min.css" id="prism-theme-dark" disabled>
+<style>
+  pre[class*="language-"] { border-radius: 8px !important; padding: 16px !important; margin: 20px 0 !important; border: none !important; }
+  pre[class*="language-"]::before { display: none !important; }
+  body:not(.dark-mode) pre[class*="language-"] { background: #f5f5f5 !important; }
+  body:not(.dark-mode) code[class*="language-"] { background: #f5f5f5 !important; color: #383a42 !important; }
+  body.dark-mode pre[class*="language-"] { background: #282c34 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+  body.dark-mode code[class*="language-"] { background: #282c34 !important; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+<script>
+(function() {
+  var lightTheme = document.getElementById('prism-theme-light');
+  var darkTheme = document.getElementById('prism-theme-dark');
+  function applyTheme() {
+    var isDark = document.body.classList.contains('dark-mode');
+    lightTheme.disabled = isDark;
+    darkTheme.disabled = !isDark;
+  }
+  applyTheme();
+  var observer = new MutationObserver(applyTheme);
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
+</script>
+</body>
+</html>
