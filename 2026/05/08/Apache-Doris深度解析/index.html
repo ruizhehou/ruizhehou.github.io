@@ -159,22 +159,22 @@
 
 <pre class="mermaid">
 graph TD
-    subgraph Clients["客户端"]
+    subgraph Clients[客户端]
         C1["MySQL 客户端"]
         C2["JDBC / ODBC"]
         C3["BI 工具"]
     end
-    subgraph FELayer["FE 层（元数据 + 查询规划）"]
-        FEL["FE Leader\n处理 DDL / 元数据写入"]
-        FEF1["FE Follower\n参与 Leader 选举"]
-        FEF2["FE Follower\n参与 Leader 选举"]
+    subgraph FELayer[FE 层（元数据 + 查询规划）]
+        FEL["FE Leader 处理 DDL / 元数据写入"]
+        FEF1["FE Follower 参与 Leader 选举"]
+        FEF2["FE Follower 参与 Leader 选举"]
         FEL <-->|"Paxos 同步"| FEF1
         FEL <-->|"Paxos 同步"| FEF2
     end
-    subgraph BELayer["BE 层（存储 + 计算）"]
-        BE1["BE 节点\n存储 + 向量化计算"]
-        BE2["BE 节点\n存储 + 向量化计算"]
-        BE3["BE 节点\n存储 + 向量化计算"]
+    subgraph BELayer[BE 层（存储 + 计算）]
+        BE1["BE 节点 存储 + 向量化计算"]
+        BE2["BE 节点 存储 + 向量化计算"]
+        BE3["BE 节点 存储 + 向量化计算"]
     end
     C1 & C2 & C3 --> FEL
     FEL -->|"查询计划下发（Fragment）"| BE1 & BE2 & BE3
@@ -330,11 +330,11 @@ INSERT INTO users (user_id, email) VALUES (1001, 'new@example.com');</code></pre
 <pre class="mermaid">
 flowchart TD
     Q["查询：WHERE date = '2025-01-15' AND status = 'paid'"]
-    Q --> PP["① 分区裁剪\n只读 date 所在分区\n跳过其他月份所有 Segment"]
-    PP --> ZM["② ZoneMap 过滤\n每个 Segment 记录 date 列 min/max\n跳过不含目标日期的 Segment"]
-    ZM --> SK["③ Short Key 索引\nSegment 内二分查找\n定位目标数据块（1024 行粒度）"]
-    SK --> BF["④ Bitmap / Bloom Filter\n数据块内精确过滤\n读取真正满足条件的行"]
-    BF --> Result["最终结果\n实际读取行数可能仅为全表的 1/1000"]
+    Q --> PP["① 分区裁剪 只读 date 所在分区 跳过其他月份所有 Segment"]
+    PP --> ZM["② ZoneMap 过滤 每个 Segment 记录 date 列 min/max 跳过不含目标日期的 Segment"]
+    ZM --> SK["③ Short Key 索引 Segment 内二分查找 定位目标数据块（1024 行粒度）"]
+    SK --> BF["④ Bitmap / Bloom Filter 数据块内精确过滤 读取真正满足条件的行"]
+    BF --> Result["最终结果 实际读取行数可能仅为全表的 1/1000"]
 </pre>
 <ol>
   <li><strong>分区裁剪</strong>：只读 date 所在分区，跳过其他月份的所有 Segment</li>
@@ -498,19 +498,19 @@ GROUP BY u.name;</code></pre>
 
 <pre class="mermaid">
 graph LR
-    subgraph NormalJoin["普通分布式 JOIN（需要 Shuffle）"]
-        O1["orders\nBE1: user_id=1,2"]
-        O2["orders\nBE2: user_id=3,4"]
-        U1["users\nBE1: user_id=3,4"]
-        U2["users\nBE2: user_id=1,2"]
+    subgraph NormalJoin[普通分布式 JOIN（需要 Shuffle）]
+        O1["orders BE1: user_id=1,2"]
+        O2["orders BE2: user_id=3,4"]
+        U1["users BE1: user_id=3,4"]
+        U2["users BE2: user_id=1,2"]
         O1 -->|"网络 Shuffle"| JOIN1["JOIN 节点"]
         O2 -->|"网络 Shuffle"| JOIN1
         U1 -->|"网络 Shuffle"| JOIN1
         U2 -->|"网络 Shuffle"| JOIN1
     end
-    subgraph ColocateJoin["Colocate JOIN（零 Shuffle）"]
-        CO1["orders+users\nBE1: user_id=1,2\n本地直接 JOIN"]
-        CO2["orders+users\nBE2: user_id=3,4\n本地直接 JOIN"]
+    subgraph ColocateJoin[Colocate JOIN（零 Shuffle）]
+        CO1["orders+users BE1: user_id=1,2 本地直接 JOIN"]
+        CO2["orders+users BE2: user_id=3,4 本地直接 JOIN"]
     end
 </pre>
 <p>Colocate Join 的前提：两表分桶键相同、分桶数相同、副本数相同，且在同一个 Colocate Group 里。</p>
@@ -796,14 +796,15 @@ window.addEventListener('pjax:success', () => {
 </script>
 <script>
 if (document.querySelectorAll('pre.mermaid').length) {
-  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
     mermaid.initialize({
-      theme    : 'forest',
-      logLevel : 3,
-      flowchart: { curve     : 'linear' },
-      gantt    : { axisFormat: '%m/%d/%Y' },
-      sequence : { actorMargin: 50 }
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
     });
+    mermaid.run({ querySelector: 'pre.mermaid' });
   }, window.mermaid);
 }
 </script>

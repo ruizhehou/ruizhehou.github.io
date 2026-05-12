@@ -264,10 +264,10 @@ Processing Time 视角（这些数据在 10:05:10 到达系统）：
 graph LR
     D1["[et=10:00:05]"]
     D2["[et=10:00:03]"]
-    W1{{"W(10:00:02)\n窗口≤10:00:02\n可以关闭"}}
+    W1{{"W(10:00:02) 窗口≤10:00:02 可以关闭"}}
     D3["[et=10:00:08]"]
-    W2{{"W(10:00:07)\n窗口≤10:00:07\n可以关闭"}}
-    D4["[et=10:00:01?]\n迟到数据！\net < W(10:00:07)"]
+    W2{{"W(10:00:07) 窗口≤10:00:07 可以关闭"}}
+    D4["[et=10:00:01?] 迟到数据！ et < W(10:00:07)"]
 
     D1 --> D2 --> W1 --> D3 --> W2 --> D4
 
@@ -315,12 +315,12 @@ graph LR
 
 <pre class="mermaid">
 graph LR
-    P1["Partition 1\nW(10:05:30)"]
-    P2["Partition 2\nW(10:03:10)"]
-    P3["Partition 3\nW(10:05:15)"]
-    MERGE{{"合并算子\nWatermark = min\n= 10:03:10"}}
-    OUT["下游\nWatermark = 10:03:10"]
-    IDLE["⚠️ 若某 Partition 停止发数据\nWatermark 永远不推进\n→ 所有窗口无法关闭\n→ 需 idle source 处理机制"]
+    P1["Partition 1 W(10:05:30)"]
+    P2["Partition 2 W(10:03:10)"]
+    P3["Partition 3 W(10:05:15)"]
+    MERGE{{"合并算子 Watermark = min = 10:03:10"}}
+    OUT["下游 Watermark = 10:03:10"]
+    IDLE["⚠️ 若某 Partition 停止发数据 Watermark 永远不推进 → 所有窗口无法关闭 → 需 idle source 处理机制"]
 
     P1 --> MERGE
     P2 --> MERGE
@@ -821,6 +821,20 @@ window.addEventListener('pjax:success', () => {
   var observer = new MutationObserver(applyTheme);
   observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
+</script>
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
+    });
+    mermaid.run({ querySelector: 'pre.mermaid' });
+  }, window.mermaid);
+}
 </script>
 </body>
 </html>

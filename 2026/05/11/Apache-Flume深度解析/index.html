@@ -158,10 +158,10 @@
 
 <pre class="mermaid">
 graph LR
-    ExtSrc["外部数据源\n（文件/网络/消息队列）"]
-    ExtSrc -->|"读取/接收"| Source["Source\n数据采集\n封装成 Event"]
-    Source -->|"put（事务保护）"| Channel["Channel\n数据缓冲\n解耦 Source 与 Sink"]
-    Channel -->|"take（事务保护）"| Sink["Sink\n数据写出\n（HDFS/Kafka/HBase）"]
+    ExtSrc["外部数据源 （文件/网络/消息队列）"]
+    ExtSrc -->|"读取/接收"| Source["Source 数据采集 封装成 Event"]
+    Source -->|"put（事务保护）"| Channel["Channel 数据缓冲 解耦 Source 与 Sink"]
+    Channel -->|"take（事务保护）"| Sink["Sink 数据写出 （HDFS/Kafka/HBase）"]
 </pre>
 
 <ul>
@@ -425,11 +425,11 @@ agent.sources.r1.selector.default = c_info          # 未匹配的走默认</cod
 
 <pre class="mermaid">
 graph TD
-    W1["Web-01\nTaildir Source\nMemory Channel\nAvro Sink"]
-    W2["Web-02\nTaildir Source\nMemory Channel\nAvro Sink"]
-    W3["Web-03\nTaildir Source\nMemory Channel\nAvro Sink"]
+    W1["Web-01 Taildir Source Memory Channel Avro Sink"]
+    W2["Web-02 Taildir Source Memory Channel Avro Sink"]
+    W3["Web-03 Taildir Source Memory Channel Avro Sink"]
     Wn["...（数百台）"]
-    AGG["Aggregator Agent\nAvro Source\nFile Channel\nHDFS Sink"]
+    AGG["Aggregator Agent Avro Source File Channel HDFS Sink"]
     HDFS["HDFS"]
     W1 -->|"Avro RPC"| AGG
     W2 -->|"Avro RPC"| AGG
@@ -478,7 +478,7 @@ aggregator.sinks.k1.channel = c1</code></pre>
 <pre class="mermaid">
 graph TD
     LogFile["日志文件"]
-    LogFile --> Taildir["Taildir Source\n（Replicating Channel Selector）"]
+    LogFile --> Taildir["Taildir Source （Replicating Channel Selector）"]
     Taildir --> CH["Memory Channel（HDFS）"]
     Taildir --> CK["Memory Channel（Kafka）"]
     CH --> HS["HDFS Sink"]
@@ -817,14 +817,15 @@ window.addEventListener('pjax:success', () => {
 </script>
 <script>
 if (document.querySelectorAll('pre.mermaid').length) {
-  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
     mermaid.initialize({
-      theme    : 'forest',
-      logLevel : 3,
-      flowchart: { curve     : 'linear' },
-      gantt    : { axisFormat: '%m/%d/%Y' },
-      sequence : { actorMargin: 50 }
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
     });
+    mermaid.run({ querySelector: 'pre.mermaid' });
   }, window.mermaid);
 }
 </script>

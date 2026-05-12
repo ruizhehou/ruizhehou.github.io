@@ -158,25 +158,22 @@
 
 <pre class="mermaid">
 graph LR
-    subgraph JVM堆内存["JVM 堆内存（由 GC 管理）"]
-        subgraph Young["新生代 Young Gen"]
-            Eden["Eden 区\n新对象在此分配\n~80%"]
-            S0["S0 Survivor\nFrom 区\n~10%"]
-            S1["S1 Survivor\nTo 区\n~10%"]
-        end
-        subgraph Old["老年代 Old Gen"]
-            OldObj["长期存活的对象\n大对象\n静态变量引用的对象"]
-        end
+    subgraph Young[新生代 Young Gen]
+        Eden[Eden 区 ~80%]
+        S0[S0 From ~10%]
+        S1[S1 To ~10%]
     end
-    subgraph NonHeap["非堆区域（不由 GC 管理）"]
-        Meta["方法区 Metaspace\n类定义、常量池、静态变量"]
-        Stack["程序计数器\n虚拟机栈\n本地方法栈（线程私有）"]
+    subgraph Old[老年代 Old Gen]
+        OldObj[长期存活对象 / 大对象]
+    end
+    subgraph NonHeap[非堆 不由GC管理]
+        Meta[Metaspace 类定义/常量]
+        Stack[虚拟机栈/PC寄存器]
     end
 
-    Eden -->|"Minor GC: 存活对象复制"| S1
-    S0 -->|"Minor GC: 年龄+1"| S1
-    S1 -->|"年龄达阈值或大对象"| OldObj
-    Young -->|"Full GC 管理整个堆"| Old
+    Eden -->|Minor GC 复制| S1
+    S0 -->|Minor GC 年龄+1| S1
+    S1 -->|年龄达阈值/大对象| OldObj
 </pre>
 
 <p>新生代分三个区：</p>
@@ -245,8 +242,8 @@ graph LR
 
 <pre class="mermaid">
 graph TD
-    GCRoot1["GC Root\n（线程栈局部变量）"]
-    GCRoot2["GC Root\n（静态变量 / JNI）"]
+    GCRoot1["GC Root （线程栈局部变量）"]
+    GCRoot2["GC Root （静态变量 / JNI）"]
 
     GCRoot1 -->|引用| A["对象 A ✓ 存活"]
     GCRoot1 -->|引用| F["对象 F ✓ 存活"]
@@ -256,10 +253,10 @@ graph TD
     A -->|引用| C["对象 C ✓ 存活"]
     X -->|引用| Y["对象 Y ✓ 存活"]
 
-    B["对象 B ✗ 不可达\n= 垃圾"]
-    D["对象 D ✗ 不可达\n= 垃圾"]
-    E["对象 E ✗ 不可达\n= 垃圾"]
-    G["对象 G ✗ 不可达\n= 垃圾"]
+    B["对象 B ✗ 不可达 = 垃圾"]
+    D["对象 D ✗ 不可达 = 垃圾"]
+    E["对象 E ✗ 不可达 = 垃圾"]
+    G["对象 G ✗ 不可达 = 垃圾"]
 
     style A fill:#d4edda,stroke:#28a745
     style C fill:#d4edda,stroke:#28a745
@@ -373,15 +370,15 @@ graph TD
     GCRoots -->|引用| A["对象 A ✓"]
     GCRoots -->|引用| B["对象 B ✓"]
     A -->|引用| C["对象 C ✓"]
-    A -->|引用| D["对象 D ✓\n（被 A 引用，可达）"]
+    A -->|引用| D["对象 D ✓ （被 A 引用，可达）"]
     C -->|引用| E["对象 E ✓"]
 
-    F["对象 F ✗\n循环引用孤岛"]
-    G["对象 G ✗\n循环引用孤岛"]
+    F["对象 F ✗ 循环引用孤岛"]
+    G["对象 G ✗ 循环引用孤岛"]
     F -->|引用| G
     G -->|引用| F
 
-    note1["可达对象（存活）：A B C D E\n不可达对象（垃圾）：F G\n即使 F⇄G 循环引用也会被回收\n引用计数法无法处理此情况"]
+    note1["可达对象（存活）：A B C D E 不可达对象（垃圾）：F G 即使 F⇄G 循环引用也会被回收 引用计数法无法处理此情况"]
 
     style A fill:#d4edda,stroke:#28a745
     style B fill:#d4edda,stroke:#28a745
@@ -399,10 +396,10 @@ graph TD
 graph TD
     GCRoots["GC Roots（根对象集合）"]
 
-    R1["① 虚拟机栈中的引用\nvoid method() {\n  Object obj = new Object(); ← GC Root\n}\n方法返回后 obj 不再是 GC Root"]
-    R2["② 方法区中的静态变量\nstatic Object shared = new Object();\n只要类被加载，shared 就是 GC Root"]
-    R3["③ 方法区中的常量\nstatic final String NAME = \"hello\";\n← GC Root"]
-    R4["④ JNI 引用\n本地方法（Native）持有的 Java 对象引用"]
+    R1["① 虚拟机栈中的引用 void method() {   Object obj = new Object(); ← GC Root } 方法返回后 obj 不再是 GC Root"]
+    R2["② 方法区中的静态变量 static Object shared = new Object(); 只要类被加载，shared 就是 GC Root"]
+    R3["③ 方法区中的常量 static final String NAME = \"hello\"; ← GC Root"]
+    R4["④ JNI 引用 本地方法（Native）持有的 Java 对象引用"]
 
     GCRoots --> R1
     GCRoots --> R2
@@ -453,19 +450,19 @@ if (img == null) {
 
 <pre class="mermaid">
 graph LR
-    subgraph Before["GC 前：内存布局"]
+    subgraph Before[GC 前：内存布局]
         direction LR
         b1["A 活"] --- b2["B 死"] --- b3["C 活"] --- b4["D 死"] --- b5["E 死"] --- b6["F 活"] --- b7["G 死"] --- b8["H 活"] --- b9["I 死"] --- b10["J 活"]
     end
 
-    Before -->|"① 标记存活对象\n② 清除未标记对象"| After
+    Before -->|"① 标记存活对象 ② 清除未标记对象"| After
 
-    subgraph After["GC 后：产生内存碎片"]
+    subgraph After[GC 后：产生内存碎片]
         direction LR
         a1["A ✓"] --- a2["空洞"] --- a3["C ✓"] --- a4["空洞"] --- a5["空洞"] --- a6["F ✓"] --- a7["空洞"] --- a8["H ✓"] --- a9["空洞"] --- a10["J ✓"]
     end
 
-    warn["⚠ 问题：大量不连续小空洞\n分配大对象时找不到足够连续空间"]
+    warn["⚠ 问题：大量不连续小空洞 分配大对象时找不到足够连续空间"]
 
     style b2 fill:#f8d7da,stroke:#dc3545
     style b4 fill:#f8d7da,stroke:#dc3545
@@ -489,29 +486,29 @@ graph LR
 
 <pre class="mermaid">
 graph LR
-    subgraph GCBefore["GC 前"]
+    subgraph GCBefore[GC 前]
         direction LR
-        subgraph From["From 半区（有对象）"]
+        subgraph From[From 半区（有对象）]
             f1["A 活"] --- f2["B 死"] --- f3["C 活"] --- f4["D 死"] --- f5["E 活"] --- f6["F 死"] --- f7["G 活"]
         end
-        subgraph To0["To 半区（空）"]
+        subgraph To0[To 半区（空）]
             t0["（空）"]
         end
     end
 
-    GCBefore -->|"复制存活对象到 To\nFrom 整体清空"| GCAfter
+    GCBefore -->|"复制存活对象到 To From 整体清空"| GCAfter
 
-    subgraph GCAfter["GC 后"]
+    subgraph GCAfter[GC 后]
         direction LR
-        subgraph From2["From 半区（清空）"]
+        subgraph From2[From 半区（清空）]
             f8["（空）"]
         end
-        subgraph To2["To 半区（紧凑排列，无碎片）"]
+        subgraph To2[To 半区（紧凑排列，无碎片）]
             t1["A ✓"] --- t2["C ✓"] --- t3["E ✓"] --- t4["G ✓"]
         end
     end
 
-    note["优点：无碎片，分配极快（移动指针）\n缺点：内存利用率仅 50%\n新生代优化：Eden 80% + S0 10% → S1 10%\n实际利用率 90%，只浪费 10%"]
+    note["优点：无碎片，分配极快（移动指针） 缺点：内存利用率仅 50% 新生代优化：Eden 80% + S0 10% → S1 10% 实际利用率 90%，只浪费 10%"]
 
     style f2 fill:#f8d7da,stroke:#dc3545
     style f4 fill:#f8d7da,stroke:#dc3545
@@ -527,19 +524,19 @@ graph LR
 
 <pre class="mermaid">
 graph LR
-    subgraph Before["GC 前：存活与死亡对象交错"]
+    subgraph Before[GC 前：存活与死亡对象交错]
         direction LR
         b1["A 活"] --- b2["B 死"] --- b3["C 活"] --- b4["D 死"] --- b5["E 死"] --- b6["F 活"] --- b7["G 死"] --- b8["H 活"]
     end
 
-    Before -->|"① 标记存活对象\n② 向一端移动整理"| After
+    Before -->|"① 标记存活对象 ② 向一端移动整理"| After
 
-    subgraph After["GC 后：存活对象紧凑排列 + 连续空闲空间"]
+    subgraph After[GC 后：存活对象紧凑排列 + 连续空闲空间]
         direction LR
         a1["A ✓"] --- a2["C ✓"] --- a3["F ✓"] --- a4["H ✓"] --- a5["空闲（连续大块）"]
     end
 
-    note["优点：无碎片，内存利用率 100%\n缺点：移动对象需更新所有引用指针，开销大\n适合老年代：存活率高，偶尔整理可接受"]
+    note["优点：无碎片，内存利用率 100% 缺点：移动对象需更新所有引用指针，开销大 适合老年代：存活率高，偶尔整理可接受"]
 
     style b2 fill:#f8d7da,stroke:#dc3545
     style b4 fill:#f8d7da,stroke:#dc3545
@@ -636,30 +633,30 @@ gantt
 <p>G1 最大的创新：把堆划分为大量小的「Region」，每个 Region 约 1-32MB。</p>
 <pre class="mermaid">
 graph TD
-    subgraph G1Heap["G1 堆布局（Region 视图）"]
-        subgraph Row1["第一行 Region"]
-            E1["E\nEden Region"]
-            E2["E\nEden Region"]
-            S1["S\nSurvivor Region"]
-            O1["O\nOld Region"]
-            E3["E\nEden Region"]
-            O2["O\nOld Region"]
-            H1["H\nHumongous Region\n（大对象）"]
-            O3["O\nOld Region"]
+    subgraph G1Heap[G1 堆布局（Region 视图）]
+        subgraph Row1[第一行 Region]
+            E1["E Eden Region"]
+            E2["E Eden Region"]
+            S1["S Survivor Region"]
+            O1["O Old Region"]
+            E3["E Eden Region"]
+            O2["O Old Region"]
+            H1["H Humongous Region （大对象）"]
+            O3["O Old Region"]
         end
-        subgraph Row2["第二行 Region"]
-            O4["O\nOld Region"]
-            E4["E\nEden Region"]
-            H2["H\nHumongous Region\n（续）"]
-            O5["O\nOld Region"]
-            S2["S\nSurvivor Region"]
-            E5["E\nEden Region"]
-            O6["O\nOld Region"]
-            Free["（空闲）\n待分配"]
+        subgraph Row2[第二行 Region]
+            O4["O Old Region"]
+            E4["E Eden Region"]
+            H2["H Humongous Region （续）"]
+            O5["O Old Region"]
+            S2["S Survivor Region"]
+            E5["E Eden Region"]
+            O6["O Old Region"]
+            Free["（空闲） 待分配"]
         end
     end
 
-    Principle["G1 核心原则：优先回收「垃圾最多」的 Region\n每个 Region 记录回收收益和代价\n选择收益/代价最高的 Region 集合回收\n可设定停顿目标：-XX:MaxGCPauseMillis=200"]
+    Principle["G1 核心原则：优先回收「垃圾最多」的 Region 每个 Region 记录回收收益和代价 选择收益/代价最高的 Region 集合回收 可设定停顿目标：-XX:MaxGCPauseMillis=200"]
 
     style E1 fill:#fff3cd,stroke:#ffc107
     style E2 fill:#fff3cd,stroke:#ffc107
@@ -684,15 +681,15 @@ graph TD
 flowchart TD
     Start(["开始 G1 Mixed GC"])
 
-    Phase1["阶段 1：初始标记\n🔴 STW（很短）\n随 Minor GC 一起执行\n标记 GC Roots 直接引用的对象"]
+    Phase1["阶段 1：初始标记 🔴 STW（很短） 随 Minor GC 一起执行 标记 GC Roots 直接引用的对象"]
 
-    Phase2["阶段 2：并发标记\n🟢 与用户线程并发\n从 GC Roots 遍历整个堆\n记录每个 Region 的存活数据\n（可能持续几百毫秒）"]
+    Phase2["阶段 2：并发标记 🟢 与用户线程并发 从 GC Roots 遍历整个堆 记录每个 Region 的存活数据 （可能持续几百毫秒）"]
 
-    Phase3["阶段 3：最终标记\n🔴 STW（很短）\n处理 SATB 缓冲区\n修正并发阶段的引用变化"]
+    Phase3["阶段 3：最终标记 🔴 STW（很短） 处理 SATB 缓冲区 修正并发阶段的引用变化"]
 
-    Phase4["阶段 4：筛选回收\n🔴 STW（可控时长）\n按回收价值排序 Region\n在停顿目标内选最有价值的 Region\n复制存活对象到空 Region\n原 Region 整体释放（无碎片）"]
+    Phase4["阶段 4：筛选回收 🔴 STW（可控时长） 按回收价值排序 Region 在停顿目标内选最有价值的 Region 复制存活对象到空 Region 原 Region 整体释放（无碎片）"]
 
-    End(["GC 完成\n内存已整理，无碎片"])
+    End(["GC 完成 内存已整理，无碎片"])
 
     Start --> Phase1 --> Phase2 --> Phase3 --> Phase4 --> End
 
@@ -953,14 +950,15 @@ window.addEventListener('pjax:success', () => {
 </script>
 <script data-pjax>
 if (document.querySelectorAll('pre.mermaid').length) {
-  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
     mermaid.initialize({
-      theme    : 'default',
-      logLevel : 3,
-      flowchart: { curve     : 'linear' },
-      gantt    : { axisFormat: '%L' },
-      sequence : { actorMargin: 50 }
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
     });
+    mermaid.run({ querySelector: 'pre.mermaid' });
   }, window.mermaid);
 }
 </script>

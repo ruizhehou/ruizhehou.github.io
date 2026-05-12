@@ -195,19 +195,17 @@
 
 <pre class="mermaid">
 graph LR
-    subgraph Prefill["Prefill 阶段（处理输入 prompt）"]
-        P1["并行计算所有 token 的 Attention"]
-        P2["Compute-bound，算力是瓶颈"]
-        P3["一次完成，生成初始 KV Cache"]
-        P4["延迟与 prompt 长度成正比"]
+    subgraph Prefill[Prefill 阶段 处理输入prompt]
+        P1[并行计算所有token的Attention]
+        P2[Compute-bound 算力是瓶颈]
+        P3[一次完成 生成初始KV Cache]
     end
-    subgraph Decode["Decode 阶段（逐 token 生成输出）"]
-        D1["每步只生成 1 个新 token"]
-        D2["Memory-bound，带宽是瓶颈"]
-        D3["串行执行，无法并行化"]
-        D4["每步约 20-100ms"]
+    subgraph Decode[Decode 阶段 逐token生成输出]
+        D1[每步只生成1个新token]
+        D2[Memory-bound 带宽是瓶颈]
+        D3[串行执行 无法并行化]
     end
-    Prefill -->|"KV Cache 传递"| Decode
+    Prefill -->|KV Cache传递| Decode
 </pre>
 
 <p>这两个阶段的性质不同，决定了它们需要完全不同的优化策略，甚至需要部署在不同的硬件上。</p>
@@ -284,14 +282,14 @@ gantt
 
 <pre class="mermaid">
 graph TD
-    subgraph LogicPages["逻辑页（Block Table）"]
+    subgraph LogicPages[逻辑页（Block Table）]
         R1P0["req1 逻辑页0"]
         R1P1["req1 逻辑页1"]
         R1P2["req1 逻辑页2"]
         R2P0["req2 逻辑页0"]
         R2P1["req2 逻辑页1"]
     end
-    subgraph PhysicalBlocks["物理显存块（按需分配，每块16 token）"]
+    subgraph PhysicalBlocks[物理显存块（按需分配，每块16 token）]
         B1["块1: req1 token17-32"]
         B2["块2: 空闲"]
         B3["块3: req1 token1-16"]
@@ -491,9 +489,9 @@ Decode 阶段特性：
 <pre class="mermaid">
 graph TD
     Client["请求进来"] --> LB["路由层（Load Balancer）"]
-    LB --> PF["Prefill 集群\n算力优化，少量节点\n高算力 GPU，大 batch prefill"]
-    LB --> DC["Decode 集群\n显存优化，大量节点\n大显存 GPU，Continuous Batch"]
-    PF -->|"KV Cache 传输\n（RDMA/NVLink-C2C）"| DC
+    LB --> PF["Prefill 集群 算力优化，少量节点 高算力 GPU，大 batch prefill"]
+    LB --> DC["Decode 集群 显存优化，大量节点 大显存 GPU，Continuous Batch"]
+    PF -->|"KV Cache 传输 （RDMA/NVLink-C2C）"| DC
     DC --> Output["输出 token 流"]
 </pre>
 
@@ -786,14 +784,15 @@ window.addEventListener('pjax:success', () => {
 </script>
 <script>
 if (document.querySelectorAll('pre.mermaid').length) {
-  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
     mermaid.initialize({
-      theme    : 'forest',
-      logLevel : 3,
-      flowchart: { curve     : 'linear' },
-      gantt    : { axisFormat: '%m/%d/%Y' },
-      sequence : { actorMargin: 50 }
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
     });
+    mermaid.run({ querySelector: 'pre.mermaid' });
   }, window.mermaid);
 }
 </script>
