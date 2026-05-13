@@ -448,17 +448,16 @@ let r1 = &amp;mut v;
 
 <h3 id="语言选择决策树">选型决策树</h3>
 
-<pre><code class="language-text">是否需要做 AI / 数据科学？
-  是 → Python（没有竞争对手）
-
-是否需要直接操控内存 / 零开销 / 嵌入式 / 取代 C++？
-  是 → Rust
-
-是否是大型企业后端 / 需要与大量 Java 生态集成？
-  是 → Java
-
-以上都不是 → Go
-  （微服务、命令行工具、云原生、小中型后端）</code></pre>
+<pre class="mermaid">
+flowchart TD
+    START([开始选型]) --> Q1{需要做 AI 或数据科学?}
+    Q1 -->|是| PYTHON[Python 没有竞争对手]
+    Q1 -->|否| Q2{需要直接操控内存 零开销 嵌入式 或取代 C++?}
+    Q2 -->|是| RUST[Rust]
+    Q2 -->|否| Q3{大型企业后端 或需要与大量 Java 生态集成?}
+    Q3 -->|是| JAVA[Java]
+    Q3 -->|否| GO[Go 微服务 命令行工具 云原生 小中型后端]
+</pre>
 
 <h3 id="常见误区">几个常见误区</h3>
 
@@ -708,6 +707,20 @@ window.addEventListener('pjax:success', () => {
   var observer = new MutationObserver(applyTheme);
   observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
+</script>
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
+    });
+    mermaid.run({ querySelector: 'pre.mermaid' });
+  }, window.mermaid);
+}
 </script>
 </body>
 </html>

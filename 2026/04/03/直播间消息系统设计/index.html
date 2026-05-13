@@ -223,14 +223,17 @@
 
 <p>接入层（Gateway）只负责维持连接，不处理业务逻辑：</p>
 
-<pre><code class="language-text">Client ──WebSocket──▶ Gateway（接入层，维持连接）
-                           │
-                           │ 内部 RPC/MQ
-                           ▼
-                      Router（路由层，知道谁在哪台 Gateway）
-                           │
-                      Message Service（消息处理）
-</code></pre>
+<pre class="mermaid">
+graph TD
+    Client[Client 客户端]
+    GW[Gateway 接入层 维持连接]
+    Router[Router 路由层 知道谁在哪台Gateway]
+    MS[Message Service 消息处理]
+
+    Client -->|WebSocket| GW
+    GW -->|内部 RPC/MQ| Router
+    Router --> MS
+</pre>
 
 <p>Gateway 是无状态的（除了连接本身），可以水平扩展。连接信息（用户 ID → Gateway 地址）存在 Redis 里，消息服务通过查 Redis 找到目标用户在哪台 Gateway，再通过内部通道推送。</p>
 
@@ -285,20 +288,16 @@ end
 
 <p>礼物流程：</p>
 
-<pre><code class="language-text">用户点击送礼
-    │
-    ▼
-礼物服务（扣减虚拟货币，写 DB，发 MQ）
-    │
-    ▼
-MQ（Kafka，持久化）
-    │
-    ▼
-消息推送服务（消费 MQ，推给直播间所有用户）
-    │
-    ▼
-主播端展示礼物特效
-</code></pre>
+<pre class="mermaid">
+graph TD
+    A[用户点击送礼]
+    B[礼物服务 扣减虚拟货币 写DB 发MQ]
+    C[MQ Kafka 持久化]
+    D[消息推送服务 消费MQ 推给直播间所有用户]
+    E[主播端展示礼物特效]
+
+    A --> B --> C --> D --> E
+</pre>
 
 <p>礼物写入 DB 和发 MQ 要在同一个事务里，或者用事务消息（先写 DB，再发确认消息到 MQ）。消息推送服务消费 MQ 时，如果推送失败，MQ 会重试，直到推送成功。</p>
 
@@ -327,15 +326,23 @@ MQ（Kafka，持久化）
 
 <p>实际架构是分层广播：</p>
 
-<pre><code class="language-text">消息服务
-    │  广播到所有 Gateway（约 10 台）
-    ▼
-Gateway 1  Gateway 2  ...  Gateway 10
-    │           │                │
-    │ 各自推送给  │                │
-    ▼ 本机连接的  ▼                ▼
-用户 1~10万  用户10~20万  ...  用户90~100万
-</code></pre>
+<pre class="mermaid">
+graph TD
+    MS[消息服务]
+    GW1[Gateway 1]
+    GW2[Gateway 2]
+    GWN[Gateway 10]
+    U1[用户 1~10万]
+    U2[用户 10~20万]
+    UN[用户 90~100万]
+
+    MS -->|广播到所有Gateway 约10台| GW1
+    MS --> GW2
+    MS --> GWN
+    GW1 -->|各自推送给本机连接的用户| U1
+    GW2 --> U2
+    GWN --> UN
+</pre>
 
 <p>消息服务只需要向 10 台 Gateway 发送，每台 Gateway 负责向自己维护的 10 万个连接推送。扇出被分散到了 Gateway 层。</p>
 
@@ -410,17 +417,15 @@ Gateway 1  Gateway 2  ...  Gateway 10
 
 <p>标准做法是<strong>内存聚合 + 批量写入</strong>：</p>
 
-<pre><code class="language-text">用户点赞
-    │
-    ▼
-Redis INCR（room:likes:{room_id}）← 内存计数，极快
-    │
-    ▼  每 5 秒
-定时任务读取 Redis 计数，写入 DB（增量更新）
-    │
-    ▼
-DB 存储最终总计数
-</code></pre>
+<pre class="mermaid">
+graph TD
+    A[用户点赞]
+    B[Redis INCR room:likes:room_id 内存计数 极快]
+    C[定时任务 每5秒读取Redis计数 写入DB增量更新]
+    D[DB 存储最终总计数]
+
+    A --> B --> C --> D
+</pre>
 
 <p>对客户端展示的点赞数，直接读 Redis，不查 DB。DB 只用于持久化，防止 Redis 重启后数据丢失。</p>
 
@@ -428,34 +433,27 @@ DB 存储最终总计数
 
 <h2 id="整体架构">整体架构</h2>
 
-<pre><code class="language-text">                    ┌─────────────────────────────────────────┐
-                    │              客户端（App/Web）            │
-                    │  WebSocket 长连接 │ HTTP 短连接（送礼等）  │
-                    └────────┬─────────┴──────────────────────┘
-                             │
-              ┌──────────────▼──────────────┐
-              │         接入层 Gateway        │
-              │   维持长连接，无状态，可扩展   │
-              └──────────────┬──────────────┘
-                             │ 内部通道
-         ┌───────────────────┼───────────────────┐
-         │                   │                   │
-    ┌────▼────┐         ┌────▼────┐        ┌────▼────┐
-    │  弹幕服务 │         │  礼物服务 │        │ 通知服务  │
-    │ 限流采样  │         │  MQ保障  │        │ 控制指令  │
-    └────┬────┘         └────┬────┘        └────┬────┘
-         │                   │                   │
-    ┌────▼────────────────────▼───────────────────▼────┐
-    │                    消息路由层                      │
-    │   查 Redis 找目标用户所在 Gateway，分发消息         │
-    └───────────────────────────────────────────────────┘
-         │                   │
-    ┌────▼────┐         ┌────▼────┐
-    │  Redis   │         │  Kafka  │
-    │ 连接映射  │         │ 礼物队列 │
-    │ 计数聚合  │         │        │
-    └─────────┘         └─────────┘
-</code></pre>
+<pre class="mermaid">
+graph TD
+    Client[客户端 App/Web\nWebSocket长连接 + HTTP短连接]
+    GW[接入层 Gateway\n维持长连接 无状态 可扩展]
+    DM[弹幕服务\n限流采样]
+    Gift[礼物服务\nMQ保障]
+    Notify[通知服务\n控制指令]
+    Router[消息路由层\n查Redis找目标用户所在Gateway 分发消息]
+    Redis[Redis\n连接映射 计数聚合]
+    Kafka[Kafka\n礼物队列]
+
+    Client --> GW
+    GW -->|内部通道| DM
+    GW -->|内部通道| Gift
+    GW -->|内部通道| Notify
+    DM --> Router
+    Gift --> Router
+    Notify --> Router
+    Router --> Redis
+    Router --> Kafka
+</pre>
 
 <h2 id="几个容易忽略的细节">几个容易忽略的细节</h2>
 
@@ -668,5 +666,19 @@ window.addEventListener('pjax:success', () => {
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
   <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
+    });
+    mermaid.run({ querySelector: 'pre.mermaid' });
+  }, window.mermaid);
+}
+</script>
 </body>
 </html>

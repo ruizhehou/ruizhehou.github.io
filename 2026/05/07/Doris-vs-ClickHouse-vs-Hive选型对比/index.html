@@ -158,14 +158,14 @@
 
 <p>Hive 诞生于 2008 年的 Facebook，核心思路是：<strong>把 SQL 翻译成 MapReduce/Tez/Spark 任务，跑在 HDFS 上</strong>。它解决的是"如何用熟悉的 SQL 语法操作海量数据"的问题，而不是"如何快速查询"。</p>
 
-<pre><code class="language-text">用户 SQL
-   ↓
-Hive 编译器（生成执行计划）
-   ↓
-MapReduce / Tez / Spark 任务
-   ↓
-HDFS 数据读取 → 计算 → 结果输出
-</code></pre>
+<pre class="mermaid">
+flowchart TD
+    A["用户 SQL"]
+    B["Hive 编译器 生成执行计划"]
+    C["MapReduce / Tez / Spark 任务"]
+    D["HDFS 数据读取 → 计算 → 结果输出"]
+    A --> B --> C --> D
+</pre>
 
 <p>Hive 的设计是为<strong>批处理吞吐量</strong>优化的，单个查询可以处理 PB 级数据，但延迟通常在分钟到小时级别，根本原因是 MapReduce 的任务启动开销和磁盘 I/O 极重。</p>
 
@@ -173,11 +173,13 @@ HDFS 数据读取 → 计算 → 结果输出
 
 <p>ClickHouse 诞生于 2016 年的 Yandex（俄罗斯版 Google），为<strong>Yandex.Metrica 网站分析</strong>场景量身打造。核心设计哲学是：<strong>在单台机器上把列存 + 向量化执行做到极致，让一台服务器的性能超过竞品的整个集群</strong>。</p>
 
-<pre><code class="language-text">查询 → MergeTree 列存引擎 → 向量化执行（SIMD）→ 结果
-         ↑
-    数据按列存储，每列独立压缩
-    稀疏索引（每 8192 行一个索引点）
-</code></pre>
+<pre class="mermaid">
+flowchart LR
+    Q["查询"] --> M["MergeTree 列存引擎"]
+    M --> V["向量化执行 SIMD"]
+    V --> R["结果"]
+    NOTE["数据按列存储 每列独立压缩\n稀疏索引 每8192行一个索引点"] -. "支撑" .-> M
+</pre>
 
 <p>ClickHouse 的优势是<strong>单查极快</strong>，在宽表聚合场景下性能常常是同类产品的 5-10 倍。但它的并发能力相对弱——大查询会占满 CPU，并发超过几十个查询时性能急剧下降。</p>
 
@@ -185,19 +187,16 @@ HDFS 数据读取 → 计算 → 结果输出
 
 <p>Apache Doris（原百度 Palo，2018 年开源）的设计目标是：<strong>在保持接近 ClickHouse 查询速度的同时，支持高并发、数据实时可见、兼容 MySQL 协议</strong>。</p>
 
-<pre><code class="language-text">                   ┌──────────────────────────────┐
-                   │         FE（Frontend）        │
-                   │  SQL 解析 / 查询规划 / 元数据  │
-                   └──────────┬───────────────────┘
-                              │ 查询下发
-            ┌─────────────────┼─────────────────┐
-            ↓                 ↓                 ↓
-     ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-     │  BE（Backend）│  │  BE（Backend）│  │  BE（Backend）│
-     │  列存 + 索引  │  │  列存 + 索引  │  │  列存 + 索引  │
-     │  向量化执行   │  │  向量化执行   │  │  向量化执行   │
-     └─────────────┘  └─────────────┘  └─────────────┘
-</code></pre>
+<pre class="mermaid">
+graph TD
+    FE["FE Frontend\nSQL 解析 / 查询规划 / 元数据"]
+    BE1["BE Backend 1\n列存 + 索引\n向量化执行"]
+    BE2["BE Backend 2\n列存 + 索引\n向量化执行"]
+    BE3["BE Backend 3\n列存 + 索引\n向量化执行"]
+    FE -->|"查询下发"| BE1
+    FE -->|"查询下发"| BE2
+    FE -->|"查询下发"| BE3
+</pre>
 
 <p>Doris 采用 FE/BE 分离架构：FE 负责 SQL 解析和查询计划，BE 负责存储和计算。数据在 BE 之间按 Tablet 分片存储，多副本保证高可用。</p>
 
@@ -409,16 +408,27 @@ Hive(ORC):    ~20GB   （压缩比约 5x）
 
 <h2 id="选型决策树">六、选型决策树</h2>
 
-<pre><code class="language-text">数据规模是否 PB 级，以离线 ETL 为主？
-├── 是 → Hive + Spark
-└── 否 → 需要数据实时可见（秒级）？
-          ├── 是 → 并发 QPS 是否 > 100？
-          │         ├── 是 → Doris
-          │         └── 否 → ClickHouse 或 Doris 均可
-          └── 否 → 查询是否以单表宽表聚合为主（无复杂 JOIN）？
-                    ├── 是 → ClickHouse（性能最极致）
-                    └── 否 → Doris（SQL 兼容性更好，JOIN 优化更强）
-</code></pre>
+<pre class="mermaid">
+flowchart TD
+    Q1{"数据规模是否 PB 级\n以离线 ETL 为主？"}
+    Q2{"需要数据实时可见\n秒级？"}
+    Q3{"并发 QPS 是否 > 100？"}
+    Q4{"查询是否以单表宽表\n聚合为主 无复杂 JOIN？"}
+    R1["Hive + Spark"]
+    R2["Doris"]
+    R3["ClickHouse 或 Doris 均可"]
+    R4["ClickHouse 性能最极致"]
+    R5["Doris SQL 兼容性更好 JOIN 优化更强"]
+
+    Q1 -->|是| R1
+    Q1 -->|否| Q2
+    Q2 -->|是| Q3
+    Q2 -->|否| Q4
+    Q3 -->|是| R2
+    Q3 -->|否| R3
+    Q4 -->|是| R4
+    Q4 -->|否| R5
+</pre>
 
 <h3 id="一句话总结">一句话总结</h3>
 
@@ -586,6 +596,20 @@ window.addEventListener('pjax:success', () => {
   var observer = new MutationObserver(applyTheme);
   observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
+</script>
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
+    });
+    mermaid.run({ querySelector: 'pre.mermaid' });
+  }, window.mermaid);
+}
 </script>
 </body>
 </html>

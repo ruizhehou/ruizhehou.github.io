@@ -161,17 +161,20 @@
 
 <h2 id="RPC-的本质">RPC 的本质</h2>
 <p>一次 RPC 调用在网络上经历了什么：</p>
-<pre><code class="language-text">调用方（Client）                          服务方（Server）
-    │                                          │
-    │  1. 调用本地 Stub 方法                    │
-    │  2. Stub 将方法名+参数序列化为字节流       │
-    │  3. 通过网络发送请求 ──────────────────▶  │
-    │                                          │  4. 反序列化，找到对应方法
-    │                                          │  5. 执行本地实现
-    │                                          │  6. 序列化返回值
-    │  9. 反序列化，返回结果给调用方  ◀──────────│  7. 通过网络发送响应
-    │                                          │
-</code></pre>
+<pre class="mermaid">
+sequenceDiagram
+    participant C as 调用方 Client
+    participant S as 服务方 Server
+
+    C->>C: 1. 调用本地 Stub 方法
+    C->>C: 2. Stub 将方法名+参数序列化为字节流
+    C->>S: 3. 通过网络发送请求
+    S->>S: 4. 反序列化 找到对应方法
+    S->>S: 5. 执行本地实现
+    S->>S: 6. 序列化返回值
+    S->>C: 7. 通过网络发送响应
+    C->>C: 9. 反序列化 返回结果给调用方
+</pre>
 <p>一个完整的 RPC 框架需要解决五个问题：</p>
 <ol>
 <li><strong>网络通信</strong>：如何建立连接、传输数据</li>
@@ -654,38 +657,26 @@ public class HeartbeatHandler extends ChannelInboundHandlerAdapter {
 
 <h2 id="整体架构">整体架构</h2>
 <p>把以上模块组合起来，一个完整 RPC 框架的架构如下：</p>
-<pre><code class="language-text">┌─────────────────────────────────────────────────────────────┐
-│                        Consumer                              │
-│  UserService userService = proxy.getProxy(UserService.class) │
-│  userService.getById(123)  ← 透明调用                        │
-│         │                                                    │
-│  ┌──────▼──────────────────────────────────────────────┐    │
-│  │              Dynamic Proxy (JDK/Cglib)               │    │
-│  │  序列化请求 → 服务发现 → 负载均衡 → 发送 → 等待响应   │    │
-│  └──────────────────────────────────────────────────────┘    │
-│         │                                                    │
-│  ┌──────▼──────────────────────────────────────────────┐    │
-│  │       Connection Pool + Netty Client                 │    │
-│  └──────────────────────────────────────────────────────┘    │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ TCP
-┌───────────────────────────▼─────────────────────────────────┐
-│                        Provider                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │       Netty Server (Boss + Worker EventLoopGroup)     │   │
-│  └──────────────────────────────────────────────────────┘   │
-│         │                                                    │
-│  ┌──────▼──────────────────────────────────────────────┐    │
-│  │  RpcServerHandler → 业务线程池 → 反射调用 → 序列化响应 │    │
-│  └──────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-              ▲                          ▲
-              │ 注册                      │ 发现
-┌─────────────┴──────────────────────────┴──────────────────┐
-│                    ZooKeeper / Etcd / Nacos                 │
-│         /rpc/com.example.UserService/providers/...         │
-└────────────────────────────────────────────────────────────┘
-</code></pre>
+<pre class="mermaid">
+graph TD
+    subgraph Consumer[Consumer]
+        Call[userService.getById 透明调用]
+        Proxy[Dynamic Proxy JDK/Cglib\n序列化请求 服务发现 负载均衡 发送 等待响应]
+        ConnPool[Connection Pool + Netty Client]
+    end
+    subgraph Provider[Provider]
+        NettyServer[Netty Server Boss + Worker EventLoopGroup]
+        Handler[RpcServerHandler 业务线程池 反射调用 序列化响应]
+    end
+    Registry[ZooKeeper / Etcd / Nacos\n/rpc/com.example.UserService/providers/...]
+
+    Call --> Proxy
+    Proxy --> ConnPool
+    ConnPool -->|TCP| NettyServer
+    NettyServer --> Handler
+    Provider -->|注册| Registry
+    Registry -->|发现| Consumer
+</pre>
 
 <h2 id="与-gRPC-的对比">与 gRPC 的对比</h2>
 <p>手写框架和 gRPC 的核心差异：</p>
@@ -940,5 +931,19 @@ window.addEventListener('pjax:success', () => {
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
   <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
+    });
+    mermaid.run({ querySelector: 'pre.mermaid' });
+  }, window.mermaid);
+}
+</script>
 </body>
 </html>

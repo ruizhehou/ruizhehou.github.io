@@ -303,26 +303,24 @@ def _write_with_retry(self, fn):
 
 <p>核心工具在 <code>tools/session_search_tool.py</code>，Agent 在需要回忆历史时调用它。整个流程分两个阶段：</p>
 
-<pre><code class="language-text">第一阶段：FTS5 索引检索（毫秒级）
-  ↓
-  db.search_messages(query, limit=50)  — 从 FTS5 拿到 50 条相关消息
-  ↓
-  按 session_id 分组，去重，取 top-N 个唯一会话（默认 3 个）
-  ↓
-  解析委托链（parent_session_id），找到根会话
-  ↓
-  排除当前会话（Agent 已有当前上下文，不需要搜索自己）
-
-第二阶段：LLM 摘要（并发，秒级）
-  ↓
-  加载每个匹配会话的完整消息历史
-  ↓
-  _truncate_around_matches() — 截取包含匹配词的上下文片段（max 100k 字符）
-  ↓
-  并发调用辅助模型（Gemini Flash / 便宜快速模型）生成聚焦摘要
-  ↓
-  返回 JSON：session_id + 时间 + 摘要
-</code></pre>
+<pre class="mermaid">
+flowchart TD
+    subgraph P1[第一阶段 FTS5 索引检索 毫秒级]
+        A[search_messages query limit=50 从 FTS5 拿到相关消息]
+        B[按 session_id 分组去重 取 top-N 唯一会话]
+        C[解析委托链 parent_session_id 找到根会话]
+        D[排除当前会话]
+        A --> B --> C --> D
+    end
+    subgraph P2[第二阶段 LLM 摘要 并发 秒级]
+        E[加载每个匹配会话的完整消息历史]
+        F[_truncate_around_matches 截取包含匹配词的上下文片段 max 100k 字符]
+        G[并发调用辅助模型 Gemini Flash 生成聚焦摘要]
+        H[返回 JSON session_id + 时间 + 摘要]
+        E --> F --> G --> H
+    end
+    D --> E
+</pre>
 
 <p>这个设计的精妙之处：<strong>FTS5 只负责「找到哪些会话相关」，LLM 负责「把相关内容理解成人话」</strong>。两阶段分离让搜索既快速又语义丰富，同时不会把几十个历史对话全部塞进 Agent 的上下文窗口。</p>
 
@@ -716,5 +714,19 @@ window.addEventListener('pjax:success', () => {
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
   <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
+    });
+    mermaid.run({ querySelector: 'pre.mermaid' });
+  }, window.mermaid);
+}
+</script>
 </body>
 </html>

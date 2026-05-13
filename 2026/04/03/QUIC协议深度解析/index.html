@@ -179,22 +179,31 @@ QUIC（丢包时）：
 <p>建立一个 HTTPS 连接的开销：TCP 三次握手（1.5 RTT）+ TLS 1.2 握手（2 RTT）= 3.5 RTT，才能发出第一个字节。TLS 1.3 把握手压到了 1 RTT，但 TCP 握手本身的 1.5 RTT 还在。</p>
 <p>移动网络下一次 RTT 经常超过 100ms，3.5 RTT 就是 350ms——用户点开一个链接，光等建立连接就要等将近半秒。</p>
 <p>QUIC 把传输层握手和 TLS 握手合并，<strong>首次连接只需 1 RTT</strong>：</p>
-<pre><code class="language-text">首次连接（1-RTT）：
-Client                              Server
-  │── Initial (ClientHello) ──────▶ │
-  │◀─ Initial (ServerHello)          │
-  │◀─ Handshake (Certificate)        │  ← 一个 RTT 内同时完成
-  │◀─ Handshake (Finished) ──────── │
-  │── Handshake (Finished) ────────▶ │
-  │── 1-RTT Data（请求）────────────▶ │  ← 握手完成，立即发数据
-  │◀─ 1-RTT Data（响应）──────────── │
-</code></pre>
+<pre class="mermaid">
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+    Note over C,S: 首次连接 1-RTT
+    C->>S: Initial ClientHello
+    S-->>C: Initial ServerHello
+    S-->>C: Handshake Certificate
+    Note over C,S: 一个 RTT 内同时完成
+    S-->>C: Handshake Finished
+    C->>S: Handshake Finished
+    C->>S: 1-RTT Data 请求
+    Note over C,S: 握手完成 立即发数据
+    S-->>C: 1-RTT Data 响应
+</pre>
 <p>更进一步，<strong>恢复连接可以做到 0 RTT</strong>。第一次连接时，服务端会下发一个 Session Ticket（包含共享密钥）。下次连接时，客户端用这个 ticket 直接加密数据，不等任何握手响应：</p>
-<pre><code class="language-text">恢复连接（0-RTT）：
-Client                              Server
-  │── Initial + 0-RTT Data（请求）─▶ │  ← 直接发，不等握手
-  │◀─ Initial + 1-RTT Data（响应）── │
-</code></pre>
+<pre class="mermaid">
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+    Note over C,S: 恢复连接 0-RTT
+    C->>S: Initial + 0-RTT Data 请求
+    Note over C: 直接发 不等握手
+    S-->>C: Initial + 1-RTT Data 响应
+</pre>
 <p>0-RTT 有一个不可回避的代价：<strong>无法防御重放攻击</strong>。攻击者可以截获 0-RTT 数据包并重复发送。因此 0-RTT 只应用于幂等请求（GET），有副作用的操作（POST、支付）必须等 1-RTT 握手完成。</p>
 
 <h2 id="连接迁移：手机切网不断线">连接迁移：手机切网不断线</h2>
@@ -426,5 +435,19 @@ window.addEventListener('pjax:success', () => {
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
   <script>Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';</script>
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
+    });
+    mermaid.run({ querySelector: 'pre.mermaid' });
+  }, window.mermaid);
+}
+</script>
 </body>
 </html>

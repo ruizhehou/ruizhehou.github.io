@@ -158,20 +158,29 @@
 <p>Kubernetes 的核心是一个<strong>声明式系统</strong>：你告诉它"我要 3 个 nginx 副本"，K8s 负责让现实与你的声明保持一致，无论期间发生什么故障。</p>
 
 <h3 id="集群组成">集群的两类节点</h3>
-<pre><code class="language-text">┌─────────────────────────────────────────────────────────────┐
-│                        K8s 集群                              │
-│                                                             │
-│  ┌──────────────────┐     ┌──────────┐  ┌──────────┐       │
-│  │   Control Plane  │     │  Worker  │  │  Worker  │       │
-│  │  (Master Node)   │     │  Node 1  │  │  Node 2  │       │
-│  │                  │     │          │  │          │       │
-│  │  API Server      │     │ kubelet  │  │ kubelet  │       │
-│  │  etcd            │     │ kube-    │  │ kube-    │       │
-│  │  Scheduler       │     │ proxy    │  │ proxy    │       │
-│  │  Controller Mgr  │     │ runtime  │  │ runtime  │       │
-│  └──────────────────┘     └──────────┘  └──────────┘       │
-└─────────────────────────────────────────────────────────────┘
-</code></pre>
+<pre class="mermaid">
+graph TD
+    subgraph Cluster[K8s 集群]
+        subgraph CP[Control Plane Master Node]
+            API[API Server]
+            ETCD[etcd]
+            SCH[Scheduler]
+            CM[Controller Manager]
+        end
+        subgraph W1[Worker Node 1]
+            KB1[kubelet]
+            KP1[kube-proxy]
+            RT1[container runtime]
+        end
+        subgraph W2[Worker Node 2]
+            KB2[kubelet]
+            KP2[kube-proxy]
+            RT2[container runtime]
+        end
+        CP --> W1
+        CP --> W2
+    end
+</pre>
 
 <ul>
   <li><strong>Control Plane</strong>：集群大脑。API Server 是所有操作的入口，etcd 存储集群所有状态，Scheduler 决定 Pod 跑在哪个节点，Controller Manager 负责保持现实符合声明</li>
@@ -878,6 +887,20 @@ window.addEventListener('pjax:success', () => {
   var observer = new MutationObserver(applyTheme);
   observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
+</script>
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
+    });
+    mermaid.run({ querySelector: 'pre.mermaid' });
+  }, window.mermaid);
+}
 </script>
 </body>
 </html>
