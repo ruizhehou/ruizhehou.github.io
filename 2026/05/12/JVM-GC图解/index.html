@@ -214,14 +214,36 @@ body.dark-mode .obj.aged  { background: #4e2600; color: #ffcc80; }
 body.dark-mode .obj.aged2 { background: #7c2d12; color: #ffccbc; }
 body.dark-mode .obj.new   { background: #1a237e; color: #c5cae9; }
 .gc-legend {
-  margin-top: 8px;
+  margin-top: 10px;
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
-  font-size: 11px;
-  color: #666;
+  font-size: 12px;
+  color: #555;
   align-items: center;
 }
-.gc-legend .obj { width: 18px; height: 18px; line-height: 18px; font-size: 10px; }
+.gc-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.gc-legend-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.gc-legend-dot.alive  { background:#c8e6c9; border:1.5px solid #4caf50; }
+.gc-legend-dot.dead   { background:#ffcdd2; border:1.5px dashed #f44336; }
+.gc-legend-dot.aged   { background:#ffe0b2; border:1.5px solid #ff9800; }
+.gc-legend-dot.aged2  { background:#ff8a65; border:1.5px solid #e64a19; }
+body.dark-mode .gc-legend { color: #aaa; }
+body.dark-mode .gc-legend-dot.alive { background:#1b5e20; border-color:#4caf50; }
+body.dark-mode .gc-legend-dot.dead  { background:#4a0000; border-color:#f44336; }
+body.dark-mode .gc-legend-dot.aged  { background:#4e2600; border-color:#ff9800; }
+body.dark-mode .gc-legend-dot.aged2 { background:#7c2d12; border-color:#e64a19; }
 </style>
 <!-- hexo-inject:begin --><!-- hexo-inject:end -->
 </head>
@@ -433,9 +455,10 @@ graph LR
     </div>
   </div>
   <div class="gc-legend">
-    <span class="obj alive">存活</span>
-    <span class="obj dead">死亡（不可达）</span>
-    <span class="obj alive aged">存活（有年龄）</span>
+    <span class="gc-legend-item"><span class="gc-legend-dot alive"></span>存活对象</span>
+    <span class="gc-legend-item"><span class="gc-legend-dot dead"></span>死亡（不可达）</span>
+    <span class="gc-legend-item"><span class="gc-legend-dot aged"></span>存活（年龄1）</span>
+    <span class="gc-legend-item"><span class="gc-legend-dot aged2"></span>存活（年龄2+）</span>
   </div>
 </div>
 
@@ -613,21 +636,20 @@ gantt
 
 <pre class="mermaid">
 graph TD
-    GCRoots["GC Roots"]
+    GCRoots([GC Roots])
 
-    GCRoots -->|引用| A["对象 A ✓"]
-    GCRoots -->|引用| B["对象 B ✓"]
-    A -->|引用| C["对象 C ✓"]
-    A -->|引用| D["对象 D ✓ （被 A 引用，可达）"]
-    C -->|引用| E["对象 E ✓"]
+    GCRoots -->|引用| A[对象 A 存活]
+    GCRoots -->|引用| B[对象 B 存活]
+    A -->|引用| C[对象 C 存活]
+    A -->|引用| D[对象 D 存活]
+    C -->|引用| E[对象 E 存活]
 
-    F["对象 F ✗ 循环引用孤岛"]
-    G["对象 G ✗ 循环引用孤岛"]
-    F -->|引用| G
-    G -->|引用| F
+    F[对象 F 不可达]
+    G[对象 G 不可达]
+    F -->|循环引用| G
+    G -->|循环引用| F
 
-    note1["可达对象（存活）：A B C D E 不可达对象（垃圾）：F G 即使 F⇄G 循环引用也会被回收 引用计数法无法处理此情况"]
-
+    style GCRoots fill:#d1ecf1,stroke:#17a2b8
     style A fill:#d4edda,stroke:#28a745
     style B fill:#d4edda,stroke:#28a745
     style C fill:#d4edda,stroke:#28a745
@@ -635,26 +657,25 @@ graph TD
     style E fill:#d4edda,stroke:#28a745
     style F fill:#f8d7da,stroke:#dc3545
     style G fill:#f8d7da,stroke:#dc3545
-    style note1 fill:#fff3cd,stroke:#ffc107
 </pre>
 
 <h3 id="GC-Roots">GC Roots 包含哪些？</h3>
 
 <pre class="mermaid">
 graph TD
-    GCRoots["GC Roots（根对象集合）"]
+    GCRoots([GC Roots])
 
-    R1["① 虚拟机栈中的引用 void method() {   Object obj = new Object(); ← GC Root } 方法返回后 obj 不再是 GC Root"]
-    R2["② 方法区中的静态变量 static Object shared = new Object(); 只要类被加载，shared 就是 GC Root"]
-    R3["③ 方法区中的常量 static final String NAME = \"hello\"; ← GC Root"]
-    R4["④ JNI 引用 本地方法（Native）持有的 Java 对象引用"]
+    R1[① 虚拟机栈局部变量引用 方法内的局部对象]
+    R2[② 方法区静态变量引用 static Object shared]
+    R3[③ 方法区常量引用 static final 常量]
+    R4[④ JNI 本地方法持有的引用]
 
     GCRoots --> R1
     GCRoots --> R2
     GCRoots --> R3
     GCRoots --> R4
 
-    style GCRoots fill:#d1ecf1,stroke:#17a2b8,font-weight:bold
+    style GCRoots fill:#d1ecf1,stroke:#17a2b8
     style R1 fill:#f8f9fa,stroke:#6c757d
     style R2 fill:#f8f9fa,stroke:#6c757d
     style R3 fill:#f8f9fa,stroke:#6c757d
