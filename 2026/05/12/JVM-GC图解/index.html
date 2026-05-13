@@ -57,7 +57,173 @@
   .use-motion .logo-line-before i { left: initial; }
   .use-motion .logo-line-after i { right: initial; }
   </style>
-</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</noscript>
+<style>
+/* GC 内存状态图样式 */
+.gc-diagram {
+  margin: 20px 0;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 13px;
+}
+.gc-label {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #555;
+}
+body.dark-mode .gc-label { color: #aaa; }
+.gc-regions {
+  display: flex;
+  gap: 6px;
+  border: 2px solid #aaa;
+  border-radius: 6px;
+  padding: 6px;
+  background: #fafafa;
+}
+body.dark-mode .gc-regions {
+  background: #1e1e1e;
+  border-color: #555;
+}
+.gc-region {
+  border-radius: 5px;
+  padding: 6px 8px;
+  min-width: 80px;
+}
+.gc-region.young {
+  flex: 3;
+  background: #e8f5e9;
+  border: 1.5px solid #81c784;
+}
+body.dark-mode .gc-region.young {
+  background: #1b2e1c;
+  border-color: #4caf50;
+}
+.gc-region.old {
+  flex: 2;
+  background: #e3f2fd;
+  border: 1.5px solid #64b5f6;
+}
+body.dark-mode .gc-region.old {
+  background: #142133;
+  border-color: #42a5f5;
+}
+.gc-region-title {
+  font-weight: bold;
+  font-size: 11px;
+  margin-bottom: 6px;
+  text-align: center;
+  color: #333;
+}
+body.dark-mode .gc-region-title { color: #ddd; }
+.gc-sub-regions {
+  display: flex;
+  gap: 5px;
+}
+.gc-sub {
+  border-radius: 4px;
+  padding: 5px 6px;
+  text-align: center;
+}
+.gc-sub.eden {
+  flex: 4;
+  background: #fff9c4;
+  border: 1px solid #f9a825;
+}
+body.dark-mode .gc-sub.eden {
+  background: #2a2500;
+  border-color: #f9a825;
+}
+.gc-sub.eden.full {
+  background: #fff3cd;
+  border-color: #e65100;
+}
+.gc-sub.survivor {
+  flex: 1.5;
+  background: #e8eaf6;
+  border: 1px solid #7986cb;
+}
+body.dark-mode .gc-sub.survivor {
+  background: #1a1d35;
+  border-color: #7986cb;
+}
+.gc-sub.empty {
+  opacity: 0.5;
+}
+.gc-sub-title {
+  font-size: 10px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  color: #444;
+}
+body.dark-mode .gc-sub-title { color: #bbb; }
+.gc-objects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: center;
+  min-height: 28px;
+  align-items: center;
+}
+.gc-empty {
+  color: #999;
+  font-style: italic;
+  font-size: 11px;
+}
+.obj {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: default;
+}
+.obj.alive {
+  background: #c8e6c9;
+  color: #1b5e20;
+  border: 1.5px solid #4caf50;
+}
+.obj.dead {
+  background: #ffcdd2;
+  color: #b71c1c;
+  border: 1.5px dashed #f44336;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.obj.aged {
+  background: #ffe0b2;
+  color: #e65100;
+  border: 1.5px solid #ff9800;
+}
+.obj.aged2 {
+  background: #ff8a65;
+  color: #fff;
+  border: 1.5px solid #e64a19;
+}
+.obj.new {
+  background: #e8eaf6;
+  color: #3f51b5;
+  border: 1.5px solid #9fa8da;
+  font-size: 10px;
+}
+body.dark-mode .obj.alive { background: #1b5e20; color: #a5d6a7; }
+body.dark-mode .obj.dead  { background: #4a0000; color: #ef9a9a; }
+body.dark-mode .obj.aged  { background: #4e2600; color: #ffcc80; }
+body.dark-mode .obj.aged2 { background: #7c2d12; color: #ffccbc; }
+body.dark-mode .obj.new   { background: #1a237e; color: #c5cae9; }
+.gc-legend {
+  margin-top: 8px;
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: #666;
+  align-items: center;
+}
+.gc-legend .obj { width: 18px; height: 18px; line-height: 18px; font-size: 10px; }
+</style>
+<!-- hexo-inject:begin --><!-- hexo-inject:end -->
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage">
@@ -226,17 +392,52 @@ graph LR
 
 <h3 id="MinorGC步骤1">第一步：Eden 区满，触发 GC</h3>
 
-<pre><code class="language-text">Minor GC 触发前：
-
-┌──────────────────────────────────────────────────────────┐
-│ Eden（已满）                       │ S0（有存活对象）│ S1 │
-│ ████████████████████████████████  │ ████            │    │
-│ A  B  C  D  E  F  G  H  I  J  K  │ X  Y            │    │
-│ ↑活  ↑死 ↑活 ↑死 ↑死 ↑活 ↑死 ↑活 ↑死 ↑死 ↑死│ ↑活↑活         │    │
-└──────────────────────────────────────────────────────────┘
-
-  Eden 区对象：A C F H 存活，其余死亡
-  S0 对象：X Y 存活（已经经历过一次 GC，年龄=1）</code></pre>
+<div class="gc-diagram">
+  <div class="gc-label">Minor GC 触发前：Eden 区已满</div>
+  <div class="gc-regions">
+    <div class="gc-region young">
+      <div class="gc-region-title">新生代 Young Gen</div>
+      <div class="gc-sub-regions">
+        <div class="gc-sub eden full">
+          <div class="gc-sub-title">Eden（已满 ~80%）</div>
+          <div class="gc-objects">
+            <span class="obj alive" title="存活">A</span>
+            <span class="obj dead"  title="死亡">B</span>
+            <span class="obj alive" title="存活">C</span>
+            <span class="obj dead"  title="死亡">D</span>
+            <span class="obj dead"  title="死亡">E</span>
+            <span class="obj alive" title="存活">F</span>
+            <span class="obj dead"  title="死亡">G</span>
+            <span class="obj alive" title="存活">H</span>
+            <span class="obj dead"  title="死亡">I</span>
+            <span class="obj dead"  title="死亡">J</span>
+            <span class="obj dead"  title="死亡">K</span>
+          </div>
+        </div>
+        <div class="gc-sub survivor">
+          <div class="gc-sub-title">S0 From（~10%）</div>
+          <div class="gc-objects">
+            <span class="obj alive aged" title="存活，年龄=1">X<sub>1</sub></span>
+            <span class="obj alive aged" title="存活，年龄=1">Y<sub>1</sub></span>
+          </div>
+        </div>
+        <div class="gc-sub survivor empty">
+          <div class="gc-sub-title">S1 To（~10%）</div>
+          <div class="gc-objects gc-empty">空</div>
+        </div>
+      </div>
+    </div>
+    <div class="gc-region old">
+      <div class="gc-region-title">老年代 Old Gen</div>
+      <div class="gc-objects gc-empty">长期存活对象...</div>
+    </div>
+  </div>
+  <div class="gc-legend">
+    <span class="obj alive">存活</span>
+    <span class="obj dead">死亡（不可达）</span>
+    <span class="obj alive aged">存活（有年龄）</span>
+  </div>
+</div>
 
 <h3 id="MinorGC步骤2">第二步：标记存活对象（可达性分析）</h3>
 
@@ -272,34 +473,81 @@ graph TD
 
 <h3 id="MinorGC步骤3">第三步：复制存活对象到 S1（To 区），年龄 +1</h3>
 
-<pre><code class="language-text">复制后状态：
-
-┌──────────────────────────────────────────────────────────┐
-│ Eden（清空）                       │ S0（清空）│  S1       │
-│                                   │           │  A  C     │
-│                                   │           │  F  H     │
-│                                   │           │  X  Y     │
-│                                   │           │ 年龄：1 1 1 1 2 2 │
-└──────────────────────────────────────────────────────────┘
-
-  Eden 中的存活对象（A C F H）复制到 S1，年龄从 0 变为 1
-  S0 中的存活对象（X Y）复制到 S1，年龄从 1 变为 2
-  Eden 和 S0 全部清空（直接丢弃所有对象，无需逐个释放）</code></pre>
+<div class="gc-diagram">
+  <div class="gc-label">Minor GC 完成后：存活对象复制到 S1，Eden 和 S0 清空</div>
+  <div class="gc-regions">
+    <div class="gc-region young">
+      <div class="gc-region-title">新生代 Young Gen</div>
+      <div class="gc-sub-regions">
+        <div class="gc-sub eden empty">
+          <div class="gc-sub-title">Eden（已清空）</div>
+          <div class="gc-objects gc-empty">全部回收</div>
+        </div>
+        <div class="gc-sub survivor empty">
+          <div class="gc-sub-title">S0（已清空）</div>
+          <div class="gc-objects gc-empty">全部回收</div>
+        </div>
+        <div class="gc-sub survivor">
+          <div class="gc-sub-title">S1 To（存活对象）</div>
+          <div class="gc-objects">
+            <span class="obj alive aged" title="来自Eden，年龄变为1">A<sub>1</sub></span>
+            <span class="obj alive aged" title="来自Eden，年龄变为1">C<sub>1</sub></span>
+            <span class="obj alive aged" title="来自Eden，年龄变为1">F<sub>1</sub></span>
+            <span class="obj alive aged" title="来自Eden，年龄变为1">H<sub>1</sub></span>
+            <span class="obj alive aged2" title="来自S0，年龄变为2">X<sub>2</sub></span>
+            <span class="obj alive aged2" title="来自S0，年龄变为2">Y<sub>2</sub></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="gc-region old">
+      <div class="gc-region-title">老年代 Old Gen</div>
+      <div class="gc-objects gc-empty">不变</div>
+    </div>
+  </div>
+</div>
+<p>Eden 中的存活对象（A C F H）复制到 S1，年龄 0→1；S0 中的存活对象（X Y）复制到 S1，年龄 1→2；Eden 和 S0 整体清空，无需逐个释放。</p>
 
 <h3 id="MinorGC步骤4">第四步：S0/S1 角色互换</h3>
 
-<pre><code class="language-text">互换后：S1 变为新的 S0（From），原 S0 变为新的 S1（To）
-
-下一次 Minor GC 时，新的存活对象将被复制到新的 To 区（原 S0）
-
-新对象继续在 Eden 分配 ↓
-
-┌──────────────────────────────────────────────────────────┐
-│ Eden（接收新对象）                  │ S0(From)  │  S1(To) │
-│ 新对象...                          │ A C F H   │  空      │
-│                                   │ X Y       │          │
-│                                   │ 年龄：1 1 1 1 2 2     │          │
-└──────────────────────────────────────────────────────────┘</code></pre>
+<div class="gc-diagram">
+  <div class="gc-label">角色互换后：S1 变为新 From，等待下一次 Minor GC</div>
+  <div class="gc-regions">
+    <div class="gc-region young">
+      <div class="gc-region-title">新生代 Young Gen</div>
+      <div class="gc-sub-regions">
+        <div class="gc-sub eden">
+          <div class="gc-sub-title">Eden（接收新对象）</div>
+          <div class="gc-objects">
+            <span class="obj new">新</span>
+            <span class="obj new">新</span>
+            <span class="obj new">新</span>
+            <span class="obj new">...</span>
+          </div>
+        </div>
+        <div class="gc-sub survivor">
+          <div class="gc-sub-title">S0 From（原 S1）</div>
+          <div class="gc-objects">
+            <span class="obj alive aged" title="年龄=1">A<sub>1</sub></span>
+            <span class="obj alive aged" title="年龄=1">C<sub>1</sub></span>
+            <span class="obj alive aged" title="年龄=1">F<sub>1</sub></span>
+            <span class="obj alive aged" title="年龄=1">H<sub>1</sub></span>
+            <span class="obj alive aged2" title="年龄=2">X<sub>2</sub></span>
+            <span class="obj alive aged2" title="年龄=2">Y<sub>2</sub></span>
+          </div>
+        </div>
+        <div class="gc-sub survivor empty">
+          <div class="gc-sub-title">S1 To（原 S0，空）</div>
+          <div class="gc-objects gc-empty">等待下次 GC</div>
+        </div>
+      </div>
+    </div>
+    <div class="gc-region old">
+      <div class="gc-region-title">老年代 Old Gen</div>
+      <div class="gc-objects gc-empty">不变</div>
+    </div>
+  </div>
+</div>
 
 <h3 id="晋升老年代">何时晋升老年代？</h3>
 
