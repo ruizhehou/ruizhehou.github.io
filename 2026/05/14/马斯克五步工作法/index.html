@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="深度解析马斯克五步工作法：质疑需求、删除冗余、简化优化、加速迭代、自动化兜底。从 SpaceX 火箭研发到特斯拉工厂实践，理解这套反直觉方法论的底层逻辑与适用边界。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="马斯克五步工作法：最有效率的人是怎么思考的">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/05/14/马斯克五步工作法/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:description" content="深度解析马斯克五步工作法：质疑需求、删除冗余、简化优化、加速迭代、自动化兜底。从 SpaceX 火箭研发到特斯拉工厂实践，理解这套反直觉方法论的底层逻辑与适用边界。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-14T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-14T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="工程实践">
+<meta property="article:tag" content="生活">
+<meta property="article:tag" content="职业发展">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/05/14/马斯克五步工作法/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>马斯克五步工作法：最有效率的人是怎么思考的 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-05-14T10:00:00+08:00" content="2026-05-14">
+      05-14
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      马斯克五步工作法：最有效率的人是怎么思考的
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>2021 年，马斯克在德州超级工厂的演讲中，第一次系统地公开了这套方法论。他说这是他在 SpaceX 和特斯拉多年实践中总结出来的，是他认为最重要的工程和管理原则。</p>
+
+<p>这五步的顺序是固定的，而且顺序本身就是这套方法论的精髓——大多数人犯的错误，恰恰是把步骤搞反了。</p>
+
+<pre class="mermaid">
+flowchart LR
+    S1[第一步\n质疑需求] --> S2[第二步\n删除冗余]
+    S2 --> S3[第三步\n简化优化]
+    S3 --> S4[第四步\n加速迭代]
+    S4 --> S5[第五步\n自动化]
+
+    style S1 fill:#fde8d8,stroke:#e67e22
+    style S2 fill:#fde8d8,stroke:#e67e22
+    style S3 fill:#d5f5e3,stroke:#27ae60
+    style S4 fill:#d5f5e3,stroke:#27ae60
+    style S5 fill:#d6eaf8,stroke:#2980b9
+</pre>
+
+<p>马斯克自己说：<strong>大多数公司都在错误的顺序上做正确的事</strong>——他们先把一个流程自动化，然后才发现这个流程本来就不该存在。</p>
+
+
+<h2 id="第一步">第一步：质疑需求（Question Every Requirement）</h2>
+
+<blockquote>
+<p>"所有的需求都应该被质疑。如果你不能说清楚这个需求从哪里来、为什么存在，那就删掉它。"</p>
+</blockquote>
+
+<p>这是五步中最反直觉、也最重要的一步。</p>
+
+<p>我们通常把"需求"当作不可动摇的前提——产品经理说要做这个功能，客户说要这个规格，领导说要满足这个标准。大多数人的工作从这里开始，没有人质疑需求本身。</p>
+
+<p>马斯克的观点是：<strong>需求往往是某个人在某个时间点做的某个决定的遗留物，那个时间点已经过去了，那个人可能已经离职了，但这个需求却被当成了真理代代相传。</strong></p>
+
+<h3 id="SpaceX火箭零件案例">SpaceX 的真实案例</h3>
+
+<p>SpaceX 早期工程师曾讲过一个故事：某个火箭部件有一项特殊的焊接要求，规格文件规定必须达到某个极高的标准。这个标准导致制造成本极高，供应商只有一家能做，交期还很长。</p>
+
+<p>工程师追溯这个要求的来源，发现它来自一份几十年前的文件，最初的原因是某个特定的应用场景——而那个场景在 SpaceX 的火箭上根本不存在。没有人追问过这个要求是否仍然适用，它只是被一代代工程师照单全收地复制了下来。</p>
+
+<p>删掉这个要求后，制造成本下降了 80%。</p>
+
+<h3 id="质疑的方式">如何正确地质疑需求</h3>
+
+<p>马斯克有一个具体的方法：<strong>每一条需求都必须能追溯到一个具体的人，而不是一份文件或一个部门</strong>。</p>
+
+<p>如果一个需求的来源是"这是行业标准"或"一直都这样"，那就是需要质疑的信号。行业标准往往是历史上某个技术限制的产物，那个限制早就不存在了，但标准留下来了。</p>
+
+<p>他还强调：<strong>来自法律或安全团队的需求要格外怀疑</strong>——不是因为这些需求不重要，而是因为这些部门的人倾向于过度规避风险，他们的工作激励是"不出问题"而不是"效率最高"。</p>
+
+
+<h2 id="第二步">第二步：删除冗余（Delete Any Part or Process）</h2>
+
+<blockquote>
+<p>"删除，删除，删除。如果你最后没有把 10% 的删掉的东西加回来，那说明你删得还不够狠。"</p>
+</blockquote>
+
+<p>通过了第一步的质疑之后，对于确实需要存在的事物，下一个问题是：这其中有没有不必要的部分？</p>
+
+<p>这一步的难点在于：<strong>人们天然倾向于增加而不是删除</strong>。增加一个功能、一个流程、一个部门，显得你在做事、在贡献价值。删除则需要承担风险——万一删错了怎么办？</p>
+
+<p>马斯克的回答是：删错了就加回来，这个成本远低于一直带着冗余运行的成本。他把这叫做"<strong>加回来的成本是可接受的，但永远不删除的成本是复利积累的</strong>"。</p>
+
+<h3 id="特斯拉Model3案例">特斯拉 Model 3 的生产地狱</h3>
+
+<p>2018 年，特斯拉 Model 3 产能严重不足，马斯克亲自住进工厂。他发现了一个令人震惊的问题：工厂引进了一套极其复杂的自动化传送系统，造价数十亿美元，用来在不同工序之间搬运零件。</p>
+
+<p>马斯克的判断是：这套系统本身就是问题所在。他下令拆除了其中相当大一部分，改用简单的叉车和人工传送。产能立刻开始提升。</p>
+
+<p>这套自动化系统的存在是有理由的——它减少了人力，提高了精度。但它同时带来了复杂性、单点故障风险和极长的调试周期。马斯克的判断是：这些代价超过了收益。</p>
+
+<h3 id="删除的原则">删除的原则</h3>
+
+<ul>
+  <li>删除零件比优化零件收益更大——少了一个零件就少了它的重量、成本、可能的故障点和装配时间</li>
+  <li>删除流程步骤比优化步骤收益更大——少一个审批环节比把审批时间从 3 天优化到 2 天价值高得多</li>
+  <li>删除会议比优化会议收益更大——马斯克本人以直接取消他认为没有价值的会议著称</li>
+</ul>
+
+
+<h2 id="第三步">第三步：简化优化（Simplify or Optimize）</h2>
+
+<blockquote>
+<p>"这一步是第三步，不是第一步。大多数工程师的错误，是在搞清楚要不要做之前，就开始优化怎么做。"</p>
+</blockquote>
+
+<p>只有在确认这个需求是真实的（第一步）、并且删除了所有不必要的部分（第二步）之后，才应该开始优化剩下的东西。</p>
+
+<p>这一步的反直觉之处在于：<strong>大多数工程师和产品经理把优化当成第一步</strong>。需求来了，立刻开始想怎么做更好、更快、更高效。第一步和第二步被跳过了。</p>
+
+<p>马斯克的比喻是：<strong>优化一个不该存在的东西，是最大的浪费</strong>。你把一个错误的流程做得越高效，你在错误的方向上走得越远。</p>
+
+<h3 id="火箭发动机的故事">Raptor 发动机的设计哲学</h3>
+
+<p>SpaceX 的 Raptor 发动机被认为是当今世界最先进的火箭发动机之一。但它的研发过程并不是从"怎么把发动机做得更好"开始的。</p>
+
+<p>团队首先质疑了传统火箭发动机的每一个设计选择：为什么用这种燃料组合？为什么是这个燃烧室压力范围？为什么需要这么多独立的子系统？大量的"因为一直都这样"被删除掉，剩下真正不可缺少的部分，才开始讨论如何把这些部分做到极致。</p>
+
+<p>最终 Raptor 达到了远超传统设计的燃烧室压力，但它同时也比传统设计简单得多——因为复杂的部分要么被质疑掉了，要么被删除了。</p>
+
+
+<h2 id="第四步">第四步：加速迭代（Accelerate Cycle Time）</h2>
+
+<blockquote>
+<p>"如果你在做一件已经正确的事情，那就做得更快。但只有在前三步之后，你才知道什么是正确的事。"</p>
+</blockquote>
+
+<p>前三步确保你在做正确的事，第四步是让你更快地做这件正确的事。</p>
+
+<p>迭代速度是马斯克竞争哲学的核心。他相信：<strong>在不确定的环境中，快速迭代比完美规划更有价值</strong>。你无法事先知道所有的答案，但你可以比竞争对手更快地找到答案。</p>
+
+<h3 id="星舰的快速迭代">星舰的快速迭代哲学</h3>
+
+<p>SpaceX 的星舰（Starship）开发过程是这一步最极端的体现。传统航天公司的做法是花几年时间完善设计，在模拟中验证，然后才造出第一个原型机进行测试。</p>
+
+<p>SpaceX 的做法是：快速造出原型机，发射，炸掉，从中学习，再造下一个。星舰的前几次发射都以爆炸告终，但每次爆炸都提供了大量数据，推动了下一版本的改进。</p>
+
+<p>这种方式在外人看来像是浪费——花那么多钱造火箭然后炸掉。但马斯克的算法是：<strong>一次真实的爆炸提供的信息，比十次模拟提供的信息更有价值，而且往往成本更低</strong>（因为模拟需要花大量时间和人力来建立和验证）。</p>
+
+<h3 id="迭代速度的复利效应">迭代速度的复利效应</h3>
+
+<p>如果竞争对手每年迭代 1 次，你每年迭代 10 次，十年后你们之间的差距不是 10 倍，而是指数级的。每次迭代都在前一次的基础上改进，迭代速度的差异会以复利的方式扩大。</p>
+
+<p>这也是为什么马斯克对于流程中任何减慢迭代速度的东西都极度不耐烦——每一个不必要的审批环节、每一个过长的会议、每一个缓慢的决策链，都在让迭代速度降低，在复利效应下这是巨大的损失。</p>
+
+
+<h2 id="第五步">第五步：自动化（Automate）</h2>
+
+<blockquote>
+<p>"自动化一个糟糕的流程，只会让你更快地犯错。只有在前四步都做完之后，自动化才有意义。"</p>
+</blockquote>
+
+<p>这是五步中最后一步，也是大多数公司最先做的一步。</p>
+
+<p>自动化的前提是：你已经确认这个流程是必要的（第一步），已经删除了所有冗余（第二步），已经把剩下的部分优化到足够简单（第三步），已经在实践中验证了它的正确性（第四步）。只有这时候，自动化才能发挥最大价值。</p>
+
+<h3 id="为什么自动化是最后一步">为什么自动化是最后一步</h3>
+
+<p>马斯克在特斯拉学到了一个昂贵的教训。2017-2018 年，他推动特斯拉建立了一条"全自动化"的 Model 3 生产线，几乎所有步骤都由机器人完成。结果这条生产线成了噩梦：极其复杂，极难调试，产能远低于预期。</p>
+
+<p>他后来承认这是一个错误——他在流程还没有被简化和验证之前，就把它自动化了。一个复杂的人工流程，自动化之后变成了一个更复杂的自动化流程，所有的问题被放大了而不是消除了。</p>
+
+<p>正确的顺序应该是：先用人工把流程跑通、简化、验证，然后再考虑哪些部分可以自动化。人工流程的灵活性让你可以在发现问题时快速调整；自动化之后，任何调整都需要重新编程，成本高得多。</p>
+
+
+<h2 id="顺序为什么重要">六、顺序为什么如此重要</h2>
+
+<p>五步的顺序不是随意的，它对应着五种不同类型的错误，按照"代价从大到小"排列：</p>
+
+<table>
+  <thead>
+    <tr><th>错误顺序</th><th>导致的问题</th><th>代价</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>先自动化，再质疑需求</td><td>自动化了一个不该存在的流程</td><td>最高——拆除成本极大</td></tr>
+    <tr><td>先优化，再删除冗余</td><td>精心优化了一个应该删掉的部分</td><td>很高——优化工作全部浪费</td></tr>
+    <tr><td>先加速，再简化</td><td>更快地做了一件可以更简单做的事</td><td>中等——速度收益部分浪费</td></tr>
+    <tr><td>先简化，再质疑需求</td><td>简化了一个不应该存在的东西</td><td>较高——简化工作全部浪费</td></tr>
+    <tr><td>按正确顺序执行</td><td>每一步都在正确的基础上进行</td><td>最低</td></tr>
+  </tbody>
+</table>
+
+<p>马斯克说，在实践中，他见过的最常见的错误是：团队接到一个任务，立刻开始讨论怎么做，从来没有停下来问"这件事应该做吗？"和"这件事可以不做吗？"</p>
+
+
+<h2 id="软件工程的映射">七、这套方法论在软件工程中的映射</h2>
+
+<p>虽然马斯克的五步法来自硬件制造，但它在软件工程中有极其直接的对应：</p>
+
+<table>
+  <thead>
+    <tr><th>五步</th><th>软件工程场景</th><th>常见反模式</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>质疑需求</td><td>"这个功能真的有用户需要吗？数据在哪里？"</td><td>产品说要做就做，从不追问</td></tr>
+    <tr><td>删除冗余</td><td>删掉死代码、无用 API、没人用的功能</td><td>功能只增不减，系统越来越臃肿</td></tr>
+    <tr><td>简化优化</td><td>重构复杂逻辑，减少抽象层次</td><td>过度设计，在不确定的需求上建宏大架构</td></tr>
+    <tr><td>加速迭代</td><td>缩短发布周期，快速上线验证</td><td>追求完美，憋大版本，半年不发布</td></tr>
+    <tr><td>自动化</td><td>CI/CD、自动化测试、自动部署</td><td>在流程未稳定前就大力建自动化，后来流程变了全部推倒</td></tr>
+  </tbody>
+</table>
+
+<p>软件工程最常见的失败模式之一，是团队花了几个月建了一套复杂的微服务架构（第三步：过度优化），然后发现产品方向变了，这些服务全部作废。如果在第一步就质疑了"我们真的需要这个产品方向吗？"，可能根本就不会有这个架构。</p>
+
+
+<h2 id="这套方法的局限性">八、这套方法的局限性</h2>
+
+<p>任何方法论都有它的适用边界，五步法也不例外。</p>
+
+<p><strong>它最适合的场景</strong>：面对具体的工程问题、流程设计、产品功能决策。目标是效率，成功标准相对清晰。</p>
+
+<p><strong>它不太适用的场景</strong>：</p>
+
+<ul>
+  <li><strong>强监管行业</strong>：医疗、航空、金融的很多"冗余"是监管要求，不能随意删除。马斯克自己也说，法规来源的需求要额外谨慎——这不是说不质疑，而是质疑的代价更高</li>
+  <li><strong>涉及人的流程</strong>：员工培训、团队协作、文化建设——这些"流程"中的"冗余"有时候是凝聚力和信任的来源，不能用工程思维削减</li>
+  <li><strong>长期战略决策</strong>：五步法是执行层面的工具，它告诉你怎么做事，但不告诉你做什么事。战略方向的选择需要另外一套思维框架</li>
+  <li><strong>创新和探索阶段</strong>：在完全未知的领域，"质疑需求"可能太早——有时候你需要先做，才能知道什么是对的需求</li>
+</ul>
+
+<p>此外，这套方法需要极大的权威和决断力才能执行。马斯克能在特斯拉工厂里直接下令拆除数十亿美元的设备，是因为他是 CEO 兼最大股东。普通的中层管理者直接质疑上级给的需求、删除别人负责的流程，在组织政治上面临的阻力是真实存在的。</p>
+
+
+<h2 id="关键点总结">九、关键点总结</h2>
+
+<ul>
+  <li><strong>顺序是核心</strong>：五步必须按顺序执行，跳过前面的步骤直接做后面的，是最常见的低效来源</li>
+  <li><strong>第一步最难也最重要</strong>：质疑需求需要勇气和追溯能力，大多数人跳过了这一步</li>
+  <li><strong>删除优先于优化</strong>：不需要存在的东西，优化它是纯粹的浪费；删除一个零件比优化它价值高得多</li>
+  <li><strong>自动化是最后一步</strong>：在流程未经质疑、简化、验证之前就自动化，只会更快地犯错</li>
+  <li><strong>迭代速度是复利</strong>：在正确的方向上，迭代速度的差异会以指数级放大竞争优势</li>
+  <li><strong>这套方法有局限</strong>：它是执行工具，不是战略工具；强监管场景和涉及人的复杂系统需要额外谨慎</li>
+  <li><strong>最大的应用误区</strong>：把第三步（优化）当成第一步，在不该做的事情上精益求精</li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+          <a href="/tags/生活/" rel="tag"><i class="fa fa-tag"></i> 生活</a>
+          <a href="/tags/职业发展/" rel="tag"><i class="fa fa-tag"></i> 职业发展</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第一步"><span class="nav-number">1.</span> <span class="nav-text">第一步：质疑需求</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第二步"><span class="nav-number">2.</span> <span class="nav-text">第二步：删除冗余</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第三步"><span class="nav-number">3.</span> <span class="nav-text">第三步：简化优化</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第四步"><span class="nav-number">4.</span> <span class="nav-text">第四步：加速迭代</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第五步"><span class="nav-number">5.</span> <span class="nav-text">第五步：自动化</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#顺序为什么重要"><span class="nav-number">6.</span> <span class="nav-text">六、顺序为什么如此重要</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#软件工程的映射"><span class="nav-number">7.</span> <span class="nav-text">七、软件工程的映射</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#这套方法的局限性"><span class="nav-number">8.</span> <span class="nav-text">八、局限性</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关键点总结"><span class="nav-number">9.</span> <span class="nav-text">九、关键点总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">209</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script data-pjax>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: { curve: 'linear', htmlLabels: true },
+      gantt: { axisFormat: '%H:%M' },
+      sequence: { actorMargin: 50 }
+    });
+    mermaid.run({ querySelector: 'pre.mermaid' });
+  }, window.mermaid);
+}
+</script>
+</body>
+</html>
