@@ -236,7 +236,23 @@ graph LR
 
 <h2 id="Continuous-Batching">三、Continuous Batching：最高优先级的优化</h2>
 
-<p>传统批处理（Static Batching）的问题：等所有请求都到齐再一起推理。结果是：短请求生成完了还要等长请求，GPU 大量时间在空转。</p>
+<p>要理解 Continuous Batching，先要理解 LLM 推理的一个基本特点：<strong>每个请求的输出长度完全不可预测</strong>。有人问"今天天气怎么样"，输出 10 个 token；有人让模型写一篇文章，输出 500 个 token。</p>
+
+<h3 id="Static-Batching-的问题">Static Batching 的问题</h3>
+
+<p>传统推理框架（Static Batching）的做法是：凑一批请求，把它们打包在一起推理，等这批请求<strong>全部完成</strong>，再接下一批。</p>
+
+<p>问题就在这里。假设一个 batch 里有 3 个请求：</p>
+
+<ul>
+  <li>req1：需要生成 200 个 token（长）</li>
+  <li>req2：需要生成 50 个 token（短）</li>
+  <li>req3：需要生成 180 个 token（长）</li>
+</ul>
+
+<p>在第 50 步，req2 已经生成完了（输出了 EOS token），但 req1 和 req3 还要继续。Static Batching 会怎么做？<strong>让 req2 的 GPU 槽位继续空占着，等 req1 和 req3 也完成，才能整体结束这个 batch、放入下一批请求。</strong></p>
+
+<p>这意味着从第 50 步到第 200 步，GPU 里有 1/3 的计算槽位在空跑——输入是 padding，没有任何有效计算。GPU 利用率约 30%。</p>
 
 <pre class="mermaid">
 gantt
@@ -257,9 +273,25 @@ gantt
     req4 第50步加入 :active, 50, 200
 </pre>
 
-<p>实现原理：每个 decode step 结束后，检查哪些序列已完成（生成了 EOS token），把它们移出 batch，同时把等待队列中的新请求加入。这样 GPU 每一步都满载运行。</p>
+<h3 id="Continuous-Batching-如何解决">Continuous Batching 如何解决</h3>
 
-<p>vLLM、TGI（Text Generation Inference）、SGLang 都默认实现了 Continuous Batching。这是 LLM 推理的基础设施，必须上。</p>
+<p>Continuous Batching 的核心思路很简单：<strong>谁完成了，谁的位置立刻让出来给新请求，不等其他人</strong>。</p>
+
+<p>具体来说，每完成一个 decode step（生成一个 token），推理引擎就检查：哪个请求生成了 EOS token（结束标记）？把它从当前 batch 移出，同时把等待队列里的下一个请求插进来，填满这个空出来的槽位。</p>
+
+<p>这样 GPU 的每一步都是满载的：</p>
+<ul>
+  <li>第 0-50 步：req1 + req2 + req3 同时推理</li>
+  <li>第 50 步：req2 完成，立刻移出；req4 插入</li>
+  <li>第 50-180 步：req1 + req4 + req3 同时推理（GPU 仍然满载）</li>
+  <li>第 180 步：req3 完成，移出；req5 插入……以此类推</li>
+</ul>
+
+<p>GPU 利用率从 30% 提升到 80%+，相当于同样的硬件，有效吞吐量提升 2-3 倍。</p>
+
+<p><strong>为什么之前没人这么做？</strong>因为 NLP 任务传统上都是输入/输出等长的（翻译、分类），可以整齐地打 batch。LLM 的 decode 是逐 token 生成、长度不定的，这个特点让 Static Batching 变得非常低效，Continuous Batching 才因此被发明出来。</p>
+
+<p>vLLM、TGI（Text Generation Inference）、SGLang 都默认实现了 Continuous Batching。任何 LLM 推理服务，这是必须开启的基础能力。</p>
 
 
 <h2 id="PagedAttention">四、PagedAttention：KV Cache 的革命性管理</h2>
