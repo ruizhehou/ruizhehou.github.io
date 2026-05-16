@@ -244,17 +244,17 @@ gantt
     dateFormat X
     axisFormat %s步
 
-    section Static Batching GPU利用率约30%
-    req1 推理中         :active, 0, 200
-    req2 推理中         :active, 0, 50
-    req2 空转等待       :crit,   50, 200
-    req3 推理中         :active, 0, 180
+    section Static ~30%
+    req1 推理中     :active, 0, 200
+    req2 推理中     :active, 0, 50
+    req2 空转等待   :crit,   50, 200
+    req3 推理中     :active, 0, 180
 
-    section Continuous Batching GPU利用率80%以上
-    req1 持续推理       :active, 0, 200
-    req2 推理后移出     :done,   0, 50
-    req3 持续推理       :active, 0, 180
-    req4 第50步加入     :active, 50, 200
+    section Continuous ~80%+
+    req1 推理      :active, 0, 200
+    req2 移出      :done,   0, 50
+    req3 推理      :active, 0, 180
+    req4 第50步加入 :active, 50, 200
 </pre>
 
 <p>实现原理：每个 decode step 结束后，检查哪些序列已完成（生成了 EOS token），把它们移出 batch，同时把等待队列中的新请求加入。这样 GPU 每一步都满载运行。</p>
