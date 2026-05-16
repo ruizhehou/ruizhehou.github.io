@@ -282,6 +282,42 @@ index.nprobe = 64  # 搜索的倒排表数量，越大越准确但越慢
 user_emb = get_user_embedding(user_id)  # shape: [1, d]
 distances, item_ids = index.search(user_emb, k=500)  # 返回 Top-500</code></pre>
 
+<h3 id="FAISS代码详解">代码详解</h3>
+
+<p><strong>为什么要离线建索引？</strong><br>
+物品库有几亿条，每次请求都实时计算相似度根本来不及。提前把所有物品 Embedding 组织成索引结构存到磁盘，在线查询时直接加载。</p>
+
+<p><strong><code>faiss.IndexIVFPQ</code>：IVF + PQ 两个技术的组合</strong></p>
+
+<p><strong>IVF（Inverted File，倒排文件）</strong>：把所有向量空间先用 K-Means 聚类成 <code>nlist=1024</code> 个桶。查询时不扫描全部向量，只扫描最近的几个桶——大幅减少计算量。</p>
+
+<pre><code class="language-text">全量向量空间
+   ↓ K-Means 聚类（nlist=1024）
+[桶0: 约1万个向量] [桶1: 约1万个向量] ... [桶1023: 约1万个向量]
+
+查询时：先判断用户向量离哪几个桶最近，只搜那几个桶（由 nprobe 控制）</code></pre>
+
+<p><strong>PQ（Product Quantization，乘积量化）</strong>：把每个向量压缩存储。<code>m=8</code> 表示把 128 维向量切成 8 段（每段 16 维），每段用码本压缩成 1 字节：</p>
+
+<pre><code class="language-text">原始存储：128维 × 4字节(FP32) = 512 字节/向量
+PQ压缩后：8字节/向量（压缩64倍）
+
+代价：精度略有损失，但内存节省极大，检索速度更快</code></pre>
+
+<p><strong><code>index.train()</code></strong>：做两件事——对全量向量跑 K-Means 确定桶中心，以及训练 PQ 码本。<strong>只需执行一次</strong>，之后新增物品直接 <code>add</code> 即可。</p>
+
+<p><strong><code>index.nprobe = 64</code></strong>：查询时搜索多少个桶。<code>nlist=1024, nprobe=64</code> 意味着只搜索 6.25% 的数据。nprobe 越大结果越准但越慢，实践中通过测试召回率来选值（通常让召回率 ≥ 95% 的前提下尽量小）。</p>
+
+<p><strong><code>index.search(user_emb, k=500)</code></strong>：返回两个数组：</p>
+
+<pre><code class="language-python">distances  # shape: [1, 500]，每个结果与用户向量的距离（越小越相似）
+item_ids   # shape: [1, 500]，对应物品的索引编号
+
+# 取出物品 ID
+top_items = item_ids[0]  # [物品ID_1, 物品ID_2, ..., 物品ID_500]</code></pre>
+
+<p>注意 <code>user_emb</code> 的 shape 是 <code>[1, d]</code> 而不是 <code>[d]</code>，因为 FAISS 支持批量查询（<code>[batch_size, d]</code>），这里 batch=1。</p>
+
 
 <h2 id="排序模型">三、排序模型：从 LR 到深度学习</h2>
 
