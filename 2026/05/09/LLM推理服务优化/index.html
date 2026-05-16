@@ -149,89 +149,72 @@
 
   <div class="post-body" itemprop="articleBody">
 
-<p>140 万 QPS 的 LLM 完整对话推理，是当今技术栈中最极限的工程挑战之一。OpenAI、Google、字节、百度等少数公司才能运营这个量级的服务。在这个规模下，优化的每一个百分点都意味着数亿元的成本节省或能服务更多用户。</p>
+<p>假设你要运营一个每秒有 140 万人同时在和 AI 对话的服务。每个人都在实时等待模型一个字一个字地输出答案。</p>
 
-<p>本文从 LLM 推理的本质出发，系统性地梳理每一层优化手段。LLM 推理与传统深度学习推理有根本性的不同——它的瓶颈不是算力，而是<strong>显存带宽和 KV Cache 管理</strong>，理解这一点是所有优化的起点。</p>
+<p>这是一个极端的工程挑战——OpenAI、Google、字节、百度这个量级的公司才会面对。但理解它的优化方法，能让你真正搞清楚 LLM 推理系统是怎么工作的，以及为什么它和你之前接触的所有推理系统都不一样。</p>
 
-
-<h2 id="规模估算">一、先做规模估算：理解问题的量级</h2>
-
-<p>在动手优化之前，先把问题的规模感建立起来。以 Llama-70B 为例，假设平均对话输入 500 token、输出 200 token：</p>
-
-<pre><code class="language-text">每秒新增请求：                 140 万
-每个请求占 GPU 时间（decode）：约 3 秒
-同时在飞行中的并发请求：        140万 × 3s ≈ 420 万并发
-
-单张 A100-80GB 运行 Llama-70B（TP=8）：
-  最大并发：约 80-120 个请求（受 KV Cache 显存限制）
-  吞吐：约 3000-6000 token/s
-
-需要的 8 卡节点数：
-  420万并发 ÷ 100并发/节点 = 4.2 万节点
-  = 33.6 万张 A100
-
-成本：按 A100 租金 $2/小时，每小时成本 ~$67 万
-</code></pre>
-
-<p>这是基于 Llama-70B FP16 的悲观估算。实际大厂的做法通常会让数字好看得多：</p>
-<ul>
-  <li>用 INT4/FP8 量化：显存减半，同等卡数并发翻倍</li>
-  <li>用蒸馏的更小模型（7B/14B）：参数量少 5-10 倍，速度对应提升</li>
-  <li>不是所有 140w QPS 都是长输出，很多是短问答（20-50 token），占用时间短</li>
-  <li>Prefix Caching 命中时 prefill 几乎免费，有效吞吐大幅提升</li>
-</ul>
-<p>但无论如何，两件事是确定的：</p>
-<ol>
-  <li>每提升 1% 的吞吐量，在这个规模下每年节省数百万到数千万美元</li>
-  <li>这是一个<strong>显存带宽密集型</strong>问题，每个优化手段都要从"如何减少显存读写"出发</li>
-</ol>
+<p>本文从零开始，<strong>由浅入深</strong>地讲解每一个优化手段。先把最基础的问题讲清楚，再一层一层往深了走。</p>
 
 
-<h2 id="LLM推理的本质">二、LLM 推理的本质：为什么它和传统推理完全不同</h2>
+<h2 id="规模估算">一、LLM 推理和传统推理有什么不同</h2>
 
-<h3 id="两阶段计算">两阶段计算特性</h3>
+<p>在讲优化之前，先搞清楚一件事：<strong>LLM 推理为什么和你之前接触的所有推理系统都不一样</strong>？</p>
 
-<p>LLM 推理分为两个性质完全不同的阶段：</p>
+<p>传统深度学习推理（图像分类、目标检测）是这样工作的：输入一张图 → 模型跑一次前向传播 → 输出结果。整个过程是<strong>一次性的</strong>，输入和输出都是固定大小。</p>
+
+<p>LLM 推理完全不同。它分为两个截然不同的阶段：</p>
+
+<h3 id="两阶段计算">Prefill 和 Decode：两个性质完全不同的阶段</h3>
+
+<p><strong>Prefill（预填充）</strong>：处理用户输入的 prompt。假设用户说了 200 个字，模型需要把这 200 个 token 全部读进去，并行计算一遍，得到"理解了这段话"的内部状态。这一步很像传统推理：一次性处理，速度快。</p>
+
+<p><strong>Decode（解码）</strong>：逐字生成输出。模型每次只能生成一个 token（一个字或一个词），生成完这个 token 才能生成下一个，<strong>无法并行</strong>。用户看到的"AI 一个字一个字地输出"，就是这个阶段。</p>
 
 <pre class="mermaid">
-graph LR
-    subgraph Prefill[Prefill 阶段 处理输入prompt]
-        P1[并行计算所有token的Attention]
-        P2[Compute-bound 算力是瓶颈]
-        P3[一次完成 生成初始KV Cache]
+flowchart LR
+    Input[用户输入\n200个token] --> Prefill
+    subgraph Prefill[Prefill 一次性完成]
+        P1[200个token并行计算\n速度快 算力密集]
     end
-    subgraph Decode[Decode 阶段 逐token生成输出]
-        D1[每步只生成1个新token]
-        D2[Memory-bound 带宽是瓶颈]
-        D3[串行执行 无法并行化]
+    Prefill --> KVCache[KV Cache\n保存计算中间结果]
+    KVCache --> Decode
+    subgraph Decode[Decode 逐token串行生成]
+        D1[生成第1个token] --> D2[生成第2个token]
+        D2 --> D3[生成第3个token]
+        D3 --> D4[...]
     end
-    Prefill -->|KV Cache传递| Decode
+    Decode --> Output[最终输出\n假设200个token]
 </pre>
 
-<p>这两个阶段的性质不同，决定了它们需要完全不同的优化策略，甚至需要部署在不同的硬件上。</p>
+<p>Decode 阶段是问题的核心。生成 200 个 token 就要走 200 步，每步都要读取整个模型的权重（几十 GB）来计算一个 token——这是<strong>显存带宽密集型</strong>操作，不是算力密集型。GPU 的算力大量空闲，瓶颈在数据读取速度。</p>
 
-<h3 id="KV-Cache">KV Cache：显存的核心消耗</h3>
+<h3 id="KV-Cache">KV Cache：为什么显存是核心瓶颈</h3>
 
-<p>Transformer 的 Attention 机制要求保存每一层每一个已生成 token 的 Key 和 Value 向量，这就是 KV Cache：</p>
+<p>Transformer 有一个机制叫 Attention（注意力），它需要"看"之前所有已生成的 token 来决定下一个 token 是什么。为了避免重复计算，模型会把之前每个 token 的中间计算结果（Key 和 Value 向量）都缓存起来，这就是 <strong>KV Cache</strong>。</p>
 
-<pre><code class="language-text">KV Cache 大小 = 2（K+V）× 层数 × 注意力头数 × 头维度 × 序列长度 × 精度字节数
+<p>KV Cache 会随着对话变长而持续增长。以 Llama-70B 模型为例：</p>
 
-以 Llama-70B（80层，64头，128维，FP16）为例：
-单个请求，序列长度 1000 token，整个集群（TP=8 时所有卡合计）：
-  2 × 80 × 64 × 128 × 1000 × 2 bytes
-  = 2,621,440,000 bytes ≈ 2.44 GB（8 卡合计）
+<pre><code class="language-text">KV Cache 大小（每个请求，序列长度 1000 token，8卡合计）：
+  2（K和V）× 80层 × 64个注意力头 × 128维度 × 1000 token × 2字节
+  ≈ 2.44 GB
 
-每张卡只存 1/8：2.44 GB ÷ 8 ≈ 305 MB
+每张 A100-80GB 显存分配：
+  模型权重：35 GB（140B参数 ÷ 8卡 × 2字节）
+  剩余给 KV Cache：45 GB
+  最多同时服务：45 GB ÷ 305 MB/请求 ≈ 147 个并发请求</code></pre>
 
-8 卡 A100-80GB，模型权重总显存：140B × 2bytes = 280GB，每卡 35GB
-每卡可用于 KV Cache：80 - 35 = 45 GB
-每卡最大并发：45 GB ÷ 305 MB ≈ 147 个请求
-8 卡节点整体：约 150 个并发请求（受限于卡间同步开销）
+<p>这就是为什么服务能同时处理的请求数是有上限的，而且这个上限不是算力决定的，是<strong>显存决定的</strong>。</p>
 
-注意：这是单个节点能服务的并发上限，序列越长、显存越紧张。
-</code></pre>
+<p>现在回到百万 QPS 的问题：</p>
 
-<p>这就是为什么显存管理是 LLM 推理的核心问题——不是算力不够，而是 KV Cache 把显存占满了。</p>
+<pre><code class="language-text">每秒 140 万新请求，每个请求平均占用 GPU 约 3 秒（生成 200 个 token）
+→ 同时在处理中的请求数：140万 × 3 = 420万个并发请求
+→ 每个节点（8卡A100）最多服务 150 个并发
+→ 需要节点数：420万 ÷ 150 = 2.8万个节点 = 22万张 A100
+
+这是不加任何优化的悲观估算。优化的目标，就是让每张卡能服务更多请求。</code></pre>
+
+<p>接下来每一个优化手段，本质上都是在回答同一个问题：<strong>怎么让同等显存能服务更多请求，或让同等请求数用更少显存</strong>？</p>
 
 
 <h2 id="Continuous-Batching">三、Continuous Batching：最高优先级的优化</h2>
@@ -294,228 +277,258 @@ gantt
 <p>vLLM、TGI（Text Generation Inference）、SGLang 都默认实现了 Continuous Batching。任何 LLM 推理服务，这是必须开启的基础能力。</p>
 
 
-<h2 id="PagedAttention">四、PagedAttention：KV Cache 的革命性管理</h2>
+<h2 id="PagedAttention">四、PagedAttention：解决显存碎片问题</h2>
 
-<p>PagedAttention 是 vLLM 的核心创新，灵感来自操作系统的虚拟内存分页。</p>
+<p>现在你已经知道 Continuous Batching 解决了 GPU 利用率的问题。接下来的问题是：<strong>显存本身也在被浪费</strong>。</p>
 
-<h3 id="传统KV-Cache的问题">传统 KV Cache 的问题</h3>
+<h3 id="传统KV-Cache的问题">直觉：酒店订房的比喻</h3>
 
-<pre><code class="language-text">传统方式：为每个请求预分配连续的最大长度显存
-  请求最大长度 2048 token → 预分配 2048 token 的显存
+<p>想象一下，GPU 显存是一家酒店，每个请求是一位住客。传统方式（不用 PagedAttention）是这样管理的：</p>
 
-  实际情况：
-  [req1: 实际用了 200 token，其余 1848 空着]  ← 内部碎片
-  [req2: 实际用了 500 token，其余 1548 空着]
-  [req3: 等待中，但显存已被预占]              ← 外部碎片
+<p>客人一进门，前台就给他预留一个<strong>最大规格的套房</strong>（比如 2048 个 token 的显存空间），不管他实际要住几天。结果是：</p>
 
-  显存利用率：~30%
-</code></pre>
+<ul>
+  <li>客人 A 只住了 200 个 token，但套房里 1848 个 token 的空间全空着——<strong>内部浪费</strong></li>
+  <li>因为套房都被预占了，客人 D 即使只要一个小单间，也得在门口等——<strong>外部阻塞</strong></li>
+</ul>
 
-<h3 id="PagedAttention原理">PagedAttention 原理</h3>
+<p>这种管理方式下，显存利用率只有约 30%——70% 的空间是预留但没用上的空洞。</p>
+
+<h3 id="PagedAttention原理">PagedAttention：按需分页，不预留</h3>
+
+<p>PagedAttention（vLLM 的核心发明）借鉴了操作系统管理内存的思路：不预留大块连续空间，<strong>用多少分多少，用小页面拼凑</strong>。</p>
+
+<p>把显存切成很多固定大小的小块（每块 16 个 token）。每个请求需要更多空间时，从空闲块池里取一块；请求完成时，把块归还。块不需要连续，用一张"映射表"记录每个请求的块在哪里：</p>
 
 <pre class="mermaid">
-graph TD
-    subgraph LogicPages[逻辑页（Block Table）]
-        R1P0["req1 逻辑页0"]
-        R1P1["req1 逻辑页1"]
-        R1P2["req1 逻辑页2"]
-        R2P0["req2 逻辑页0"]
-        R2P1["req2 逻辑页1"]
+graph LR
+    subgraph Requests[两个请求的逻辑视图]
+        R1[req1 对话中\n已生成48个token]
+        R2[req2 对话中\n已生成32个token]
     end
-    subgraph PhysicalBlocks[物理显存块（按需分配，每块16 token）]
-        B1["块1: req1 token17-32"]
-        B2["块2: 空闲"]
-        B3["块3: req1 token1-16"]
-        B4["块4: 空闲"]
-        B5["块5: req2 token1-16"]
-        B7["块7: req1 token33-48"]
-        B9["块9: req2 token17-32"]
+    subgraph Memory[GPU显存物理块（每块16 token）]
+        B3[块3\nreq1 token 1-16]
+        B1[块1\nreq1 token 17-32]
+        B7[块7\nreq1 token 33-48]
+        B2[块2 空闲]
+        B5[块5\nreq2 token 1-16]
+        B9[块9\nreq2 token 17-32]
+        B4[块4 空闲]
     end
-    R1P0 -->|映射| B3
-    R1P1 -->|映射| B1
-    R1P2 -->|映射| B7
-    R2P0 -->|映射| B5
-    R2P1 -->|映射| B9
-    note["显存利用率 ~90%，仅最后一块有碎片"]
+    R1 -->|映射到| B3
+    R1 -->|映射到| B1
+    R1 -->|映射到| B7
+    R2 -->|映射到| B5
+    R2 -->|映射到| B9
 </pre>
 
-<p>更重要的是，PagedAttention 天然支持 <strong>KV Cache 共享</strong>——如果两个请求有相同的前缀（比如相同的 System Prompt），它们可以共享同一批物理块，完全不占额外显存。</p>
+<p>结果：只有每个请求最后一个不满的块有轻微浪费，整体显存利用率从 30% 提升到 <strong>90% 以上</strong>。同样的显存，能同时服务 3 倍的并发请求。</p>
 
-<pre><code class="language-python"># vLLM 使用示例
+<h3 id="KV-Cache共享">额外收益：共享相同前缀</h3>
+
+<p>分页管理还带来了一个意外收获。如果两个请求有相同的前缀（比如都用同一段 System Prompt），它们可以直接<strong>共享同一批物理块</strong>，完全不需要复制：</p>
+
+<pre><code class="language-text">1000个请求，都用同一段200 token的 System Prompt：
+
+不共享：1000 × 200 token × 每token几百字节 = 占用大量显存
+
+共享后：System Prompt 的 KV Cache 只存一份
+       1000个请求共享这同一份，节省了 999/1000 = 99.9% 的 System Prompt 显存</code></pre>
+
+<p>这个特性叫 <strong>Prefix Caching</strong>，我们下一节会详细讲。</p>
+
+<pre><code class="language-python"># vLLM 启动时开启 PagedAttention + Prefix Caching
 from vllm import LLM, SamplingParams
 
 llm = LLM(
     model="meta-llama/Llama-3-70b-instruct",
-    tensor_parallel_size=8,        # 8 卡张量并行
-    gpu_memory_utilization=0.90,   # 90% 显存给 KV Cache
-    max_num_seqs=512,              # 最大并发序列数
-    enable_prefix_caching=True,    # 开启前缀缓存（共享 System Prompt）
+    tensor_parallel_size=8,
+    gpu_memory_utilization=0.90,   # 90% 显存用于 KV Cache
+    enable_prefix_caching=True,    # 开启前缀共享
 )
-
-sampling_params = SamplingParams(
-    temperature=0.7,
-    max_tokens=512,
-)
-
-outputs = llm.generate(prompts, sampling_params)</code></pre>
+outputs = llm.generate(prompts, SamplingParams(max_tokens=512))</code></pre>
 
 
-<h2 id="Prefix-Caching">五、Prefix Caching：System Prompt 只算一次</h2>
+<h2 id="Prefix-Caching">五、Prefix Caching：让重复计算变成零</h2>
 
-<p>生产环境的 LLM 服务几乎所有请求都有相同的 System Prompt（"你是一个有帮助的助手..."），长度通常 200-1000 token。每个请求都重复计算这部分是巨大的浪费。</p>
+<p>几乎每个生产级 LLM 服务都有一个固定的 System Prompt，比如：</p>
 
-<pre><code class="language-text">没有 Prefix Cache：
-  每个请求 = Prefill(system_prompt + user_input) + Decode
-  1000 token system prompt × 140w QPS = 每秒 14 亿 token prefill 计算
+<blockquote>
+<p>"你是一个专业的客服助手，负责回答关于我们产品的问题。你应该友好、简洁……"</p>
+</blockquote>
+
+<p>这段话可能有 500 个 token。每次用户发来一条消息，服务都会把 System Prompt + 用户消息拼在一起，从头做一遍 Prefill 计算。</p>
+
+<p>问题是：System Prompt 对每个请求都是一样的，<strong>为什么要算 140 万次？</strong></p>
+
+<h3 id="Prefix-Cache原理">Prefix Cache 的原理</h3>
+
+<p>答案很简单：算一次，缓存结果，后续请求直接用缓存。</p>
+
+<p>具体来说，System Prompt 部分的 KV Cache 算完后存起来。下一个请求来了，发现前缀和缓存里的一样，直接跳过这部分的 Prefill，从用户实际说的话开始算：</p>
+
+<pre><code class="language-text">没有 Prefix Cache（传统方式）：
+  请求1：Prefill(500 token System Prompt + 20 token 用户输入) → 520 token prefill
+  请求2：Prefill(500 token System Prompt + 15 token 用户输入) → 515 token prefill
+  请求3：Prefill(500 token System Prompt + 30 token 用户输入) → 530 token prefill
+  ...重复计算 140 万次 System Prompt
 
 有 Prefix Cache：
-  第一个请求：计算并缓存 system_prompt 的 KV Cache
-  后续请求：直接加载缓存，只 prefill user_input 部分
-  节省：~60-80% 的 prefill 计算量
-</code></pre>
+  请求1：正常计算，缓存 System Prompt 的 KV Cache
+  请求2：命中缓存！只计算 15 token 用户输入
+  请求3：命中缓存！只计算 30 token 用户输入
+  ...System Prompt 只算了 1 次
 
-<p>Prefix Caching 的实现依赖 PagedAttention 的分页结构——相同前缀的逻辑页映射到同一批物理块，物理块引用计数管理生命周期。</p>
+节省：500 ÷ 520 ≈ 96% 的 prefill 计算量！</code></pre>
 
-<p>SGLang 的 RadixAttention 把这个概念进一步扩展——用 Radix Tree 管理所有历史请求的 KV Cache，不仅 System Prompt，连多轮对话的历史也可以复用，命中率更高。</p>
+<p>这要归功于 PagedAttention 的分页设计——System Prompt 的 KV Cache 存在固定的物理块里，所有请求的 Block Table 都指向同一批块。不需要复制，不需要额外显存。</p>
+
+<p>SGLang 的 RadixAttention 更进一步，用一棵前缀树管理所有历史对话的 KV Cache。不只是 System Prompt，连多轮对话里之前轮次的内容也能复用，在 Agent 和长对话场景下效果极好。</p>
 
 
-<h2 id="投机解码">六、投机解码（Speculative Decoding）：吞吐提升 2-3 倍</h2>
+<h2 id="投机解码">六、投机解码：让大模型不再一步一步等</h2>
 
-<p>Decode 阶段每步只生成 1 个 token，GPU 大量时间在等待显存读取（memory-bound）。投机解码的思路是：用小模型同时猜测多个 token，用大模型一次性验证。</p>
+<p>回想一下 Decode 阶段的问题：大模型每次只能生成一个 token，生成完才能继续。100 个 token 的输出，大模型就要跑 100 次完整的前向传播，每次读取几十 GB 的权重。</p>
 
-<pre><code class="language-text">标准 Decode：
-  大模型每步处理 1 个 token → 生成 1 个 token
-  100 个 token = 100 步
+<p>有没有办法让大模型一次多做几步？</p>
 
-投机解码（Draft + Verify）：
-  Step 1: 小模型（Draft Model）预测接下来 5 个 token：[the, cat, sat, on, the]
-  Step 2: 大模型一次性验证这 5 个 token（计算量 ≈ 5 步，但实际只用 1 步时间）
-          - 验证结果：[the ✓][cat ✓][sat ✓][on ✗]
-  Step 3: 接受前 3 个 token，从"on"开始重新生成
-  净收益：1 步验证 = 生成 3+ 个 token（接受率越高收益越大）
-</code></pre>
+<h3 id="投机解码原理">投机解码的思路：猜测 + 验证</h3>
 
-<p>接受率取决于 Draft Model 和 Target Model 的分布差异。通常：</p>
+<p>用一个<strong>小模型</strong>（速度是大模型 10 倍以上）先猜测接下来的 5 个 token，然后让大模型一次性验证这 5 个猜测是否正确。</p>
+
+<p>大模型验证 5 个 token 的计算量，和生成 1 个 token 几乎一样——因为验证可以并行，就像 Prefill 阶段一样。</p>
+
+<pre><code class="language-text">假设小模型猜测："the cat sat on the"
+
+大模型验证（并行，只需 1 步时间）：
+  "the" ✓ 正确
+  "cat" ✓ 正确
+  "sat" ✓ 正确
+  "on"  ✗ 错误（大模型认为应该是"in"）
+
+接受前 3 个 token，从第 4 个重新来
+
+净效率：1 步时间 = 生成了 3 个 token（如果全猜对就是 5 个）
+普通情况：1 步时间 = 生成了 1 个 token
+
+吞吐提升：3倍（接受率约 70% 时）</code></pre>
+
+<p>关键问题是"接受率"——小模型猜测有多少比例被大模型接受。接受率越高，提升越大：</p>
 <ul>
-  <li>同系列小模型（如 Llama-7B draft + Llama-70B target）：接受率 70-85%，<strong>吞吐提升 2-3x</strong></li>
-  <li>n-gram 匹配（不用额外模型，直接用历史文本预测）：接受率 40-60%，吞吐提升 1.5-2x，适合代码生成等重复性强的场景</li>
+  <li>用同系列小模型（Llama-8B）猜测 Llama-70B：接受率约 70-85%，吞吐提升 2-3 倍</li>
+  <li>用 n-gram 匹配（从历史文本里直接找重复片段）：接受率约 40-60%，无需额外模型，代码生成场景很有效</li>
 </ul>
 
-<p><strong>关于延迟的准确表述</strong>：投机解码提升的是<strong>吞吐量</strong>，对单请求延迟的影响取决于接受率。接受率高时（>70%），同样长度的输出所需步骤更少，端到端延迟可以降低；但如果接受率低，Draft Model 的推理开销会反而增加延迟。因此说"不牺牲延迟"不够严谨——在典型接受率（70%+）下延迟持平或略降，但接受率低时需谨慎。生产上建议先测量具体业务的 Draft 接受率再决定是否启用。</p>
+<p>一个重要的注意点：投机解码提升的是<strong>吞吐量</strong>，不一定降低单个请求的延迟。如果接受率低（小模型猜得不准），额外的验证开销反而会增加延迟。建议在生产上先测量你的业务场景下接受率是多少，再决定是否启用。</p>
 
 <pre><code class="language-python"># vLLM 中使用投机解码
 llm = LLM(
     model="meta-llama/Llama-3-70b-instruct",
-    speculative_model="meta-llama/Llama-3-8b-instruct",  # Draft model
+    speculative_model="meta-llama/Llama-3-8b-instruct",  # 小模型负责猜测
     num_speculative_tokens=5,   # 每次猜 5 个 token
     tensor_parallel_size=8,
 )</code></pre>
 
 
-<h2 id="量化">七、量化：显存减半，吞吐翻倍</h2>
+<h2 id="量化">七、量化：用更低精度存储，省显存又提速</h2>
 
-<p>量化对 LLM 的意义比传统模型更大——更小的模型权重意味着更少的显存带宽消耗，而 Decode 阶段正是带宽密集的。</p>
+<p>前面几个优化都是关于"怎么管理 KV Cache"。量化解决的是另一个问题：<strong>模型权重本身能不能存得更小？</strong></p>
 
-<h3 id="FP8">FP8：H100 的原生加速</h3>
+<h3 id="量化是什么">量化是什么</h3>
 
-<pre><code class="language-python"># TensorRT-LLM FP8 量化
-import tensorrt_llm
-from tensorrt_llm.quantization import QuantAlgo
+<p>神经网络的权重（参数）默认用 FP16（16位浮点数）存储。量化就是用更少的位数来表示这些权重，以换取更小的显存占用和更快的读取速度。</p>
 
-# FP8 量化：精度接近 FP16，速度提升 1.5-2x
-quantization = QuantAlgo.FP8
-# 模型权重和激活值都用 FP8，H100 Transformer Engine 原生支持</code></pre>
+<pre><code class="language-text">Llama-70B 不同精度的显存占用：
 
-<p>FP8 几乎无精度损失（PPL 下降 &lt;0.5%），是 H100 集群的首选量化方案。</p>
+FP32（32位）：70B × 4字节 = 280 GB  （训练时用，推理一般不用）
+FP16（16位）：70B × 2字节 = 140 GB  （标准推理）
+FP8（8位）：  70B × 1字节 = 70 GB   （轻微精度损失）
+INT4（4位）：  70B × 0.5字节 = 35 GB （精度损失稍大但通常可接受）</code></pre>
 
-<h3 id="AWQ-INT4">AWQ/GPTQ：INT4 权重量化</h3>
+<p>模型小了，Decode 阶段每步读取权重的时间也短了——这直接提升了 token 生成速度。</p>
+
+<h3 id="FP8">FP8：H100 的首选，几乎无损</h3>
+
+<p>FP8 量化精度损失极小（PPL 只下降不到 0.5%），相当于几乎看不出来区别，但显存节省了一半，速度提升 1.5-2 倍。NVIDIA H100 原生支持 FP8 计算，是 H100 集群的标准配置。</p>
+
+<h3 id="AWQ-INT4">INT4：更激进，省显存更多</h3>
+
+<p>INT4 量化把权重从 16 位压到 4 位，显存减少 75%。代价是精度损失比 FP8 稍大，但 AWQ（Activation-aware Weight Quantization）等算法通过智能地选择哪些权重更重要，把精度损失控制在可接受范围内。</p>
 
 <pre><code class="language-python">from awq import AutoAWQForCausalLM
-from transformers import AutoTokenizer
 
-# AWQ INT4 量化：显存减少 75%，速度提升 2-3x
+# AWQ INT4 量化：把模型压缩到 1/4 大小
 model = AutoAWQForCausalLM.from_pretrained("meta-llama/Llama-3-70b-instruct")
-tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3-70b-instruct")
+model.quantize(tokenizer, quant_config={"w_bit": 4, "q_group_size": 128})
+model.save_quantized("llama3-70b-awq-int4")
+# 量化后：权重约 35GB（原来 140GB），单张 A100-80GB 可以跑</code></pre>
 
-quant_config = {
-    "zero_point": True,
-    "q_group_size": 128,
-    "w_bit": 4,           # 4-bit 权重
-    "version": "GEMM"
-}
-model.quantize(tokenizer, quant_config=quant_config)
-model.save_quantized("llama3-70b-awq-int4")</code></pre>
+<p>实际部署注意：INT4 量化后权重是 35GB，但加上 KV Cache 和框架开销，单卡 A100-80GB 的 KV Cache 空间只剩约 30GB，并发数有限。更好的方案是 2 卡 TP（每卡 17.5GB 权重），给 KV Cache 留出更多空间。</p>
 
-<p>INT4 量化后 Llama-70B 权重约 35GB，但加上 activations、KV Cache 和框架开销，实际需要 45-50GB——A100-80GB 单卡勉强能跑，但 KV Cache 空间只剩 30-35GB，并发能力有限（约 100 个请求）。更现实的方案是 2 卡部署（每卡 ~25GB 权重），留出更多显存给 KV Cache，并发可达 200+。</p>
+<h3 id="KV-Cache量化">KV Cache 也能量化</h3>
 
-<h3 id="KV-Cache量化">KV Cache 量化</h3>
+<p>不仅模型权重可以量化，KV Cache 也可以用低精度存储，再次压缩显存占用：</p>
 
-<p>KV Cache 本身也可以量化，进一步节省显存：</p>
-
-<pre><code class="language-python"># vLLM KV Cache INT8 量化
-llm = LLM(
+<pre><code class="language-python">llm = LLM(
     model="meta-llama/Llama-3-70b-instruct",
-    kv_cache_dtype="fp8",   # KV Cache 用 FP8 存储
-    # 相比 FP16，KV Cache 显存减半，同等显存能服务 2 倍并发
+    kv_cache_dtype="fp8",   # KV Cache 用 FP8 而不是 FP16 存储
+    # 效果：KV Cache 显存减半，同等显存能服务约 2 倍的并发请求
 )</code></pre>
 
 
-<h2 id="并行策略">八、并行策略：多卡多机扩展</h2>
+<h2 id="并行策略">八、多卡并行：一个模型跑在多张 GPU 上</h2>
 
-<h3 id="张量并行">张量并行（Tensor Parallelism）</h3>
+<p>前面的优化都假设模型能放进一张或少数几张 GPU 里。但 Llama-70B FP16 需要 140GB 显存，一张 A100-80GB 根本放不下。这就需要多卡并行。</p>
 
-<p>把单层的权重矩阵切分到多张 GPU，每张 GPU 计算一部分，再 AllReduce 汇总：</p>
+<h3 id="张量并行">张量并行：把模型"横着切"</h3>
 
-<pre><code class="language-text">Llama-70B，FP16，4 卡张量并行：
-  每卡显存：140GB ÷ 4 = 35GB 模型权重
-  A100-80GB：还剩 45GB 用于 KV Cache
-  单节点最大并发：~100-150 请求
+<p>张量并行（Tensor Parallelism，TP）是最常用的方案：把模型每一层的权重矩阵<strong>切分到多张 GPU 上</strong>，每张卡只存一部分，计算时各自算自己那部分，再把结果汇总。</p>
 
-8 卡张量并行：
-  每卡显存：140GB ÷ 8 = 17.5GB 模型权重
-  A100-80GB：还剩 62.5GB 用于 KV Cache
-  单节点最大并发：~200+ 请求（更多 KV Cache 空间）
-</code></pre>
+<pre><code class="language-text">Llama-70B FP16，8 卡张量并行（每台服务器 8 张 A100）：
 
-<p>张量并行的代价是每层都需要 AllReduce 通信，NVLink 带宽（600GB/s）足够；跨节点则要靠 InfiniBand（400Gb/s），延迟增加明显，通常不超过 2 个节点做 TP。</p>
+每张卡存储：140GB ÷ 8 = 17.5GB 模型权重
+剩余显存：80 - 17.5 = 62.5GB 可用于 KV Cache
+单节点最大并发：约 200 个请求
 
-<h3 id="流水线并行">流水线并行（Pipeline Parallelism）</h3>
+对比不拆分（需要 2 张卡才能放下模型）：
+每张卡存储：70GB 模型权重
+剩余显存：80 - 70 = 10GB（KV Cache 极少，并发很低）</code></pre>
 
-<p>把模型按层切分到多个节点，适合超大模型（175B+）：</p>
+<p>卡数越多，每张卡存的权重越少，留给 KV Cache 的空间越多，能同时服务的请求也越多。代价是卡之间需要频繁通信——用 NVLink（服务器内部，600GB/s）没问题，跨服务器用 InfiniBand 就会有明显延迟，通常 TP 不超过 2 台服务器。</p>
 
-<pre><code class="language-text">Llama-405B，4 节点流水线并行：
-  节点1：Layer 1-25（前 25 层）
-  节点2：Layer 26-50
-  节点3：Layer 51-75
-  节点4：Layer 76-101（后 25 层）
+<h3 id="流水线并行">流水线并行：把模型"竖着切"</h3>
 
-Micro-batch 流水填充：
-  Batch 1: N1运算 → N2运算 → N3运算 → N4运算
-  Batch 2: N1运算（Batch1在N2时）→ ...
-</code></pre>
+<p>对于 175B、405B 这种超大模型，张量并行一台服务器装不下，需要<strong>流水线并行（PP）</strong>：把模型的层按顺序分给不同服务器，数据依次流过每台服务器：</p>
 
-<p>流水线并行引入 bubble（流水线气泡），通常与张量并行组合使用（TP × PP = 总 GPU 数）。</p>
+<pre><code class="language-text">Llama-405B，4 台服务器流水线：
+  服务器1：第 1-25 层
+  服务器2：第 26-50 层
+  服务器3：第 51-75 层
+  服务器4：第 76-101 层
+
+数据流向：输入 → 服务器1 → 服务器2 → 服务器3 → 服务器4 → 输出</code></pre>
+
+<p>实际部署通常把两种并行结合：比如 4 台服务器流水线并行，每台服务器内部 8 卡张量并行，总共 32 张 GPU 跑一个 405B 模型。</p>
 
 
-<h2 id="Prefill-Decode分离">九、Prefill-Decode 分离部署：工业级架构</h2>
+<h2 id="Prefill-Decode分离">九、Prefill-Decode 分离：进阶的工业级架构</h2>
 
-<p>这是 2024-2026 年大厂最重要的架构创新，字节（Mooncake）、百度、阿里都在实践。</p>
+<p>到目前为止，所有优化都假设 Prefill 和 Decode 在同一台服务器上进行。现在来讲一个更激进的架构：<strong>把 Prefill 和 Decode 拆开，分别部署在不同的服务器上</strong>。</p>
 
-<h3 id="为什么要分离">为什么要分离</h3>
+<h3 id="为什么要分离">为什么要分离：两个阶段是"死对头"</h3>
 
-<pre><code class="language-text">Prefill 阶段特性：
-  - Compute-bound（算力密集）
-  - 一个请求可以占满 GPU 算力几百毫秒
-  - 适合大 batch，高 GPU 利用率
+<p>回忆一下两个阶段的特性：</p>
 
-Decode 阶段特性：
-  - Memory-bandwidth-bound（带宽密集）
-  - 每步只处理一个 token，算力利用率极低
-  - 需要保持大量 KV Cache 在显存中
+<ul>
+  <li><strong>Prefill</strong>：处理输入，算力密集，一次计算量很大，适合大 batch 集中处理</li>
+  <li><strong>Decode</strong>：逐 token 生成，带宽密集，需要持续占用显存保存 KV Cache，需要低延迟</li>
+</ul>
 
-问题：混合部署时，一个长 prompt 的 Prefill 会让所有并发的
-      Decode 请求暂停等待，造成长尾延迟（TTFT 抖动严重）
-</code></pre>
+<p>混在一台服务器上会有什么问题？</p>
+
+<p>想象一个用户发来了 2000 个 token 的长文档（比如"帮我总结这篇文章"）。Prefill 阶段要处理这 2000 个 token，可能需要 500ms。在这 500ms 里，这台服务器上所有其他正在 Decode 的请求（正在一个字一个字地给用户输出）<strong>全部被卡住了，等待这个 Prefill 完成</strong>。</p>
+
+<p>用户体验上的表现：其他用户在正常对话，突然输出卡了半秒钟。这就是"TTFT 抖动"——首 token 延迟不稳定。</p>
 
 <h3 id="分离架构设计">分离架构设计</h3>
 
@@ -652,19 +665,56 @@ llm = LLM(
 </ul>
 
 
-<h2 id="关键点总结">十三、关键点总结</h2>
+<h2 id="关键点总结">十三、把所有优化串起来</h2>
 
-<ul>
-  <li><strong>LLM 推理是显存带宽密集型，不是算力密集型</strong>——优化的核心是 KV Cache 管理和显存带宽利用率</li>
-  <li><strong>Continuous Batching 是基础设施，必须上</strong>——把 GPU 利用率从 20% 提升到 80%+，是所有其他优化的前提</li>
-  <li><strong>PagedAttention 把显存利用率从 30% 提升到 90%</strong>——同等显存能服务 3 倍并发，是 vLLM 的核心价值</li>
-  <li><strong>Prefix Caching 让 System Prompt 只算一次</strong>——生产环境节省 60-80% 的 prefill 计算量</li>
-  <li><strong>投机解码是 decode 阶段吞吐量的突破口</strong>——2-3x 吞吐提升，不牺牲延迟</li>
-  <li><strong>量化按场景选择</strong>：H100 用 FP8（几乎无损），A100 用 AWQ-INT4（大幅节省显存），精度敏感用混合精度</li>
-  <li><strong>Prefill-Decode 分离是工业级架构的方向</strong>——两个阶段特性不同，分离部署各自优化，是百万 QPS 规模的必然选择</li>
-  <li><strong>Chunked Prefill 解决延迟抖动</strong>——长 prompt 不再阻塞其他请求的 decode 推进</li>
-  <li><strong>成本意识贯穿始终</strong>——每 1% 的吞吐提升在这个规模下都价值数百万美元</li>
-</ul>
+<p>让我们用一张图把这篇文章的所有优化手段串起来，你会发现它们都在解决同一个核心问题的不同方面：</p>
+
+<pre class="mermaid">
+graph TD
+    Problem[核心问题\n有限显存能服务多少并发请求]
+
+    Problem --> A[GPU利用率低\nGPU大量空转]
+    Problem --> B[显存利用率低\n预分配浪费]
+    Problem --> C[Decode太慢\n每步只生成1个token]
+    Problem --> D[模型太大\n放不进显存]
+    Problem --> E[Prefill阻塞Decode\n延迟抖动]
+
+    A --> Sol_A[Continuous Batching\n谁完成谁让位\nGPU利用率30%→80%]
+    B --> Sol_B[PagedAttention\n按需分页\n显存利用率30%→90%]
+    B --> Sol_B2[Prefix Caching\nSystem Prompt只算一次\n节省60%+prefill]
+    C --> Sol_C[投机解码\n小模型猜+大模型验\n吞吐提升2-3x]
+    D --> Sol_D[量化FP8/INT4\n显存减半\n速度提升1.5-3x]
+    E --> Sol_E[Prefill-Decode分离\n两类节点各司其职\n延迟更稳定]
+    E --> Sol_E2[Chunked Prefill\n长prompt切块穿插执行\n不阻塞其他请求]
+
+    style Problem fill:#fde8d8,stroke:#e67e22
+    style Sol_A fill:#d5f5e3,stroke:#27ae60
+    style Sol_B fill:#d5f5e3,stroke:#27ae60
+    style Sol_B2 fill:#d5f5e3,stroke:#27ae60
+    style Sol_C fill:#d5f5e3,stroke:#27ae60
+    style Sol_D fill:#d5f5e3,stroke:#27ae60
+    style Sol_E fill:#d6eaf8,stroke:#2980b9
+    style Sol_E2 fill:#d6eaf8,stroke:#2980b9
+</pre>
+
+<p><strong>优化的优先级（按投入产出比排序）</strong>：</p>
+
+<table>
+  <thead>
+    <tr><th>优先级</th><th>优化手段</th><th>收益</th><th>难度</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>⭐⭐⭐⭐⭐</td><td>Continuous Batching</td><td>GPU 利用率 2-3x</td><td>低（框架默认支持）</td></tr>
+    <tr><td>⭐⭐⭐⭐⭐</td><td>PagedAttention</td><td>并发数 3x</td><td>低（vLLM 默认）</td></tr>
+    <tr><td>⭐⭐⭐⭐</td><td>Prefix Caching</td><td>prefill 节省 60%+</td><td>低（一行配置）</td></tr>
+    <tr><td>⭐⭐⭐⭐</td><td>量化（FP8/INT4）</td><td>显存减半</td><td>中（需要验证精度）</td></tr>
+    <tr><td>⭐⭐⭐</td><td>投机解码</td><td>吞吐 2-3x</td><td>中（需要测接受率）</td></tr>
+    <tr><td>⭐⭐</td><td>Chunked Prefill</td><td>延迟更稳定</td><td>低（框架支持）</td></tr>
+    <tr><td>⭐</td><td>Prefill-Decode 分离</td><td>延迟稳定+独立扩容</td><td>高（需要自建调度层）</td></tr>
+  </tbody>
+</table>
+
+<p>对大多数团队来说，把前四项（Continuous Batching + PagedAttention + Prefix Caching + 量化）做好，就已经能覆盖 80% 的优化收益。后面的手段适合在前四项都做完、仍有瓶颈时再考虑。</p>
 
   </div>
 
