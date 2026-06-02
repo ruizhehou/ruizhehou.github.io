@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="模型平台工程师最容易忽视的问题：训练用的特征和线上服务的特征不一样。Training-Serving Skew 是 ML 系统效果衰减最常见的根因，比模型本身的问题更难排查。从四种不一致来源、批流计算的挑战，到 Feature Store 的架构思路，系统讲清楚这个问题和解法。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="特征一致性：模型平台工程师最容易忽视的隐患">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/02/特征一致性-训练与服务的最大隐患/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-02T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-02T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta property="article:tag" content="职业发展">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/02/特征一致性-训练与服务的最大隐患/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>特征一致性：模型平台工程师最容易忽视的隐患 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-02T10:00:00+08:00" content="2026-06-02">
+      06-02
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      特征一致性：模型平台工程师最容易忽视的隐患
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>模型效果下降了。</p>
+
+<p>这是每个模型平台工程师都会遇到的场景。通常的排查顺序是：看数据分布有没有变、看特征有没有缺失、看模型有没有出问题。但有一类问题很少在第一优先级被检查——<strong>线上服务用的特征，和离线训练用的特征，是同一套东西吗？</strong></p>
+
+<p>这个问题叫做 Training-Serving Skew（训练/服务偏差），是 ML 系统效果衰减最常见的根因之一，也是模型平台工程师最容易忽视的技术隐患。它不会报错，不会触发告警，只会让你的模型悄悄变差，而且排查链路极长。</p>
+
+<p>这篇文章讲清楚这个问题是什么、为什么难、以及系统层面的解法。</p>
+
+
+<h2 id="什么是训练服务偏差">一、什么是训练/服务偏差</h2>
+
+<p>定义很直接：<strong>模型在离线训练时使用的特征，和线上推理时使用的特征，在计算逻辑或数值上不一致</strong>。</p>
+
+<p>举一个最典型的例子。</p>
+
+<p>你在训练一个点击率预估模型，其中一个特征是"用户过去 7 天的点击次数"。离线训练时，你用 Hive 跑一个批处理任务，统计每个用户的历史点击次数，写入训练样本。线上服务时，你用 Redis 查用户的实时点击计数。</p>
+
+<p>问题在哪里？</p>
+
+<ul>
+  <li>Hive 里的统计是按自然天（00:00 到 23:59）切分的，Redis 里的计数器是按滚动窗口（当前时刻往前 7 天）计算的</li>
+  <li>Hive 统计在凌晨 3 点完成，有 3 小时的延迟；Redis 是实时的</li>
+  <li>Hive 的去重逻辑是 count(distinct uid)，Redis 用的是 INCR，没有去重</li>
+</ul>
+
+<p>这三个差异每一个单独看都不大，合起来可能让这个特征的线上值和离线值系统性偏差 20%。模型在训练时学到的是"这个用户点了 50 次"对应的模式，但线上给模型的是"这个用户点了 60 次"，模型就会给出不准的预测。</p>
+
+<p>而且这种偏差很稳定——不是随机噪声，是系统性的偏移。模型会以为自己在正常工作，只是效果差了一些。</p>
+
+
+<h2 id="四种最常见的不一致来源">二、四种最常见的不一致来源</h2>
+
+<h3 id="计算逻辑不同">1. 计算逻辑不同</h3>
+
+<p>离线和线上用了两套代码，但逻辑不完全一致。这是最常见的情况。</p>
+
+<p>离线用 Spark/Hive SQL 写特征逻辑，线上用 Java/Python 重新实现一遍。两套代码分别维护，随着迭代，细节不断分叉。边界条件处理不一样（null 值怎么处理、负数怎么截断）、取整方式不一样、窗口定义不一样——每一个细节都是潜在的不一致来源。</p>
+
+<h3 id="时间窗口定义不同">2. 时间窗口定义不同</h3>
+
+<p>这个最隐蔽。</p>
+
+<p>离线批计算是 T-1 的数据（昨天），线上查的是实时数据（现在）。本质上，训练样本里的"用户昨天的行为"和线上推理时"用户刚才的行为"是不同语义的特征，但用的是同一个特征名。</p>
+
+<p>更复杂的情况：训练时用的是事件时间（event time），线上用的是处理时间（processing time）。同一批数据，在不同时间处理，窗口内的事件集合不同，统计结果不同。</p>
+
+<h3 id="数据源不同">3. 数据源不同</h3>
+
+<p>离线从数据仓库（Hive/HDFS）读，这里的数据经过了 ETL 清洗。线上从 OLTP 数据库或者消息队列读，数据还没有经过相同的清洗流程。</p>
+
+<p>清洗逻辑包括：去除爬虫流量、过滤异常值、合并重复事件。这些逻辑在离线有，线上没有，特征值就会系统性偏高（没过滤掉的噪声）。</p>
+
+<h3 id="Join-时序不同">4. Join 时序问题（Point-in-Time Correctness）</h3>
+
+<p>这是最容易被忽视但影响最大的一类问题。</p>
+
+<p>训练样本生成时，你需要把用户的行为事件和用户的属性特征 Join 在一起。问题是：你用的是哪个时刻的用户属性？</p>
+
+<p>如果用的是"现在"的用户属性（最新版本），那训练样本里就出现了"未来信息泄漏"——样本发生在 2024 年 1 月，但用的是用户 2024 年 6 月的属性。模型在训练时看到了未来，在线上服务时却只有当前，这种偏差会让离线指标看起来特别好，但线上效果很差。</p>
+
+<p>正确的做法是 Point-in-Time 正确的 Join：用事件发生时刻的用户属性，而不是当前最新的属性。这在技术实现上非常复杂。</p>
+
+
+<h2 id="批流架构的挑战">三、批流架构的挑战：Lambda 架构的代价</h2>
+
+<p>大多数模型平台采用 Lambda 架构：批处理层（Spark/Hive）提供低延迟、准确的历史特征；流处理层（Flink）提供实时特征；两者共同作为线上服务的特征来源。</p>
+
+<p>这个架构在工程上有一个根本性的矛盾：<strong>你需要同一个特征的批量版本用于训练，同时需要它的流式版本用于服务——但这两个版本是独立的两套代码，一致性完全靠人来保证</strong>。</p>
+
+<p>随着特征数量增长，维护两套逻辑的成本是 O(n)。一个特征迭代，要改两个地方；一个 Bug，可能只在一侧修复；新来的同学不知道两套逻辑要保持同步。</p>
+
+<p>几个具体的痛点：</p>
+
+<p><strong>Flink 算子与 Spark SQL 逻辑对齐。</strong> 同样是"统计过去 1 小时的点击次数"，Flink 的滑动窗口算子和 Spark SQL 的 window function 在边界处理、watermark 延迟容忍上行为不完全一致。对齐这两套实现需要深入理解两个框架的内部机制。</p>
+
+<p><strong>Schema 演化的同步。</strong> 特征的数据类型变了（int → float）、范围变了（缺失值处理逻辑改了），批流两侧都要同步更新，还要保证历史数据的回填也用新逻辑。</p>
+
+<p><strong>回测困难。</strong> 当模型效果下降时，你需要复现历史某个时刻的特征值来判断问题出在哪里。批处理层有历史快照（Hudi/Iceberg 支持 time-travel），流处理层的实时特征可能没有被持久化，无法回溯。</p>
+
+
+<h2 id="Feature-Store-的作用">四、Feature Store 的作用：统一批流特征</h2>
+
+<p>解决训练/服务一致性问题的系统性方案是 Feature Store。核心思路是：<strong>不维护两套计算逻辑，而是维护一套特征定义，让批处理和流处理都从同一份定义生成</strong>。</p>
+
+<p>一个 Feature Store 通常包含三个核心能力：</p>
+
+<h3 id="统一特征定义">统一特征定义层</h3>
+
+<p>特征逻辑只写一次，以声明式的方式描述（类似 DSL），系统负责把它翻译成批处理和流处理两套执行计划。这是最难实现的部分，也是最有价值的部分。</p>
+
+<p>Uber 的 Chronon（开源版 Zipline）和 LinkedIn 的 Feathr 都走这个路线：定义一个特征聚合（如"过去 7 天点击次数"），系统自动生成 Spark 的离线计算逻辑和 Flink 的在线计算逻辑，保证语义一致。</p>
+
+<h3 id="双写存储">双写存储：Online Store + Offline Store</h3>
+
+<p>Feature Store 把特征同时写入两个存储：</p>
+
+<ul>
+  <li><strong>Online Store</strong>（低延迟读取，用于线上推理）：通常是 Redis 或 HBase。Redis 适合热点特征（访问频率高、数据量不大），HBase 适合宽表特征（用户维度多、数据量大）</li>
+  <li><strong>Offline Store</strong>（高吞吐批量读取，用于训练）：通常是 Hudi 或 Iceberg on HDFS/S3，支持 time-travel 查询，满足 Point-in-Time 正确性要求</li>
+</ul>
+
+<p>同一个特征值，通过同一套计算逻辑产生，分别写入两个存储。这从根本上解决了两套逻辑不同步的问题。</p>
+
+<h3 id="Point-in-Time-Join">Point-in-Time 正确的训练样本生成</h3>
+
+<p>Feature Store 的 Offline Store 保存了特征的历史版本（通过 Hudi 的 Merge-On-Read 或 Iceberg 的 snapshot 实现）。生成训练样本时，系统根据每条样本的事件时间，查询对应时刻的特征快照，而不是最新值。</p>
+
+<p>这需要 Offline Store 支持高效的 time-travel 查询：给定用户 ID 和时间戳，返回该时间戳之前最新的特征值。Hudi 的 Incremental Query 模式和 Iceberg 的 AS OF 语法都支持这个能力。</p>
+
+
+<h2 id="工程实践中的检验方法">五、工程实践：如何检测和量化一致性问题</h2>
+
+<p>系统性解决方案需要时间建设，但有一些低成本的工程实践可以立刻落地：</p>
+
+<p><strong>特征一致性监控。</strong> 在线上服务中，随机采样一部分请求，记录每个特征的线上值，和同时刻离线计算的批量值做对比，输出分布差异指标（均值偏差、分位数偏差）。如果某个特征的偏差持续扩大，说明两套逻辑在分叉。</p>
+
+<p><strong>影子模式（Shadow Mode）验证。</strong> 新特征上线前，先让两套计算逻辑并行运行，比较输出。只有当两套输出的分布差异在可接受范围内，才允许特征进入生产。</p>
+
+<p><strong>强制代码共享，而不是文档约定。</strong> 如果无法实现统一的特征定义层，退而求其次：把特征逻辑封装成共享库，批处理和流处理都调用同一个函数实现。至少保证计算逻辑来自同一份代码，而不是两份各自维护的实现。</p>
+
+<p><strong>特征血缘追踪。</strong> 记录每个训练样本的特征是从哪个版本的计算逻辑、哪个数据快照计算出来的。当模型效果下降时，可以快速定位是特征逻辑的哪次变更引入了问题。</p>
+
+
+<h2 id="为什么这个问题值得优先关注">六、为什么这是模型平台最值得优先解决的问题</h2>
+
+<p>有一个不太直觉的现实：大多数 ML 团队投入最多的是模型架构优化，但模型效果提升的最大瓶颈往往不在模型本身，而在数据质量和特征一致性。</p>
+
+<p>Google 在 2015 年的论文《Hidden Technical Debt in Machine Learning Systems》里明确指出，Training-Serving Skew 是 ML 系统最常见的隐性技术债之一，而且会随着系统规模增长呈指数级恶化——因为特征越多，维护两套逻辑的可能出错点越多。</p>
+
+<p>从模型平台工程师的视角，这个问题的优先级之所以高，是因为：</p>
+
+<ul>
+  <li><strong>排查成本极高</strong>：特征一致性问题不会有明显的 error 日志，只能通过效果指标的变化来发现，定位链路长</li>
+  <li><strong>影响范围广</strong>：一个特征平台服务多个模型，一处不一致可能影响多条业务线</li>
+  <li><strong>可以系统性解决</strong>：不像模型算法优化那样需要持续投入，特征一致性的基础设施一旦建好，可以覆盖所有模型，是高杠杆的投入</li>
+</ul>
+
+<p>在金融和增长场景（JD 里提到的两个方向）里，这个问题更严重。金融模型要求合规可解释，特征的计算口径必须完全精确；增长场景的模型迭代频率高，特征逻辑变更频繁，两套逻辑分叉的速度更快。</p>
+
+
+<h2 id="总结">七、总结</h2>
+
+<p>Training-Serving Skew 是模型平台工程的核心难题，四个主要来源：计算逻辑分叉、时间窗口定义不同、数据源差异、Point-in-Time 不正确。</p>
+
+<p>Lambda 架构下批流两套逻辑是这个问题的结构性根源。系统性解法是 Feature Store：统一特征定义层、双写 Online/Offline Store、支持 Point-in-Time 正确的训练样本生成。</p>
+
+<p>短期没有条件建 Feature Store 的团队，可以从监控（线上线下分布对比）、影子验证、代码共享、特征血缘这四个工程实践入手，先把问题可见化，再逐步建设基础设施。</p>
+
+<p>对于准备面试模型平台岗位的人：能够清楚说出这个问题是什么、为什么难、以及有哪些层次的解法，本身就是一个很有区分度的信号——它说明你理解的不只是单个技术组件，而是整个 ML 系统的数据流转和工程约束。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+          <a href="/tags/职业发展/" rel="tag"><i class="fa fa-tag"></i> 职业发展</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么是训练服务偏差"><span class="nav-number">1.</span> <span class="nav-text">一、什么是训练/服务偏差</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#四种最常见的不一致来源"><span class="nav-number">2.</span> <span class="nav-text">二、四种最常见的不一致来源</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#批流架构的挑战"><span class="nav-number">3.</span> <span class="nav-text">三、批流架构的挑战：Lambda 架构的代价</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Feature-Store-的作用"><span class="nav-number">4.</span> <span class="nav-text">四、Feature Store 的作用：统一批流特征</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#工程实践中的检验方法"><span class="nav-number">5.</span> <span class="nav-text">五、工程实践：检测和量化一致性问题</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么这个问题值得优先关注"><span class="nav-number">6.</span> <span class="nav-text">六、为什么这是最值得优先解决的问题</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">七、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">219</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+</body>
+</html>
