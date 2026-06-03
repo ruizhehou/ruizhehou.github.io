@@ -153,6 +153,37 @@
 
 <p>这就是多模态模型的<strong>语言先验主导问题</strong>（Language Prior Dominance）——模型依赖从训练语料里学到的语言统计关联，而不是从图像本身做出推理。它是多模态幻觉的根本来源，也是当前多模态基模最核心的技术挑战之一。</p>
 
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 580 200" style="max-width:560px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.vt{fill:currentColor;font-family:inherit;}</style>
+  <!-- Left panel: with image -->
+  <rect x="10" y="10" width="250" height="170" rx="8" fill="rgba(128,128,128,0.06)" stroke="rgba(128,128,128,0.25)" stroke-width="1.5"/>
+  <text x="135" y="36" text-anchor="middle" font-size="11" class="vt" opacity="0.5">正常输入</text>
+  <rect x="38" y="46" width="72" height="58" rx="6" fill="rgba(128,128,128,0.08)" stroke="rgba(128,128,128,0.2)" stroke-width="1"/>
+  <text x="74" y="82" text-anchor="middle" font-size="28">🍌</text>
+  <text x="170" y="70" text-anchor="middle" font-size="11" class="vt">Q: 香蕉是什么颜色？</text>
+  <text x="170" y="88" text-anchor="middle" font-size="10" class="vt" opacity="0.4">（图片可见）</text>
+  <rect x="65" y="118" width="140" height="24" rx="5" fill="rgba(128,128,128,0.08)" stroke="rgba(128,128,128,0.2)" stroke-width="1"/>
+  <text x="135" y="135" text-anchor="middle" font-size="10" class="vt" opacity="0.45">多模态模型推理</text>
+  <rect x="72" y="153" width="126" height="20" rx="4" fill="rgba(76,175,80,0.14)" stroke="rgba(76,175,80,0.4)" stroke-width="1"/>
+  <text x="135" y="167" text-anchor="middle" font-size="12" fill="#4caf50" font-weight="600">黄色 ✓</text>
+  <!-- Equal sign -->
+  <text x="290" y="104" text-anchor="middle" font-size="22" class="vt" opacity="0.2">≈</text>
+  <text x="290" y="122" text-anchor="middle" font-size="10" class="vt" opacity="0.3">准确率相近</text>
+  <!-- Right panel: no image -->
+  <rect x="320" y="10" width="250" height="170" rx="8" fill="rgba(128,128,128,0.06)" stroke="rgba(128,128,128,0.25)" stroke-width="1.5"/>
+  <text x="445" y="36" text-anchor="middle" font-size="11" class="vt" opacity="0.5">去掉图片</text>
+  <rect x="348" y="46" width="72" height="58" rx="6" fill="rgba(128,128,128,0.04)" stroke="rgba(128,128,128,0.15)" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="384" y="82" text-anchor="middle" font-size="26" class="vt" opacity="0.2">✕</text>
+  <text x="480" y="70" text-anchor="middle" font-size="11" class="vt">Q: 香蕉是什么颜色？</text>
+  <text x="480" y="88" text-anchor="middle" font-size="10" class="vt" opacity="0.4">（无图片输入）</text>
+  <rect x="375" y="118" width="140" height="24" rx="5" fill="rgba(128,128,128,0.08)" stroke="rgba(128,128,128,0.2)" stroke-width="1"/>
+  <text x="445" y="135" text-anchor="middle" font-size="10" class="vt" opacity="0.45">多模态模型推理</text>
+  <rect x="382" y="153" width="126" height="20" rx="4" fill="rgba(76,175,80,0.14)" stroke="rgba(76,175,80,0.4)" stroke-width="1"/>
+  <text x="445" y="167" text-anchor="middle" font-size="12" fill="#4caf50" font-weight="600">黄色 ✓</text>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">去掉图片，多模态模型仍以相近准确率答对——答案来自语言统计，而非视觉推理</figcaption>
+</figure>
 
 <h2 id="什么是语言先验">一、什么是语言先验</h2>
 
@@ -172,6 +203,43 @@
 <p>语言模型部分已经在万亿 token 的文本上训练过，对语言的统计规律有极强的"记忆"。视觉编码器提供的视觉 token 进入语言模型后，只是少数几百个额外输入，相对于语言模型内部已经形成的语义结构，影响力非常有限。</p>
 
 <p>更关键的是：视觉 token 和语言 token 在语言模型的表征空间里并不对等。CLIP 的视觉嵌入和文本嵌入之间存在一个"模态鸿沟"（Modality Gap）——即使语义相同的图文对，其嵌入向量在空间中仍然分属不同的区域，中间隔着一段距离。投影层负责弥合这个距离，但弥合的质量取决于对齐训练的数据质量和规模。</p>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 580 130" style="max-width:560px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.at{fill:currentColor;font-family:inherit;}</style>
+  <!-- Image icon -->
+  <rect x="10" y="30" width="60" height="60" rx="8" fill="rgba(128,128,128,0.08)" stroke="rgba(128,128,128,0.25)" stroke-width="1.5"/>
+  <text x="40" y="67" text-anchor="middle" font-size="26">🖼</text>
+  <text x="40" y="106" text-anchor="middle" font-size="10" class="at" opacity="0.45">图片输入</text>
+  <!-- Arrow -->
+  <line x1="72" y1="60" x2="96" y2="60" stroke="rgba(128,128,128,0.4)" stroke-width="1.5" marker-end="url(#a1)"/>
+  <!-- Vision Encoder (small) -->
+  <rect x="98" y="36" width="90" height="48" rx="6" fill="rgba(76,175,80,0.1)" stroke="rgba(76,175,80,0.4)" stroke-width="1.5"/>
+  <text x="143" y="57" text-anchor="middle" font-size="11" fill="rgba(76,175,80,0.9)" font-weight="600">视觉编码器</text>
+  <text x="143" y="73" text-anchor="middle" font-size="10" class="at" opacity="0.45">ViT-L ≈ 300M</text>
+  <text x="143" y="104" text-anchor="middle" font-size="10" class="at" opacity="0.4">300M 参数</text>
+  <!-- Arrow -->
+  <line x1="190" y1="60" x2="218" y2="60" stroke="rgba(128,128,128,0.4)" stroke-width="1.5" marker-end="url(#a2)"/>
+  <!-- Projection (thin) -->
+  <rect x="220" y="44" width="32" height="32" rx="4" fill="rgba(128,128,128,0.08)" stroke="rgba(128,128,128,0.25)" stroke-width="1"/>
+  <text x="236" y="61" text-anchor="middle" font-size="9" class="at" opacity="0.45">投影</text>
+  <text x="236" y="74" text-anchor="middle" font-size="9" class="at" opacity="0.4">层</text>
+  <!-- Arrow -->
+  <line x1="254" y1="60" x2="278" y2="60" stroke="rgba(128,128,128,0.4)" stroke-width="1.5" marker-end="url(#a3)"/>
+  <!-- LLM (large) -->
+  <rect x="280" y="18" width="290" height="84" rx="8" fill="rgba(33,150,243,0.08)" stroke="rgba(33,150,243,0.35)" stroke-width="2"/>
+  <text x="425" y="52" text-anchor="middle" font-size="14" fill="rgba(33,150,243,0.85)" font-weight="600">大语言模型（LLM）</text>
+  <text x="425" y="72" text-anchor="middle" font-size="11" class="at" opacity="0.45">7B — 70B 参数 · 万亿 token 预训练</text>
+  <text x="425" y="118" text-anchor="middle" font-size="10" class="at" opacity="0.4">≈ 100× 参数量</text>
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="a1" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.4)"/></marker>
+    <marker id="a2" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.4)"/></marker>
+    <marker id="a3" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.4)"/></marker>
+  </defs>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">多模态模型架构：视觉编码器（~300M）经投影层接入 LLM（7B—70B），参数量相差约 100 倍</figcaption>
+</figure>
 
 <h3 id="指令微调数据的偏差">2. 指令微调数据的偏差</h3>
 
@@ -233,6 +301,49 @@
 <p>对比解码（Contrastive Decoding）在推理时同时运行两个前向传播：一次带图片，一次不带图片（或带一张干扰图片）。最终的输出是两次结果的差值——只保留那些因为图片的存在而改变的预测。</p>
 
 <p>这个方法不需要改变训练，只在推理时加一步，能有效抑制语言先验。代价是推理时间翻倍（两次前向传播）。在对延迟敏感的场景里不适用，但在离线评估或对质量要求高的场景里是实用的工具。</p>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 580 190" style="max-width:560px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.ct{fill:currentColor;font-family:inherit;}</style>
+  <!-- Input split -->
+  <rect x="10" y="72" width="72" height="46" rx="6" fill="rgba(128,128,128,0.08)" stroke="rgba(128,128,128,0.25)" stroke-width="1.5"/>
+  <text x="46" y="91" text-anchor="middle" font-size="10" class="ct" opacity="0.5">问题 +</text>
+  <text x="46" y="106" text-anchor="middle" font-size="10" class="ct" opacity="0.5">图片输入</text>
+  <!-- Branch lines -->
+  <line x1="82" y1="95" x2="106" y2="58" stroke="rgba(128,128,128,0.3)" stroke-width="1.5"/>
+  <line x1="82" y1="95" x2="106" y2="132" stroke="rgba(128,128,128,0.3)" stroke-width="1.5"/>
+  <!-- Top path: with image -->
+  <rect x="108" y="36" width="120" height="44" rx="6" fill="rgba(33,150,243,0.09)" stroke="rgba(33,150,243,0.3)" stroke-width="1.5"/>
+  <text x="168" y="55" text-anchor="middle" font-size="11" fill="rgba(33,150,243,0.8)">含图片输入</text>
+  <text x="168" y="72" text-anchor="middle" font-size="10" class="ct" opacity="0.4">正常前向传播</text>
+  <line x1="230" y1="58" x2="290" y2="58" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ca1)"/>
+  <rect x="292" y="36" width="90" height="44" rx="6" fill="rgba(128,128,128,0.06)" stroke="rgba(128,128,128,0.2)" stroke-width="1"/>
+  <text x="337" y="62" text-anchor="middle" font-size="11" class="ct" opacity="0.6">输出概率 P₁</text>
+  <!-- Bottom path: without image -->
+  <rect x="108" y="110" width="120" height="44" rx="6" fill="rgba(244,67,54,0.08)" stroke="rgba(244,67,54,0.25)" stroke-width="1.5"/>
+  <text x="168" y="129" text-anchor="middle" font-size="11" fill="rgba(244,67,54,0.7)">无图片输入</text>
+  <text x="168" y="146" text-anchor="middle" font-size="10" class="ct" opacity="0.4">干扰前向传播</text>
+  <line x1="230" y1="132" x2="290" y2="132" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ca2)"/>
+  <rect x="292" y="110" width="90" height="44" rx="6" fill="rgba(128,128,128,0.06)" stroke="rgba(128,128,128,0.2)" stroke-width="1"/>
+  <text x="337" y="136" text-anchor="middle" font-size="11" class="ct" opacity="0.6">输出概率 P₂</text>
+  <!-- Minus sign -->
+  <line x1="384" y1="58" x2="400" y2="58" stroke="rgba(128,128,128,0.3)" stroke-width="1"/>
+  <line x1="384" y1="132" x2="400" y2="132" stroke="rgba(128,128,128,0.3)" stroke-width="1"/>
+  <line x1="400" y1="58" x2="400" y2="132" stroke="rgba(128,128,128,0.3)" stroke-width="1"/>
+  <text x="414" y="99" text-anchor="middle" font-size="16" class="ct" opacity="0.35">−</text>
+  <!-- Result -->
+  <line x1="428" y1="95" x2="452" y2="95" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ca3)"/>
+  <rect x="454" y="72" width="120" height="46" rx="6" fill="rgba(76,175,80,0.1)" stroke="rgba(76,175,80,0.35)" stroke-width="1.5"/>
+  <text x="514" y="91" text-anchor="middle" font-size="11" fill="rgba(76,175,80,0.85)" font-weight="600">P₁ − P₂</text>
+  <text x="514" y="108" text-anchor="middle" font-size="10" class="ct" opacity="0.45">纯视觉驱动输出</text>
+  <defs>
+    <marker id="ca1" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.35)"/></marker>
+    <marker id="ca2" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.35)"/></marker>
+    <marker id="ca3" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.35)"/></marker>
+  </defs>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">对比解码：同时运行两次前向传播，用差值抵消语言先验，保留视觉驱动的预测</figcaption>
+</figure>
 
 <h3 id="评估体系：抗捷径benchmark">评估体系：抗捷径 benchmark</h3>
 
