@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Agent 编排最容易出问题的地方不是任务路由，而是上下文管理：每一步传什么、传多少、怎么截断。从三种基本编排模式，到上下文膨胀、错误传播、中断与检查点，系统讲清楚 multi-agent 系统在生产环境里为什么难，以及工程层面的应对原则。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Agent 编排调度：核心难题不是调度，是上下文">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/03/Agent编排调度/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-03T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-03T14:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/03/Agent编排调度/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>Agent 编排调度：核心难题不是调度，是上下文 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-03T14:00:00+08:00" content="2026-06-03">
+      06-03
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      Agent 编排调度：核心难题不是调度，是上下文
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>多 Agent 系统在设计阶段看起来很直觉：把一个复杂任务拆成几步，每步交给一个 Agent，串起来就行了。但实际落地时，最常见的失败不是某个 Agent 能力不够，而是整个链路的行为难以预测——前面一个 Agent 的一个细微偏差，到后面已经变成完全错误的结果，而且你很难知道问题出在哪一步。</p>
+
+<p>这篇文章的核心论点是：<strong>Agent 编排最难的部分不是调度逻辑，而是上下文管理</strong>——每一步传什么信息、传多少、如何截断、如何防止错误累积。把这个问题想清楚，其他问题大多可以推导出来。</p>
+
+
+<h2 id="三种基本编排模式">一、三种基本编排模式</h2>
+
+<p>Agent 编排有三种基本拓扑，其他复杂模式都是这三种的组合。</p>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 600 210" style="max-width:580px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.ot{fill:currentColor;font-family:inherit;}</style>
+  <!-- Sequential -->
+  <text x="90" y="20" text-anchor="middle" font-size="11" class="ot" opacity="0.5">顺序链（Sequential）</text>
+  <rect x="10" y="28" width="60" height="30" rx="5" fill="rgba(33,150,243,0.1)" stroke="rgba(33,150,243,0.4)" stroke-width="1.5"/>
+  <text x="40" y="47" text-anchor="middle" font-size="11" class="ot">Agent A</text>
+  <line x1="72" y1="43" x2="90" y2="43" stroke="rgba(128,128,128,0.4)" stroke-width="1.5" marker-end="url(#oa1)"/>
+  <rect x="92" y="28" width="60" height="30" rx="5" fill="rgba(33,150,243,0.1)" stroke="rgba(33,150,243,0.4)" stroke-width="1.5"/>
+  <text x="122" y="47" text-anchor="middle" font-size="11" class="ot">Agent B</text>
+  <line x1="154" y1="43" x2="172" y2="43" stroke="rgba(128,128,128,0.4)" stroke-width="1.5" marker-end="url(#oa2)"/>
+  <rect x="174" y="28" width="60" height="30" rx="5" fill="rgba(33,150,243,0.1)" stroke="rgba(33,150,243,0.4)" stroke-width="1.5"/>
+  <text x="204" y="47" text-anchor="middle" font-size="11" class="ot">Agent C</text>
+
+  <!-- Parallel -->
+  <text x="390" y="20" text-anchor="middle" font-size="11" class="ot" opacity="0.5">并行扇出（Parallel Fan-out）</text>
+  <rect x="300" y="28" width="60" height="30" rx="5" fill="rgba(76,175,80,0.1)" stroke="rgba(76,175,80,0.4)" stroke-width="1.5"/>
+  <text x="330" y="47" text-anchor="middle" font-size="11" class="ot">输入</text>
+  <line x1="362" y1="38" x2="380" y2="32" stroke="rgba(128,128,128,0.35)" stroke-width="1.3" marker-end="url(#oa3)"/>
+  <line x1="362" y1="43" x2="380" y2="43" stroke="rgba(128,128,128,0.35)" stroke-width="1.3" marker-end="url(#oa4)"/>
+  <line x1="362" y1="48" x2="380" y2="54" stroke="rgba(128,128,128,0.35)" stroke-width="1.3" marker-end="url(#oa5)"/>
+  <rect x="382" y="22" width="52" height="22" rx="4" fill="rgba(76,175,80,0.1)" stroke="rgba(76,175,80,0.35)" stroke-width="1"/>
+  <text x="408" y="36" text-anchor="middle" font-size="10" class="ot">Agent 1</text>
+  <rect x="382" y="32" width="52" height="22" rx="4" fill="rgba(76,175,80,0.1)" stroke="rgba(76,175,80,0.35)" stroke-width="1"/>
+  <text x="408" y="47" text-anchor="middle" font-size="10" class="ot">Agent 2</text>
+  <rect x="382" y="42" width="52" height="22" rx="4" fill="rgba(76,175,80,0.1)" stroke="rgba(76,175,80,0.35)" stroke-width="1"/>
+  <text x="408" y="57" text-anchor="middle" font-size="10" class="ot">Agent 3</text>
+  <line x1="436" y1="32" x2="452" y2="38" stroke="rgba(128,128,128,0.35)" stroke-width="1.3"/>
+  <line x1="436" y1="43" x2="452" y2="43" stroke="rgba(128,128,128,0.35)" stroke-width="1.3"/>
+  <line x1="436" y1="54" x2="452" y2="48" stroke="rgba(128,128,128,0.35)" stroke-width="1.3"/>
+  <rect x="454" y="28" width="52" height="30" rx="4" fill="rgba(76,175,80,0.1)" stroke="rgba(76,175,80,0.4)" stroke-width="1.5"/>
+  <text x="480" y="47" text-anchor="middle" font-size="10" class="ot">聚合</text>
+
+  <!-- Hierarchical -->
+  <text x="300" y="100" text-anchor="middle" font-size="11" class="ot" opacity="0.5">层级编排（Hierarchical）</text>
+  <rect x="240" y="108" width="120" height="32" rx="6" fill="rgba(244,67,54,0.08)" stroke="rgba(244,67,54,0.35)" stroke-width="1.5"/>
+  <text x="300" y="128" text-anchor="middle" font-size="12" fill="rgba(244,67,54,0.8)" font-weight="600">Orchestrator</text>
+  <line x1="260" y1="141" x2="240" y2="162" stroke="rgba(128,128,128,0.35)" stroke-width="1.3" marker-end="url(#oa6)"/>
+  <line x1="300" y1="141" x2="300" y2="162" stroke="rgba(128,128,128,0.35)" stroke-width="1.3" marker-end="url(#oa7)"/>
+  <line x1="340" y1="141" x2="360" y2="162" stroke="rgba(128,128,128,0.35)" stroke-width="1.3" marker-end="url(#oa8)"/>
+  <rect x="196" y="164" width="88" height="28" rx="5" fill="rgba(244,67,54,0.06)" stroke="rgba(244,67,54,0.25)" stroke-width="1"/>
+  <text x="240" y="182" text-anchor="middle" font-size="10" class="ot">Sub-agent A</text>
+  <rect x="256" y="164" width="88" height="28" rx="5" fill="rgba(244,67,54,0.06)" stroke="rgba(244,67,54,0.25)" stroke-width="1"/>
+  <text x="300" y="182" text-anchor="middle" font-size="10" class="ot">Sub-agent B</text>
+  <rect x="316" y="164" width="88" height="28" rx="5" fill="rgba(244,67,54,0.06)" stroke="rgba(244,67,54,0.25)" stroke-width="1"/>
+  <text x="360" y="182" text-anchor="middle" font-size="10" class="ot">Sub-agent C</text>
+
+  <defs>
+    <marker id="oa1" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.4)"/></marker>
+    <marker id="oa2" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.4)"/></marker>
+    <marker id="oa3" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.35)"/></marker>
+    <marker id="oa4" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.35)"/></marker>
+    <marker id="oa5" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.35)"/></marker>
+    <marker id="oa6" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.35)"/></marker>
+    <marker id="oa7" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.35)"/></marker>
+    <marker id="oa8" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.35)"/></marker>
+  </defs>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">Agent 编排的三种基本拓扑：顺序链、并行扇出、层级编排</figcaption>
+</figure>
+
+<h3 id="顺序链">顺序链（Sequential Chain）</h3>
+
+<p>最简单的形式。A 完成 → 把输出传给 B → B 完成 → 传给 C。每一步都有完整上下文，理解前一步做了什么。</p>
+
+<p>适合：任务步骤之间有严格依赖顺序，后一步需要前一步的完整结果。例如：搜索→分析→写报告。</p>
+
+<p>问题在于：<strong>上下文随步骤数线性增长</strong>。到第五步时，Agent 要读的上下文已经包含前四步的全部输入和输出，很容易超过上下文窗口，而且越后面的步骤越容易被早期噪声干扰。</p>
+
+<h3 id="并行扇出">并行扇出（Parallel Fan-out）</h3>
+
+<p>把同一个任务分发给多个 Agent 并行处理，最后聚合结果。最常见的用法：同一个问题让多个 Agent 独立回答，取投票结果或最佳答案。</p>
+
+<p>适合：子任务之间相互独立，速度比精度更重要，或者需要多样性观点。</p>
+
+<p>问题在于：<strong>聚合逻辑本身就是一个复杂问题</strong>。三个 Agent 给出三个不同答案，聚合 Agent 要做什么？简单投票在文本任务里意义不大，语义相近的答案可能在字面上完全不同。聚合步骤往往比各个子 Agent 更难写好。</p>
+
+<h3 id="层级编排">层级编排（Hierarchical）</h3>
+
+<p>由一个 Orchestrator 负责任务规划和分配，Sub-agent 负责执行具体步骤，结果汇报给 Orchestrator 再决定下一步。</p>
+
+<p>适合：任务复杂、需要动态调整执行路径、子任务类型差异大。这是目前生产级 Agent 系统最常见的架构。</p>
+
+<p>问题在于：Orchestrator 需要维护全局状态和执行计划，这对它的推理能力要求很高。一旦 Orchestrator 出错（比如任务分解错误、忘记某个子任务的结果），整个任务就会走偏，而且没有外部观察者能发现。</p>
+
+
+<h2 id="上下文管理的核心问题">二、上下文管理：最被低估的工程问题</h2>
+
+<p>在单 Agent 系统里，上下文管理是"把历史对话塞进 prompt"。在 multi-agent 系统里，这个问题变成了：<strong>每个 Agent 在执行时，应该拥有哪些信息？</strong></p>
+
+<p>两种极端都是错的。</p>
+
+<p><strong>传太少</strong>：Agent B 不知道 Agent A 做了什么决策，会重复工作或做出矛盾的选择。比如 A 已经决定用方案一，但 B 不知道，又把方案二推了一遍，最终输出自相矛盾。</p>
+
+<p><strong>传太多</strong>：把前面所有步骤的完整输入输出都传给每个 Agent，会造成上下文膨胀、注意力稀释、推理质量下降，同时消耗大量 token。</p>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 580 160" style="max-width:560px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.ct2{fill:currentColor;font-family:inherit;}</style>
+  <!-- Step bars showing context growth -->
+  <text x="290" y="16" text-anchor="middle" font-size="11" class="ct2" opacity="0.5">顺序链中每个 Agent 的上下文大小（"全部透传"模式）</text>
+  <!-- Step 1 -->
+  <text x="50" y="38" text-anchor="end" font-size="10" class="ct2" opacity="0.5">Step 1</text>
+  <rect x="55" y="26" width="60" height="18" rx="3" fill="rgba(33,150,243,0.25)" stroke="rgba(33,150,243,0.4)" stroke-width="1"/>
+  <text x="86" y="38" text-anchor="middle" font-size="9" class="ct2" opacity="0.6">任务</text>
+  <!-- Step 2 -->
+  <text x="50" y="60" text-anchor="end" font-size="10" class="ct2" opacity="0.5">Step 2</text>
+  <rect x="55" y="48" width="60" height="18" rx="3" fill="rgba(33,150,243,0.12)" stroke="rgba(33,150,243,0.25)" stroke-width="1"/>
+  <rect x="117" y="48" width="80" height="18" rx="3" fill="rgba(33,150,243,0.25)" stroke="rgba(33,150,243,0.4)" stroke-width="1"/>
+  <text x="157" y="60" text-anchor="middle" font-size="9" class="ct2" opacity="0.6">Step1输出</text>
+  <!-- Step 3 -->
+  <text x="50" y="82" text-anchor="end" font-size="10" class="ct2" opacity="0.5">Step 3</text>
+  <rect x="55" y="70" width="60" height="18" rx="3" fill="rgba(33,150,243,0.07)" stroke="rgba(33,150,243,0.18)" stroke-width="1"/>
+  <rect x="117" y="70" width="80" height="18" rx="3" fill="rgba(33,150,243,0.12)" stroke="rgba(33,150,243,0.25)" stroke-width="1"/>
+  <rect x="199" y="70" width="100" height="18" rx="3" fill="rgba(33,150,243,0.25)" stroke="rgba(33,150,243,0.4)" stroke-width="1"/>
+  <text x="249" y="82" text-anchor="middle" font-size="9" class="ct2" opacity="0.6">Step2输出</text>
+  <!-- Step 4 -->
+  <text x="50" y="104" text-anchor="end" font-size="10" class="ct2" opacity="0.5">Step 4</text>
+  <rect x="55" y="92" width="60" height="18" rx="3" fill="rgba(33,150,243,0.04)" stroke="rgba(33,150,243,0.12)" stroke-width="1"/>
+  <rect x="117" y="92" width="80" height="18" rx="3" fill="rgba(33,150,243,0.07)" stroke="rgba(33,150,243,0.18)" stroke-width="1"/>
+  <rect x="199" y="92" width="100" height="18" rx="3" fill="rgba(33,150,243,0.12)" stroke="rgba(33,150,243,0.25)" stroke-width="1"/>
+  <rect x="301" y="92" width="120" height="18" rx="3" fill="rgba(33,150,243,0.25)" stroke="rgba(33,150,243,0.4)" stroke-width="1"/>
+  <text x="361" y="104" text-anchor="middle" font-size="9" class="ct2" opacity="0.6">Step3输出</text>
+  <!-- Step 5 -->
+  <text x="50" y="126" text-anchor="end" font-size="10" class="ct2" opacity="0.5">Step 5</text>
+  <rect x="55" y="114" width="60" height="18" rx="3" fill="rgba(244,67,54,0.04)" stroke="rgba(244,67,54,0.12)" stroke-width="1"/>
+  <rect x="117" y="114" width="80" height="18" rx="3" fill="rgba(244,67,54,0.06)" stroke="rgba(244,67,54,0.15)" stroke-width="1"/>
+  <rect x="199" y="114" width="100" height="18" rx="3" fill="rgba(244,67,54,0.08)" stroke="rgba(244,67,54,0.2)" stroke-width="1"/>
+  <rect x="301" y="114" width="120" height="18" rx="3" fill="rgba(244,67,54,0.1)" stroke="rgba(244,67,54,0.25)" stroke-width="1"/>
+  <rect x="423" y="114" width="140" height="18" rx="3" fill="rgba(244,67,54,0.2)" stroke="rgba(244,67,54,0.4)" stroke-width="1"/>
+  <text x="493" y="126" text-anchor="middle" font-size="9" fill="rgba(244,67,54,0.7)" opacity="0.8">Step4输出 ⚠</text>
+  <text x="290" y="152" text-anchor="middle" font-size="10" class="ct2" opacity="0.35">每步累积前序所有输出，上下文线性膨胀</text>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">全量透传模式下，越后面的 Agent 读的历史越长、噪声越多</figcaption>
+</figure>
+
+<p>正确的做法是<strong>结构化上下文截断</strong>：每个 Agent 拿到的不是前序步骤的原文，而是一个经过精心设计的摘要或结构化数据。这个摘要只包含当前步骤需要的信息，丢弃不相关的细节。</p>
+
+<p>设计摘要格式时有一个反直觉的原则：<strong>让 Agent 的输出格式服务于下游 Agent 的输入需求，而不是让下游 Agent 自己解析上游的自然语言输出</strong>。也就是说，如果 Agent B 需要从 Agent A 的结果里提取"用户的核心诉求"这个字段，那么 A 的输出结构里就应该有这个明确字段，而不是让 B 去读 A 写的一大段自然语言再自行理解。</p>
+
+<p>这个原则本质上是让 Agent 之间的接口契约化——和微服务之间用 API Schema 通信同理，Agent 之间也应该有明确的数据契约，而不是松散的自然语言传递。</p>
+
+
+<h2 id="错误传播与放大">三、错误传播与放大</h2>
+
+<p>Agent 链路和函数调用链路在错误处理上有一个根本性的区别：函数调用链路的错误通常是确定性的（抛异常、返回错误码），而 Agent 链路的错误是模糊的、累积的。</p>
+
+<p>Agent A 给出了一个"方向正确但细节有误"的输出，不会触发任何异常。Agent B 拿到这个有瑕疵的输出，产生了一个"在错误前提下合理"的结果。到了 Agent D，最终输出可能已经偏离原始意图很远，但整个链路里没有任何步骤"报错"。</p>
+
+<p>这个问题被称为<strong>误差放大</strong>（Error Amplification）。它有几个典型来源：</p>
+
+<p><strong>事实性偏差的传递。</strong> Agent A 对一个技术细节理解有误（比如把 API 限流规则记错了），把这个错误作为事实传给了后续 Agent。后续 Agent 基于这个错误事实做出了合理但错误的决策。</p>
+
+<p><strong>格式解析的歧义。</strong> Agent A 输出了一个列表，Agent B 把它理解成了有序优先级列表，但 A 的意图是无序列举。这种语义歧义在自然语言传递中很常见，但在单次对话里人类可以通过语境消歧，Agent 无法做到。</p>
+
+<p><strong>目标漂移。</strong> 在很长的 Agent 链路里，每个 Agent 的 prompt 里都有对"最终目标"的描述。但经过多步变换，最终目标的表述可能已经与原始任务偏离。最后执行的 Agent 服务的是它理解的目标，而不一定是用户真正想要的目标。</p>
+
+<p>缓解误差放大的工程手段是<strong>在关键节点引入验证步骤</strong>：专门设计一个 Reviewer Agent，它的职责不是完成任务，而是检查前一个 Agent 的输出是否符合预期的结构和约束。一旦发现偏差，中断链路并请求修正，而不是让错误继续传播。</p>
+
+
+<h2 id="中断与检查点">四、中断、检查点与人机协作</h2>
+
+<p>完全自动化的 Agent 链路在受控场景下工作良好，但在生产环境中，总有一些决策节点需要人类介入。设计 Agent 编排系统时，<strong>中断点的设计和检查点的持久化是两个经常被忽略但至关重要的工程问题</strong>。</p>
+
+<h3 id="中断点设计">中断点设计</h3>
+
+<p>中断点是链路执行到某个阶段时，主动暂停并等待人类确认再继续的节点。设计中断点的标准不是"这个操作风险高"，而是<strong>这个决策是否可逆</strong>。</p>
+
+<p>典型的不可逆操作：发送邮件、提交代码、修改数据库、调用外部付款接口——这类操作应该设置强制中断点，必须经过人工确认。可逆操作（搜索、读取数据、生成草稿）可以自动执行。</p>
+
+<p>Claude Code 的设计是一个好例子：它在执行文件写入、运行 shell 命令这类操作前会请求用户确认，但在只读操作（列出文件、读取内容）上默认不打扰。这个区分不是基于操作难度，而是基于可逆性。</p>
+
+<h3 id="检查点持久化">检查点持久化</h3>
+
+<p>长时间运行的 Agent 任务（几分钟到几小时）必须支持检查点持久化：定期把执行状态写入持久存储，以便在失败时从上次成功的节点恢复，而不是从头重跑。</p>
+
+<p>检查点需要记录的不只是"执行到哪一步"，还包括：</p>
+
+<ul>
+  <li>已完成步骤的输出（结构化存储，不是原始对话历史）</li>
+  <li>已消耗的外部资源（避免重试时重复调用）</li>
+  <li>当前的执行计划（Orchestrator 的任务分解结果）</li>
+  <li>尚未完成的步骤列表</li>
+</ul>
+
+<p>一个常见的反模式是把整个对话历史作为检查点——这会导致恢复时上下文过长，而且对话历史里混杂了大量与恢复无关的推理过程。正确的检查点应该只存储<strong>下一步执行所需的最小状态</strong>。</p>
+
+
+<h2 id="工具调用的幂等性">五、工具调用的幂等性</h2>
+
+<p>Agent 系统里，工具调用（Tool Calling）是 Agent 和外部世界交互的主要方式。工具调用出错或超时时，系统会重试——这会引出一个经典分布式系统问题：<strong>幂等性</strong>。</p>
+
+<p>幂等的工具调用，执行一次和执行多次结果相同（查询、读取）。非幂等的工具调用，重试会产生副作用（发邮件重试 → 发了两封邮件，扣款重试 → 扣了两次）。</p>
+
+<p>在设计 Agent 可用的工具集时，需要对每个工具明确标注其幂等性。对于非幂等工具，系统层面需要保证：</p>
+
+<ul>
+  <li><strong>去重机制</strong>：用唯一请求 ID 标记每次工具调用，工具服务端识别重复请求并返回第一次的结果，而不是重复执行</li>
+  <li><strong>执行状态持久化</strong>：在调用非幂等工具之前，先把"准备调用"的状态写入持久化存储，调用成功后更新为"已完成"。重试时先检查状态，避免重复执行</li>
+</ul>
+
+<p>这个问题在 LLM 时代之前已经被分布式系统工程师解决过，但在 Agent 系统里很容易被遗忘——因为 Agent 看起来像"对话"，不像"分布式事务"。本质上它是同一个问题。</p>
+
+
+<h2 id="可观测性">六、可观测性：你调试不了你看不见的东西</h2>
+
+<p>Agent 系统的可观测性比传统服务更难，因为 Agent 的"执行过程"是自然语言推理，不像函数调用有清晰的堆栈跟踪。</p>
+
+<p>但这不代表没有办法。一个可调试的 Agent 系统，至少需要记录以下内容：</p>
+
+<p><strong>每次 LLM 调用的完整输入和输出。</strong> 包括完整的 prompt（system + messages）和模型输出。不要只记录摘要——摘要会丢失关键的细节，而你往往在事后才知道哪个细节是关键的。这是最重要的一条，绝大多数 Agent 调试问题都可以通过回放 LLM 调用序列来定位。</p>
+
+<p><strong>工具调用的输入、输出和延迟。</strong> 包括工具是否成功、失败原因、重试次数。这是 Agent 和外部世界的边界，也是最常出现问题的地方。</p>
+
+<p><strong>每个 Agent 节点的上下文大小。</strong> 记录每次 LLM 调用时的 token 数（输入和输出）。当某个步骤的性能异常或行为异常时，上下文大小是最快速的诊断线索。</p>
+
+<p><strong>执行图（Execution Graph）。</strong> 记录任务是如何被分解的、每个子任务被分配给哪个 Agent、执行顺序和依赖关系。这是理解"系统做了什么"的地图，没有它你只有一堆孤立的日志条目。</p>
+
+<p>这些数据的用途不只是调试，还用于优化：哪些步骤 token 消耗最高？哪些工具调用失败率最高？哪些 Agent 节点产生的输出质量最不稳定？有了数据，优化才有方向。</p>
+
+
+<h2 id="几个关键的工程决策">七、几个关键的工程决策</h2>
+
+<p>把上面的内容落地，有几个决策点需要提前想清楚。</p>
+
+<p><strong>Agent 之间用结构化输出，不用纯自然语言。</strong> 让每个 Agent 以 JSON Schema 定义的格式输出结果，下游 Agent 通过字段名读取，而不是解析自然语言。这是最有效的减少歧义手段。开销是需要为每个 Agent 节点设计输出 Schema，但这个成本远低于后期调试自然语言歧义的成本。</p>
+
+<p><strong>Orchestrator 不做执行，只做规划和路由。</strong> 一个常见的设计错误是让 Orchestrator 既做任务分解又直接执行某些步骤。这会让 Orchestrator 的上下文同时包含规划信息和执行信息，两类信息会互相干扰。Orchestrator 只应该知道"任务图"，不应该知道执行细节。</p>
+
+<p><strong>失败处理要明确，不要依赖模型自动处理。</strong> 当工具调用失败或子 Agent 返回错误时，系统应该有明确的重试策略、降级策略和中止策略，而不是把错误信息塞给模型让它"自己决定怎么办"。模型在面对错误时的行为是不确定的，有时会过度乐观地继续执行，有时会陷入循环，都不是你想要的。</p>
+
+<p><strong>设置最大步骤数和最大 token 数的硬限制。</strong> Agent 链路可能陷入循环（Orchestrator 分配任务 → Sub-agent 完成 → Orchestrator 又分配同一个任务）或无限细化（不断把任务拆成更小的子任务而不实际执行）。硬限制是防止这类问题失控的最后一道防线。</p>
+
+
+<h2 id="总结">八、总结</h2>
+
+<p>Multi-agent 系统的编排难题可以归结为几个核心问题：</p>
+
+<ul>
+  <li><strong>上下文管理</strong>：每个 Agent 拿到的信息应该是精心截断的结构化摘要，而不是前序步骤的全量原文</li>
+  <li><strong>接口契约化</strong>：Agent 之间用 Schema 定义的结构化输出通信，消除自然语言歧义</li>
+  <li><strong>误差放大</strong>：在关键节点引入 Reviewer Agent，中断错误传播而不是让它累积</li>
+  <li><strong>可逆性驱动的中断</strong>：不可逆操作设置强制人工确认点，可逆操作自动执行</li>
+  <li><strong>幂等性设计</strong>：非幂等工具调用需要去重机制，防止重试产生副作用</li>
+  <li><strong>全链路可观测</strong>：记录每次 LLM 调用的完整输入输出和工具调用详情，这是调试的唯一可靠手段</li>
+</ul>
+
+<p>最后一句话：Agent 编排听起来像工作流编排，但它的失败模式更接近分布式系统——错误是模糊的、状态是可变的、边界是不清晰的。用设计分布式系统的思维来设计 Agent 编排，而不是用设计脚本的思维。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#三种基本编排模式"><span class="nav-number">1.</span> <span class="nav-text">一、三种基本编排模式</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#上下文管理的核心问题"><span class="nav-number">2.</span> <span class="nav-text">二、上下文管理：最被低估的工程问题</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#错误传播与放大"><span class="nav-number">3.</span> <span class="nav-text">三、错误传播与放大</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#中断与检查点"><span class="nav-number">4.</span> <span class="nav-text">四、中断、检查点与人机协作</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#工具调用的幂等性"><span class="nav-number">5.</span> <span class="nav-text">五、工具调用的幂等性</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#可观测性"><span class="nav-number">6.</span> <span class="nav-text">六、可观测性</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#几个关键的工程决策"><span class="nav-number">7.</span> <span class="nav-text">七、几个关键的工程决策</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">8.</span> <span class="nav-text">八、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">221</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
