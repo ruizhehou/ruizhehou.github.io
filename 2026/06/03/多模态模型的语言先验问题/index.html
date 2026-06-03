@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="多模态模型最容易被忽视的问题：它在很多时候靠的不是视觉理解，而是语言先验。从遮住图片仍能答对问题的实验，到幻觉、空间推理失败、计数出错的三类根因，再到数据构建和训练策略层面的应对思路，系统讲清楚这个问题为什么难，以及工程上能做什么。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="多模态模型其实不怎么「看」图片">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/03/多模态模型的语言先验问题/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-03T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-03T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/03/多模态模型的语言先验问题/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>多模态模型其实不怎么「看」图片 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-03T10:00:00+08:00" content="2026-06-03">
+      06-03
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      多模态模型其实不怎么「看」图片
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>有一个实验，结果让很多人感到不舒服。</p>
+
+<p>研究者把视觉问答（VQA）数据集里的图片全部替换成随机噪声，或者直接去掉图片只保留问题，然后测试当时主流的多模态模型。结果：很多模型在这种情况下仍然能答对超过一半的题目。</p>
+
+<p>这说明什么？说明模型并没有真正在"看"图片，而是在用语言本身的统计规律来猜答案。问"图片里的香蕉是什么颜色的"，不需要看图，模型也知道答案大概率是"黄色"。问"这张照片是在哪里拍的"，草地加上蓝天，不看图也能猜是"公园"或"户外"。</p>
+
+<p>这就是多模态模型的<strong>语言先验主导问题</strong>（Language Prior Dominance）——模型依赖从训练语料里学到的语言统计关联，而不是从图像本身做出推理。它是多模态幻觉的根本来源，也是当前多模态基模最核心的技术挑战之一。</p>
+
+
+<h2 id="什么是语言先验">一、什么是语言先验</h2>
+
+<p>语言先验指的是：模型在生成答案时，更多地依赖"这类问题的答案在语言上的分布"，而不是依赖视觉输入。</p>
+
+<p>举一个直白的例子。训练数据里有大量"这只动物是什么颜色的？——白色"（关于北极熊）、"这只动物是什么颜色的？——橙黑条纹"（关于老虎）。模型学到的不是"先看图片，再判断颜色"，而是"看到某种动物名，输出对应的颜色"。如果图片里出现了一只染成蓝色的老虎，模型大概率仍然会说"橙黑条纹"，因为语言先验太强了。</p>
+
+<p>纯文本语言模型本来就有先验偏差，这是正常的——它在做文本补全，依赖语言统计是合理的。但多模态模型被期望做的事不同：它应该以视觉输入为主，语言理解为辅，在两者出现矛盾时以图像为准。现实是，两者出现矛盾时，很多模型选择了语言。</p>
+
+
+<h2 id="语言先验从哪里来">二、语言先验从哪里来</h2>
+
+<h3 id="结构性不对称">1. 模型结构的不对称</h3>
+
+<p>多模态模型通常是在一个预训练好的大语言模型上拼接一个视觉编码器。语言模型部分是 7B 到 70B 参数，视觉编码器（如 ViT-L）是 300M 到 600M 参数。两者之间差了一到两个数量级。</p>
+
+<p>语言模型部分已经在万亿 token 的文本上训练过，对语言的统计规律有极强的"记忆"。视觉编码器提供的视觉 token 进入语言模型后，只是少数几百个额外输入，相对于语言模型内部已经形成的语义结构，影响力非常有限。</p>
+
+<p>更关键的是：视觉 token 和语言 token 在语言模型的表征空间里并不对等。CLIP 的视觉嵌入和文本嵌入之间存在一个"模态鸿沟"（Modality Gap）——即使语义相同的图文对，其嵌入向量在空间中仍然分属不同的区域，中间隔着一段距离。投影层负责弥合这个距离，但弥合的质量取决于对齐训练的数据质量和规模。</p>
+
+<h3 id="指令微调数据的偏差">2. 指令微调数据的偏差</h3>
+
+<p>多模态指令微调（Visual Instruction Tuning）的数据通常来自两个来源：人工标注和用强模型（如 GPT-4V）生成。</p>
+
+<p>这两类数据都有一个共同的问题：问题的答案在语言层面往往是高度可预测的。"图片里有几个人"——答案通常是 2 到 5 个；"这个标志是什么意思"——联系上下文通常能猜到；"图片里的文字是什么"——截图 + OCR 问题的答案非常模式化。</p>
+
+<p>模型在微调时学到了"看到这类问题，给这类答案"的捷径，而不是学到了"先仔细分析图片，再给出答案"。这种捷径学习（Shortcut Learning）在 benchmark 上得分不低，但遇到分布外的图片就会暴露。</p>
+
+<h3 id="注意力机制的偏向">3. 注意力机制的视觉偏向不足</h3>
+
+<p>研究人员通过可视化注意力权重发现，在很多视觉问答场景中，模型生成答案时对视觉 token 的注意力权重显著低于对问题文字 token 的注意力权重。也就是说，模型"看了图片"，但实际上大部分推理发生在语言 token 之间，视觉 token 只是提供了一些弱信号。</p>
+
+<p>这个问题在长文本场景里更严重。当输入包含大量文本 + 图片时，视觉信号往往被"淹没"，模型回退到纯文本推理模式。</p>
+
+
+<h2 id="三类典型失败模式">三、三类典型失败模式</h2>
+
+<h3 id="对象幻觉">1. 对象幻觉</h3>
+
+<p>模型描述了图片里并不存在的对象。最常见的形式是：图片里有一张餐桌，模型描述"桌上有盘子、杯子、刀叉"——这些东西在训练数据里经常和餐桌同时出现，但这张特定图片里可能什么都没有。</p>
+
+<p>POPE（Polling-based Object Probing Evaluation）benchmark 专门用来测这个：问模型"图片里有 X 吗"，X 一半真实存在，一半是高频共现但不存在的对象。强模型在 POPE 上的准确率大概在 85%—88%，还有明显的提升空间。</p>
+
+<h3 id="空间推理错误">2. 空间推理错误</h3>
+
+<p>"图片里红色方块在蓝色方块的左边还是右边"——这类问题需要模型真正处理视觉空间关系，无法靠语言先验回答。多模态模型在这类问题上的表现通常比人类低得多，接近随机猜测水平。</p>
+
+<p>根因是：空间关系（左/右/上/下/前/后）在语言中是可以完全用文字描述的，模型在训练时没有建立起视觉坐标系和语言描述之间的可靠映射。它知道"左边"是什么意思，但不知道图片里哪个位置对应"左边"。</p>
+
+<h3 id="计数错误">3. 计数错误</h3>
+
+<p>数图片里有几只猫、几个人、几辆车——多模态模型在这类任务上系统性低于人类，尤其是数量超过 4 个时。</p>
+
+<p>语言先验在这里的影响是：训练数据里图片描述的数量分布高度偏向小数（1、2、3），大数量罕见。模型在不确定时倾向于给出训练数据里高频的小数，而不是真正去数。</p>
+
+
+<h2 id="为什么这个问题难解">四、为什么这个问题难解</h2>
+
+<p>直觉上的解法是"给更多视觉数据，让模型更多地依赖视觉"。但实际上没这么简单，原因有三个。</p>
+
+<p><strong>第一，语言先验来自语言模型的预训练，而不是多模态微调。</strong> 语言模型在预训练阶段已经形成了对语言统计规律的强烈依赖，这是模型能力的来源，不是缺陷。多模态微调阶段的数据量（通常是几百万到几千万对）相对于预训练（几万亿 token）太少了，无法从根本上改变语言模型的内部偏向。</p>
+
+<p><strong>第二，减少语言先验可能同时减少语言能力。</strong> 语言先验和语言理解是同一套机制的两面。如果你让模型在生成时更少地依赖语言统计，它的自然语言理解能力也会下降。这是一个需要精确权衡的 trade-off，而不是一个可以无代价优化的方向。</p>
+
+<p><strong>第三，评估体系本身在助长问题。</strong> 很多主流 benchmark（VQAv2、GQA）的题目都是语言先验可以解决大半的题目。在这些 benchmark 上得高分，不代表模型真的在"看"图片。评估指标没有区分"靠语言猜对"和"靠视觉推理答对"，导致模型在训练中没有强动机去提升视觉依赖度。</p>
+
+
+<h2 id="工程层面的应对">五、工程层面的应对思路</h2>
+
+<h3 id="数据构建：反事实样本">数据构建：反事实样本</h3>
+
+<p>反事实数据（Counterfactual Data）的核心思路是：对同一个问题，提供两张图片——一张让答案是 A，另一张让答案是 B，要求模型给出不同的答案。如果模型只靠语言先验，它对两张图片会给出相同答案，这在训练时会得到惩罚。</p>
+
+<p>这类数据显著降低了语言捷径的可用性，逼迫模型真正区分视觉输入。代表性工作包括 VQA-CP（VQA with Changing Priors）和 SUGARCREPE。成本是这类数据生成和标注的代价比普通数据高很多，通常需要人工精心设计。</p>
+
+<h3 id="训练策略：对比解码">训练策略：对比解码</h3>
+
+<p>对比解码（Contrastive Decoding）在推理时同时运行两个前向传播：一次带图片，一次不带图片（或带一张干扰图片）。最终的输出是两次结果的差值——只保留那些因为图片的存在而改变的预测。</p>
+
+<p>这个方法不需要改变训练，只在推理时加一步，能有效抑制语言先验。代价是推理时间翻倍（两次前向传播）。在对延迟敏感的场景里不适用，但在离线评估或对质量要求高的场景里是实用的工具。</p>
+
+<h3 id="评估体系：抗捷径benchmark">评估体系：抗捷径 benchmark</h3>
+
+<p>衡量模型真实视觉能力，需要选择对语言先验不友好的 benchmark：</p>
+
+<ul>
+  <li><strong>POPE</strong>：专门测对象幻觉，对象是否存在的判断对语言先验几乎无帮助</li>
+  <li><strong>MMVP</strong>（Multimodal Visual Patterns）：专门测那些人类一眼能看出但多模态模型容易出错的视觉模式</li>
+  <li><strong>CV-Bench</strong>：用真实计算机视觉任务测试，语言捷径有限</li>
+  <li><strong>SpatialBench</strong>：专门测空间推理，无法靠语言猜测</li>
+</ul>
+
+<p>在这些 benchmark 上的得分，比在 VQAv2 上的得分更能反映模型真实的视觉理解能力。</p>
+
+<h3 id="视觉token的充分利用">视觉 Token 的充分利用</h3>
+
+<p>从模型结构层面，有几个方向在尝试提高视觉信号的权重：</p>
+
+<p><strong>增加视觉 token 数量。</strong> 把图片切成更多 patch，给模型更多视觉信息。GPT-4V 和 Claude 3 对高分辨率图片都采用了类似的策略（Tile Encoding）。代价是 KV cache 和推理延迟显著增加。</p>
+
+<p><strong>Visual Grounding 专项训练。</strong> 在训练中加入需要精确定位（Bounding Box）的任务，逼迫模型学会把文字描述和图片区域对应起来。Qwen-VL 和 InternVL 都把 Grounding 任务作为重要的训练组成部分。</p>
+
+<p><strong>更强的视觉编码器。</strong> 从 ViT-L 升级到 ViT-H 或更大的模型，或者用专门在细粒度理解任务上训练的视觉编码器（如 DINOv2），提升视觉特征的质量，给语言模型提供更"可信"的视觉输入。</p>
+
+
+<h2 id="对多模态工程师的启示">六、对多模态工程师的启示</h2>
+
+<p>理解语言先验问题，会让你在实际工作中做出几个不同的判断。</p>
+
+<p><strong>评估模型效果时，不要只看综合 benchmark。</strong> VQAv2 高分可能只是语言先验好，不代表真正的视觉理解能力。专项评估（幻觉率、空间推理、计数准确率）更有诊断价值。</p>
+
+<p><strong>数据质量比数量更重要，但"质量"要定义对。</strong> 增加多样性高、语言捷径少的数据，比单纯增加数据量对改善视觉依赖度效果更好。反事实样本、Grounding 标注数据的性价比，往往高于大规模爬取的图文对。</p>
+
+<p><strong>模型给出自信的错误答案，比给出"我不确定"更危险。</strong> 语言先验让模型在视觉信息不足时仍然以高置信度生成答案，而不是表达不确定。在部署多模态模型时，需要额外的校准机制（Calibration），防止模型的自信误导用户。</p>
+
+<p><strong>幻觉不是玄学，是可以量化和定向优化的工程问题。</strong> 用 POPE 这类 benchmark 测幻觉率，找到幻觉的对象类别分布，针对性地补充那些类别的真实负样本（模型说有但实际上没有的对象），是系统性降低幻觉率的工程路径，比泛泛地"增加数据"有效得多。</p>
+
+
+<h2 id="总结">七、总结</h2>
+
+<p>多模态模型的语言先验问题是当前这一代模型的结构性弱点，来源于三个层面：语言模型和视觉编码器之间的参数量不对称、指令微调数据的捷径偏差、注意力机制对视觉 token 的权重不足。它导致了对象幻觉、空间推理失败和计数错误三类典型问题。</p>
+
+<p>这个问题难以从根本上消除，因为语言先验和语言能力共用同一套机制。工程上的应对是多管齐下：数据层面引入反事实样本和 Grounding 标注，推理层面尝试对比解码，评估层面选择抗捷径的 benchmark，结构层面增强视觉编码器和视觉 token 的密度。</p>
+
+<p>最后一句话：理解"模型在靠什么答对题"，和理解"模型能答对什么题"一样重要。前者决定了你在部署时的风险判断，后者决定了你选择模型的依据。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么是语言先验"><span class="nav-number">1.</span> <span class="nav-text">一、什么是语言先验</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#语言先验从哪里来"><span class="nav-number">2.</span> <span class="nav-text">二、语言先验从哪里来</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#三类典型失败模式"><span class="nav-number">3.</span> <span class="nav-text">三、三类典型失败模式</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么这个问题难解"><span class="nav-number">4.</span> <span class="nav-text">四、为什么这个问题难解</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#工程层面的应对"><span class="nav-number">5.</span> <span class="nav-text">五、工程层面的应对思路</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#对多模态工程师的启示"><span class="nav-number">6.</span> <span class="nav-text">六、对多模态工程师的启示</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">七、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">220</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+</body>
+</html>

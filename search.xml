@@ -6205,4 +6205,13 @@ x = \frac{4-\pi}{4}r \approx0.2146r
         <tag>职业发展</tag>
       </tags>
   </entry>
+  <entry>
+    <title>多模态模型其实不怎么「看」图片</title>
+    <url>/2026/06/03/%E5%A4%9A%E6%A8%A1%E6%80%81%E6%A8%A1%E5%9E%8B%E7%9A%84%E8%AF%AD%E8%A8%80%E5%85%88%E9%AA%8C%E9%97%AE%E9%A2%98/</url>
+    <content><![CDATA[把图片换成随机噪声，多模态模型仍能答对超过一半的视觉问答题——这就是语言先验主导问题（Language Prior Dominance）。根源在三处：语言模型（7B-70B）和视觉编码器（300M-600M）的参数量不对称、指令微调数据存在语言捷径、注意力机制对视觉 token 的权重不足。导致三类失败：对象幻觉（POPE benchmark 测试）、空间推理错误（左右上下接近随机猜测）、计数错误（偏向训练数据高频的小数）。这个问题难以从根本消除，因为语言先验和语言能力共用同一套机制。工程应对：数据层面引入反事实样本（Counterfactual Data）逼迫模型区分图片差异；推理层面用对比解码（Contrastive Decoding）抑制语言先验；评估层面选 POPE/MMVP/SpatialBench 等抗捷径 benchmark；结构层面加入 Visual Grounding 训练任务。核心启示：理解模型靠什么答对，和理解模型能答对什么一样重要——前者决定部署风险，后者决定选型依据。]]></content>
+      <tags>
+        <tag>架构</tag>
+        <tag>工程实践</tag>
+      </tags>
+  </entry>
 </search>
