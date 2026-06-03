@@ -245,17 +245,6 @@
 
           
   
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine：</span>
-    
-    <a title="valine" href="/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2020/07/30/%E7%BA%BF%E6%AE%B5%E6%A0%91/" itemprop="commentCount"></span>
-    </a>
-  </span>
   
   
 
@@ -632,33 +621,6 @@ if (document.querySelectorAll('pre.mermaid').length) {
   </script>
 
 
-<script>
-NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
-  NexT.utils.getScript('https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js', () => {
-    var GUEST = ['nick', 'mail', 'link'];
-    var guest = 'nick,mail,link';
-    guest = guest.split(',').filter(item => {
-      return GUEST.includes(item);
-    });
-    new Valine({
-      el         : '#valine-comments',
-      verify     : false,
-      notify     : false,
-      appId      : '8YC1b0uYNOAbXVznOWHGd3aN-MdYXbMMI',
-      appKey     : '9KUsD7M9QgpQiV7VRKDR1F7s',
-      placeholder: "Just go go",
-      avatar     : 'mm',
-      meta       : guest,
-      pageSize   : '10' || 10,
-      visitor    : false,
-      lang       : '' || 'zh-cn',
-      path       : location.pathname,
-      recordIP   : false,
-      serverURLs : ''
-    });
-  }, window.Valine);
-});
-</script>
 
   <script src="/js/dark-mode-toggle.js"></script>
   <script src="/js/related-posts.js"></script>
