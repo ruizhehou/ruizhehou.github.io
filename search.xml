@@ -6224,7 +6224,7 @@ x = \frac{4-\pi}{4}r \approx0.2146r
       </tags>
   </entry>
   <entry>
-    <title>你按下申请按钮的那 100ms 里，系统做了什么</title>
+    <title>你点击「立即申请」的那 100ms，风控系统在做什么</title>
     <url>/2026/06/04/%E6%A8%A1%E5%9E%8B%E5%B9%B3%E5%8F%B0%E5%B7%A5%E7%A8%8B%E5%B8%88%E5%85%A5%E9%97%A8/</url>
     <content><![CDATA[模型平台工程师入门：跟着一个特征，从原始数据到线上推理走一遍完整的旅程。数据源（MySQL/Kafka/Hive）→ 批式路径（Spark → Hudi Offline Store，用于训练）→ 流式路径（Flink → Redis/HBase Online Store，用于推理）→ Point-in-Time Correct Join（防止数据泄漏）→ 模型训练 → 推理服务（Triton/TorchServe，100ms 内）。Hudi 的作用：行级 Upsert 和 time-travel 查询。Redis vs HBase 的选型逻辑：延迟 vs 容量。Training-Serving Skew：批流两套逻辑不一致是最难排查的 bug。入职前的具体准备：本地跑一遍 Hudi demo、跑通 Flink 滑动窗口、用 TorchServe 部署一个推理服务。你建设的不是模型，而是让算法工程师能快速训练和部署模型的基础设施。]]></content>
       <tags>
