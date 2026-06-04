@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="软件上的每一点"丝滑"都不是默认状态——粗糙才是。你从不感知的那 50ms、那帧动画、那次无缝切换，背后是工程师在主动对抗物理定律、网络抖动、并发冲突、硬件限制。这篇文章用几个日常体验讲清楚：那些"理所当然"背后的努力。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="你感受到的每一点丝滑，背后都有人在扛">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/04/软件工程的丝滑/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-04T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-04T16:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="工程实践">
+<meta property="article:tag" content="生活">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/04/软件工程的丝滑/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>你感受到的每一点丝滑，背后都有人在扛 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-04T16:00:00+08:00" content="2026-06-04">
+      06-04
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      你感受到的每一点丝滑，背后都有人在扛
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>有一类软件体验，好到让你完全感觉不到它存在。</p>
+
+<p>你在手机上打字，字符瞬间出现，没有任何迟滞感。你打开一个 App，内容已经在那了，不需要等待转圈。你从 WiFi 走进地铁，音乐没有中断，无缝切换到移动网络继续播放。你在电脑上改了一份文档，拿起手机打开，刚才的修改已经同步了。</p>
+
+<p>这些体验有一个共同点：你注意不到它。好的软件体验是透明的，它从不打断你，从不要求你等待，从不让你操心背后发生了什么。</p>
+
+<p>但"透明"不是默认状态。<strong>软件的默认状态是卡顿、崩溃、不一致、慢半拍</strong>。那种丝滑的感觉，是有人在主动对抗这个默认状态的结果。</p>
+
+<p>这篇文章用几个具体的日常体验，讲清楚那些"理所当然"背后藏着什么。</p>
+
+
+<h2 id="打字的那50ms">一、打字的那 50ms</h2>
+
+<p>你在手机键盘上按下一个键，屏幕上对应的字符出现。这个过程用了多长时间？</p>
+
+<p>如果超过 50ms，你的手指会感觉到"有点卡"。如果超过 100ms，你会觉得"这个键盘不好用"。如果超过 200ms，你会说"这 App 太卡了，换掉"。</p>
+
+<p>50ms 是人类手指感知延迟的阈值。低于它，感觉是即时响应；高于它，感觉就是"滞后"。这个感知是直觉性的，不需要你刻意去测量，你的手指自己会知道。</p>
+
+<p>那么，在你按下一个键到字符显示出来的这 50ms 里，发生了什么？</p>
+
+<p>触摸屏要先检测到你的触碰，这需要硬件采样（现代手机触摸屏的采样率是 120Hz 到 240Hz，也就是每 4-8ms 采集一次数据）。采集到数据后，操作系统要识别这是"点击"还是"滑动"，因为两者的处理逻辑完全不同——这个手势识别本身就需要几毫秒。识别完成后，事件传递到应用进程，应用要更新文本数据，然后通知渲染系统重新绘制包含新字符的文本区域。渲染系统要重新排版（文字的位置、光标的位置、可能触发的自动换行），把新的画面写入帧缓冲，最后等待显示器的下一个刷新周期把它显示出来。</p>
+
+<p>这条链路上，任何一个环节慢了，你就会感觉到。</p>
+
+<p>为了让这条链路始终在 50ms 内完成，工程师做的事情包括：给触摸事件处理分配独立的高优先级线程，不让它被后台任务抢占；文本渲染引擎预先缓存字形（Glyph Cache），不在你打字时临时加载字体文件；输入法的候选词计算在后台进行，不阻塞字符显示；在你抬起手指之前就开始预测你要按的键，提前准备渲染资源。</p>
+
+<p>这些优化的目标，都是为了保护那个 50ms 的窗口不被打破。</p>
+
+
+<h2 id="每秒60帧的隐形协议">二、每秒 60 帧，一帧 16ms</h2>
+
+<p>你滑动微信的聊天列表，它跟着你的手指流畅地上下移动。这个"流畅"，需要每秒渲染 60 帧画面，每帧的时间预算是 16.67ms。</p>
+
+<p>16ms 是什么概念？这比眨眼快 20 倍。在这 16ms 里，CPU 要完成对象布局计算、列表项的复用逻辑（把不在视野内的列表项回收再利用，避免内存暴增）、文字排版、图片解码；GPU 要完成所有视觉元素的合成和绘制，把最终画面写入显存。</p>
+
+<p>如果这个过程用了超过 16ms——哪怕只多了 1ms——那一帧就会"掉帧"，你会感觉到轻微的卡顿，就像胶片电影少了一格。</p>
+
+<p>掉帧是用户体验里最隐蔽的问题之一：它不会报错，不会崩溃，只是让一切感觉"不够顺"。而用户通常不会说"这个 App 掉帧了"，他们只会说"这个 App 有点卡，不如 xx 好用"。</p>
+
+<p>Android 和 iOS 为了保护这 16ms，做了大量工作：把 UI 渲染和业务逻辑分配到不同线程，防止一个耗时操作阻塞整个界面；对图片解码、网络请求、数据库读写强制要求在后台线程执行，违反者在开发模式下直接抛出异常；给渲染线程设置最高优先级，让操作系统调度器优先保证它能按时执行。</p>
+
+<p>这是操作系统、图形框架、应用框架三层共同维护的一个隐形协议：<strong>16ms 里，画面必须准备好</strong>。</p>
+
+
+<h2 id="从不崩溃的代价">三、"从不崩溃"的代价</h2>
+
+<p>你用微信发了一条消息，然后收到了回复。这整个过程里，后端的某台服务器可能正好在重启，另一台可能正在做数据库迁移，还有一台的磁盘快满了正在扩容。你什么都没感觉到。</p>
+
+<p>这种稳定性背后是什么？</p>
+
+<p>首先是冗余。每个关键服务都有多个实例，分布在不同的物理机器上，甚至不同的机房。其中一台出问题，流量自动切换到其他实例。你的消息发出去的那一刻，它可能经过了三台负载均衡器、五台应用服务器、两套存储系统——你只看到"发送成功"。</p>
+
+<p>然后是熔断。当某个下游服务开始变慢，熔断器会主动切断对它的调用，快速返回一个"降级"响应（也许是用缓存数据代替实时数据），而不是让整个请求链路都堵在那里等超时。这就是为什么有时候你会看到"部分功能暂时不可用"——这不是 bug，是工程师故意设计的自我保护行为，防止一个局部故障扩散成全局崩溃。</p>
+
+<p>还有监控和自愈。每台服务器每秒都在上报几十个指标：CPU、内存、磁盘 I/O、网络延迟、错误率。当某个指标超过阈值，告警系统立刻触发，值班工程师的手机收到消息，或者自动化系统直接重启出问题的实例。这套系统 24 小时不间断地运行，大部分问题在用户感知到之前就已经被处理掉了。</p>
+
+<p>你从不崩溃的体验，是有一群工程师在轮班值守换来的。</p>
+
+
+<h2 id="秒开的谎言">四、"秒开"的谎言</h2>
+
+<p>你打开淘宝，商品列表几乎立刻出现，没有等待的感觉。但你的请求刚发出去，服务器根本没有时间真正处理完——它还没来得及查数据库。</p>
+
+<p>这里有几层"欺骗"：</p>
+
+<p><strong>骨架屏（Skeleton Screen）</strong>。页面还没加载完，你已经能看到灰色占位块填满了屏幕，它们和真实内容的布局完全一致。视觉上，这给了你"内容在加载"的感觉，而不是盯着空白等待。骨架屏让用户感知到的加载时间比实际加载时间短 20-30%——不是因为更快了，是因为"看起来更快了"。</p>
+
+<p><strong>预加载（Prefetch）</strong>。当你在看一篇文章的第一屏时，App 已经悄悄开始加载第二屏的内容了。你向下滑动的时候，数据已经在本地了，"加载"几乎是零延迟的。这需要准确预测用户接下来要做什么，准确率越高，体验越好，但预测错误就是在浪费流量和电量。</p>
+
+<p><strong>乐观更新（Optimistic Update）</strong>。你点了一个"收藏"按钮，按钮立刻变成已收藏状态——尽管这个时候收藏请求还没发到服务器。App 假设这个请求一定会成功，先把 UI 更新了，请求在后台发送。如果请求真的失败了，再把按钮变回去，并提示你。这让交互感觉是即时的，因为 99% 的情况下请求确实会成功。</p>
+
+<p><strong>CDN（内容分发网络）</strong>。你的请求不是到了遥远的数据中心才有响应——那个距离可能有几千公里，光速传输也需要几十毫秒。CDN 在全国甚至全球部署了几百个节点，你请求的静态资源（图片、JS 文件、CSS）很可能就在离你最近的节点上，延迟是几毫秒而不是几十毫秒。</p>
+
+<p>这些技术的本质是同一件事：<strong>用各种手段，让等待变得不可见</strong>。</p>
+
+
+<h2 id="跨设备的那一秒">五、你换了一台设备，数据已经在那了</h2>
+
+<p>你在电脑上写了一篇笔记，保存后拿起手机，打开同一个 App，刚才写的内容已经在那里了。</p>
+
+<p>这件事听起来简单。背后其实解决了一个分布式系统里最经典的难题：<strong>冲突</strong>。</p>
+
+<p>如果你在电脑上编辑一段文字的同时，手机也没有网络但同样在编辑这段文字，两台设备各自存了不同版本，等手机联网的时候，谁的版本算数？</p>
+
+<p>这是一个没有完美答案的问题。不同应用选择了不同的取舍：</p>
+
+<p>Google Docs 的方案是"实时协同"——只要联网，每一次键入都立即同步，所有人看到的是同一份文档，不存在离线编辑的问题。但这要求网络始终可用，而且实现实时协同本身需要操作转换（Operational Transformation）算法，这个算法难度极高，Google 用了多年才做稳定。</p>
+
+<p>Notion 的方案是 CRDT（无冲突复制数据类型）——一种特殊的数据结构，可以保证两个客户端各自独立修改后，合并时永远不会产生冲突，最终结果是确定的。但 CRDT 的限制是，"合并后的结果"不一定是任何一方原来想要的结果。</p>
+
+<p>更多应用的方案是"最后写入者胜"（Last Write Wins）——时间戳最新的版本覆盖旧版本。简单、容易实现，但会丢数据：你在没网的飞机上改了一份文档，落地一联网，它被服务器的旧版本覆盖了。</p>
+
+<p>每种方案都有代价。你感受到的"无缝同步"，是这些代价被精心隐藏起来之后的体验。</p>
+
+
+<h2 id="丝滑是一种主动对抗">六、丝滑是一种主动对抗</h2>
+
+<p>把这几个例子放在一起，有一个共同的结论：</p>
+
+<p>软件的物理基础是不友好的。网络会抖动，硬件会故障，用户会同时从多个设备操作同一份数据，后台任务会和前台渲染争夺 CPU 时间。不做任何干预，软件就会卡、慢、崩、乱。</p>
+
+<p>丝滑不是程序的自然属性，而是工程师对这些不友好因素的主动干预结果——每一层优化，都是在对抗某种具体的物理限制或系统复杂性。</p>
+
+<p>这是软件工程里一个有点残酷的事实：<strong>做得好的工程，用户感觉不到它的存在；出了问题，才会被注意到</strong>。那些你从未有过感知的顺畅体验，是有人在你看不到的地方持续地在做工作。</p>
+
+<p>下次你用一个 App，感觉"嗯，挺顺的"的时候，可以想一想：这背后，有人替你扛住了很多你永远不需要了解的复杂度。</p>
+
+
+<h2 id="总结">七、总结</h2>
+
+<ul>
+  <li><strong>打字的 50ms</strong>：触摸采样、手势识别、文本排版、帧渲染，整条链路都在竞速</li>
+  <li><strong>动画的 16ms</strong>：每秒 60 帧是用户感知流畅的阈值，每一帧都是一次硬性截止时间</li>
+  <li><strong>从不崩溃</strong>：冗余部署、熔断降级、24 小时监控值班——这是稳定性的代价</li>
+  <li><strong>秒开</strong>：骨架屏、预加载、乐观更新、CDN——让等待不可见而不是让等待消失</li>
+  <li><strong>无缝同步</strong>：实时协同、CRDT、冲突解决——分布式系统里没有完美答案，只有取舍</li>
+</ul>
+
+<p>好的工程，是把复杂度藏起来，让用户什么都不用操心。坏的工程，是把复杂度暴露给用户，让他们自己去处理。</p>
+
+<p>你感受到"这个产品真好用"的那一刻，通常是有人把你本来需要感知到的麻烦，悄悄扛走了。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+          <a href="/tags/生活/" rel="tag"><i class="fa fa-tag"></i> 生活</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#打字的那50ms"><span class="nav-number">1.</span> <span class="nav-text">一、打字的那 50ms</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#每秒60帧的隐形协议"><span class="nav-number">2.</span> <span class="nav-text">二、每秒 60 帧，一帧 16ms</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#从不崩溃的代价"><span class="nav-number">3.</span> <span class="nav-text">三、"从不崩溃"的代价</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#秒开的谎言"><span class="nav-number">4.</span> <span class="nav-text">四、"秒开"的谎言</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#跨设备的那一秒"><span class="nav-number">5.</span> <span class="nav-text">五、换了设备，数据已经在那了</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#丝滑是一种主动对抗"><span class="nav-number">6.</span> <span class="nav-text">六、丝滑是一种主动对抗</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">七、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">223</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
