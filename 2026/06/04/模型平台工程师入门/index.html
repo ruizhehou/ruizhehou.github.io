@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="模型平台工程师入门：跟着一个特征，从原始数据到线上推理走一遍完整的旅程。搞清楚 Hudi、HBase、Redis、Flink、Spark、推理服务器各自在什么位置、解决什么问题，以及为什么特征一致性是整个系统最重要的约束。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一个特征的完整旅程：模型平台工程师入门指南">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/04/模型平台工程师入门/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-04T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-04T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta property="article:tag" content="职业发展">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/04/模型平台工程师入门/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>一个特征的完整旅程：模型平台工程师入门指南 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-04T10:00:00+08:00" content="2026-06-04">
+      06-04
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      一个特征的完整旅程：模型平台工程师入门指南
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>假设你刚加入一个金融场景的模型平台团队。第一天站会，同事在讨论"Flink 特征延迟偏高"、"Hudi 的 time-travel query 慢"、"在线特征 HBase 查询 P99 超阈值"——每个词你都认识，但串在一起不知道在说什么。</p>
+
+<p>这篇文章的目的是给你建立一张地图。我们用一个具体的例子把整个系统走一遍：<strong>一个用户申请小额信贷，系统需要在 100ms 内给出风险评分</strong>。跟着这个场景，你会看到每个技术组件在哪里、为什么需要它，以及你作为模型平台工程师要建设的是什么。</p>
+
+
+<h2 id="全局视图">一、全局视图：系统长什么样</h2>
+
+<p>先看整体。一个典型的金融 ML 系统，从数据到决策，大概分四个层：</p>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 600 280" style="max-width:580px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.gt{fill:currentColor;font-family:inherit;}</style>
+  <!-- Layer 1: Data Sources -->
+  <rect x="10" y="10" width="580" height="50" rx="6" fill="rgba(128,128,128,0.06)" stroke="rgba(128,128,128,0.2)" stroke-width="1"/>
+  <text x="300" y="30" text-anchor="middle" font-size="10" class="gt" opacity="0.4">数据源层</text>
+  <rect x="30" y="34" width="80" height="20" rx="4" fill="rgba(128,128,128,0.1)" stroke="rgba(128,128,128,0.3)" stroke-width="1"/>
+  <text x="70" y="48" text-anchor="middle" font-size="10" class="gt">MySQL/OLTP</text>
+  <rect x="125" y="34" width="80" height="20" rx="4" fill="rgba(128,128,128,0.1)" stroke="rgba(128,128,128,0.3)" stroke-width="1"/>
+  <text x="165" y="48" text-anchor="middle" font-size="10" class="gt">Kafka 消息队列</text>
+  <rect x="220" y="34" width="80" height="20" rx="4" fill="rgba(128,128,128,0.1)" stroke="rgba(128,128,128,0.3)" stroke-width="1"/>
+  <text x="260" y="48" text-anchor="middle" font-size="10" class="gt">Hive 数仓</text>
+  <rect x="315" y="34" width="90" height="20" rx="4" fill="rgba(128,128,128,0.1)" stroke="rgba(128,128,128,0.3)" stroke-width="1"/>
+  <text x="360" y="48" text-anchor="middle" font-size="10" class="gt">外部数据/日志</text>
+
+  <!-- Arrow down -->
+  <line x1="300" y1="62" x2="300" y2="78" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ga1)"/>
+
+  <!-- Layer 2: Feature Engineering -->
+  <rect x="10" y="80" width="580" height="70" rx="6" fill="rgba(33,150,243,0.05)" stroke="rgba(33,150,243,0.25)" stroke-width="1.5"/>
+  <text x="300" y="97" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.6)">特征工程层</text>
+  <!-- Batch path -->
+  <rect x="30" y="104" width="120" height="36" rx="5" fill="rgba(33,150,243,0.08)" stroke="rgba(33,150,243,0.3)" stroke-width="1"/>
+  <text x="90" y="119" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.8)">批式计算</text>
+  <text x="90" y="133" text-anchor="middle" font-size="9" class="gt" opacity="0.45">Spark / Hive SQL</text>
+  <!-- Arrow -->
+  <line x1="152" y1="122" x2="172" y2="122" stroke="rgba(128,128,128,0.3)" stroke-width="1.3" marker-end="url(#ga2)"/>
+  <!-- Offline store -->
+  <rect x="174" y="104" width="120" height="36" rx="5" fill="rgba(33,150,243,0.12)" stroke="rgba(33,150,243,0.4)" stroke-width="1.5"/>
+  <text x="234" y="119" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.85)" font-weight="600">Offline Store</text>
+  <text x="234" y="133" text-anchor="middle" font-size="9" class="gt" opacity="0.45">Hudi on HDFS</text>
+  <!-- Stream path -->
+  <rect x="330" y="104" width="120" height="36" rx="5" fill="rgba(76,175,80,0.08)" stroke="rgba(76,175,80,0.3)" stroke-width="1"/>
+  <text x="390" y="119" text-anchor="middle" font-size="10" fill="rgba(76,175,80,0.8)">流式计算</text>
+  <text x="390" y="133" text-anchor="middle" font-size="9" class="gt" opacity="0.45">Flink</text>
+  <!-- Arrow -->
+  <line x1="452" y1="122" x2="472" y2="122" stroke="rgba(128,128,128,0.3)" stroke-width="1.3" marker-end="url(#ga3)"/>
+  <!-- Online store -->
+  <rect x="474" y="104" width="116" height="36" rx="5" fill="rgba(76,175,80,0.12)" stroke="rgba(76,175,80,0.4)" stroke-width="1.5"/>
+  <text x="532" y="119" text-anchor="middle" font-size="10" fill="rgba(76,175,80,0.85)" font-weight="600">Online Store</text>
+  <text x="532" y="133" text-anchor="middle" font-size="9" class="gt" opacity="0.45">Redis / HBase</text>
+
+  <!-- Arrow down from feature layer -->
+  <line x1="185" y1="152" x2="185" y2="168" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ga4)"/>
+  <line x1="532" y1="152" x2="532" y2="168" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ga5)"/>
+
+  <!-- Layer 3: Training & Serving -->
+  <rect x="10" y="170" width="260" height="60" rx="6" fill="rgba(244,67,54,0.05)" stroke="rgba(244,67,54,0.2)" stroke-width="1.5"/>
+  <text x="140" y="188" text-anchor="middle" font-size="10" fill="rgba(244,67,54,0.6)">模型训练层</text>
+  <text x="140" y="208" text-anchor="middle" font-size="10" class="gt" opacity="0.5">读 Offline Store → 生成样本</text>
+  <text x="140" y="222" text-anchor="middle" font-size="9" class="gt" opacity="0.4">PyTorch / TensorFlow / 自研框架</text>
+
+  <rect x="330" y="170" width="260" height="60" rx="6" fill="rgba(255,152,0,0.05)" stroke="rgba(255,152,0,0.2)" stroke-width="1.5"/>
+  <text x="460" y="188" text-anchor="middle" font-size="10" fill="rgba(255,152,0,0.7)">模型推理层</text>
+  <text x="460" y="208" text-anchor="middle" font-size="10" class="gt" opacity="0.5">读 Online Store → 实时推理</text>
+  <text x="460" y="222" text-anchor="middle" font-size="9" class="gt" opacity="0.4">Triton / TorchServe / 自研推理服务</text>
+
+  <!-- Arrow down from both -->
+  <line x1="140" y1="232" x2="140" y2="248" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ga6)"/>
+  <line x1="460" y1="232" x2="460" y2="248" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ga7)"/>
+
+  <!-- Layer 4: Output -->
+  <rect x="10" y="250" width="260" height="24" rx="5" fill="rgba(128,128,128,0.06)" stroke="rgba(128,128,128,0.2)" stroke-width="1"/>
+  <text x="140" y="266" text-anchor="middle" font-size="10" class="gt" opacity="0.5">模型文件 → 上线部署</text>
+  <rect x="330" y="250" width="260" height="24" rx="5" fill="rgba(128,128,128,0.06)" stroke="rgba(128,128,128,0.2)" stroke-width="1"/>
+  <text x="460" y="266" text-anchor="middle" font-size="10" class="gt" opacity="0.5">风险评分 → 业务决策</text>
+
+  <defs>
+    <marker id="ga1" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="ga2" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="ga3" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="ga4" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="ga5" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="ga6" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="ga7" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+  </defs>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">金融 ML 系统的四层结构：数据源 → 特征工程 → 训练/推理 → 决策输出</figcaption>
+</figure>
+
+<p>注意这张图里有两条并行的路径：<strong>左边是批式路径（离线）</strong>，数据通过 Spark 处理后存入 Hudi，用于模型训练；<strong>右边是流式路径（在线）</strong>，数据通过 Flink 实时计算后存入 Redis/HBase，用于线上推理。两条路径算的是同一批特征，但服务于不同用途。</p>
+
+<p>为什么要这样分？接下来一步步解释。</p>
+
+
+<h2 id="第一步原始数据">二、第一步：原始数据在哪里</h2>
+
+<p>用户申请信贷，这个事件发生时，系统里同时存在几类数据：</p>
+
+<ul>
+  <li><strong>结构化数据库</strong>（MySQL/OLTP）：用户的基础信息——注册时间、认证状态、历史还款记录。这些数据是"静态"的，变化频率低，一天更新几次。</li>
+  <li><strong>消息队列</strong>（Kafka）：用户的实时行为事件——刚刚打开了 App、浏览了贷款页面、点击了申请按钮。这些数据是"流式"的，毫秒级产生。</li>
+  <li><strong>数据仓库</strong>（Hive）：已经过 ETL 处理的历史数据——过去 90 天的消费记录、历史贷款金额、逾期次数。这些数据是"批量"的，通常是 T-1 的，昨天的数据今天才能用。</li>
+</ul>
+
+<p>这三类数据来自不同系统，格式不同，延迟不同，可靠性保证也不同。特征工程的第一件事，就是把它们整理成模型能用的格式。</p>
+
+
+<h2 id="第二步批式特征计算">三、第二步：批式特征计算（Spark + Hudi）</h2>
+
+<p>每天凌晨，有一批 Spark 任务在跑。它从 Hive 里读取昨天的用户行为数据，计算出一批特征：</p>
+
+<ul>
+  <li>用户过去 7 天的贷款申请次数</li>
+  <li>用户过去 30 天的平均消费金额</li>
+  <li>用户过去 90 天的最大单笔交易</li>
+  <li>用户历史逾期天数总和</li>
+</ul>
+
+<p>这些特征计算出来之后，写入 <strong>Hudi</strong>（Hadoop Upsert Delete Incremental）。</p>
+
+<p>为什么不直接写回 Hive？因为 Hudi 解决了两个 Hive 解决不了的问题：</p>
+
+<p><strong>第一，支持行级更新（Upsert）。</strong> Hive 是不可变的，已经写入的分区数据不能修改。但用户的特征每天都要更新，Hudi 支持按主键 Upsert——相同用户 ID 的记录会被覆盖更新，而不是追加新行。</p>
+
+<p><strong>第二，支持时间旅行查询（Time Travel）。</strong> Hudi 保留了数据的历史版本，你可以查询"2024 年 1 月 15 日这个用户的特征值是多少"。这个能力对模型训练至关重要——训练样本需要的是事件发生时刻的特征，而不是当前最新的特征（否则就是数据泄漏）。</p>
+
+<p>批式特征的特点：<strong>准确、完整、但有延迟</strong>。凌晨 3 点算完，覆盖到用户上午申请时已经是"昨天"的数据了。这对风控来说还不够——欺诈分子可以在几分钟内发起大量申请，你需要知道他刚才做了什么。</p>
+
+
+<h2 id="第三步流式特征计算">四、第三步：流式特征计算（Flink + Redis）</h2>
+
+<p>除了批式特征，还有一批 Flink 任务在实时消费 Kafka 的事件流。同样是"用户过去 1 小时内的申请次数"这个特征，Flink 用滑动窗口算子实时维护，每来一个新事件就更新一次。</p>
+
+<p>算完的结果写到 <strong>Redis</strong>（或 HBase）。</p>
+
+<p>为什么用 Redis？因为线上推理对延迟要求极高——100ms 内给出评分，其中特征读取能用的时间不超过 10ms。Redis 是内存数据库，单次读取耗时在 1ms 以内，满足要求。</p>
+
+<p>什么时候用 HBase？当特征是"宽表"形式——一个用户有几百个特征字段，总大小超过 Redis 单条记录的限制时，或者数据量大到 Redis 内存装不下时，用 HBase（基于 HDFS 的 KV 存储，容量大但延迟稍高，通常在 5-10ms）。</p>
+
+<p>流式特征的特点：<strong>实时、但计算逻辑相对简单</strong>。复杂的统计特征（比如用户历史行为的分布统计）在流式计算里很难精确实现，通常只做滑动窗口聚合。</p>
+
+<p>现在你明白为什么需要批式 + 流式两条路径了：<strong>批式负责精确的历史统计特征，流式负责实时的行为特征，两者互补。</strong></p>
+
+
+<h2 id="第四步模型训练">五、第四步：模型训练（从 Offline Store 生成样本）</h2>
+
+<p>模型每隔一段时间需要用新数据重新训练。训练样本的生成过程大概是：</p>
+
+<ol>
+  <li>找出一段时间内所有的信贷申请事件（正样本 = 后来逾期的，负样本 = 正常还款的）</li>
+  <li>对每条申请事件，找出该用户在<strong>申请发生时刻</strong>的特征值</li>
+  <li>把事件标签（是否逾期）和特征值拼在一起，形成训练样本</li>
+</ol>
+
+<p>第 2 步是关键，也是容易出错的地方。</p>
+
+<p>一个申请事件发生在 2024 年 1 月 15 日，你需要的是用户在那一天的特征值，而不是今天的特征值。如果用今天最新的特征（比如用户最近三个月的消费记录），你的模型就"看到了未来"——训练时学到的是未来的信息，线上推理时没有这些信息，模型效果会虚高。这就是前面提到的**数据泄漏（Data Leakage）**。</p>
+
+<p>Hudi 的时间旅行查询在这里发挥作用：给定申请事件的时间戳，查询那个时刻的特征快照。这个操作叫做 <strong>Point-in-Time Correct Join</strong>，是模型平台工程里最重要的正确性保证之一。</p>
+
+<p>样本生成完毕后，送入训练框架（PyTorch/TensorFlow/自研）。训练完成的模型文件（通常是 SavedModel 格式或 TorchScript 格式）存储到模型仓库，等待上线。</p>
+
+
+<h2 id="第五步线上推理">六、第五步：线上推理（100ms 内完成）</h2>
+
+<p>用户点击"申请"按钮，后端接到请求，触发风险评分。这个过程大概是：</p>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 580 130" style="max-width:560px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.it{fill:currentColor;font-family:inherit;}</style>
+  <!-- User request -->
+  <rect x="10" y="40" width="70" height="50" rx="6" fill="rgba(128,128,128,0.08)" stroke="rgba(128,128,128,0.25)" stroke-width="1.5"/>
+  <text x="45" y="62" text-anchor="middle" font-size="20">👤</text>
+  <text x="45" y="80" text-anchor="middle" font-size="9" class="it" opacity="0.5">申请请求</text>
+  <!-- Arrow -->
+  <line x1="82" y1="65" x2="102" y2="65" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ia1)"/>
+  <!-- Feature fetch -->
+  <rect x="104" y="30" width="120" height="70" rx="6" fill="rgba(76,175,80,0.08)" stroke="rgba(76,175,80,0.3)" stroke-width="1.5"/>
+  <text x="164" y="55" text-anchor="middle" font-size="11" fill="rgba(76,175,80,0.8)">特征读取</text>
+  <text x="164" y="71" text-anchor="middle" font-size="9" class="it" opacity="0.4">Redis: 实时特征</text>
+  <text x="164" y="84" text-anchor="middle" font-size="9" class="it" opacity="0.4">HBase: 历史特征</text>
+  <text x="164" y="97" text-anchor="middle" font-size="8" fill="rgba(76,175,80,0.5)">≈ 5-10ms</text>
+  <!-- Arrow -->
+  <line x1="226" y1="65" x2="246" y2="65" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ia2)"/>
+  <!-- Feature assembly -->
+  <rect x="248" y="40" width="90" height="50" rx="6" fill="rgba(33,150,243,0.08)" stroke="rgba(33,150,243,0.25)" stroke-width="1.5"/>
+  <text x="293" y="62" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.75)">特征拼装</text>
+  <text x="293" y="78" text-anchor="middle" font-size="8" class="it" opacity="0.4">归一化/拼向量</text>
+  <!-- Arrow -->
+  <line x1="340" y1="65" x2="360" y2="65" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ia3)"/>
+  <!-- Model inference -->
+  <rect x="362" y="30" width="110" height="70" rx="6" fill="rgba(244,67,54,0.07)" stroke="rgba(244,67,54,0.25)" stroke-width="1.5"/>
+  <text x="417" y="55" text-anchor="middle" font-size="11" fill="rgba(244,67,54,0.75)">模型推理</text>
+  <text x="417" y="71" text-anchor="middle" font-size="9" class="it" opacity="0.4">Triton/TorchServe</text>
+  <text x="417" y="84" text-anchor="middle" font-size="9" class="it" opacity="0.4">GPU/CPU 计算</text>
+  <text x="417" y="97" text-anchor="middle" font-size="8" fill="rgba(244,67,54,0.5)">≈ 20-50ms</text>
+  <!-- Arrow -->
+  <line x1="474" y1="65" x2="494" y2="65" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ia4)"/>
+  <!-- Score output -->
+  <rect x="496" y="40" width="76" height="50" rx="6" fill="rgba(128,128,128,0.08)" stroke="rgba(128,128,128,0.25)" stroke-width="1.5"/>
+  <text x="534" y="62" text-anchor="middle" font-size="10" class="it">风险评分</text>
+  <text x="534" y="78" text-anchor="middle" font-size="9" class="it" opacity="0.4">0.0 - 1.0</text>
+  <!-- Total time label -->
+  <text x="290" y="122" text-anchor="middle" font-size="10" class="it" opacity="0.35">总延迟目标：100ms 以内</text>
+  <defs>
+    <marker id="ia1" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="ia2" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="ia3" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="ia4" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+  </defs>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">一次线上推理的完整链路，从用户请求到风险评分，100ms 内完成</figcaption>
+</figure>
+
+<p>每个步骤的延迟预算：</p>
+<ul>
+  <li>特征读取（Redis + HBase）：5-10ms</li>
+  <li>特征拼装和预处理（归一化、缺失值填充）：1-2ms</li>
+  <li>模型推理（神经网络前向传播）：20-50ms（取决于模型大小和硬件）</li>
+  <li>网络和其他开销：剩余预算</li>
+</ul>
+
+<p>这就是为什么特征读取必须用 Redis 而不是数据库——数据库的查询延迟通常在 5-50ms，高峰期可能更高，而且无法承受风控系统的高并发请求量。</p>
+
+
+<h2 id="最重要的约束：特征一致性">七、最重要的约束：训练和推理必须用同一套特征</h2>
+
+<p>到现在你已经理解了整个系统。但有一个约束贯穿全程，是这个系统最核心的正确性保证：<strong>训练用的特征和线上推理用的特征，必须是同一套计算逻辑产生的</strong>。</p>
+
+<p>这听起来是废话，但实际上极难保证。</p>
+
+<p>训练侧用 Spark SQL 算"用户过去 7 天的点击次数"，推理侧用 Flink 算同一个特征。两套代码，分别维护，随着版本迭代，细节开始不同：Spark 按自然天统计，Flink 按滚动窗口统计；Spark 统计完整的历史数据，Flink 只统计当天已到达的事件；Spark 有去重逻辑，Flink 没有……</p>
+
+<p>结果：模型训练时学到的是"点击次数 = 50 时，风险高"，但线上给模型的是 Flink 算出的 65。模型的决策边界完全错位，但整个系统不会报任何错误，只是评分慢慢变得不准。</p>
+
+<p>这个问题叫做 <strong>Training-Serving Skew</strong>，是 ML 系统最难排查的 bug 类型之一，也是你作为模型平台工程师最需要关注的事情。</p>
+
+<p>解决它的根本思路是：<strong>不维护两套逻辑，让批式和流式从同一份特征定义生成</strong>。具体实现有几种方向：Flink 批流一体（同一份 SQL，切换执行模式）、统一特征定义语言（用 YAML 描述特征逻辑，系统自动翻译成 Spark 和 Flink 代码）、或者至少做到特征计算逻辑共享代码库而非各自实现。</p>
+
+
+<h2 id="你将要建设什么">八、你将要建设什么</h2>
+
+<p>现在回过头看 JD 里的每一条，你应该能把它们对应到系统的具体位置了：</p>
+
+<ul>
+  <li><strong>"训练框架开发"</strong>：第五步，训练侧的基础设施——样本生成流程、Point-in-Time Join、分布式训练任务管理</li>
+  <li><strong>"在线模型推理框架"</strong>：第六步，推理侧——推理服务的性能优化、模型热更新、请求调度</li>
+  <li><strong>"特征平台建设"</strong>：第二到四步，整个特征工程层——批式特征 Pipeline、Flink 实时特征、Offline/Online Store 的管理和一致性保证</li>
+  <li><strong>"批、流式特征生产架构"</strong>：第三步和第四步，Spark 批式 + Flink 流式的完整架构</li>
+  <li><strong>"数据隔离平台"</strong>：在多个业务线共用一个特征平台时，保证 A 业务的数据不会影响 B 业务的计算结果</li>
+</ul>
+
+<p>你的核心工作不是训练模型，而是<strong>让算法工程师能高效地训练和部署模型</strong>。特征平台越好用、训练速度越快、推理延迟越低，算法工程师就能更快地迭代，模型效果就越好。这是一个间接但非常关键的角色。</p>
+
+
+<h2 id="入职前要做什么">九、带着这张地图，入职前做什么</h2>
+
+<p>现在你有了整体认知，具体准备可以有针对性：</p>
+
+<p><strong>动手跑一遍 Hudi。</strong> 在本地搭一个最简单的 Hudi demo：写入几条数据、做一次 Upsert、然后用 time-travel query 查历史版本。这个操作本地一两小时能跑通，但会让你对 Hudi 的工作方式有直觉。</p>
+
+<p><strong>看懂一个 Flink 滑动窗口 demo。</strong> 找一个 Flink WordCount 的变体，改成"统计最近 1 小时内每个用户的点击次数"。跑通它，理解 Event Time、Watermark、State 是怎么配合的。</p>
+
+<p><strong>用 PyTorch 本地跑一个推理。</strong> 找一个预训练的简单模型（比如分类模型），用 Python 加载后做推理，记录延迟。然后换成 TorchServe 部署后再测一次。感受一下推理框架解决了什么问题。</p>
+
+<p><strong>理解业务场景。</strong> 搜索一下"美团金融风控"、"消费金融 ML 系统"相关的技术文章（美团技术博客有不少）。理解业务方向，让你入职后第一次和产品、算法同事开会时不会完全陌生。</p>
+
+<p>不需要全部精通，但每个方向有一点亲身操作的经验，比看十篇文章更有用。</p>
+
+
+<h2 id="总结">十、总结</h2>
+
+<p>用一张地图总结整个系统：</p>
+
+<ul>
+  <li><strong>数据源</strong>：MySQL（静态）、Kafka（实时）、Hive（历史批量）</li>
+  <li><strong>批式路径</strong>：Spark → Hudi（Offline Store）→ 模型训练</li>
+  <li><strong>流式路径</strong>：Flink → Redis/HBase（Online Store）→ 线上推理</li>
+  <li><strong>Point-in-Time Join</strong>：训练时用事件发生时刻的特征，防止数据泄漏</li>
+  <li><strong>Training-Serving Skew</strong>：批流两套逻辑的不一致，是最难排查的 bug</li>
+  <li><strong>推理延迟分解</strong>：特征读取（5-10ms）+ 模型推理（20-50ms）= 100ms 目标</li>
+</ul>
+
+<p>你建设的不是模型本身，而是让模型能被快速训练、准确评估、高效服务的基础设施。做好这件事，算法同事才能专注于算法。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+          <a href="/tags/职业发展/" rel="tag"><i class="fa fa-tag"></i> 职业发展</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#全局视图"><span class="nav-number">1.</span> <span class="nav-text">一、全局视图：系统长什么样</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第一步原始数据"><span class="nav-number">2.</span> <span class="nav-text">二、第一步：原始数据在哪里</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第二步批式特征计算"><span class="nav-number">3.</span> <span class="nav-text">三、批式特征计算（Spark + Hudi）</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第三步流式特征计算"><span class="nav-number">4.</span> <span class="nav-text">四、流式特征计算（Flink + Redis）</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第四步模型训练"><span class="nav-number">5.</span> <span class="nav-text">五、模型训练（Point-in-Time Join）</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第五步线上推理"><span class="nav-number">6.</span> <span class="nav-text">六、线上推理（100ms 内完成）</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#最重要的约束：特征一致性"><span class="nav-number">7.</span> <span class="nav-text">七、最重要的约束：特征一致性</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#你将要建设什么"><span class="nav-number">8.</span> <span class="nav-text">八、你将要建设什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#入职前要做什么"><span class="nav-number">9.</span> <span class="nav-text">九、入职前做什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">10.</span> <span class="nav-text">十、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">222</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
