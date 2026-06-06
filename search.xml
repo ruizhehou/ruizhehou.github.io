@@ -6266,4 +6266,10 @@ x = \frac{4-\pi}{4}r \approx0.2146r
     <content><![CDATA[Zig 的核心哲学：没有隐藏的控制流、没有隐藏的内存分配、代码做的事和看起来做的事一模一样。五个核心特性：(1)错误联合类型 !T，try 向上传播/catch 处理，没有异常不能静默忽略；(2)显式分配器，所有内存分配传入 Allocator，可切换堆/Arena/栈缓冲区，测试中自动检测泄漏；(3)comptime，在编译期执行普通 Zig 代码，type 是一等公民，泛型=接受 type 参数的普通函数，@typeInfo 做编译期反射；(4)可选类型 ?T 代替空指针，orelse/if let 强制处理 null；(5)@cImport 直接导入 C 头文件，内置交叉编译工具链，zig cc 可作为 C 编译器。定位：比 C 更现代/更安全，比 Rust 更轻量/更可控。代表项目：Bun（JS运行时）、TigerBeetle（金融数据库）。当前 0.14 版本未发布 1.0，语言仍在演化。]]></content>
       <tags><tag>高级编程语言</tag><tag>工程实践</tag></tags>
   </entry>
+  <entry>
+    <title>Zig 会走向何方</title>
+    <url>/2026/06/06/Zig%E7%9A%84%E6%9C%AA%E6%9D%A5/</url>
+    <content><![CDATA[Zig 大概率会成为稳固的细分语言而非主流语言——类似 Erlang 在并发领域的地位。有利因素：zig cc 交叉编译工具链是被低估的传播路径（先用工具后学语言）；comptime 设计思路已影响其他语言（Carbon、Rust const eval）；Bun 证明 Zig 在大量 C 互操作场景比 Rust 体验更好。不利因素：pre-1.0 持续多年让企业采用困难（每次升级有破坏性变更）；Rust 已赢得现代系统语言的心智份额和生态；核心依赖 Andrew Kelley 一人，无大机构支撑。突破主流需要：1.0 发布+稳定性承诺、更多高知名度代表项目、生态成熟。最有可能站稳的领域：C 互操作密集的高性能系统、嵌入式/实时系统、C 项目构建工具链。即使语言本身未成主流，comptime 思路对编程语言设计的影响已超出 Zig 自身。]]></content>
+      <tags><tag>高级编程语言</tag><tag>生活</tag></tags>
+  </entry>
 </search>
