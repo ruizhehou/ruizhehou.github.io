@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="AI 自己训练自己的核心问题是：监督信号从哪来？五种具体实现路径——自监督学习（BERT/GPT 如何从数据本身提取标注）、自博弈（AlphaZero 如何用对弈结果训练自己）、合成数据（强模型给弱模型生成训练样本）、RLAIF（用 AI 代替人类打分）、STaR 迭代自我精炼。每种路径的训练循环是什么样的。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="AI 自己训练自己：五种具体的实现路径">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/06/AI自训练/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-06T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-06T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/06/AI自训练/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>AI 自己训练自己：五种具体的实现路径 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-06T10:00:00+08:00" content="2026-06-06">
+      06-06
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      AI 自己训练自己：五种具体的实现路径
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>机器学习的传统范式是：人类标注数据，模型从中学习。这个过程的瓶颈很明显——高质量标注数据贵、慢、难扩展。</p>
+
+<p>过去几年，研究界和工业界探索了另一个方向：让模型自己为自己的训练提供监督信号，减少对人工标注的依赖。这不是一个单一的技术，而是几种不同机制的集合，每种机制解决的是"信号从哪里来"这个问题的不同变体。</p>
+
+<p>这篇文章讲五种具体的实现路径，每种都包含训练循环是什么样的。</p>
+
+
+<h2 id="路径一自监督学习">一、自监督学习：从数据本身提取标注</h2>
+
+<p>最基础的一种。核心思路是：不需要人工标注，而是从数据本身构造监督信号。</p>
+
+<p><strong>BERT 的掩码语言模型（MLM）</strong>是最典型的例子。训练过程：</p>
+
+<ol>
+  <li>取一段文本，随机遮盖其中 15% 的词（替换为 [MASK] token）</li>
+  <li>让模型根据上下文预测被遮盖的词是什么</li>
+  <li>把模型的预测和原始词比较，计算交叉熵损失，反向传播更新参数</li>
+</ol>
+
+<p>这里没有任何人工标注。原始文本本身就是"答案"——被遮盖的词就是正确标签。模型在预测"什么词被盖住了"的过程中，被迫学习语言的语法结构、语义关系和上下文依赖。</p>
+
+<p><strong>GPT 的自回归语言模型</strong>更简单：给模型前 N 个词，让它预测第 N+1 个词。每一段文本天然地提供了序列中每个位置的"正确答案"，无需任何额外标注。整个 GPT 系列的预训练都基于这个原理——用互联网上的万亿 token 文本，让模型不断预测"下一个词是什么"。</p>
+
+<p>自监督学习的关键洞察是：<strong>数据的内部结构本身就可以是监督信号</strong>。你不需要知道一段文字"说的是什么意思"，只需要能验证"预测的词对不对"。这个验证是完全自动化的，可以无限扩展。</p>
+
+
+<h2 id="路径二自博弈">二、自博弈：用对弈结果训练自己</h2>
+
+<p>这条路径来自博弈论背景，AlphaZero 是最清晰的实现。</p>
+
+<p>AlphaZero 的训练循环：</p>
+
+<ol>
+  <li><strong>自我对弈生成数据</strong>：当前版本的模型和自己的一个副本下棋（围棋/国际象棋/将棋），记录每一步的棋局状态、走法选择、最终胜负结果</li>
+  <li><strong>构造训练样本</strong>：以每个棋局状态为输入，以"该走法在蒙特卡洛树搜索中的访问频率"为策略标签，以最终对弈结果（+1/-1）为价值标签</li>
+  <li><strong>训练模型</strong>：用这批自我对弈数据更新策略网络（预测最佳走法）和价值网络（预测当前局面的胜率）</li>
+  <li><strong>替换旧模型</strong>：新模型和旧模型对弈，如果新模型胜率超过阈值（如 55%），用新模型替换旧模型，继续步骤 1</li>
+</ol>
+
+<p>整个过程没有任何人类棋谱。监督信号来自对弈的胜负结果——这是一个客观的、二元的信号，不需要人工判断。AlphaZero 从完全随机走棋开始，几天内就超越了使用人类棋谱训练的 AlphaGo。</p>
+
+<p>自博弈的关键条件是：<strong>任务必须有明确的客观反馈</strong>（赢了还是输了，对了还是错了）。数学证明、代码执行、棋类游戏都满足这个条件；开放式写作、对话质量等不满足。</p>
+
+
+<h2 id="路径三合成数据">三、合成数据：强模型给弱模型生成训练样本</h2>
+
+<p>这是 LLM 时代最实用的路径之一，核心思路是用一个更强的模型为更弱的模型生成训练数据。</p>
+
+<p>Stanford Alpaca 的实现最直接：</p>
+
+<ol>
+  <li>从 InstructGPT 的论文里整理了 175 个种子指令样本（人工写的）</li>
+  <li>用这 175 条种子，让 text-davinci-003 生成更多"（指令, 回复）"对，总共生成了 52,000 条</li>
+  <li>用这 52,000 条合成数据，对 LLaMA-7B 做监督微调（SFT）</li>
+  <li>结果：一个参数量只有 GPT-3.5 百分之一的模型，在指令跟随任务上达到了接近的效果</li>
+</ol>
+
+<p>生成高质量合成数据的 prompt 设计很关键。Alpaca 的生成 prompt 要求：生成的指令要多样（不同任务类型、不同语言、不同难度）、有明确答案、不重复现有指令。通过这些约束，尽量让生成的数据覆盖广泛的分布。</p>
+
+<p>这条路径在工业界演化出了一个更系统的形态：<strong>知识蒸馏（Knowledge Distillation）流水线</strong>。</p>
+
+<ul>
+  <li>用大模型（教师）对一个任务生成大量高质量的（输入, 输出）对</li>
+  <li>用这些数据微调小模型（学生）</li>
+  <li>学生模型可以比直接用相同数量的人工数据训练的效果好得多——因为教师模型能生成比普通人标注质量更高的样本</li>
+</ul>
+
+<p>Meta 的 LLaMA 系列、Mistral、很多国内的开源模型，都程度不同地使用了这条路径。</p>
+
+
+<h2 id="路径四RLAIF">四、RLAIF：用 AI 模型代替人类打分</h2>
+
+<p>RLHF（人类反馈强化学习）是当前 LLM 对齐的主流方法，但它有一个明显的成本瓶颈：需要大量人工标注偏好数据（这个回答比那个回答好）。</p>
+
+<p>RLAIF（AI 反馈强化学习）把人类评分员替换成另一个 AI 模型，训练循环变成：</p>
+
+<ol>
+  <li>对同一个问题，让被训练的模型生成多个回答（比如 4 个）</li>
+  <li>把这 4 个回答送给一个"评估模型"（通常是更大的模型），让它判断哪个更好，输出偏好排序或分数</li>
+  <li>用这些 AI 生成的偏好数据训练一个奖励模型（Reward Model）</li>
+  <li>用奖励模型的分数作为强化学习信号，用 PPO 或 DPO 等算法更新被训练模型的参数</li>
+</ol>
+
+<p>Google DeepMind 的论文（2023）表明，RLAIF 在很多任务上的效果和 RLHF 相当，但成本低几个数量级——不需要雇用人工标注团队，评估速度快，可以按需扩展。</p>
+
+<p>Anthropic 的 Constitutional AI（CAI）是更完整的 RLAIF 实现。它增加了一个步骤：在让模型生成回答之前，先给它一套"宪法"——一组原则，比如"回答应该无害、诚实、对用户有益"。模型先生成初始回答，再用宪法里的原则对自己的回答进行批判，然后基于批判修改回答。这个"生成-批判-修改"的循环本身就产生了训练数据：修改后的回答比初始回答更好，这是一个自动生成的偏好标签对。</p>
+
+
+<h2 id="路径五STaR迭代自我精炼">五、STaR：错了重新想，想对了记下来</h2>
+
+<p>STaR（Self-Taught Reasoner，自我教导推理者）是 2022 年 Google 提出的方法，针对的是需要多步推理的任务（数学题、逻辑推理）。</p>
+
+<p>训练循环：</p>
+
+<ol>
+  <li>给模型一道题，让它生成推理过程（Chain of Thought）和最终答案</li>
+  <li>对答案做自动验证——答案对了，把这道题 + 这条推理过程加入训练集；答案错了，进入步骤 3</li>
+  <li>给模型看正确答案，提示它"已知答案是 X，重新推导推理过程"——让模型逆向生成一条能得到正确答案的推理链</li>
+  <li>把逆向生成的推理过程也加入训练集</li>
+  <li>用这一轮收集的数据微调模型，得到新模型，再从步骤 1 开始</li>
+</ol>
+
+<p>关键在于步骤 2：只有"答对了"的推理过程才被保留作为训练数据。这是一个自动的质量过滤器——模型不是在记住所有的推理，而是在积累那些"有效推理"的样本。随着迭代，模型能做对的题越来越多，训练数据的质量也在提升。</p>
+
+<p>STaR 实验显示，在算术推理任务上，迭代 5 轮之后，模型的准确率从初始的约 10% 提升到约 40%，而这个过程只使用了 6000 道题的问题集，没有任何人工标注的推理过程。</p>
+
+<p>这条路径本质上是：<strong>用"结果正确"作为监督信号，而不是用"推理过程正确"</strong>。结果正确性往往可以自动验证（数学题有标准答案），推理过程正确性则需要人工判断。</p>
+
+
+<h2 id="五条路径的共同结构">六、五条路径的共同结构</h2>
+
+<p>把这五条路径放在一起，会发现它们有一个共同的结构：</p>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 560 130" style="max-width:540px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.lt{fill:currentColor;font-family:inherit;}</style>
+  <rect x="10" y="40" width="100" height="50" rx="6" fill="rgba(33,150,243,0.08)" stroke="rgba(33,150,243,0.3)" stroke-width="1.5"/>
+  <text x="60" y="62" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.8)">当前模型</text>
+  <text x="60" y="78" text-anchor="middle" font-size="9" class="lt" opacity="0.4">生成输出</text>
+
+  <line x1="112" y1="65" x2="132" y2="65" stroke="rgba(128,128,128,0.3)" stroke-width="1.3" marker-end="url(#la1)"/>
+
+  <rect x="134" y="30" width="120" height="70" rx="6" fill="rgba(244,67,54,0.07)" stroke="rgba(244,67,54,0.25)" stroke-width="1.5"/>
+  <text x="194" y="55" text-anchor="middle" font-size="10" fill="rgba(244,67,54,0.75)">监督信号来源</text>
+  <text x="194" y="70" text-anchor="middle" font-size="8" class="lt" opacity="0.4">数据结构 / 对弈结果</text>
+  <text x="194" y="83" text-anchor="middle" font-size="8" class="lt" opacity="0.4">强模型评分 / AI打分</text>
+  <text x="194" y="96" text-anchor="middle" font-size="8" class="lt" opacity="0.4">结果正确性验证</text>
+
+  <line x1="256" y1="65" x2="276" y2="65" stroke="rgba(128,128,128,0.3)" stroke-width="1.3" marker-end="url(#la2)"/>
+
+  <rect x="278" y="40" width="100" height="50" rx="6" fill="rgba(76,175,80,0.08)" stroke="rgba(76,175,80,0.3)" stroke-width="1.5"/>
+  <text x="328" y="62" text-anchor="middle" font-size="10" fill="rgba(76,175,80,0.8)">训练数据</text>
+  <text x="328" y="78" text-anchor="middle" font-size="9" class="lt" opacity="0.4">（标注对）</text>
+
+  <line x1="380" y1="65" x2="400" y2="65" stroke="rgba(128,128,128,0.3)" stroke-width="1.3" marker-end="url(#la3)"/>
+
+  <rect x="402" y="40" width="100" height="50" rx="6" fill="rgba(128,128,128,0.08)" stroke="rgba(128,128,128,0.25)" stroke-width="1.5"/>
+  <text x="452" y="62" text-anchor="middle" font-size="10" class="lt">更新后模型</text>
+  <text x="452" y="78" text-anchor="middle" font-size="9" class="lt" opacity="0.4">（更好的版本）</text>
+
+  <!-- Loop arrow -->
+  <path d="M 452 92 C 452 115 60 115 60 92" fill="none" stroke="rgba(128,128,128,0.2)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#la4)"/>
+  <text x="256" y="126" text-anchor="middle" font-size="8" class="lt" opacity="0.3">迭代循环</text>
+
+  <defs>
+    <marker id="la1" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="la2" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="la3" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="la4" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.2)"/></marker>
+  </defs>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">五条路径的共同结构：模型生成输出 → 某种机制提供监督信号 → 构造训练数据 → 更新模型 → 循环</figcaption>
+</figure>
+
+<p>五条路径的区别在于"监督信号来源"这一环：</p>
+
+<ul>
+  <li><strong>自监督学习</strong>：信号来自数据本身的内部结构（遮盖词 / 下一个词）</li>
+  <li><strong>自博弈</strong>：信号来自对弈的客观结果（胜负）</li>
+  <li><strong>合成数据</strong>：信号来自更强的模型（教师模型的输出即答案）</li>
+  <li><strong>RLAIF</strong>：信号来自另一个 AI 模型的偏好判断</li>
+  <li><strong>STaR</strong>：信号来自结果的可验证正确性（答案对不对）</li>
+</ul>
+
+<p>选择哪条路径，取决于你的任务有什么性质：有没有客观可验证的结果？有没有比目标模型更强的模型可用？数据内部有没有可利用的结构？</p>
+
+
+<h2 id="总结">七、总结</h2>
+
+<ul>
+  <li><strong>自监督学习</strong>：从数据内部结构构造标注——BERT 掩码预测、GPT 下一词预测。无需任何人工标注，可以无限扩展</li>
+  <li><strong>自博弈</strong>：用对弈/竞争产生结果信号——AlphaZero 从零出发，用胜负训练策略网络和价值网络</li>
+  <li><strong>合成数据</strong>：强模型给弱模型生成训练样本——Alpaca 用 GPT 生成 52K 条指令数据微调 LLaMA</li>
+  <li><strong>RLAIF</strong>：用 AI 代替人类做偏好评估——Constitutional AI 让模型对自己的输出批判并修改，产生偏好对</li>
+  <li><strong>STaR</strong>：错了重新推理，答对了的推理才进训练集——用结果正确性作为过滤器积累高质量推理数据</li>
+</ul>
+
+<p>这五条路径都在解决同一个问题：如何在没有（或减少）人工标注的前提下，为模型的训练提供可靠的监督信号。它们的出现，是机器学习从"依赖人工标注"向"从数据和环境中自动获取信号"演化的缩影。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#路径一自监督学习"><span class="nav-number">1.</span> <span class="nav-text">一、自监督学习：从数据本身提取标注</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#路径二自博弈"><span class="nav-number">2.</span> <span class="nav-text">二、自博弈：用对弈结果训练自己</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#路径三合成数据"><span class="nav-number">3.</span> <span class="nav-text">三、合成数据：强模型给弱模型生成训练样本</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#路径四RLAIF"><span class="nav-number">4.</span> <span class="nav-text">四、RLAIF：用 AI 模型代替人类打分</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#路径五STaR迭代自我精炼"><span class="nav-number">5.</span> <span class="nav-text">五、STaR：错了重新想，想对了记下来</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#五条路径的共同结构"><span class="nav-number">6.</span> <span class="nav-text">六、五条路径的共同结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">七、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">226</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
