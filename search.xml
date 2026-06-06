@@ -6260,4 +6260,10 @@ x = \frac{4-\pi}{4}r \approx0.2146r
     <content><![CDATA[AI 自训练的核心问题：监督信号从哪来？五种路径：(1)自监督学习——BERT掩码语言模型用遮盖词作标签、GPT用下一词预测，数据内部结构本身就是标注；(2)自博弈——AlphaZero训练循环：自我对弈→记录棋局+胜负→训练策略/价值网络→新模型替换旧模型，从随机走棋出发无需任何棋谱；(3)合成数据——强模型给弱模型生成训练样本，Stanford Alpaca用GPT生成52K条指令数据微调LLaMA；(4)RLAIF——用AI代替人类做偏好评估，Constitutional AI让模型自我批判修改产生偏好对，训练奖励模型+PPO；(5)STaR迭代自我精炼——模型做题，对了把推理过程加入训练集，错了给正确答案让模型逆向生成推理，只保留有效推理样本迭代微调。五条路径共同结构：模型生成→信号来源不同→构造训练数据→更新模型→循环。]]></content>
       <tags><tag>架构</tag><tag>工程实践</tag></tags>
   </entry>
+  <entry>
+    <title>Zig：一门拒绝隐藏行为的系统编程语言</title>
+    <url>/2026/06/06/Zig%E8%AF%AD%E8%A8%80%E4%BB%8B%E7%BB%8D/</url>
+    <content><![CDATA[Zig 的核心哲学：没有隐藏的控制流、没有隐藏的内存分配、代码做的事和看起来做的事一模一样。五个核心特性：(1)错误联合类型 !T，try 向上传播/catch 处理，没有异常不能静默忽略；(2)显式分配器，所有内存分配传入 Allocator，可切换堆/Arena/栈缓冲区，测试中自动检测泄漏；(3)comptime，在编译期执行普通 Zig 代码，type 是一等公民，泛型=接受 type 参数的普通函数，@typeInfo 做编译期反射；(4)可选类型 ?T 代替空指针，orelse/if let 强制处理 null；(5)@cImport 直接导入 C 头文件，内置交叉编译工具链，zig cc 可作为 C 编译器。定位：比 C 更现代/更安全，比 Rust 更轻量/更可控。代表项目：Bun（JS运行时）、TigerBeetle（金融数据库）。当前 0.14 版本未发布 1.0，语言仍在演化。]]></content>
+      <tags><tag>高级编程语言</tag><tag>工程实践</tag></tags>
+  </entry>
 </search>
