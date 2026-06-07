@@ -6272,4 +6272,10 @@ x = \frac{4-\pi}{4}r \approx0.2146r
     <content><![CDATA[Zig 大概率会成为稳固的细分语言而非主流语言——类似 Erlang 在并发领域的地位。有利因素：zig cc 交叉编译工具链是被低估的传播路径（先用工具后学语言）；comptime 设计思路已影响其他语言（Carbon、Rust const eval）；Bun 证明 Zig 在大量 C 互操作场景比 Rust 体验更好。不利因素：pre-1.0 持续多年让企业采用困难（每次升级有破坏性变更）；Rust 已赢得现代系统语言的心智份额和生态；核心依赖 Andrew Kelley 一人，无大机构支撑。突破主流需要：1.0 发布+稳定性承诺、更多高知名度代表项目、生态成熟。最有可能站稳的领域：C 互操作密集的高性能系统、嵌入式/实时系统、C 项目构建工具链。即使语言本身未成主流，comptime 思路对编程语言设计的影响已超出 Zig 自身。]]></content>
       <tags><tag>高级编程语言</tag><tag>生活</tag></tags>
   </entry>
+  <entry>
+    <title>Bun：一个二进制文件，干掉了整个 JavaScript 工具链</title>
+    <url>/2026/06/07/Bun%E4%BB%8B%E7%BB%8D/</url>
+    <content><![CDATA[Bun 不是更快的 Node.js，而是重新想象了 JS 工具链：运行时+包管理器+打包器+测试框架一个二进制文件全包。三层加速：JavaScriptCore（比 V8 启动更快）、Zig 底层实现（薄抽象无 GC 抖动）、原生 TypeScript（类型剥离直接执行无需 tsc）。bun install 比 npm install 快 10-25 倍（并行下载+全局缓存+硬链接+二进制 lockfile）。内置被低估的能力：bun:sqlite 原生 SQLite 驱动、自动加载 .env、内置 WebSocket 服务器。Node.js 兼容性：大多数 npm 包可用，C++ 原生插件不支持。适合新项目/API/CLI/脚本；谨慎用于有 native 依赖的大型项目或关键生产系统。与 Deno 对比：Deno 追求重新设计（打破兼容），Bun 追求在现有生态上提速（保持兼容）。核心意义：JS 生态为什么需要十几个工具做一件事？这个问题本身推动了工具链整合的讨论。]]></content>
+      <tags><tag>工程实践</tag><tag>高级编程语言</tag></tags>
+  </entry>
 </search>

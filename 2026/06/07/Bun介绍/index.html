@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Bun 不是"更快的 Node.js"，而是一个重新想象了 JavaScript 工具链的项目：运行时+包管理器+打包器+测试框架，一个二进制文件全包。原生 TypeScript 支持、JavaScriptCore 引擎、Zig 底层实现、bun install 的 25x 速度优势，以及它在哪些场景真正有价值、在哪些场景还不够用。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Bun：一个二进制文件，干掉了整个 JavaScript 工具链">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/07/Bun介绍/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-07T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-07T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="工程实践">
+<meta property="article:tag" content="高级编程语言">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/07/Bun介绍/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>Bun：一个二进制文件，干掉了整个 JavaScript 工具链 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-07T10:00:00+08:00" content="2026-06-07">
+      06-07
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      Bun：一个二进制文件，干掉了整个 JavaScript 工具链
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>一个典型的现代 JavaScript 项目需要多少工具？</p>
+
+<p>Node.js 作为运行时，npm 或 yarn 管理依赖，TypeScript 编译器处理 .ts 文件，ts-node 让你在开发时不用手动编译，webpack 或 vite 打包代码，jest 或 vitest 跑测试，dotenv 加载环境变量，nodemon 监听文件变化热重载……每个工具解决一个问题，每个工具有自己的配置文件，每个工具的安装和版本管理都是额外的认知负担。</p>
+
+<p>Bun 的立场很直接：<strong>这些东西本来就应该在一起</strong>。</p>
+
+
+<h2 id="Bun是什么">一、Bun 是什么</h2>
+
+<p>Bun 是一个 JavaScript/TypeScript 的全栈工具包，包含：</p>
+
+<ul>
+  <li><strong>运行时</strong>：执行 JS/TS 代码，类似 Node.js</li>
+  <li><strong>包管理器</strong>：<code>bun install</code>，类似 npm/yarn/pnpm</li>
+  <li><strong>打包器</strong>：<code>bun build</code>，类似 webpack/esbuild/vite</li>
+  <li><strong>测试框架</strong>：<code>bun test</code>，Jest 兼容的 API</li>
+</ul>
+
+<p>这四件事，Node.js 生态里需要四套不同的工具来完成。Bun 把它们装进了一个二进制文件。</p>
+
+<p>安装之后的体验是：</p>
+
+<pre><code class="language-bash"># 直接运行 TypeScript，不需要 ts-node 或者先编译
+bun run server.ts
+
+# 安装依赖（比 npm install 快 10-25 倍）
+bun install
+
+# 运行测试（Jest 兼容的 API，不需要安装 jest）
+bun test
+
+# 打包为生产版本
+bun build ./src/index.ts --outdir ./dist
+</code></pre>
+
+<p>没有 <code>tsconfig.json</code> 的 TypeScript 支持，没有 <code>.babelrc</code>，没有单独的测试框架安装，没有 nodemon。开箱即用。</p>
+
+
+<h2 id="为什么快">二、为什么快：引擎、语言、设计三层加速</h2>
+
+<h3 id="JavaScriptCore">JavaScriptCore 而不是 V8</h3>
+
+<p>Node.js 和 Deno 都使用 Google 的 V8 引擎。Bun 选择了 <strong>JavaScriptCore（JSC）</strong>——WebKit 的 JS 引擎，也就是 Safari 用的那个。</p>
+
+<p>JSC 的设计目标和 V8 有所不同。V8 针对长时间运行的服务端场景优化了吞吐量，而 JSC 最初是为浏览器设计的，对启动速度和内存占用更敏感。这让 Bun 在<strong>启动延迟</strong>上有明显优势——跑一个 CLI 工具或者测试套件，Bun 的冷启动比 Node.js 快很多，这在频繁执行短命令的场景里（CI、脚本）非常明显。</p>
+
+<h3 id="Zig底层实现">Zig 写的底层实现</h3>
+
+<p>Bun 的核心用 Zig 写成（这也是为什么我们之前聊 Zig 时把 Bun 当做代表性案例）。Zig 的优势在这里体现在两点：</p>
+
+<p>一是极薄的抽象层。Node.js 的很多内置模块是 C++ 写的，C++ 代码和 JS 引擎之间有一定的 FFI 开销。Zig 和 C 的互操作几乎没有额外开销，这让 Bun 的内置 API（文件系统、HTTP、SQLite）执行效率更高。</p>
+
+<p>二是内存控制。Zig 没有 GC，Bun 的内存分配是精确可控的，不会有 GC 暂停导致的延迟抖动。</p>
+
+<h3 id="原生TypeScript">原生 TypeScript 支持</h3>
+
+<p>Node.js 运行 TypeScript 需要先把 .ts 文件编译成 .js，再执行 .js。这个编译步骤要么在运行时做（ts-node 的做法，慢），要么提前做（生产构建的做法，但开发体验差）。</p>
+
+<p>Bun 把 TypeScript 的类型剥离（Type Stripping）直接内置到运行时里——它读取 .ts 文件，删掉类型注解，直接执行剩下的 JS 代码，不做完整的类型检查，也不需要 tsc。这让 TypeScript 文件的执行速度和纯 JS 几乎一样快。</p>
+
+<p>注意：Bun 不做完整的类型检查，它只做类型剥离。如果你需要类型安全，还是要单独跑 <code>tsc --noEmit</code>。但在开发和执行阶段，不需要等编译。</p>
+
+
+<h2 id="包管理器：bun install 有多快">三、包管理器：bun install 有多快</h2>
+
+<p>这是 Bun 最容易直接感受到的优势。</p>
+
+<p>在一个有几百个依赖的典型 Next.js 项目里，npm install 通常需要 30-60 秒，yarn install 需要 20-40 秒，bun install 通常在 2-5 秒。差距在 10-25 倍量级。</p>
+
+<p>这个速度差距来自几个地方：</p>
+
+<p><strong>并行下载和提取</strong>。npm 的下载和解压是分步的，bun 同时做多件事。</p>
+
+<p><strong>全局缓存</strong>。bun 有一个机器级别的全局缓存（<code>~/.bun/install/cache</code>），同一个包的同一个版本只下载一次，后续安装直接从缓存复制（实际上是硬链接，几乎是零成本）。</p>
+
+<p><strong>二进制锁文件</strong>。bun 的 lockfile（<code>bun.lockb</code>）是二进制格式，比 npm 的文本 JSON 解析快得多。</p>
+
+<p><strong>更高效的依赖解析算法</strong>。Bun 的依赖解析用 Zig 从头实现，比 npm 的 JavaScript 实现快很多。</p>
+
+<p>bun install 还完全兼容 npm registry 和 <code>package.json</code> 格式，切换成本几乎为零。</p>
+
+
+<h2 id="内置能力">四、几个被低估的内置能力</h2>
+
+<h3 id="原生SQLite">原生 SQLite 支持</h3>
+
+<p>Bun 内置了一个高性能的 SQLite 驱动（<code>bun:sqlite</code>），不需要安装任何 npm 包：</p>
+
+<pre><code class="language-typescript">import { Database } from "bun:sqlite";
+
+const db = new Database("mydb.sqlite");
+const query = db.query("SELECT * FROM users WHERE age > $age");
+const users = query.all({ $age: 18 });
+</code></pre>
+
+<p>这对快速原型开发和轻量级应用非常有用——不需要配置外部数据库，不需要安装驱动包，直接用。</p>
+
+<h3 id="自动加载.env">自动加载 .env</h3>
+
+<p>Bun 自动读取 <code>.env</code> 文件，不需要安装 <code>dotenv</code> 包，不需要在代码里 <code>require('dotenv').config()</code>。直接用 <code>process.env.MY_VAR</code> 就能读到。</p>
+
+<h3 id="内置WebSocket">内置 WebSocket 服务器</h3>
+
+<pre><code class="language-typescript">Bun.serve({
+  port: 3000,
+  fetch(req, server) {
+    if (server.upgrade(req)) return; // WebSocket 升级
+    return new Response("Hello!");
+  },
+  websocket: {
+    message(ws, message) {
+      ws.send(`Echo: ${message}`);
+    },
+  },
+});
+</code></pre>
+
+<p>HTTP 和 WebSocket 服务器都内置了，不需要 <code>ws</code> 包。</p>
+
+
+<h2 id="Node.js兼容性">五、Node.js 兼容性：够用但不完美</h2>
+
+<p>Bun 声称与 Node.js 高度兼容，大多数 npm 包可以直接在 Bun 里运行。实际情况是：<strong>对于大多数应用层代码，兼容性足够好；对于需要深度使用 Node.js 原生模块或特定内部 API 的包，可能有问题</strong>。</p>
+
+<p>Bun 已经实现了大量 Node.js 核心模块：<code>fs</code>、<code>path</code>、<code>http</code>、<code>https</code>、<code>stream</code>、<code>crypto</code>、<code>buffer</code>、<code>child_process</code>……覆盖率持续提高。</p>
+
+<p>常见的兼容性问题场景：</p>
+<ul>
+  <li>某些依赖 C++ 原生插件（.node 文件）的包，Bun 不支持</li>
+  <li>使用 <code>vm</code> 模块做代码沙箱的包，行为可能有差异</li>
+  <li>依赖特定 V8 API 的包（这类包本来就不多）</li>
+</ul>
+
+<p>实际迁移时，建议先把测试跑通，再考虑生产部署。大多数 Express、Fastify、Hono 等 Web 框架项目迁移到 Bun 都相对顺畅。</p>
+
+
+<h2 id="什么时候用Bun">六、什么时候用 Bun，什么时候不用</h2>
+
+<p><strong>最适合 Bun 的场景：</strong></p>
+
+<p>新项目，特别是 API 服务、CLI 工具、脚本。从零开始用 Bun，你得到的是更快的启动速度、原生 TypeScript 支持、更快的依赖安装，同时不需要配置任何额外工具。</p>
+
+<p>需要高并发 HTTP 处理的场景。Bun 的 HTTP 服务器在基准测试中通常比 Node.js 快 2-4 倍，因为底层实现更高效。</p>
+
+<p>重度使用 SQLite 的轻量应用（本地工具、内嵌数据库应用）。</p>
+
+<p><strong>谨慎使用 Bun 的场景：</strong></p>
+
+<p>依赖大量 npm 包的复杂项目，特别是有 C++ 原生插件依赖的。兼容性风险需要提前验证。</p>
+
+<p>对稳定性要求极高的关键生产系统。Bun 还相对年轻（2023 年发布 1.0），踩到边缘 bug 的概率比 Node.js 高。Node.js 已经经历了十几年的生产验证。</p>
+
+<p>需要最高峰值吞吐量的 CPU 密集型计算。V8 的 JIT 编译在长时间运行的热代码上可能比 JSC 有更高的峰值性能（两个引擎各有优劣，JSC 启动快，V8 峰值高）。</p>
+
+
+<h2 id="和Deno的对比">七、和 Deno 的对比</h2>
+
+<p>经常有人把 Bun 和 Deno 放在一起比较，因为两者都是"现代 Node.js 替代方案"。但两者的立场其实不同：</p>
+
+<p>Deno 的立场是"重新设计 JavaScript 服务端运行时"——内置 TypeScript、Web 标准 API、权限系统（默认沙箱）、去掉 <code>node_modules</code>。Deno 更愿意打破兼容性来追求更干净的设计。</p>
+
+<p>Bun 的立场是"在现有生态上提供更好的体验"——Node.js 兼容、npm 兼容、现有项目可以迁移。Bun 更愿意保持兼容性来降低迁移成本。</p>
+
+<p>结果是：Deno 更适合从头开始的项目，且你接受它的生态相对小的代价；Bun 更适合从现有 Node.js 项目迁移，或者想用 npm 生态但要更快的体验。</p>
+
+
+<h2 id="总结">八、总结</h2>
+
+<p>Bun 解决的核心问题是：JavaScript 工具链太碎了。它用一个二进制文件提供了：</p>
+
+<ul>
+  <li>运行时（替代 Node.js）</li>
+  <li>TypeScript 支持（替代 ts-node/tsc）</li>
+  <li>包管理器（替代 npm/yarn，快 10-25 倍）</li>
+  <li>测试框架（替代 Jest，零配置）</li>
+  <li>打包器（替代 webpack/esbuild，简单场景）</li>
+  <li>内置 SQLite、.env 加载、WebSocket 服务器</li>
+</ul>
+
+<p>对于新项目，特别是 TypeScript 为主的 API 服务和工具，Bun 提供的开发体验明显更好。对于现有的大型 Node.js 项目，迁移成本需要仔细评估。</p>
+
+<p>Bun 真正的意义不只是"快"，而是它提出了一个问题：<strong>为什么 JavaScript 生态需要十几个工具来完成一件事？</strong> 这个问题的提出本身，已经在推动整个 JS 工具链生态重新审视自己的碎片化问题。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+          <a href="/tags/高级编程语言/" rel="tag"><i class="fa fa-tag"></i> 高级编程语言</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Bun是什么"><span class="nav-number">1.</span> <span class="nav-text">一、Bun 是什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么快"><span class="nav-number">2.</span> <span class="nav-text">二、为什么快：三层加速</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#包管理器：bun install 有多快"><span class="nav-number">3.</span> <span class="nav-text">三、包管理器：bun install 有多快</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#内置能力"><span class="nav-number">4.</span> <span class="nav-text">四、几个被低估的内置能力</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Node.js兼容性"><span class="nav-number">5.</span> <span class="nav-text">五、Node.js 兼容性</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么时候用Bun"><span class="nav-number">6.</span> <span class="nav-text">六、什么时候用，什么时候不用</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#和Deno的对比"><span class="nav-number">7.</span> <span class="nav-text">七、和 Deno 的对比</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">8.</span> <span class="nav-text">八、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">229</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
