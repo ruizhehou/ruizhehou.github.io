@@ -6278,4 +6278,10 @@ x = \frac{4-\pi}{4}r \approx0.2146r
     <content><![CDATA[Bun 不是更快的 Node.js，而是重新想象了 JS 工具链：运行时+包管理器+打包器+测试框架一个二进制文件全包。三层加速：JavaScriptCore（比 V8 启动更快）、Zig 底层实现（薄抽象无 GC 抖动）、原生 TypeScript（类型剥离直接执行无需 tsc）。bun install 比 npm install 快 10-25 倍（并行下载+全局缓存+硬链接+二进制 lockfile）。内置被低估的能力：bun:sqlite 原生 SQLite 驱动、自动加载 .env、内置 WebSocket 服务器。Node.js 兼容性：大多数 npm 包可用，C++ 原生插件不支持。适合新项目/API/CLI/脚本；谨慎用于有 native 依赖的大型项目或关键生产系统。与 Deno 对比：Deno 追求重新设计（打破兼容），Bun 追求在现有生态上提速（保持兼容）。核心意义：JS 生态为什么需要十几个工具做一件事？这个问题本身推动了工具链整合的讨论。]]></content>
       <tags><tag>工程实践</tag><tag>高级编程语言</tag></tags>
   </entry>
+  <entry>
+    <title>如何学习 Zig：一条走得通的路线</title>
+    <url>/2026/06/07/%E5%A6%82%E4%BD%95%E5%AD%A6%E4%B9%A0Zig/</url>
+    <content><![CDATA[Zig 学习路线（从 Java/Go/Python 背景出发）：第一步 zig.guide（不要从官方文档开始，那是参考手册不是教程）→ Ziglings（106个修 bug 练习，按顺序做）→ 标准库源码（最被低估的资源）→ 真实项目。三个最值得花时间的概念：(1)分配器——把四种分配器都用一遍（GeneralPurpose/Arena/FixedBuffer/testing.allocator）；(2)comptime——从泛型函数入手，理解'类型也是值'；(3)错误处理——不用 catch unreachable 绕过，强迫自己处理每种错误。练手项目：wc 命令行工具→HTTP 服务器→解析器（按难度递增）。卡住时：标准库源码+测试>Zig Discord>GitHub Zig 项目。版本注意：用最新版（0.14.x），网上旧示例代码可能编译失败。]]></content>
+      <tags><tag>高级编程语言</tag><tag>工程实践</tag></tags>
+  </entry>
 </search>

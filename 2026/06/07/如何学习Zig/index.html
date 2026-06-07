@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="学 Zig 的实用路线：需要什么基础、按什么顺序看哪些资源、三个最值得花时间的核心概念（分配器/comptime/错误处理）各用什么方式学、做什么项目练手、卡住了去哪找答案。给从 Java/Python/Go 背景来学 Zig 的人写的。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="如何学习 Zig：一条走得通的路线">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/07/如何学习Zig/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-07T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-07T14:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="高级编程语言">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/07/如何学习Zig/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>如何学习 Zig：一条走得通的路线 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-07T14:00:00+08:00" content="2026-06-07">
+      06-07
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      如何学习 Zig：一条走得通的路线
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>Zig 的学习资源比大多数语言少，而且分散。官方文档还不完整，中文资料几乎没有，社区相对小。但 Zig 的语言本身其实不复杂——核心概念就那几个，搞清楚了学起来很快。</p>
+
+<p>这篇文章的目标是给你一条具体的路线：从哪里开始、按什么顺序学、在哪里容易卡住、做什么项目练手。假设你有 Java/Go/Python 背景，没有 C 基础也没关系。</p>
+
+
+<h2 id="学之前：你需要什么基础">一、学之前：你需要什么基础</h2>
+
+<p><strong>有帮助但不是必须的</strong>：了解 C 的基本概念——指针、栈和堆的区别、内存手动管理。如果你写过 C 或者 C++，Zig 里的很多设计会立刻感觉熟悉。</p>
+
+<p><strong>真正必须的</strong>：能读懂英文技术文档，能接受一门语言不像 Python/Java 那样"帮你做很多事"的设计风格。</p>
+
+<p>Zig 的门槛不在语法，在思维模式的转换：你需要习惯"每一件事都是显式的"。内存从哪里分配？你说了算。错误怎么处理？你必须显式处理。这对习惯了 GC 语言的人来说需要一点适应时间，但不是很长。</p>
+
+<p>一个有用的前置练习：在学 Zig 之前，花一两天写几个 C 程序——一个链表、一个简单的文件读写。不需要写得多好，只是为了建立"我要自己管内存"的意识。</p>
+
+
+<h2 id="学习路线：按顺序来">二、学习路线：按这个顺序</h2>
+
+<h3 id="第一步：zig.guide（一两天）">第一步：zig.guide（一两天）</h3>
+
+<p>从 <strong>zig.guide</strong> 开始，不要从官方文档开始。官方文档（ziglang.org/documentation）非常详细，但它是参考手册，不是教程，线性读下去会失去方向感。</p>
+
+<p>zig.guide 是目前最好的入门教程，覆盖了语言的主要特性，示例代码可以直接运行，更新频率也较高。用一两天过一遍，重点不是记住所有 API，而是建立对这门语言的整体感觉。</p>
+
+<h3 id="第二步：Ziglings（边做边学）">第二步：Ziglings（边做边学）</h3>
+
+<p>Ziglings 是一个练习项目——106 个有 bug 的小程序，你的任务是修复它们让测试通过，每道题都有注释提示。覆盖了 Zig 的核心概念，每道题 5-15 分钟能做完。</p>
+
+<pre><code class="language-bash">git clone https://github.com/ratfactor/ziglings
+cd ziglings
+zig build
+</code></pre>
+
+<p>做 Ziglings 的方式：不要跳过，按顺序做。碰到卡住的题，先自己想 10 分钟，再看提示，实在不行再看答案——但要确保你理解了答案，而不是复制粘贴过去。</p>
+
+<h3 id="第三步：官方标准库源码">第三步：官方标准库源码</h3>
+
+<p>Zig 学习里最被低估的资源是标准库源码本身。标准库用 Zig 写成，代码质量很高，里面有大量真实使用 comptime、分配器、错误处理的例子。</p>
+
+<p>找到你本地的 Zig 安装目录，里面有一个 <code>lib/std/</code> 文件夹。当你对某个标准库函数的用法不确定时，直接去看它的实现。这比看文档更有用，因为你能看到完整的上下文和边界情况处理。</p>
+
+<h3 id="第四步：做一个真实项目">第四步：做一个真实项目（最重要）</h3>
+
+<p>到这一步，你已经有了足够的基础知识，剩下的只能靠写代码来学。</p>
+
+
+<h2 id="三个最值得花时间的概念">三、三个最值得花时间的概念</h2>
+
+<p>Zig 有很多特性，但有三个是学习过程中最容易卡住、也是最值得投入时间的：</p>
+
+<h3 id="分配器：彻底搞懂它">1. 分配器：彻底搞懂它</h3>
+
+<p>分配器（Allocator）是 Zig 里最陌生的概念。核心是：任何需要动态分配内存的操作，都需要你传入一个分配器。</p>
+
+<pre><code class="language-zig">const std = @import("std");
+
+pub fn main() !void {
+    // 通用分配器，用于一般场景
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();  // 程序结束时检测内存泄漏
+    const allocator = gpa.allocator();
+
+    // Arena 分配器：所有分配在 deinit 时一次性释放
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_alloc = arena.allocator();
+
+    // 用 arena 分配器构建一个列表
+    var list = std.ArrayList(u32).init(arena_alloc);
+    try list.append(1);
+    try list.append(2);
+    // arena.deinit() 会释放 list 的所有内存，不需要手动 list.deinit()
+}
+</code></pre>
+
+<p>学分配器的正确方式是：把四种主要分配器都用一遍——<code>GeneralPurposeAllocator</code>（通用）、<code>ArenaAllocator</code>（竞技场，适合请求/响应这类"批量分配批量释放"的场景）、<code>FixedBufferAllocator</code>（在固定缓冲区上分配，不做任何系统调用，适合嵌入式）、<code>std.testing.allocator</code>（测试专用，自动检测泄漏）。</p>
+
+<p>理解了分配器，你就理解了 Zig 对内存的核心主张：<strong>分配的来源和分配的策略是可以独立控制的</strong>。</p>
+
+<h3 id="comptime：用代码生成代码">2. comptime：先用，再理解</h3>
+
+<p>comptime 概念上不难（在编译期执行普通 Zig 代码），但"什么时候用、能用来做什么"需要一点练习才能建立直觉。</p>
+
+<p>最快的学习路径是：先从泛型函数入手，看明白"类型也是值"这件事：</p>
+
+<pre><code class="language-zig">// T 是编译期参数，类型本身是一等公民
+fn Stack(comptime T: type) type {
+    return struct {
+        items: []T,
+        len: usize,
+
+        const Self = @This();
+
+        pub fn init(allocator: std.mem.Allocator) !Self {
+            return Self{
+                .items = try allocator.alloc(T, 16),
+                .len = 0,
+            };
+        }
+
+        pub fn push(self: *Self, item: T) void {
+            self.items[self.len] = item;
+            self.len += 1;
+        }
+    };
+}
+
+// 使用：用类型参数实例化
+var int_stack = try Stack(i32).init(allocator);
+var str_stack = try Stack([]const u8).init(allocator);
+</code></pre>
+
+<p>理解了"函数可以返回类型"这件事，comptime 的其他用法（条件编译、编译期计算、编译期反射）都是同一个机制的延伸。</p>
+
+<h3 id="错误处理：不要绕过它">3. 错误处理：不要用 <code>catch unreachable</code> 绕过去</h3>
+
+<p>Zig 的错误处理机制（错误联合类型 <code>!T</code>、<code>try</code>、<code>catch</code>）设计清晰，但初学者容易用 <code>catch unreachable</code> 或者 <code>catch {}</code> 把错误静默掉，导致程序行为不可预测。</p>
+
+<pre><code class="language-zig">// 不好的写法（掩盖了错误）
+const value = someFunction() catch unreachable;
+
+// 好的写法：明确处理每种可能的错误
+const value = someFunction() catch |err| switch (err) {
+    error.OutOfMemory => return error.OutOfMemory,  // 向上传播
+    error.InvalidInput => {
+        std.debug.print("invalid input, using default\n", .{});
+        break :blk default_value;
+    },
+};
+
+// 或者简单向上传播
+const value = try someFunction();
+</code></pre>
+
+<p>好的练习是：写一个程序，让它的所有错误路径都有明确的处理，不用任何 <code>unreachable</code>。这会强迫你真正思考"这里会出什么错、我要怎么处理"，而不是让错误消失。</p>
+
+
+<h2 id="做什么项目练手">四、做什么项目练手</h2>
+
+<p>按难度递增，选一个做：</p>
+
+<p><strong>入门（一两天）：命令行工具</strong></p>
+
+<p>写一个 <code>wc</code> 的简单实现——统计文件的行数、单词数、字节数。这个项目会让你用到：文件 I/O、字符串处理、标准输出、命令行参数解析。小但完整，Zig 标准库在这些方面支持很好。</p>
+
+<pre><code class="language-bash">./wc myfile.txt
+# 输出: 42 lines, 156 words, 2048 bytes
+</code></pre>
+
+<p><strong>进阶（三五天）：HTTP 服务器</strong></p>
+
+<p>用 Zig 的内置 HTTP 服务器（<code>std.http.Server</code>）写一个能响应 GET 请求的简单 HTTP 服务器。这会用到分配器（处理请求需要动态分配缓冲区）、错误处理、并发的基础知识。</p>
+
+<p><strong>中级（一两周）：解析器</strong></p>
+
+<p>写一个 JSON 解析器（或者更简单的 CSV 解析器）。解析器是练习 Zig 的好项目，因为它需要精确的内存控制、大量的错误处理、以及 comptime 在某些情况下能带来很好的设计。标准库里有一个 JSON 解析器，可以在写完之后对比看。</p>
+
+
+<h2 id="卡住了怎么办">五、卡住了怎么办</h2>
+
+<p><strong>第一选择：读标准库源码</strong>。如果你不知道某个 API 怎么用，找到它的实现，看看标准库里哪里调用了它，模仿那个用法。标准库的测试代码尤其有参考价值——<code>lib/std/xxx_test.zig</code> 里有大量使用示例。</p>
+
+<p><strong>第二选择：Zig Discord 和 Ziggit（论坛）</strong>。Zig 社区规模不大但质量高，提问通常能快速得到有帮助的回复。提问时粘上你的代码和编译器报错信息。</p>
+
+<p><strong>第三选择：搜索 GitHub 上的 Zig 项目</strong>。找几个用 Zig 写的开源项目（Bun 的 Zig 部分、TigerBeetle 等），看真实项目里怎么组织代码。代码量不用读完，找你不确定的那个具体模式怎么写就够了。</p>
+
+<p><strong>遇到编译器报错看不懂</strong>：Zig 的错误信息通常很精确，但对初学者来说格式不够友好。最有用的技巧是：把报错里的关键词（比如具体的类型名）粘进搜索引擎，加上 "zig" 关键词，通常能找到相似的问题讨论。</p>
+
+
+<h2 id="关于版本的注意事项">六、关于版本的注意事项</h2>
+
+<p>Zig 目前（2026 年）还是 pre-1.0，每个版本之间有破坏性变更。学习时用 <strong>nightly 版本</strong>或者最新的稳定版（当前是 0.14.x），不要用旧版本——网上很多教程是旧版本写的，有些代码在新版本里编译不了。</p>
+
+<p>遇到网上的代码示例运行失败，先确认是不是版本问题。查一下 Zig 的 CHANGELOG 或者直接问社区"这段代码在最新版本里怎么写"，通常很快能解决。</p>
+
+
+<h2 id="总结">七、总结</h2>
+
+<ul>
+  <li><strong>顺序</strong>：zig.guide → Ziglings → 标准库源码 → 真实项目</li>
+  <li><strong>三个核心概念</strong>：分配器（把四种都用一遍）、comptime（从泛型函数入手）、错误处理（不用 <code>unreachable</code> 绕过）</li>
+  <li><strong>练手项目</strong>：wc 命令行工具 → HTTP 服务器 → 解析器</li>
+  <li><strong>卡住时</strong>：标准库源码 → Zig Discord → GitHub 上的 Zig 项目</li>
+  <li><strong>版本</strong>：用最新版，遇到示例代码失败先检查版本兼容性</li>
+</ul>
+
+<p>Zig 的学习曲线主要来自思维模式的切换，而不是语言的复杂性。一旦习惯了"所有东西都显式"这个设计原则，语言本身是相当一致且可预测的——这也是它值得学的原因之一。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/高级编程语言/" rel="tag"><i class="fa fa-tag"></i> 高级编程语言</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#学之前：你需要什么基础"><span class="nav-number">1.</span> <span class="nav-text">一、学之前：你需要什么基础</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#学习路线：按顺序来"><span class="nav-number">2.</span> <span class="nav-text">二、学习路线：按这个顺序</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#三个最值得花时间的概念"><span class="nav-number">3.</span> <span class="nav-text">三、三个最值得花时间的概念</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#做什么项目练手"><span class="nav-number">4.</span> <span class="nav-text">四、做什么项目练手</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#卡住了怎么办"><span class="nav-number">5.</span> <span class="nav-text">五、卡住了怎么办</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#关于版本的注意事项"><span class="nav-number">6.</span> <span class="nav-text">六、关于版本的注意事项</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">七、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">230</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
