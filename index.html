@@ -202,6 +202,62 @@
 
 
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/08/Codex%E5%AE%89%E5%85%A8%E6%A8%A1%E5%9E%8B/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/06/08/Codex%E5%AE%89%E5%85%A8%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">OpenAI Codex 的执行安全模型：三层防线</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2026-06-08T17:00:00+08:00">2026-06-08</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>三层防线：AskForApproval 审批策略（Never/OnRequest/Granular）、ExecPolicy 规则引擎（.rules 文件 + BANNED_PREFIX_SUGGESTIONS 危险命令列表）、平台沙箱（macOS Seatbelt / Linux bubblewrap+Landlock / Windows 沙箱进程）。从 Codex 源码分析 agent 如何在允许执行任意命令的同时保护用户机器。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/08/Codex%E6%9E%B6%E6%9E%84%E5%88%86%E6%9E%90/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/06/08/Codex%E6%9E%B6%E6%9E%84%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">解包 OpenAI Codex：SQ/EQ 协议与 Agent 会话模型</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2026-06-08T16:00:00+08:00">2026-06-08</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>Codex 的核心是 SQ/EQ（Submission Queue / Event Queue）异步通信模式：用户操作通过 Op 枚举提交，agent 事件通过 EventMsg 枚举发布。CodexThread 封装会话生命周期，管理模型配置、审批策略、沙箱权限。上下文压缩在对话历史超阈值时自动触发。从源码分析这个终端 agent 的架构设计。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/08/GPU%E8%B5%84%E6%BA%90%E6%A8%A1%E5%9E%8B/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -2992,7 +3048,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">233</span>
+          <span class="site-state-item-count">235</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

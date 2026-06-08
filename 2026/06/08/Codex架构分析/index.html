@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="解包 OpenAI Codex 的核心架构：SQ/EQ 异步通信协议、Op 枚举与 EventMsg 枚举的设计、CodexThread 会话模型，以及上下文压缩（inline 和 remote v2）的实现机制。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="解包 OpenAI Codex：SQ/EQ 协议与 Agent 会话模型">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/08/Codex架构分析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-08T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-08T16:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/08/Codex架构分析/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>解包 OpenAI Codex：SQ/EQ 协议与 Agent 会话模型 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-08T16:00:00+08:00" content="2026-06-08">
+      06-08
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      解包 OpenAI Codex：SQ/EQ 协议与 Agent 会话模型
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>OpenAI Codex 是一个终端 Agent，用 Rust 写核心，TypeScript 写前端。它不是一个简单的"调用 API 然后执行命令"的脚本，而是一套完整的 Agent 运行时。理解它的架构，从协议层开始最清晰。</p>
+
+<p>本文聚焦三个核心：SQ/EQ 通信协议、CodexThread 会话模型、上下文压缩机制。代码引用来自 <code>codex-rs</code> 子目录。</p>
+
+
+<h2 id="sq-eq-协议">一、SQ/EQ 协议：为什么要分开</h2>
+
+<p>协议文件开头第一行注释就说清楚了设计意图：</p>
+
+<pre><code class="language-rust">//! Defines the protocol for a Codex session between a client and an agent.
+//!
+//! Uses a SQ (Submission Queue) / EQ (Event Queue) pattern to asynchronously communicate
+//! between user and agent.</code></pre>
+
+<p>SQ（Submission Queue）是用户向 Agent 发指令的通道，EQ（Event Queue）是 Agent 向用户推事件的通道。两个方向完全独立。</p>
+
+<p>这个模式解决的核心问题是：Agent 执行是异步的、长时间的，中间会产生大量中间状态（命令开始执行、输出增量、需要审批、执行结束……），这些都要实时推给客户端。如果用请求-响应模型，要么客户端一直轮询，要么连接一直挂着等最终结果，都不合适。SQ/EQ 把"发指令"和"接事件"解耦，每个方向各自独立，互不阻塞。</p>
+
+<p>SQ 的入口是 <code>Submission</code> 结构体：</p>
+
+<pre><code class="language-rust">pub struct Submission {
+    /// Unique id for this Submission to correlate with Events
+    pub id: String,
+    /// Payload
+    pub op: Op,
+    pub client_user_message_id: Option&lt;String&gt;,
+    pub trace: Option&lt;W3cTraceContext&gt;,
+}</code></pre>
+
+<p>每个 Submission 有一个唯一 ID，EQ 里的 Event 会带同一个 ID，这样客户端就能把"我发了这个操作"和"Agent 产生的这些事件"关联起来。<code>trace</code> 字段支持 W3C 标准的分布式追踪上下文，说明这套协议本来就考虑了多层跳转的场景。</p>
+
+<p>EQ 的入口是 <code>Event</code>：</p>
+
+<pre><code class="language-rust">pub struct Event {
+    /// Submission `id` that this event is correlated with.
+    pub id: String,
+    /// Payload
+    pub msg: EventMsg,
+}</code></pre>
+
+
+<h2 id="op-枚举">二、Op 枚举：用户能做什么</h2>
+
+<p><code>Op</code> 枚举定义了所有从客户端到 Agent 的操作类型，标注了 <code>#[non_exhaustive]</code>，意味着未来还会继续扩展。</p>
+
+<p>几个关键的变体：</p>
+
+<pre><code class="language-rust">pub enum Op {
+    /// 中断当前任务，不终止后台终端进程
+    Interrupt,
+
+    /// 用户输入，可附带线程配置覆盖
+    UserInput {
+        items: Vec&lt;UserInput&gt;,
+        environments: Option&lt;Vec&lt;TurnEnvironmentSelection&gt;&gt;,
+        final_output_json_schema: Option&lt;Value&gt;,
+        responsesapi_client_metadata: Option&lt;HashMap&lt;String, String&gt;&gt;,
+        additional_context: BTreeMap&lt;String, AdditionalContextEntry&gt;,
+        #[serde(default, flatten)]
+        thread_settings: ThreadSettingsOverrides,
+    },
+
+    /// 不启动新 Turn，只更新线程配置
+    ThreadSettings {
+        #[serde(flatten)]
+        thread_settings: ThreadSettingsOverrides,
+    },
+
+    /// 审批命令执行
+    ExecApproval { id: String, turn_id: Option&lt;String&gt;, decision: ReviewDecision },
+
+    /// 审批代码补丁
+    PatchApproval { id: String, decision: ReviewDecision },
+
+    /// 触发上下文压缩
+    Compact,
+
+    /// 回滚最近 N 个用户 Turn
+    ThreadRollback { num_turns: u32 },
+
+    /// 关闭 Codex 实例
+    Shutdown,
+    // ...
+}</code></pre>
+
+<p>几个设计细节值得注意：</p>
+
+<p><strong><code>UserInput</code> 内嵌了 <code>ThreadSettingsOverrides</code></strong>。这意味着用户每次发消息，都可以顺带修改模型、沙箱策略、审批模式等配置，不需要单独发一个 <code>ThreadSettings</code> Op。两步合一。</p>
+
+<p><strong><code>ExecApproval</code> 和 <code>PatchApproval</code> 是独立的 Op</strong>。Agent 执行命令或打补丁之前，如果策略要求审批，会先通过 EQ 推一个审批请求事件给客户端，客户端再通过 SQ 发回审批结果。这是一个完整的异步交互回路，不是简单的"等待用户确认"阻塞调用。</p>
+
+<p><strong><code>InterAgentCommunication</code></strong> 的存在说明 Codex 支持多 Agent 协作场景，一个 Agent 可以给另一个 Agent 发消息，并且这条消息会被记录进 Assistant 历史。</p>
+
+
+<h2 id="eventmsg-枚举">三、EventMsg 枚举：Agent 会说什么</h2>
+
+<p><code>EventMsg</code> 是 EQ 的 payload，定义了 Agent 能产生的所有事件类型。数量很多，但有清晰的分组逻辑。</p>
+
+<p><strong>Turn 生命周期事件</strong>：</p>
+
+<pre><code class="language-rust">// v1 wire format 用 task_started，v2 用 turn_started，两者都接受
+#[serde(rename = "task_started", alias = "turn_started")]
+TurnStarted(TurnStartedEvent),
+
+#[serde(rename = "task_complete", alias = "turn_complete")]
+TurnComplete(TurnCompleteEvent),
+
+TurnAborted(TurnAbortedEvent),
+</code></pre>
+
+<p>这里有一个向后兼容的处理：v1 协议叫 <code>task_started</code>，v2 改名叫 <code>turn_started</code>，通过 <code>alias</code> 两者都能反序列化。</p>
+
+<p><strong>命令执行事件</strong>（Begin/Delta/End 三段式）：</p>
+
+<pre><code class="language-rust">ExecCommandBegin(ExecCommandBeginEvent),
+ExecCommandOutputDelta(ExecCommandOutputDeltaEvent),
+ExecCommandEnd(ExecCommandEndEvent),</code></pre>
+
+<p>命令输出是流式推送的，<code>OutputDelta</code> 会持续发送增量内容，直到 <code>End</code>。这让终端 UI 能实时展示命令输出，而不是等命令跑完再一次性显示。</p>
+
+<p><strong>审批请求事件</strong>：</p>
+
+<pre><code class="language-rust">ExecApprovalRequest(ExecApprovalRequestEvent),
+ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent),
+RequestUserInput(RequestUserInputEvent),
+RequestPermissions(RequestPermissionsEvent),
+ElicitationRequest(ElicitationRequestEvent),</code></pre>
+
+<p>这五种都是"Agent 需要人类介入"的场景。它们通过 EQ 推给客户端，客户端通过对应的 <code>Op</code>（<code>ExecApproval</code>、<code>PatchApproval</code>、<code>UserInputAnswer</code>、<code>RequestPermissionsResponse</code>、<code>ResolveElicitation</code>）回应。</p>
+
+<p><strong>上下文压缩事件</strong>：</p>
+
+<pre><code class="language-rust">ContextCompacted(ContextCompactedEvent),
+ThreadRolledBack(ThreadRolledBackEvent),</code></pre>
+
+<p>压缩完成后推这个事件，客户端据此更新 UI 状态（比如清空或折叠历史显示）。</p>
+
+<p><strong>Token 计数</strong>：</p>
+
+<pre><code class="language-rust">TokenCount(TokenCountEvent),</code></pre>
+
+<p><code>TokenCountEvent</code> 包含 <code>total_token_usage</code>、<code>last_token_usage</code>、<code>model_context_window</code>。<code>TokenUsage</code> 结构体里有一个 <code>percent_of_context_window_remaining</code> 方法，它从总窗口里减去一个 <code>BASELINE_TOKENS = 12000</code> 的基线（用于系统提示和工具描述），让显示给用户的"剩余容量"更准确。</p>
+
+
+<h2 id="codexthread-会话模型">四、CodexThread：会话模型</h2>
+
+<p><code>CodexThread</code> 是 Codex 里一个会话（Thread）的句柄。它封装了一个 <code>Codex</code>（底层会话对象），对外提供操作接口。</p>
+
+<pre><code class="language-rust">pub struct CodexThread {
+    pub(crate) codex: Codex,
+    pub(crate) session_source: SessionSource,
+    session_configured: SessionConfiguredEvent,
+    rollout_path: Option&lt;PathBuf&gt;,
+    out_of_band_elicitation_count: Mutex&lt;u64&gt;,
+}</code></pre>
+
+<p><code>rollout_path</code> 是会话历史的持久化路径——Codex 把每个会话的事件流写到磁盘，叫做 rollout，可以用来恢复历史或 fork 新会话。</p>
+
+<p><code>out_of_band_elicitation_count</code> 是一个引用计数，用于跟踪"带外 elicitation"的数量。当有未处理的带外审批请求时，会暂停正常的 Turn 流程，等审批完成再恢复。</p>
+
+<p><strong><code>ThreadConfigSnapshot</code></strong> 是线程配置的快照，包含了一次 Turn 需要的所有运行时参数：</p>
+
+<pre><code class="language-rust">pub struct ThreadConfigSnapshot {
+    pub model: String,
+    pub model_provider_id: String,
+    pub service_tier: Option&lt;String&gt;,
+    pub approval_policy: AskForApproval,
+    pub approvals_reviewer: ApprovalsReviewer,
+    pub permission_profile: PermissionProfile,
+    pub active_permission_profile: Option&lt;ActivePermissionProfile&gt;,
+    pub cwd: AbsolutePathBuf,
+    pub workspace_roots: Vec&lt;AbsolutePathBuf&gt;,
+    pub profile_workspace_roots: Vec&lt;AbsolutePathBuf&gt;,
+    pub ephemeral: bool,
+    pub reasoning_effort: Option&lt;ReasoningEffort&gt;,
+    pub reasoning_summary: Option&lt;ReasoningSummary&gt;,
+    pub personality: Option&lt;Personality&gt;,
+    pub collaboration_mode: CollaborationMode,
+    pub session_source: SessionSource,
+    pub forked_from_thread_id: Option&lt;ThreadId&gt;,
+    pub parent_thread_id: Option&lt;ThreadId&gt;,
+    pub thread_source: Option&lt;ThreadSource&gt;,
+}</code></pre>
+
+<p>这个快照里有几个有意思的字段：<code>workspace_roots</code> 和 <code>profile_workspace_roots</code> 分开存——前者是运行时实际用于沙箱权限的路径，后者是 profile 配置里的路径，两者可以不同。<code>forked_from_thread_id</code> 和 <code>parent_thread_id</code> 说明 Codex 支持会话 fork，一个会话可以从另一个会话的历史分叉出来。</p>
+
+<p><strong><code>TryStartTurnIfIdleRejectionReason</code></strong> 是一个细节，但说明了 Codex 对 Turn 启动有严格的并发控制：</p>
+
+<pre><code class="language-rust">pub enum TryStartTurnIfIdleRejectionReason {
+    /// 有用户/客户端触发的任务在队列里，优先级更高
+    PendingTriggerTurn,
+    /// 线程处于 Plan 模式，不允许自动启动新 Turn
+    PlanMode,
+    /// 有其他 Turn 或任务正在运行，或 idle 预留在启动前已丢失
+    Busy,
+}</code></pre>
+
+<p>这个枚举用于扩展（Extension）想在线程空闲时自动启动工作的场景。三种拒绝原因清楚地描述了什么情况下不允许自动 Turn：有更高优先级的用户输入在等待、Plan 模式（规划模式下 Agent 只做规划不执行）、或者线程本身就忙。</p>
+
+<p><code>CodexThread</code> 的核心方法是 <code>submit</code>，它把一个 <code>Op</code> 放进 SQ：</p>
+
+<pre><code class="language-rust">pub async fn submit(&amp;self, op: Op) -&gt; CodexResult&lt;String&gt; {
+    self.codex.submit(op).await
+}</code></pre>
+
+<p>返回值是 Submission ID，客户端可以用这个 ID 关联后续的 EQ 事件。</p>
+
+
+<h2 id="上下文压缩">五、上下文压缩：两种实现</h2>
+
+<p>Agent 对话越来越长，迟早会触及模型的上下文窗口限制。Codex 的解决方案是压缩（Compact）：把历史对话总结成一段文字，替换掉原始历史，释放上下文空间。</p>
+
+<p>Codex 有两种压缩实现：<strong>inline 压缩</strong>（<code>compact.rs</code>）和 <strong>remote v2 压缩</strong>（<code>compact_remote_v2.rs</code>）。选择哪种取决于模型提供商是否支持服务端压缩：</p>
+
+<pre><code class="language-rust">pub(crate) fn should_use_remote_compact_task(provider: &amp;ModelProviderInfo) -&gt; bool {
+    provider.supports_remote_compaction()
+}</code></pre>
+
+<h3 id="inline-压缩">Inline 压缩</h3>
+
+<p>Inline 压缩的流程：用模型本身来总结历史，再用总结替换原始历史。</p>
+
+<p>压缩完成后，<code>build_compacted_history</code> 构建新的历史：</p>
+
+<pre><code class="language-rust">fn build_compacted_history_with_limit(
+    mut history: Vec&lt;ResponseItem&gt;,
+    user_messages: &amp;[String],
+    summary_text: &amp;str,
+    max_tokens: usize,
+) -&gt; Vec&lt;ResponseItem&gt; {
+    // 从最新的用户消息往前选，直到 token 预算耗尽
+    let mut selected_messages: Vec&lt;String&gt; = Vec::new();
+    if max_tokens &gt; 0 {
+        let mut remaining = max_tokens;
+        for message in user_messages.iter().rev() {
+            // ...选取或截断消息...
+        }
+        selected_messages.reverse();
+    }
+    // 把选中的用户消息加进去，最后加上总结
+    for message in &amp;selected_messages {
+        history.push(ResponseItem::Message { role: "user".to_string(), /* ... */ });
+    }
+    history.push(ResponseItem::Message {
+        role: "user".to_string(),
+        content: vec![ContentItem::InputText { text: summary_text.to_string() }],
+        /* ... */
+    });
+    history
+}</code></pre>
+
+<p>压缩后的历史结构是：保留最近的用户消息（最多 <code>COMPACT_USER_MESSAGE_MAX_TOKENS = 20000</code> tokens），再加上一条总结消息。总结以 <code>SUMMARY_PREFIX</code> 开头，后续代码通过 <code>is_summary_message</code> 识别它，避免把总结消息当成真实用户消息再次压缩。</p>
+
+<p>压缩有两种触发时机，对应不同的 <code>InitialContextInjection</code> 策略：</p>
+
+<pre><code class="language-rust">pub(crate) enum InitialContextInjection {
+    // 中途压缩：在最后一条用户消息前注入初始上下文
+    BeforeLastUserMessage,
+    // 手动/Turn 前压缩：不注入，下一个 Turn 会重新注入
+    DoNotInject,
+}</code></pre>
+
+<p>这个区分是必要的：中途压缩发生在一个 Turn 正在进行时（比如上下文窗口快满了），模型需要看到完整的初始上下文（系统提示、工具描述等），所以要注入；而 Turn 前的手动压缩不需要，因为下一个 Turn 开始时会自动重建初始上下文。</p>
+
+<h3 id="remote-v2-压缩">Remote V2 压缩</h3>
+
+<p>Remote v2 压缩把压缩工作交给服务端处理。它在发送给模型的 prompt 末尾追加一个特殊的触发项：</p>
+
+<pre><code class="language-rust">let mut input = prompt_input.clone();
+input.push(ResponseItem::CompactionTrigger);</code></pre>
+
+<p>服务端识别到 <code>CompactionTrigger</code>，返回一个 <code>ResponseItem::Compaction</code>（包含加密的压缩内容）。客户端收到后，用 <code>build_v2_compacted_history</code> 构建新历史：只保留 user/developer/system 角色的消息，过滤掉 assistant 消息和 function call，再加上服务端返回的压缩项，最终保留不超过 <code>RETAINED_MESSAGE_TOKEN_BUDGET = 64000</code> tokens 的内容。</p>
+
+<p>Remote v2 的优势是压缩质量更高（服务端有更多上下文信息），缺点是依赖服务端支持。两种实现共用同一套 hook 机制（<code>run_pre_compact_hooks</code>/<code>run_post_compact_hooks</code>），用户可以在压缩前后插入自定义逻辑。</p>
+
+<p>压缩完成后，无论哪种实现，都会调用 <code>sess.replace_compacted_history</code> 替换历史，然后 <code>sess.recompute_token_usage</code> 重新计算 token 用量，最后通过 EQ 推送 <code>ContextCompacted</code> 事件。</p>
+
+
+<h2 id="整体架构观察">六、整体架构观察</h2>
+
+<p>把这三块放在一起看，Codex 的架构有几个一致的设计原则：</p>
+
+<p><strong>异步优先</strong>。SQ/EQ 的分离、Begin/Delta/End 的事件三段式、审批的异步回路，都是为了让 Agent 的长时间运行不阻塞客户端，让 UI 能实时响应。</p>
+
+<p><strong>状态可恢复</strong>。rollout 持久化、Thread fork、<code>ThreadRollback</code> Op，说明 Codex 把会话状态的持久化和可回溯当成一等公民。这对一个会执行文件修改和命令的 Agent 来说是必要的安全网。</p>
+
+<p><strong>权限分层</strong>。<code>AskForApproval</code> 有五种策略（<code>UnlessTrusted</code>、<code>OnFailure</code>、<code>OnRequest</code>、<code>Granular</code>、<code>Never</code>），<code>SandboxPolicy</code> 有四种（<code>DangerFullAccess</code>、<code>ReadOnly</code>、<code>ExternalSandbox</code>、<code>WorkspaceWrite</code>），<code>GranularApprovalConfig</code> 可以细粒度控制哪类操作需要审批。权限控制的粒度远超"要不要审批"这个二元问题。</p>
+
+<p><strong>协议向后兼容</strong>。<code>task_started</code>/<code>turn_started</code> 的双名支持，<code>Op</code> 枚举的 <code>#[non_exhaustive]</code>，这些细节说明这套协议在演进中，且设计者有意维护兼容性。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#sq-eq-协议"><span class="nav-number">1.</span> <span class="nav-text">一、SQ/EQ 协议：为什么要分开</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#op-枚举"><span class="nav-number">2.</span> <span class="nav-text">二、Op 枚举：用户能做什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#eventmsg-枚举"><span class="nav-number">3.</span> <span class="nav-text">三、EventMsg 枚举：Agent 会说什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#codexthread-会话模型"><span class="nav-number">4.</span> <span class="nav-text">四、CodexThread：会话模型</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#上下文压缩"><span class="nav-number">5.</span> <span class="nav-text">五、上下文压缩：两种实现</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构观察"><span class="nav-number">6.</span> <span class="nav-text">六、整体架构观察</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">234</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="OpenAI Codex 执行安全模型分析：AskForApproval 审批策略的五种模式、ExecPolicy 规则引擎如何用前缀匹配决定命令是否允许执行、以及 macOS Seatbelt、Linux bubblewrap 和 Landlock 三种平台沙箱的实现思路。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OpenAI Codex 的执行安全模型：三层防线">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/08/Codex安全模型/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-08T17:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-08T17:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/08/Codex安全模型/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>OpenAI Codex 的执行安全模型：三层防线 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-08T17:00:00+08:00" content="2026-06-08">
+      06-08
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      OpenAI Codex 的执行安全模型：三层防线
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>让 AI 在你的机器上执行命令，这件事的风险是显而易见的。Codex 的安全设计试图在"能用"和"安全"之间找到一个不太难受的平衡点。读它的源码，会发现这个平衡是通过三个层次的机制叠加实现的：审批策略、规则引擎、平台沙箱。三者各司其职，又互相配合。</p>
+
+<p>本文直接从代码出发，分析这三层防线的具体实现。</p>
+
+
+<h2 id="第一层：AskForApproval-审批策略">一、第一层：AskForApproval 审批策略</h2>
+
+<p>最外层的控制是一个枚举，定义在 <code>codex-rs/protocol/src/protocol.rs</code>：</p>
+
+<pre><code class="language-rust">pub enum AskForApproval {
+    /// 只有"已知安全"的只读命令才自动放行，其余全部询问用户
+    UnlessTrusted,
+
+    /// 已废弃：全部自动放行，依赖沙箱保护；失败时再升级给用户
+    OnFailure,
+
+    /// 模型自己决定何时询问用户（默认值）
+    #[default]
+    OnRequest,
+
+    /// 细粒度控制：分别配置不同类型的审批流程
+    Granular(GranularApprovalConfig),
+
+    /// 永不询问用户；失败直接返回给模型，不升级
+    Never,
+}</code></pre>
+
+<p>五种模式覆盖了从"完全信任"到"完全不信任"的整个区间。默认值是 <code>OnRequest</code>，意思是把决定权交给模型——模型认为有必要时才问用户。</p>
+
+<p><code>UnlessTrusted</code> 是最保守的非交互模式：只有通过 <code>is_known_safe_command()</code> 检查的命令才自动放行，其他全部要求人工确认。这个模式适合对机器控制权有较高要求的场景。</p>
+
+<p><code>Granular</code> 模式最有意思，它允许对不同类型的审批请求分别开关：</p>
+
+<pre><code class="language-rust">pub struct GranularApprovalConfig {
+    /// 沙箱命令审批（含 with_additional_permissions 和 require_escalated）
+    pub sandbox_approval: bool,
+    /// execpolicy 规则触发的 prompt
+    pub rules: bool,
+    /// skill 脚本执行的审批
+    #[serde(default)]
+    pub skill_approval: bool,
+    /// request_permissions 工具触发的审批
+    #[serde(default)]
+    pub request_permissions: bool,
+    /// MCP elicitation 弹窗
+    pub mcp_elicitations: bool,
+}</code></pre>
+
+<p>这个设计的意图是：不同的使用场景对"哪类操作需要人工介入"有不同的答案。比如在 CI 环境里，你可能希望关闭 <code>sandbox_approval</code>（让命令自动执行），但保留 <code>mcp_elicitations</code>（MCP 工具调用时仍然要求确认）。粒度控制让这种差异化配置成为可能，而不是只能在"全问"和"全不问"之间二选一。</p>
+
+<p>当审批策略和规则引擎产生冲突时，有明确的优先级规则。在 <code>exec_policy.rs</code> 里：</p>
+
+<pre><code class="language-rust">pub(crate) fn prompt_is_rejected_by_policy(
+    approval_policy: AskForApproval,
+    prompt_is_rule: bool,
+) -> Option<&'static str> {
+    match approval_policy {
+        AskForApproval::Never => Some(PROMPT_CONFLICT_REASON),
+        AskForApproval::OnFailure | AskForApproval::OnRequest | AskForApproval::UnlessTrusted => None,
+        AskForApproval::Granular(granular_config) => {
+            if prompt_is_rule {
+                if !granular_config.allows_rules_approval() {
+                    Some(REJECT_RULES_APPROVAL_REASON)
+                } else {
+                    None
+                }
+            } else if !granular_config.allows_sandbox_approval() {
+                Some(REJECT_SANDBOX_APPROVAL_REASON)
+            } else {
+                None
+            }
+        }
+    }
+}</code></pre>
+
+<p>逻辑很清晰：<code>Never</code> 模式下所有 prompt 都被拒绝；<code>Granular</code> 模式下根据 prompt 来源（规则触发还是沙箱触发）分别判断；其他模式不拦截 prompt。</p>
+
+
+<h2 id="第二层：ExecPolicy-规则引擎">二、第二层：ExecPolicy 规则引擎</h2>
+
+<p>审批策略决定"是否询问用户"，规则引擎决定"命令本身是否被允许执行"。这是两个正交的维度。</p>
+
+<h3 id="规则的基本结构">规则的基本结构</h3>
+
+<p>规则引擎的核心是前缀匹配。每条规则由一个命令前缀（<code>PrefixPattern</code>）和一个决策（<code>Decision</code>：Allow / Prompt / Forbidden）组成：</p>
+
+<pre><code class="language-rust">pub struct PrefixRule {
+    pub pattern: PrefixPattern,
+    pub decision: Decision,
+    pub justification: Option&lt;String&gt;,
+}
+
+pub struct PrefixPattern {
+    pub first: Arc&lt;str&gt;,           // 第一个 token，固定字符串
+    pub rest: Arc&lt;[PatternToken]&gt;, // 后续 token，可以是固定字符串或候选集合
+}
+
+pub enum PatternToken {
+    Single(String),
+    Alts(Vec&lt;String&gt;),  // 允许多个候选值，如 ["-c"|"--command"]
+}</code></pre>
+
+<p>匹配逻辑是前缀匹配：规则的 pattern 只需匹配命令的前 N 个 token，后续 token 不影响匹配结果。这意味着一条 <code>allow git</code> 规则会放行所有以 <code>git</code> 开头的命令，包括 <code>git push --force</code>。</p>
+
+<p>规则按程序名（第一个 token）索引，存储在 <code>MultiMap&lt;String, RuleRef&gt;</code> 里。查找时先精确匹配第一个 token，找到候选规则集合后再逐条检查后续 token。</p>
+
+<h3 id="决策聚合">决策聚合</h3>
+
+<p>一条命令可能匹配多条规则。最终决策取所有匹配规则中优先级最高的那个。优先级顺序是 <code>Forbidden &gt; Prompt &gt; Allow</code>——只要有一条规则禁止，命令就被禁止：</p>
+
+<pre><code class="language-rust">fn from_matches(matched_rules: Vec&lt;RuleMatch&gt;) -> Self {
+    let decision = matched_rules.iter().map(RuleMatch::decision).max();
+    // ...
+    Self { decision, matched_rules }
+}</code></pre>
+
+<p>这里用了 <code>max()</code>，前提是 <code>Decision</code> 实现了 <code>Ord</code>，且 <code>Forbidden &gt; Prompt &gt; Allow</code>。这是一个"最严格规则优先"的设计，和防火墙的 deny-override 语义一致。</p>
+
+<h3 id="启发式回退">启发式回退</h3>
+
+<p>当没有任何规则匹配时，规则引擎不会直接放行，而是调用一个启发式函数 <code>render_decision_for_unmatched_command()</code>。这个函数综合考虑多个因素：</p>
+
+<ul>
+  <li>命令是否在"已知安全"列表里（<code>is_known_safe_command</code>）</li>
+  <li>命令是否被判定为危险（<code>command_might_be_dangerous</code>）</li>
+  <li>当前的审批策略（<code>AskForApproval</code>）</li>
+  <li>沙箱类型（受限沙箱还是无限制环境）</li>
+</ul>
+
+<p>在 <code>OnRequest</code> 模式 + 受限沙箱的组合下，非危险命令会被直接放行（<code>Decision::Allow</code>），因为沙箱本身提供了保护；但如果命令请求了沙箱覆盖权限（<code>sandbox_permissions.requests_sandbox_override()</code>），则需要用户确认。</p>
+
+<h3 id="被禁止的前缀建议">被禁止的前缀建议</h3>
+
+<p>规则引擎还有一个细节：当用户批准某条命令时，系统会尝试自动生成一条 allow 规则，方便下次跳过询问。但有一批命令前缀被明确列入黑名单，不会被自动建议：</p>
+
+<pre><code class="language-rust">static BANNED_PREFIX_SUGGESTIONS: &[&[&str]] = &[
+    &["python3"],
+    &["python3", "-c"],
+    &["bash"],
+    &["bash", "-lc"],
+    &["sh", "-c"],
+    &["zsh"],
+    &["node", "-e"],
+    &["perl", "-e"],
+    &["sudo"],
+    &["env"],
+    &["osascript"],
+    // ... 完整列表还包括 python, py, pypy, ruby, php, lua,
+    //     powershell, pwsh 及其各种调用形式
+];</code></pre>
+
+<p>这些都是"可以执行任意代码的解释器入口"。如果允许自动建议 <code>allow python3</code>，等于允许了所有 Python 代码，这显然不是用户批准某次具体命令时的意图。被禁止的前缀建议列表阻止了这类过度宽泛的规则被静默添加。</p>
+
+<p>注意 <code>git</code> 也在这个列表里——<code>git</code> 可以通过 hooks 执行任意代码，把它加入 allow 前缀同样过于宽泛。</p>
+
+
+<h2 id="第三层：平台沙箱">三、第三层：平台沙箱</h2>
+
+<p>前两层是"软"控制：审批策略和规则引擎决定是否执行命令，但一旦命令被放行，它在系统上的行为没有任何约束。第三层是"硬"控制：通过操作系统级别的沙箱机制，限制进程实际能做什么。</p>
+
+<p>Codex 在三个平台上使用不同的沙箱技术，统一通过 <code>SandboxManager</code> 管理：</p>
+
+<pre><code class="language-rust">pub enum SandboxType {
+    None,
+    MacosSeatbelt,
+    LinuxSeccomp,
+    WindowsRestrictedToken,
+}</code></pre>
+
+<h3 id="macOS：Seatbelt">macOS：Seatbelt（sandbox-exec）</h3>
+
+<p>macOS 的沙箱基于 Apple 的 Seatbelt 机制，通过 <code>/usr/bin/sandbox-exec</code> 执行。Codex 明确硬编码了这个路径：</p>
+
+<pre><code class="language-rust">pub const MACOS_PATH_TO_SEATBELT_EXECUTABLE: &str = "/usr/bin/sandbox-exec";</code></pre>
+
+<p>注释里解释了原因：只信任 <code>/usr/bin</code> 下的 <code>sandbox-exec</code>，防止攻击者在 PATH 里注入恶意版本。如果 <code>/usr/bin/sandbox-exec</code> 被篡改，攻击者已经有了 root 权限，这是另一个问题。</p>
+
+<p>沙箱策略写在 <code>seatbelt_base_policy.sbpl</code> 文件里，用 Scheme 语法描述。基础策略的核心原则是"默认拒绝"：</p>
+
+<pre><code class="language-rust">(version 1)
+
+; start with closed-by-default
+(deny default)
+
+; child processes inherit the policy of their parent
+(allow process-exec)
+(allow process-fork)
+(allow signal (target same-sandbox))</code></pre>
+
+<p>从 <code>(deny default)</code> 开始，然后逐条添加允许项。这是正确的安全设计方向——默认拒绝比默认允许更安全，因为遗漏的允许项只会导致功能缺失，而遗漏的拒绝项会导致安全漏洞。</p>
+
+<p>文件系统访问权限在运行时动态生成，根据 <code>SandboxPolicy</code>（<code>ReadOnly</code>、<code>WorkspaceWrite</code> 等）计算出具体的允许路径列表，注入到策略字符串里。</p>
+
+<h3 id="Linux：bubblewrap-和-Landlock">Linux：bubblewrap 和 Landlock</h3>
+
+<p>Linux 上使用两种机制的组合：</p>
+
+<p><strong>bubblewrap</strong>：基于 Linux user namespace 的容器化工具，通过 bind mount 构建一个隔离的文件系统视图。沙箱进程只能看到被显式挂载进来的目录。Codex 把它封装成一个独立的辅助程序 <code>codex-linux-sandbox</code>：</p>
+
+<pre><code class="language-rust">pub const CODEX_LINUX_SANDBOX_ARG0: &str = "codex-linux-sandbox";
+
+pub fn create_linux_sandbox_command_args_for_permission_profile(
+    command: Vec&lt;String&gt;,
+    command_cwd: &Path,
+    permission_profile: &PermissionProfile,
+    sandbox_policy_cwd: &Path,
+    use_legacy_landlock: bool,
+    allow_network_for_proxy: bool,
+) -> Vec&lt;String&gt; {
+    // 把 permission_profile 序列化成 JSON，作为参数传给 sandbox helper
+    let permission_profile_json = serde_json::to_string(permission_profile)...;
+    let mut linux_cmd = vec![
+        "--sandbox-policy-cwd", sandbox_policy_cwd,
+        "--command-cwd", command_cwd,
+        "--permission-profile", permission_profile_json,
+    ];
+    // ...
+}</code></pre>
+
+<p>权限描述以 JSON 形式传递给辅助程序，由辅助程序在内部解析并构建 bubblewrap 参数。这个设计把"权限描述"和"沙箱实现"解耦——主进程只需要描述想要什么权限，具体怎么实现交给辅助程序。</p>
+
+<p><strong>Landlock</strong>：Linux 内核 5.13 引入的文件系统访问控制机制，不依赖 user namespace，可以在不需要 root 权限的情况下限制进程的文件系统访问。Codex 支持 <code>--use-legacy-landlock</code> 参数，在不支持 bubblewrap 的环境（如 WSL1）下回退到纯 Landlock 模式。</p>
+
+<p>WSL1 的情况值得注意：WSL1 不支持 user namespace，因此 bubblewrap 无法工作。代码里有明确的检测和错误提示：</p>
+
+<pre><code class="language-rust">pub(crate) const WSL1_BWRAP_WARNING: &str = concat!(
+    "Codex's Linux sandbox uses bubblewrap, which is not supported on WSL1 ",
+    "because WSL1 cannot create the required user namespaces. ",
+    "Use WSL2 for sandboxed shell commands."
+);</code></pre>
+
+<h3 id="沙箱选择逻辑">沙箱选择逻辑</h3>
+
+<p><code>SandboxManager::select_initial()</code> 决定使用哪种沙箱：</p>
+
+<pre><code class="language-rust">pub fn select_initial(&self, file_system_policy, network_policy, pref, ...) -> SandboxType {
+    match pref {
+        SandboxablePreference::Forbid => SandboxType::None,
+        SandboxablePreference::Require => get_platform_sandbox(...),
+        SandboxablePreference::Auto => {
+            if should_require_platform_sandbox(file_system_policy, network_policy, ...) {
+                get_platform_sandbox(...)
+            } else {
+                SandboxType::None
+            }
+        }
+    }
+}</code></pre>
+
+<p><code>Auto</code> 模式下，只有当权限配置需要沙箱保护时才启用沙箱。如果用户配置了 <code>DangerFullAccess</code> 或 <code>ExternalSandbox</code>（表示已经在外部沙箱里运行），则跳过平台沙箱。</p>
+
+
+<h2 id="三层防线的协作方式">四、三层防线的协作方式</h2>
+
+<p>三层防线不是简单的串联，而是有复杂的交互：</p>
+
+<p><strong>规则引擎可以绕过沙箱</strong>。当 ExecPolicy 规则明确 Allow 某条命令时，<code>bypass_sandbox</code> 标志会被设置为 <code>true</code>，命令直接执行，不经过平台沙箱。这是性能优化：如果命令已经被明确信任，再套一层沙箱只是增加开销。</p>
+
+<pre><code class="language-rust">Decision::Allow => ExecApprovalRequirement::Skip {
+    bypass_sandbox: commands.iter().all(|command| {
+        exec_policy
+            .matches_for_command_with_options(command, None, &match_options)
+            .iter()
+            .any(|rule_match| {
+                is_policy_match(rule_match) && rule_match.decision() == Decision::Allow
+            })
+    }),
+    // ...
+},</code></pre>
+
+<p>注意条件：只有当所有解析出的命令片段都被明确的规则（<code>PrefixRuleMatch</code>，不是启发式）Allow 时，才绕过沙箱。启发式允许的命令仍然走沙箱。</p>
+
+<p><strong>审批策略可以把 Prompt 变成 Forbidden</strong>。规则引擎说"需要询问用户"，但如果审批策略是 <code>Never</code> 或 <code>Granular</code> 且对应的开关关闭，prompt 会被直接转化为 <code>Forbidden</code>。这让无人值守的自动化场景成为可能：明确告诉系统"不要等我，遇到需要询问的命令直接拒绝"。</p>
+
+<p><strong>沙箱策略影响启发式决策</strong>。在 <code>render_decision_for_unmatched_command()</code> 里，受限沙箱下的非危险命令会被直接放行，而无沙箱环境下同样的命令可能需要 prompt。沙箱的存在改变了风险评估，进而影响了规则引擎的启发式判断。</p>
+
+
+<h2 id="设计上的取舍">五、设计上的取舍</h2>
+
+<p>这套设计有几个值得注意的取舍：</p>
+
+<p><strong>规则是前缀匹配，不是精确匹配</strong>。<code>allow cargo build</code> 会同时允许 <code>cargo build --release</code> 和 <code>cargo build --target x86_64-unknown-linux-musl</code>，但也会允许 <code>cargo build && rm -rf /</code>——不过后者在命令解析阶段会被拆分成两条命令，<code>rm -rf /</code> 会单独被规则引擎评估。命令解析（<code>parse_shell_lc_plain_commands</code>）是安全的关键前提。</p>
+
+<p><strong>规则可以在运行时追加</strong>。用户批准某条命令时，系统可以把对应的前缀规则写入 <code>~/.codex/rules/default.rules</code>，下次同类命令自动放行。这是用户体验的优化，但也意味着规则库会随使用积累而膨胀。<code>BANNED_PREFIX_SUGGESTIONS</code> 列表的存在，是防止这个机制被滥用的安全阀。</p>
+
+<p><strong>沙箱保护 <code>.codex</code> 和 <code>.git/hooks</code></strong>。在 <code>WorkspaceWrite</code> 模式下，工作目录是可写的，但 <code>WritableRoot</code> 结构会把某些子路径标记为只读：</p>
+
+<pre><code class="language-rust">pub struct WritableRoot {
+    pub root: AbsolutePathBuf,
+    pub read_only_subpaths: Vec&lt;AbsolutePathBuf&gt;, // .codex, .git/hooks 等
+    pub protected_metadata_names: Vec&lt;String&gt;,
+}</code></pre>
+
+<p>这防止了一类攻击：模型通过修改 <code>.git/hooks</code> 或 <code>.codex/rules</code> 来提升自己的权限。即使在"可以写工作目录"的模式下，这些路径仍然受保护。</p>
+
+
+<h2 id="总结">六、总结</h2>
+
+<p>Codex 的执行安全模型可以用一句话概括：<strong>策略决定是否询问，规则决定是否允许，沙箱决定能做什么</strong>。</p>
+
+<p>三层防线的设计思路：</p>
+<ul>
+  <li><strong>AskForApproval</strong>：控制人机交互的频率，从"全问"到"全不问"，粒度可细化到不同类型的操作</li>
+  <li><strong>ExecPolicy</strong>：前缀匹配的规则引擎，支持 Allow / Prompt / Forbidden 三种决策，启发式兜底，规则可动态追加</li>
+  <li><strong>平台沙箱</strong>：macOS 用 Seatbelt（<code>deny default</code> 的 SBPL 策略），Linux 用 bubblewrap + Landlock，统一通过 <code>SandboxManager</code> 抽象</li>
+</ul>
+
+<p>这套设计的核心假设是：不同的使用场景需要不同的安全级别，没有一个配置能适合所有人。所以它提供了足够多的旋钮，让用户根据自己的信任模型来调整。代价是复杂性——理解这三层如何交互，需要读相当多的代码。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第一层：AskForApproval-审批策略"><span class="nav-number">1.</span> <span class="nav-text">一、第一层：AskForApproval 审批策略</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第二层：ExecPolicy-规则引擎"><span class="nav-number">2.</span> <span class="nav-text">二、第二层：ExecPolicy 规则引擎</span></a>
+<ol class="nav-child">
+<li class="nav-item nav-level-3"><a class="nav-link" href="#规则的基本结构"><span class="nav-number">2.1.</span> <span class="nav-text">规则的基本结构</span></a></li>
+<li class="nav-item nav-level-3"><a class="nav-link" href="#决策聚合"><span class="nav-number">2.2.</span> <span class="nav-text">决策聚合</span></a></li>
+<li class="nav-item nav-level-3"><a class="nav-link" href="#启发式回退"><span class="nav-number">2.3.</span> <span class="nav-text">启发式回退</span></a></li>
+<li class="nav-item nav-level-3"><a class="nav-link" href="#被禁止的前缀建议"><span class="nav-number">2.4.</span> <span class="nav-text">被禁止的前缀建议</span></a></li>
+</ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第三层：平台沙箱"><span class="nav-number">3.</span> <span class="nav-text">三、第三层：平台沙箱</span></a>
+<ol class="nav-child">
+<li class="nav-item nav-level-3"><a class="nav-link" href="#macOS：Seatbelt"><span class="nav-number">3.1.</span> <span class="nav-text">macOS：Seatbelt</span></a></li>
+<li class="nav-item nav-level-3"><a class="nav-link" href="#Linux：bubblewrap-和-Landlock"><span class="nav-number">3.2.</span> <span class="nav-text">Linux：bubblewrap 和 Landlock</span></a></li>
+<li class="nav-item nav-level-3"><a class="nav-link" href="#沙箱选择逻辑"><span class="nav-number">3.3.</span> <span class="nav-text">沙箱选择逻辑</span></a></li>
+</ol>
+</li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#三层防线的协作方式"><span class="nav-number">4.</span> <span class="nav-text">四、三层防线的协作方式</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#设计上的取舍"><span class="nav-number">5.</span> <span class="nav-text">五、设计上的取舍</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">6.</span> <span class="nav-text">六、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">235</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

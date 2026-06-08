@@ -6302,4 +6302,16 @@ x = \frac{4-\pi}{4}r \approx0.2146r
     <content><![CDATA[CPU 的设计目标：让单条指令流执行得尽可能快。缓存层级（L1约4周期/L2约12周期/L3约40周期/DRAM约200周期，差50倍）。Cache Line（64字节是最小搬运单位，顺序访问缓存友好，链表随机跳转导致缓存未命中）。超线程（一个物理核模拟两个逻辑核，对I/O密集型任务效果好，对CPU密集型收益有限）。NUMA（多路服务器跨Socket访问内存慢2-3倍，用numactl绑核可规避）。分支预测（规律性代码预测准确率99%+，随机数据导致Pipeline Flush）。实际意义：顺序访问比随机快10倍以上、线程数不是越多越好、多路服务器需要NUMA感知、热数据放进L3 Cache可快5倍。]]></content>
       <tags><tag>架构</tag><tag>工程实践</tag></tags>
   </entry>
+  <entry>
+    <title>OpenAI Codex 的执行安全模型：三层防线</title>
+    <url>/2026/06/08/Codex%E5%AE%89%E5%85%A8%E6%A8%A1%E5%9E%8B/</url>
+    <content><![CDATA[Codex 的执行安全分三层：(1) AskForApproval 策略层——Never/OnRequest/Granular 三种模式，Granular 细分控制 shell 命令审批和沙箱审批；(2) ExecPolicy 规则引擎——基于 .rules 文件的 Allow/Deny 规则匹配，BANNED_PREFIX_SUGGESTIONS 列出了 python/git/bash/sh 等危险前缀（这些 shell 可以绕过沙箱），is_dangerous_command 和 is_known_safe_command 提供快速路径；(3) 平台沙箱——macOS 用 Seatbelt（/usr/bin/sandbox-exec），Linux 用 bubblewrap + Landlock，Windows 用独立沙箱进程。三层防线的设计哲学：规则引擎决定是否需要审批，沙箱限制审批通过后的实际能力，审批策略控制用户介入时机。这三层相互独立，可以根据需求组合配置。]]></content>
+      <tags><tag>架构</tag><tag>工程实践</tag></tags>
+  </entry>
+  <entry>
+    <title>解包 OpenAI Codex：SQ/EQ 协议与 Agent 会话模型</title>
+    <url>/2026/06/08/Codex%E6%9E%B6%E6%9E%84%E5%88%86%E6%9E%90/</url>
+    <content><![CDATA[OpenAI Codex 是一个运行在终端的 coding agent，核心架构基于 SQ/EQ（Submission Queue / Event Queue）异步通信模式。用户操作通过 Op 枚举提交到 SQ（包括 StartSession、UserInput、AbortTurn 等），agent 事件通过 EventMsg 枚举发布到 EQ（包括 TurnStarted、AgentMessage、ExecApprovalRequest、TurnComplete 等）。CodexThread 是核心会话抽象，封装了 ThreadConfigSnapshot（模型配置、审批策略、沙箱权限、工作目录等），通过 TryStartTurnIfIdleRejectionReason 管理并发约束。上下文压缩（compact.rs/compact_remote_v2.rs）在对话历史超过阈值时自动触发，调用模型生成摘要替换旧内容，保留关键信息。这个设计把协议层、会话层、执行层严格分离，使得 TUI、CLI、App Server 等多个前端可以共享同一个 agent 核心。]]></content>
+      <tags><tag>架构</tag><tag>工程实践</tag></tags>
+  </entry>
 </search>
