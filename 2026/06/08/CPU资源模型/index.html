@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="CPU 的资源模型是为了让一件事做得尽可能快：缓存层级（为什么访问 L1 和访问内存差 200 倍）、Cache Line 与空间局部性、超线程的本质与限制、NUMA 架构对多路服务器的影响。后端工程师需要知道的 CPU 知识，不是如何设计 CPU，而是 CPU 的限制如何影响你的代码。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CPU 资源模型：为什么一件事能做得这么快">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/08/CPU资源模型/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-08T12:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-08T12:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/08/CPU资源模型/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>CPU 资源模型：为什么一件事能做得这么快 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-08T12:00:00+08:00" content="2026-06-08">
+      06-08
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      CPU 资源模型：为什么一件事能做得这么快
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>CPU 的设计目标只有一个：让单条指令流执行得尽可能快。</p>
+
+<p>不是让一万件事同时发生（那是 GPU 的目标），而是让你现在正在做的这一件事——这条 SQL 查询、这个 HTTP 请求处理、这段业务逻辑——在最短时间内完成。CPU 几十年来的所有复杂性：多级缓存、乱序执行、分支预测、超线程……全都是为了这个目标的不同权衡。</p>
+
+<p>后端工程师不需要知道如何设计 CPU，但理解这个资源模型，会让你在做性能优化时不走弯路。</p>
+
+
+<h2 id="内存速度差了200倍">一、内存层级：为什么同样是「读数据」，快慢差 200 倍</h2>
+
+<p>CPU 每秒能执行几十亿条指令，但内存（DRAM）每次读写需要约 60-100 纳秒。对一个 3GHz 的 CPU 来说，60ns 意味着等待了 180 个时钟周期——这段时间本可以执行 180 条指令，全部浪费在等内存上。</p>
+
+<p>为了弥补这个鸿沟，CPU 在寄存器和内存之间引入了多层缓存：</p>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 560 160" style="max-width:540px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.mt{fill:currentColor;font-family:inherit;}</style>
+  <!-- 层级条 -->
+  <rect x="220" y="10" width="120" height="28" rx="4" fill="rgba(33,150,243,0.8)"/>
+  <text x="280" y="29" text-anchor="middle" font-size="11" fill="white" font-weight="600">寄存器</text>
+  <rect x="170" y="46" width="220" height="28" rx="4" fill="rgba(33,150,243,0.55)"/>
+  <text x="280" y="65" text-anchor="middle" font-size="11" fill="white" font-weight="600">L1 Cache</text>
+  <rect x="120" y="82" width="320" height="28" rx="4" fill="rgba(33,150,243,0.35)"/>
+  <text x="280" y="101" text-anchor="middle" font-size="11" fill="white" font-weight="600">L2 Cache</text>
+  <rect x="60" y="118" width="440" height="28" rx="4" fill="rgba(33,150,243,0.2)"/>
+  <text x="280" y="137" text-anchor="middle" font-size="11" class="mt" font-weight="600">L3 Cache / 主内存 (DRAM)</text>
+  <!-- 右侧延迟标注 -->
+  <text x="350" y="28" font-size="10" class="mt" opacity="0.5">~1 周期，KB</text>
+  <text x="400" y="64" font-size="10" class="mt" opacity="0.5">~4 周期，32-64KB/核</text>
+  <text x="448" y="100" font-size="10" class="mt" opacity="0.5">~12 周期，256KB-1MB/核</text>
+  <text x="508" y="136" font-size="10" class="mt" opacity="0.5">L3: ~40周期 · DRAM: ~200周期</text>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">越靠近 CPU 速度越快，容量越小；越靠外速度越慢，容量越大</figcaption>
+</figure>
+
+<p>这几个数字值得记住：</p>
+<ul>
+  <li>L1 Cache 命中：约 4 个时钟周期</li>
+  <li>L2 Cache 命中：约 12 个时钟周期</li>
+  <li>L3 Cache 命中：约 40 个时钟周期</li>
+  <li>主内存（DRAM）：约 200 个时钟周期</li>
+</ul>
+
+<p>L1 和 DRAM 之间差了 50 倍。这个差距解释了为什么「缓存友好的代码」能带来数量级的性能提升。</p>
+
+
+<h2 id="Cache-Line">二、Cache Line：数据的最小搬运单位</h2>
+
+<p>CPU 从内存读数据时，不是按字节读的，而是按 <strong>Cache Line</strong> 读的——每次搬运一整块，通常是 64 字节。</p>
+
+<p>这意味着：<strong>当你访问内存中某个位置的数据，它附近 64 字节的数据会一起被载入缓存</strong>。</p>
+
+<p>这个设计利用了「空间局部性」假设：程序访问了某个内存地址，很可能接下来会访问它附近的地址。对数组遍历来说，这个假设完全成立——每次取 64 字节，可以顺序访问其中 8 个 `int64` 或 16 个 `int32`，都是缓存命中。</p>
+
+<p>但链表完全不一样。链表节点分散在内存各处，每次沿 `next` 指针跳转，都可能跳到一个新的 Cache Line，触发一次缓存未命中，等待 200 个周期。这就是「链表比数组慢」的根本原因——不是链表多了指针跳转，而是指针跳转破坏了缓存局部性。</p>
+
+<p>后端工程师的实际启示：</p>
+<ul>
+  <li>序列化扫描比随机访问快，在大量数据上差距可达 10 倍以上</li>
+  <li>数组比链表快，不是算法问题，是缓存问题</li>
+  <li>结构体字段的排列顺序会影响缓存利用率——经常一起访问的字段应该在内存里相邻</li>
+</ul>
+
+
+<h2 id="超线程">三、超线程：一个核假装成两个</h2>
+
+<p>现代 CPU 支持超线程（Hyper-Threading）：操作系统看到的是 16 核 32 线程，但物理核只有 16 个。</p>
+
+<p>超线程的工作原理：当一个线程在等待缓存未命中（200 个周期的空档）时，CPU 切换到另一个线程继续执行，把等待时间"填满"。两个线程共享同一个物理核的执行单元，但各自有独立的寄存器组和指令队列。</p>
+
+<p>这有几个重要的实际含义：</p>
+
+<p><strong>超线程不是真正的并行</strong>。两个超线程争用同一个 L1/L2 Cache。如果两个线程都是 CPU 密集型且缓存使用率高，它们会互相污染对方的缓存，实际性能比单线程更差。</p>
+
+<p><strong>超线程对 I/O 密集型任务效果好</strong>。线程大量时间在等待（等锁、等网络、等磁盘），CPU 利用率本来就低，超线程能有效填满这些空档。</p>
+
+<p>这就是为什么你的 Java 应用跑 32 线程和跑 64 线程性能差不多，甚至 64 线程更慢——线程数超过物理核数之后，超线程带来的边际收益递减，而线程调度开销在增加。</p>
+
+
+<h2 id="NUMA">四、NUMA：多路服务器上的隐形性能陷阱</h2>
+
+<p>高性能服务器通常是多路 CPU——两个或四个物理 CPU 封装（Socket）安装在同一块主板上。每个 Socket 有自己的内存控制器，直连自己的内存条。</p>
+
+<p>这个架构叫 NUMA（Non-Uniform Memory Access，非一致内存访问）。</p>
+
+<p>访问本地内存（和当前 CPU 直连的内存）：延迟约 60-100ns。访问远端内存（跨 Socket，通过 QPI/UPI 链路访问另一个 CPU 的内存）：延迟约 150-300ns，慢 2-3 倍。</p>
+
+<p>NUMA 对后端服务的影响：</p>
+
+<p><strong>进程绑核（CPU Affinity）</strong>。把某个进程绑定在特定的 CPU 核上，并把它使用的内存分配在同一个 NUMA 节点，避免跨节点访问。Linux 的 <code>numactl</code> 命令可以做到这一点。Redis 官方文档里明确建议在多路服务器上使用 numactl 进行绑核。</p>
+
+<p><strong>JVM 的 NUMA 感知</strong>。Java 的 G1/ZGC 垃圾回收器支持 NUMA-aware 内存分配（<code>-XX:+UseNUMA</code>），会优先在当前线程所在节点分配内存，减少跨节点访问。</p>
+
+<p><strong>不感知 NUMA 的代价</strong>。操作系统默认按轮询方式给进程分配内存和 CPU，一个进程的线程可能运行在 Socket 0 但访问 Socket 1 上的内存。在内存密集型服务上，这可能导致 30-50% 的性能损失，而且日志里没有任何报错，只是慢。</p>
+
+
+<h2 id="乱序执行和分支预测">五、乱序执行和分支预测：CPU 在猜你接下来要做什么</h2>
+
+<p>现代 CPU 不是按程序写的顺序执行指令的。当一条指令在等待数据（缓存未命中），CPU 会把后面不依赖这条指令结果的其他指令提前执行——这叫乱序执行（Out-of-Order Execution）。</p>
+
+<p>更激进的是分支预测（Branch Prediction）：遇到 <code>if</code> 语句时，CPU 不等条件判断结果，直接猜一个分支继续执行。如果猜对了，没有任何代价；猜错了，需要回滚（Flush Pipeline），损失约 10-20 个时钟周期。</p>
+
+<p>CPU 通过统计历史来猜分支：如果过去 100 次这个 <code>if</code> 都走了 true 分支，预测器会猜下次也走 true。这对规律性强的代码（排序好的数组、固定模式的循环）预测准确率可以达到 99%+。但对随机数据（随机访问的哈希表、不规则的业务逻辑）预测准确率低，性能下降明显。</p>
+
+<p>这解释了一个常见的性能现象：对一个数组排序后再遍历判断，有时比直接遍历未排序数组快——因为排序使分支预测准确率大幅提升。</p>
+
+
+<h2 id="对后端工程师的实际意义">六、对后端工程师的实际意义</h2>
+
+<p>把上面几节综合起来，几个有实际价值的结论：</p>
+
+<p><strong>顺序访问比随机访问快得多</strong>。批量扫描数据库记录、顺序读取文件、遍历数组——这些操作的性能远比你想象的好，因为缓存局部性极佳。反过来，大量随机 I/O（随机读小文件、频繁的小范围数据库查询）会同时破坏磁盘和 CPU 缓存的局部性。</p>
+
+<p><strong>线程不是越多越好</strong>。CPU 密集型服务，线程数超过物理核数后性能不再提升甚至下降；I/O 密集型服务，超线程能帮你提高 CPU 利用率，但线程数也有上限（线程调度本身有开销）。一般 I/O 密集型服务，线程数设为物理核数的 2-4 倍是合理的起点。</p>
+
+<p><strong>多路服务器需要 NUMA 感知</strong>。如果你的服务部署在双路或四路服务器上，而且有明显的内存访问压力（缓存服务、数据库、消息队列），NUMA 绑定是一个值得检查的优化点。不需要改代码，配置层面可以解决。</p>
+
+<p><strong>缓存容量决定了热数据的上限</strong>。一个 16 核服务器的 L3 Cache 通常是 32-64MB。如果你的热数据能放进 L3，访问速度比放在内存快 5 倍。这影响了缓存预热策略——启动时要尽快把热数据加载进内存，让 L3 缓存自然填满。</p>
+
+
+<h2 id="总结">七、总结</h2>
+
+<ul>
+  <li><strong>CPU 的设计目标</strong>：最小化单任务延迟。所有复杂性都服务于这一点</li>
+  <li><strong>缓存层级</strong>：L1（~4 周期）→ L2（~12 周期）→ L3（~40 周期）→ DRAM（~200 周期）。缓存未命中是性能的最大杀手</li>
+  <li><strong>Cache Line</strong>：最小搬运单位 64 字节。顺序访问缓存友好，随机访问缓存不友好</li>
+  <li><strong>超线程</strong>：一个物理核模拟两个逻辑核，通过填补等待空档提升吞吐量。对 CPU 密集型任务收益有限</li>
+  <li><strong>NUMA</strong>：多路服务器上跨 Socket 访问内存慢 2-3 倍，通过绑核可以规避</li>
+  <li><strong>分支预测</strong>：规律性访问预测准确率高，随机访问会导致频繁 Pipeline Flush</li>
+</ul>
+
+<p>下一篇讲 GPU 的资源模型——它的设计目标和 CPU 完全相反：不追求让一件事做得快，而是让一万件事同时发生。理解了 CPU 的限制，才能真正理解 GPU 为什么要那样设计。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#内存速度差了200倍"><span class="nav-number">1.</span> <span class="nav-text">一、内存层级：为什么同样是「读数据」差 200 倍</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Cache-Line"><span class="nav-number">2.</span> <span class="nav-text">二、Cache Line：数据的最小搬运单位</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#超线程"><span class="nav-number">3.</span> <span class="nav-text">三、超线程：一个核假装成两个</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#NUMA"><span class="nav-number">4.</span> <span class="nav-text">四、NUMA：多路服务器上的隐形陷阱</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#乱序执行和分支预测"><span class="nav-number">5.</span> <span class="nav-text">五、乱序执行和分支预测</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#对后端工程师的实际意义"><span class="nav-number">6.</span> <span class="nav-text">六、对后端工程师的实际意义</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">七、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">232</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

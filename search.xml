@@ -6290,4 +6290,16 @@ x = \frac{4-\pi}{4}r \approx0.2146r
     <content><![CDATA[推理时计算（Test-Time Compute）：训练时扩展靠参数量，推理时扩展靠让模型多想。为什么有效：验证比生成容易，多步推理把难题分解成简单子步骤。CoT（单路径，把推理过程写出来当工作内存）→ Self-Consistency/Best-of-N（多路径+投票或奖励模型选最优）→ 树搜索（MCTS系统性探索）。核心基础设施：过程奖励模型（PRM）评估每个推理步骤，比结果奖励模型（ORM）更细粒度。o1/DeepSeek-R1 的做法：不是推理时搜索，而是用强化学习把长推理能力训练进模型权重本身，推理时自发产生含自我验证和回溯的思考过程。代价：延迟和成本增加，只对需要多步推理/可以自动验证的任务有显著收益。更大意义：AI能力不再只等于模型大小，推理时计算量是可以独立调节的新维度；7B模型+Best-of-64有时能追上70B单次推理的效果。]]></content>
       <tags><tag>架构</tag><tag>工程实践</tag></tags>
   </entry>
+  <entry>
+    <title>GPU 资源模型：为什么一万件事能同时发生</title>
+    <url>/2026/06/08/GPU%E8%B5%84%E6%BA%90%E6%A8%A1%E5%9E%8B/</url>
+    <content><![CDATA[GPU 的设计目标：让一万件事同时发生，不追求单任务速度。A100有6912个CUDA核心（CPU是16个复杂核心），牺牲分支预测/乱序执行换来大量并行。SM（108个）+ Warp（32线程同步执行相同指令），硬件零成本线程切换掩盖显存延迟。LLM推理真正瓶颈：显存带宽（memory bandwidth bound）而非算力——7B模型FP16=14GB，每生成一个token需读取14GB数据，A100 2TB/s带宽下需7ms，算力大量闲置。批大小的重要性：batch越大权重读取成本分摊越多，带宽受限场景下接近线性提升吞吐量。KV Cache：每token约16KB，2000token×100并发=3.2GB，长context和高并发快速耗尽显存。HBM（3.35TB/s）vs GDDR（0.9TB/s），差3.7倍。NVLink（900GB/s）vs PCIe（64GB/s），差14倍。工程决策：量化（INT8/INT4）降低带宽需求；实例选型优先看显存容量和带宽；批大小根据延迟SLA权衡。]]></content>
+      <tags><tag>架构</tag><tag>工程实践</tag></tags>
+  </entry>
+  <entry>
+    <title>CPU 资源模型：为什么一件事能做得这么快</title>
+    <url>/2026/06/08/CPU%E8%B5%84%E6%BA%90%E6%A8%A1%E5%9E%8B/</url>
+    <content><![CDATA[CPU 的设计目标：让单条指令流执行得尽可能快。缓存层级（L1约4周期/L2约12周期/L3约40周期/DRAM约200周期，差50倍）。Cache Line（64字节是最小搬运单位，顺序访问缓存友好，链表随机跳转导致缓存未命中）。超线程（一个物理核模拟两个逻辑核，对I/O密集型任务效果好，对CPU密集型收益有限）。NUMA（多路服务器跨Socket访问内存慢2-3倍，用numactl绑核可规避）。分支预测（规律性代码预测准确率99%+，随机数据导致Pipeline Flush）。实际意义：顺序访问比随机快10倍以上、线程数不是越多越好、多路服务器需要NUMA感知、热数据放进L3 Cache可快5倍。]]></content>
+      <tags><tag>架构</tag><tag>工程实践</tag></tags>
+  </entry>
 </search>

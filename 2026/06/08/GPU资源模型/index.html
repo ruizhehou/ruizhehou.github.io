@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="GPU 的资源模型和 CPU 完全相反：不追求让一件事做得快，而是让一万件事同时发生。SM 架构、Warp 执行模型、显存带宽为何是 LLM 推理的真正瓶颈（不是算力）、HBM vs GDDR、KV Cache 和显存容量的关系、批大小对吞吐的影响。后端工程师需要理解 GPU 的哪些概念。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="GPU 资源模型：为什么一万件事能同时发生">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/08/GPU资源模型/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-08T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-08T14:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/08/GPU资源模型/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>GPU 资源模型：为什么一万件事能同时发生 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-08T14:00:00+08:00" content="2026-06-08">
+      06-08
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      GPU 资源模型：为什么一万件事能同时发生
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>CPU 的设计目标是让一件事做得尽可能快——上一篇讲的所有复杂性（多级缓存、乱序执行、分支预测）都服务于这一点。</p>
+
+<p>GPU 的设计目标完全相反：<strong>让一万件事同时发生，而不在意每件事本身做得有多快</strong>。</p>
+
+<p>这个根本差异解释了 GPU 所有让人困惑的特性：为什么有数千个"核"但单核性能远不如 CPU？为什么 LLM 推理的瓶颈是显存带宽而不是算力？为什么批大小（batch size）会显著影响推理吞吐量？</p>
+
+
+<h2 id="GPU和CPU的根本差异">一、GPU 和 CPU 的根本差异</h2>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 580 160" style="max-width:560px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.gt2{fill:currentColor;font-family:inherit;}</style>
+  <!-- CPU side -->
+  <text x="130" y="20" text-anchor="middle" font-size="11" class="gt2" opacity="0.5">CPU（以 16 核为例）</text>
+  <!-- 4 large cores -->
+  <rect x="20" y="30" width="220" height="120" rx="8" fill="rgba(33,150,243,0.06)" stroke="rgba(33,150,243,0.2)" stroke-width="1"/>
+  <rect x="30" y="40" width="90" height="46" rx="6" fill="rgba(33,150,243,0.2)" stroke="rgba(33,150,243,0.4)" stroke-width="1.5"/>
+  <text x="75" y="67" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.8)">复杂核心</text>
+  <text x="75" y="80" text-anchor="middle" font-size="8" class="gt2" opacity="0.4">缓存/分支预测</text>
+  <rect x="140" y="40" width="90" height="46" rx="6" fill="rgba(33,150,243,0.2)" stroke="rgba(33,150,243,0.4)" stroke-width="1.5"/>
+  <text x="185" y="67" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.8)">复杂核心</text>
+  <text x="185" y="80" text-anchor="middle" font-size="8" class="gt2" opacity="0.4">乱序执行</text>
+  <rect x="30" y="96" width="90" height="46" rx="6" fill="rgba(33,150,243,0.2)" stroke="rgba(33,150,243,0.4)" stroke-width="1.5"/>
+  <text x="75" y="122" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.8)">×14 更多</text>
+  <rect x="140" y="96" width="90" height="46" rx="6" fill="rgba(33,150,243,0.2)" stroke="rgba(33,150,243,0.4)" stroke-width="1.5"/>
+
+  <!-- VS -->
+  <text x="290" y="95" text-anchor="middle" font-size="16" class="gt2" opacity="0.2">VS</text>
+
+  <!-- GPU side -->
+  <text x="450" y="20" text-anchor="middle" font-size="11" class="gt2" opacity="0.5">GPU（A100 有 6912 个 CUDA 核心）</text>
+  <rect x="320" y="30" width="250" height="120" rx="8" fill="rgba(76,175,80,0.06)" stroke="rgba(76,175,80,0.2)" stroke-width="1"/>
+  <!-- many tiny cores as dots -->
+  <g fill="rgba(76,175,80,0.5)">
+    <rect x="330" y="40" width="8" height="8" rx="1"/>
+    <rect x="342" y="40" width="8" height="8" rx="1"/>
+    <rect x="354" y="40" width="8" height="8" rx="1"/>
+    <rect x="366" y="40" width="8" height="8" rx="1"/>
+    <rect x="378" y="40" width="8" height="8" rx="1"/>
+    <rect x="390" y="40" width="8" height="8" rx="1"/>
+    <rect x="402" y="40" width="8" height="8" rx="1"/>
+    <rect x="414" y="40" width="8" height="8" rx="1"/>
+    <rect x="426" y="40" width="8" height="8" rx="1"/>
+    <rect x="438" y="40" width="8" height="8" rx="1"/>
+    <rect x="450" y="40" width="8" height="8" rx="1"/>
+    <rect x="462" y="40" width="8" height="8" rx="1"/>
+    <rect x="474" y="40" width="8" height="8" rx="1"/>
+    <rect x="486" y="40" width="8" height="8" rx="1"/>
+    <rect x="498" y="40" width="8" height="8" rx="1"/>
+    <rect x="510" y="40" width="8" height="8" rx="1"/>
+    <rect x="330" y="54" width="8" height="8" rx="1"/>
+    <rect x="342" y="54" width="8" height="8" rx="1"/>
+    <rect x="354" y="54" width="8" height="8" rx="1"/>
+    <rect x="366" y="54" width="8" height="8" rx="1"/>
+    <rect x="378" y="54" width="8" height="8" rx="1"/>
+    <rect x="390" y="54" width="8" height="8" rx="1"/>
+    <rect x="402" y="54" width="8" height="8" rx="1"/>
+    <rect x="414" y="54" width="8" height="8" rx="1"/>
+    <rect x="426" y="54" width="8" height="8" rx="1"/>
+    <rect x="438" y="54" width="8" height="8" rx="1"/>
+    <rect x="450" y="54" width="8" height="8" rx="1"/>
+    <rect x="462" y="54" width="8" height="8" rx="1"/>
+  </g>
+  <text x="445" y="90" text-anchor="middle" font-size="9" class="gt2" opacity="0.3">…（共 6912 个简单核心）…</text>
+  <text x="445" y="120" text-anchor="middle" font-size="10" fill="rgba(76,175,80,0.6)">每个核心简单但数量极多</text>
+  <text x="445" y="140" text-anchor="middle" font-size="9" class="gt2" opacity="0.35">无分支预测 / 无乱序执行 / 小缓存</text>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">CPU：少量复杂核心，追求单核速度；GPU：大量简单核心，追求并行吞吐</figcaption>
+</figure>
+
+<p>一个 CPU 核心面积里包含了大量复杂逻辑：分支预测单元、乱序执行引擎、多级缓存……这些东西占了 80% 以上的面积，真正做计算的部分（ALU）只占一小部分。</p>
+
+<p>GPU 做了相反的取舍：把那些复杂逻辑全部去掉，把腾出来的面积全部填满计算单元。结果是：每个 GPU 核心非常简单，但数量极多。NVIDIA A100 有 6912 个 CUDA 核心；H100 有 16896 个。</p>
+
+<p>代价是：每个 GPU 核心的单线程性能远不如 CPU 核心。如果你只需要执行一件事，CPU 可能快 10 倍。但如果你有一万件事要同时做，GPU 赢了。</p>
+
+
+<h2 id="SM和Warp">二、SM 和 Warp：GPU 的调度单位</h2>
+
+<p>GPU 的 6912 个 CUDA 核心不是各自独立工作的，它们被组织成若干个 <strong>Streaming Multiprocessor（SM）</strong>——A100 有 108 个 SM，每个 SM 包含 64 个 CUDA 核心。</p>
+
+<p>SM 内部执行的最小单位叫 <strong>Warp</strong>——32 个线程捆绑在一起，每次作为一个整体执行同一条指令（SIMT，Single Instruction Multiple Threads）。32 个线程同时做同一件事，只是操作的数据不同。</p>
+
+<p>这里有一个重要限制：<strong>Warp 内的 32 个线程必须走相同的代码路径</strong>。如果有一个 <code>if-else</code>，一部分线程走 if，一部分走 else，GPU 会让两组线程依次执行（先 if 组，再 else 组），空闲那组等待。这叫 Warp Divergence（Warp 分歧），会降低实际利用率。这就是为什么 GPU 不擅长处理有复杂分支逻辑的代码。</p>
+
+<p>GPU 掩盖延迟的方式和 CPU 完全不同：<strong>不通过缓存，而是通过海量线程切换</strong>。当一个 Warp 在等待显存数据（延迟约 400-800 个时钟周期），SM 立刻切换到另一个 Warp 继续执行，零成本（GPU 的线程上下文是硬件维护的，切换不需要保存/恢复寄存器）。等第一个 Warp 的数据回来了，它重新进入调度队列。</p>
+
+<p>这意味着：GPU 需要足够多的活跃线程，才能把显存等待时间填满。如果线程数太少，SM 会有大量空闲，GPU 利用率低。</p>
+
+
+<h2 id="显存带宽是瓶颈">三、LLM 推理的真正瓶颈：显存带宽，不是算力</h2>
+
+<p>很多人以为 LLM 推理慢是因为计算量太大。实际上，大多数 LLM 推理场景的瓶颈是<strong>显存带宽</strong>，不是算力（FLOPS）。</p>
+
+<p>为什么？LLM 推理时，每生成一个 token，需要把模型的所有权重从显存读取到计算单元。一个 7B 参数的模型，用 FP16 存储，大小约 14GB。每生成一个 token，就需要读取 14GB 数据。</p>
+
+<p>A100 的显存带宽是 2TB/s（每秒 2 万亿字节），读 14GB 需要 7ms。在这 7ms 里，A100 的 312 TFLOPS 算力实际上大量闲置——计算单元在等数据，而不是在计算。</p>
+
+<p>这类场景叫做<strong>内存带宽受限（Memory Bandwidth Bound）</strong>，对应的瓶颈不是 FLOPS，而是带宽。增加计算能力对这类瓶颈毫无帮助，提高显存带宽才有效。这解释了为什么 H100 比 A100 在 LLM 推理上的提升，很大程度来自 HBM3 带宽的提升（3.35TB/s vs 2TB/s），而不只是 FLOPS 的提升。</p>
+
+<p>什么情况下从带宽受限变成计算受限？<strong>批处理（batching）</strong>。当你把多个请求打包成一个 batch 一起推理时，模型权重只需要读取一次，但可以同时服务 batch 内的所有请求。batch size = 32 时，读一次权重服务 32 个请求，每个请求的"读权重成本"是 1/32。batch 越大，计算利用率越高，越接近算力受限。</p>
+
+<p>这就是为什么 LLM 推理服务里，<strong>批大小的设置对吞吐量影响极大</strong>——batch size 从 1 到 32，在带宽受限的场景下，吞吐量可以接近线性提升。</p>
+
+
+<h2 id="显存容量和KV-Cache">四、显存容量：KV Cache 的真正限制</h2>
+
+<p>推理时除了模型权重，还需要存储 <strong>KV Cache</strong>——每个 token 在每个注意力层计算出的 Key 和 Value 向量，用于后续 token 的注意力计算。</p>
+
+<p>KV Cache 的大小随序列长度线性增长。一个 7B 的 LLaMA 模型，32 层，每层 Key 和 Value 各 128 维，FP16 存储：</p>
+
+<p>每个 token 的 KV Cache 大小 = 2（K+V）× 32（层）× 128（维度）× 2（bytes）= 16,384 bytes ≈ 16KB</p>
+
+<p>一个 2000 token 的对话 = 32MB KV Cache。听起来不大，但如果同时服务 100 个用户，就是 3.2GB KV Cache。加上模型权重 14GB，总共需要约 17GB 显存——A100 的 80GB 显存看起来宽裕，但当 context 变长（8K、32K、128K token）或并发用户增多时，显存很快就不够了。</p>
+
+<p>这是现在大量工程工作的核心挑战：如何在有限显存里服务尽可能多的用户、尽可能长的 context。vLLM 的 PagedAttention、FlashAttention 的显存优化，都在解决这个问题。</p>
+
+
+<h2 id="HBM和GDDR">五、HBM vs GDDR：显存技术的差异</h2>
+
+<p>消费级 GPU（RTX 4090）用 GDDR6X 显存；数据中心 GPU（A100、H100）用 HBM（High Bandwidth Memory）。</p>
+
+<p>两者的核心差异：</p>
+
+<ul>
+  <li><strong>GDDR</strong>：带宽约 0.9-1TB/s，容量最大约 24GB，成本较低</li>
+  <li><strong>HBM3</strong>（H100）：带宽约 3.35TB/s，容量最大 80GB，成本高昂</li>
+</ul>
+
+<p>HBM 通过在 GPU 芯片旁边垂直堆叠多层 DRAM 并以极宽的总线连接，实现了远高于 GDDR 的带宽。代价是面积大、发热多、成本高——这正是 H100 要几万美元一张的原因之一。</p>
+
+<p>对于 LLM 推理，带宽是最关键的参数。用 RTX 4090 跑 LLM，带宽瓶颈远比 A100 严重，单 token 生成速度慢很多，尽管它的 FLOPS 不算低。</p>
+
+
+<h2 id="PCIe和NVLink">六、PCIe vs NVLink：多卡通信的瓶颈</h2>
+
+<p>单张 GPU 显存有限，大模型（70B、405B）需要多张 GPU 分布式推理。GPU 之间的通信带宽是另一个瓶颈。</p>
+
+<ul>
+  <li><strong>PCIe 5.0 × 16</strong>：约 64GB/s 双向带宽（通过 CPU 主板）</li>
+  <li><strong>NVLink 4.0</strong>（H100 标准配置）：900GB/s 双向带宽（GPU 直连）</li>
+</ul>
+
+<p>差距是 14 倍。用 PCIe 连接的多卡系统（消费级服务器或云上多 GPU 实例），GPU 间通信会成为严重瓶颈。用 NVLink 连接的 HGX 系统（NVIDIA DGX）可以把多张 GPU 的显存几乎当成一块大显存使用。</p>
+
+<p>这解释了为什么大模型训练和推理对 GPU 互联的要求很高，以及为什么"A100 × 8 NVLink" 和 "A100 × 8 PCIe" 在大模型上性能差异巨大。</p>
+
+
+<h2 id="对后端工程师的实际意义">七、对后端工程师的实际意义</h2>
+
+<p>理解了 GPU 资源模型，几个实际的工程判断就有了依据：</p>
+
+<p><strong>LLM 推理服务的性能瓶颈在哪里</strong>：通常是显存带宽和显存容量，不是算力。监控 GPU 显存利用率和显存带宽利用率，比看 FLOPS 利用率更有诊断价值。</p>
+
+<p><strong>批大小的设置</strong>：尽量提高 batch size，能显著提升吞吐量（在带宽受限场景下接近线性提升）。代价是单请求延迟增加。根据 SLA 要求在吞吐和延迟之间取舍。</p>
+
+<p><strong>实例选型</strong>：需要长 context 或大并发 → 优先选显存容量大的（A100 80GB、H100 80GB）；需要高吞吐短 context → 优先看显存带宽（H100 HBM3 > A100 HBM2e）；预算有限的小模型 → RTX 4090 可以考虑，但带宽是瓶颈。</p>
+
+<p><strong>量化的价值</strong>：把模型从 FP16 量化到 INT8 或 INT4，模型大小减半或减为 1/4，读取权重的带宽需求也随之减小，推理速度可以有明显提升（在带宽受限场景下）。这是为什么量化在实际部署中被广泛使用。</p>
+
+
+<h2 id="总结">八、总结</h2>
+
+<ul>
+  <li><strong>GPU 的核心设计</strong>：大量简单核心（数千个），用海量线程切换掩盖显存延迟，追求吞吐而非单核速度</li>
+  <li><strong>SM 和 Warp</strong>：108 个 SM，每个 SM 同时调度多个 Warp（32 线程），硬件零成本切换</li>
+  <li><strong>LLM 推理的真正瓶颈</strong>：显存带宽（memory bandwidth bound），不是算力（compute bound）</li>
+  <li><strong>批大小的重要性</strong>：batch 越大，权重读取成本分摊越多，吞吐越高；batch = 1 时几乎完全受带宽限制</li>
+  <li><strong>显存容量</strong>：模型权重 + KV Cache，context 越长显存消耗越多，并发用户越多消耗越多</li>
+  <li><strong>HBM vs GDDR</strong>：HBM 带宽远高于 GDDR，是数据中心 GPU 的核心优势</li>
+  <li><strong>多卡通信</strong>：NVLink 比 PCIe 带宽高 14 倍，大模型分布式推理对互联带宽要求极高</li>
+</ul>
+
+<p>CPU 追求的是让一件事尽快完成；GPU 追求的是让尽可能多的事同时进行。理解这个根本差异，是理解现代 AI 基础设施的起点。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#GPU和CPU的根本差异"><span class="nav-number">1.</span> <span class="nav-text">一、GPU 和 CPU 的根本差异</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#SM和Warp"><span class="nav-number">2.</span> <span class="nav-text">二、SM 和 Warp：GPU 的调度单位</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#显存带宽是瓶颈"><span class="nav-number">3.</span> <span class="nav-text">三、LLM 推理的真正瓶颈：显存带宽</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#显存容量和KV-Cache"><span class="nav-number">4.</span> <span class="nav-text">四、显存容量：KV Cache 的真正限制</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#HBM和GDDR"><span class="nav-number">5.</span> <span class="nav-text">五、HBM vs GDDR</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#PCIe和NVLink"><span class="nav-number">6.</span> <span class="nav-text">六、PCIe vs NVLink：多卡通信</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#对后端工程师的实际意义"><span class="nav-number">7.</span> <span class="nav-text">七、对后端工程师的实际意义</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">8.</span> <span class="nav-text">八、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">233</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
