@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="推理时计算（Test-Time Compute）：过去扩展模型靠参数量，现在发现让同一个模型「想更久」同样能大幅提升效果。Chain of Thought 为什么有效、多路探索与最优选择、验证比生成容易这一核心非对称性、过程奖励模型（PRM）如何评估推理步骤、o1 和 DeepSeek-R1 的实现思路，以及代价与适用场景。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="推理时计算：让模型「慢下来想」，而不是「更大更快」">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/08/推理时计算/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-08T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-08T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/08/推理时计算/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>推理时计算：让模型「慢下来想」，而不是「更大更快」 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+        </li>
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+        </li>
+        <li class="menu-item menu-item-catalog">
+          <a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a>
+        </li>
+        <li class="menu-item menu-item-projects">
+          <a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a>
+        </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a>
+      </li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon"><i class="fa fa-search"></i></span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close"><i class="fa fa-times-circle"></i></span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-08T10:00:00+08:00" content="2026-06-08">
+      06-08
+    </time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">
+      推理时计算：让模型「慢下来想」，而不是「更大更快」
+  </h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>过去几年，AI 能力的提升主要靠一件事：把模型做大。更多参数、更多训练数据、更多算力——这条路被称为"训练时扩展"（Training-Time Scaling），Scaling Law 描述了它的规律。</p>
+
+<p>2024 年之后，一条新的路开始被认真对待：<strong>不增加模型大小，而是在推理时给模型更多计算资源，让它在给出答案之前多想一会儿</strong>。这条路被称为"推理时计算"（Test-Time Compute）或"推理时扩展"（Inference-Time Scaling）。</p>
+
+<p>o1 和 DeepSeek-R1 是最知名的实现。但推理时计算的核心思路早于这些模型，理解它需要从更基础的地方说起。</p>
+
+
+<h2 id="为什么多想一会儿能有帮助">一、为什么「多想一会儿」能有帮助</h2>
+
+<p>语言模型在默认情况下是这样工作的：给定输入，直接生成输出，每个 token 的生成基于之前所有 token 的概率分布，一次前向传播，结束。这个模式很快，但有一个内在限制：<strong>模型在生成答案时，用于思考这个问题的计算量是固定的</strong>——无论问题是"1+1 等于几"还是"证明黎曼猜想"，模型处理它们花的计算量是一样的。</p>
+
+<p>这和人类思考方式明显不同。人类遇到简单问题时直接反应（"这是什么颜色？"——"红色"），遇到复杂问题时会慢下来，逐步推理，验证中间结论，甚至走错路之后回头重来。</p>
+
+<p>推理时计算的核心思路是：<strong>给模型一个机制，让它在给出最终答案之前，花时间做中间推理步骤</strong>。这些中间步骤消耗额外的计算，但换来了更高质量的最终答案。</p>
+
+<p>为什么这有效？从信息论角度看，对于困难问题，正确答案的"寻找难度"远高于"验证难度"——找到一个数学证明很难，但验证一个已有证明是否正确相对容易。给模型更多计算时间，相当于给它更多机会探索可能的推理路径，而不只是在第一次尝试时凭直觉猜一个答案。</p>
+
+
+<h2 id="Chain-of-Thought：最简单的推理时计算">二、Chain of Thought：最简单的推理时计算</h2>
+
+<p>Chain of Thought（CoT，思维链）是最早被系统研究的推理时计算形式。做法很简单：不让模型直接输出答案，而是让它先把推理过程写出来，再给出答案。</p>
+
+<p>2022 年 Google 的论文展示，在数学和逻辑推理任务上，加上"Let's think step by step"这一句提示，模型的准确率有时能提升一倍以上。</p>
+
+<p>为什么有效？有两个互补的解释：</p>
+
+<p><strong>1. 把复杂问题分解成简单子步骤</strong>。直接计算"23 × 47 = ?"对模型来说是一次很难的单步预测，但如果先写出"23 × 40 = 920，23 × 7 = 161，920 + 161 = 1081"，每一步都是简单的，累积起来得到正确答案的概率高得多。</p>
+
+<p><strong>2. 中间步骤作为"工作内存"</strong>。语言模型的上下文窗口是它的工作内存。把推理过程写出来，就是在扩展工作内存——后续的推理步骤可以直接引用已经写出来的中间结论，而不是全部装在隐含状态里。</p>
+
+<p>CoT 的局限是：它依赖单条推理路径，一旦这条路走错了，后续推理都在错误的基础上继续，无法自我纠正。</p>
+
+
+<h2 id="从单条路径到多路探索">三、从单条路径到多路探索</h2>
+
+<p>为了解决 CoT 的单路径问题，一个自然的想法是：生成多条推理路径，从中选最好的。</p>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 580 200" style="max-width:560px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.tt{fill:currentColor;font-family:inherit;}</style>
+  <!-- Input -->
+  <rect x="10" y="80" width="80" height="40" rx="6" fill="rgba(128,128,128,0.08)" stroke="rgba(128,128,128,0.25)" stroke-width="1.5"/>
+  <text x="50" y="105" text-anchor="middle" font-size="10" class="tt">问题输入</text>
+  <!-- Branch -->
+  <line x1="92" y1="92" x2="120" y2="60" stroke="rgba(128,128,128,0.3)" stroke-width="1.3"/>
+  <line x1="92" y1="100" x2="120" y2="100" stroke="rgba(128,128,128,0.3)" stroke-width="1.3"/>
+  <line x1="92" y1="108" x2="120" y2="140" stroke="rgba(128,128,128,0.3)" stroke-width="1.3"/>
+  <!-- Path 1 -->
+  <rect x="122" y="42" width="140" height="36" rx="5" fill="rgba(33,150,243,0.08)" stroke="rgba(33,150,243,0.25)" stroke-width="1"/>
+  <text x="192" y="57" text-anchor="middle" font-size="9" class="tt">推理路径 A</text>
+  <text x="192" y="71" text-anchor="middle" font-size="8" class="tt" opacity="0.5">步骤 1 → 2 → 3 → 答案 X</text>
+  <!-- Path 2 -->
+  <rect x="122" y="82" width="140" height="36" rx="5" fill="rgba(76,175,80,0.1)" stroke="rgba(76,175,80,0.3)" stroke-width="1.5"/>
+  <text x="192" y="97" text-anchor="middle" font-size="9" fill="rgba(76,175,80,0.8)">推理路径 B ✓</text>
+  <text x="192" y="111" text-anchor="middle" font-size="8" class="tt" opacity="0.5">步骤 1 → 2 → 3 → 答案 Y</text>
+  <!-- Path 3 -->
+  <rect x="122" y="122" width="140" height="36" rx="5" fill="rgba(244,67,54,0.07)" stroke="rgba(244,67,54,0.2)" stroke-width="1"/>
+  <text x="192" y="137" text-anchor="middle" font-size="9" fill="rgba(244,67,54,0.6)">推理路径 C ✗</text>
+  <text x="192" y="151" text-anchor="middle" font-size="8" class="tt" opacity="0.5">步骤 1 → 错误 → 答案 Z</text>
+  <!-- Select -->
+  <line x1="264" y1="60" x2="296" y2="100" stroke="rgba(128,128,128,0.25)" stroke-width="1"/>
+  <line x1="264" y1="100" x2="296" y2="100" stroke="rgba(76,175,80,0.5)" stroke-width="2"/>
+  <line x1="264" y1="140" x2="296" y2="100" stroke="rgba(128,128,128,0.2)" stroke-width="1" stroke-dasharray="3,2"/>
+  <!-- Verifier -->
+  <rect x="298" y="80" width="80" height="40" rx="6" fill="rgba(244,67,54,0.07)" stroke="rgba(244,67,54,0.25)" stroke-width="1.5"/>
+  <text x="338" y="97" text-anchor="middle" font-size="9" fill="rgba(244,67,54,0.7)">验证/选择</text>
+  <text x="338" y="112" text-anchor="middle" font-size="8" class="tt" opacity="0.4">奖励模型评分</text>
+  <!-- Output -->
+  <line x1="380" y1="100" x2="400" y2="100" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#ta1)"/>
+  <rect x="402" y="80" width="70" height="40" rx="6" fill="rgba(76,175,80,0.1)" stroke="rgba(76,175,80,0.35)" stroke-width="1.5"/>
+  <text x="437" y="97" text-anchor="middle" font-size="9" fill="rgba(76,175,80,0.8)">最佳答案</text>
+  <text x="437" y="112" text-anchor="middle" font-size="8" class="tt" opacity="0.4">答案 Y</text>
+  <defs><marker id="ta1" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker></defs>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">多路探索：生成多条推理路径，用验证器选出最佳路径</figcaption>
+</figure>
+
+<h3 id="Self-Consistency">Self-Consistency（自一致性）</h3>
+
+<p>最简单的多路探索方法：对同一个问题生成多条推理路径（通过调高采样温度增加多样性），然后对最终答案投票——最多条路径得出的答案，是最终答案。</p>
+
+<p>这个方法在数学推理任务上很有效，原因是：错误的推理路径往往走向不同的错误答案，而正确路径趋向同一个正确答案。多数投票能过滤掉随机错误。</p>
+
+<h3 id="Best-of-N">Best-of-N（取最优）</h3>
+
+<p>生成 N 条推理路径，用一个奖励模型给每条路径打分，选得分最高的。比投票更精细，因为奖励模型能评估推理过程的质量，而不只是最终答案。</p>
+
+<p>研究发现，对于很多任务，Best-of-N 在 N 较大时能接近比当前模型大一个数量级的模型的效果——也就是说，用更多推理计算换来了本需要更大模型才有的能力。</p>
+
+<h3 id="Tree-Search">树搜索（Tree Search）</h3>
+
+<p>更系统的探索方式：把推理过程建模成一棵树，每个节点是一个推理步骤，从根节点（问题）出发，探索多条分支，在探索过程中评估每个节点的价值，选择最有前途的路径继续深入。</p>
+
+<p>这是 AlphaGo 和 AlphaZero 的核心机制（蒙特卡洛树搜索，MCTS）移植到语言模型领域的版本。</p>
+
+
+<h2 id="验证比生成容易：核心非对称性">四、验证比生成容易：推理时计算的核心洞察</h2>
+
+<p>推理时计算能工作，依赖一个关键的不对称性：<strong>验证一个答案是否正确，往往比生成一个正确答案更容易</strong>。</p>
+
+<p>这在数学领域最直观。生成一个完整的数学证明极难，但验证一个已有证明每一步是否有效相对容易。围棋中判断一步棋好不好比下出一步好棋容易。密码学里验证一个哈希比找到碰撞容易得多。</p>
+
+<p>这个不对称性意味着：即使一个模型无法直接生成正确答案，它也可能有足够的能力验证一个候选答案是否正确。如果这成立，推理时计算的流程就是：<strong>用生成能力产生多个候选，用验证能力筛选出最好的</strong>。</p>
+
+<p>这也解释了为什么奖励模型（Reward Model）在推理时计算里扮演核心角色——它就是那个"验证器"。</p>
+
+
+<h2 id="过程奖励模型">五、过程奖励模型（PRM）：评估每一步</h2>
+
+<p>奖励模型有两种：</p>
+
+<p><strong>结果奖励模型（Outcome Reward Model，ORM）</strong>：只看最终答案对不对。训练简单，但反馈粗糙——即使最终答案错了，也不知道是哪一步出了问题。</p>
+
+<p><strong>过程奖励模型（Process Reward Model，PRM）</strong>：评估推理过程中每一个中间步骤的正确性，不只看最终答案。这提供了更细粒度的信号——可以找到推理链中第一个出错的节点，也可以在搜索过程中更早地剪枝掉错误的路径。</p>
+
+<p>PRM 比 ORM 强大，但训练代价更高：需要对每个推理步骤标注"对"或"错"，而 ORM 只需要标注最终答案。OpenAI 发布了一个专门针对数学推理的 PRM 数据集（PRM800K），包含了对数万条推理链中每个步骤的人工标注。</p>
+
+<p>PRM 的作用不只是在推理结束后打分，更重要的是在树搜索过程中实时指导探索：走到某个中间步骤时，PRM 预测这条路径走到最后得到正确答案的概率，用这个概率决定是继续探索这条路还是回退尝试其他分支。</p>
+
+
+<h2 id="o1和DeepSeek-R1做了什么">六、o1 和 DeepSeek-R1 做了什么</h2>
+
+<p>o1（OpenAI，2024 年 9 月）和 DeepSeek-R1（2025 年 1 月）是推理时计算目前最知名的工业实现。两者都没有完全公开技术细节，但从论文、技术报告和社区逆向工程来看，核心机制是类似的。</p>
+
+<p>关键不在于推理时的搜索，而在于<strong>把长推理链的能力训练进了模型本身</strong>。</p>
+
+<p>具体来说：</p>
+
+<p><strong>训练阶段</strong>：用强化学习让模型学会生成长的、包含自我验证和回溯的推理过程。训练信号来自推理过程最终是否得到正确答案（而不是人工标注的每一步）。模型通过大量的强化学习迭代，自发学会了"想错了就重新来"、"先写出中间结论再继续"、"检查一下之前的推理是否有误"这类行为。</p>
+
+<p><strong>推理阶段</strong>：模型生成一段包含大量中间推理步骤的"思考过程"（在 o1 里这部分被隐藏，用户只看到最终答案；在 DeepSeek-R1 里默认可见，用 `<think>...</think>` 标签包裹），然后基于这段思考给出答案。</p>
+
+<p>这和纯粹的推理时搜索（Best-of-N 或树搜索）不同——那些方法需要外部的搜索框架和奖励模型。o1/R1 把推理能力内化到了模型权重里，推理时不需要额外的搜索框架，只是模型自己在生成更长的输出。</p>
+
+<p>DeepSeek-R1 的贡献在于公开了训练细节：它先用蒸馏（把 DeepSeek-R1 的推理数据用来训练更小的模型）加 GRPO（一种策略梯度强化学习算法）的组合来训练，展示了一个较低成本的路径来获得推理能力。</p>
+
+
+<h2 id="代价与适用场景">七、代价与适用场景</h2>
+
+<p>推理时计算不是免费的，它有明确的代价：</p>
+
+<p><strong>延迟增加</strong>。生成思维链意味着输出更多 token，用户等待时间更长。o1 的响应时间比普通 GPT-4 长得多，在某些复杂问题上需要等待几十秒甚至几分钟。</p>
+
+<p><strong>成本增加</strong>。更多 token = 更多 API 调用成本。对于简单问题，用 o1 是浪费。</p>
+
+<p><strong>效果提升不均匀</strong>。推理时计算对需要多步推理的任务效果显著：数学证明、复杂代码生成、需要多步逻辑推导的问答。对于事实检索、简单分类、创意写作，效果提升有限甚至没有。</p>
+
+<p>使用推理时计算的经验法则：</p>
+<ul>
+  <li>问题有明确的正确/错误答案，且需要多步推导 → 适合</li>
+  <li>问题可以自动验证（数学题、代码能跑测试） → 尤其适合</li>
+  <li>对延迟敏感（实时聊天、交互式应用） → 慎用</li>
+  <li>问题答案主观或开放式 → 效果有限</li>
+</ul>
+
+
+<h2 id="更大的意义">八、更大的意义</h2>
+
+<p>推理时计算的出现，改变了一个长期以来的假设：AI 能力 ≈ 模型大小。</p>
+
+<p>现在这个等式有了另一个变量：给定同一个模型，推理时花多少计算量，也会显著影响输出质量。这意味着：</p>
+
+<p><strong>更小的模型有时可以用更多推理计算来追赶更大的模型</strong>。在很多任务上，一个 7B 参数的模型配合 Best-of-64 采样，能接近一个不做推理扩展的 70B 模型。</p>
+
+<p><strong>计算资源的分配策略变得重要</strong>。同样的推理预算，是用来运行一个大模型跑一次，还是运行一个中等模型跑很多次再选最好的？这个问题现在有了实质性的工程意义。</p>
+
+<p><strong>训练和推理的边界模糊了</strong>。传统上，能力在训练时固化，推理时只是"使用"训练好的能力。推理时计算让推理阶段也成了"解决问题"的一部分，模型在推理时主动探索、验证、回溯。这更接近人类解决困难问题的方式。</p>
+
+
+<h2 id="总结">九、总结</h2>
+
+<ul>
+  <li><strong>核心思路</strong>：给同一个模型更多推理时计算，让它生成中间推理步骤，而不是直接输出答案</li>
+  <li><strong>为什么有效</strong>：验证比生成容易，多步推理把难问题分解成简单子步骤</li>
+  <li><strong>技术路径</strong>：CoT（单路径）→ Self-Consistency/Best-of-N（多路径+选择）→ 树搜索（系统性探索）</li>
+  <li><strong>关键基础设施</strong>：过程奖励模型（PRM）评估中间步骤，比结果奖励模型（ORM）更细粒度</li>
+  <li><strong>o1/R1 的做法</strong>：把长推理能力训练进模型权重，推理时不需要外部搜索框架</li>
+  <li><strong>代价</strong>：延迟和成本都增加，只在需要多步推理的任务上有明显收益</li>
+  <li><strong>更大意义</strong>：AI 能力不再只取决于模型大小，推理时计算量也是一个可以独立调节的维度</li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么多想一会儿能有帮助"><span class="nav-number">1.</span> <span class="nav-text">一、为什么「多想一会儿」能有帮助</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Chain-of-Thought：最简单的推理时计算"><span class="nav-number">2.</span> <span class="nav-text">二、Chain of Thought：最简单的推理时计算</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#从单条路径到多路探索"><span class="nav-number">3.</span> <span class="nav-text">三、从单条路径到多路探索</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#验证比生成容易：核心非对称性"><span class="nav-number">4.</span> <span class="nav-text">四、验证比生成容易：核心非对称性</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#过程奖励模型"><span class="nav-number">5.</span> <span class="nav-text">五、过程奖励模型（PRM）</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#o1和DeepSeek-R1做了什么"><span class="nav-number">6.</span> <span class="nav-text">六、o1 和 DeepSeek-R1 做了什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#代价与适用场景"><span class="nav-number">7.</span> <span class="nav-text">七、代价与适用场景</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#更大的意义"><span class="nav-number">8.</span> <span class="nav-text">八、更大的意义</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">9.</span> <span class="nav-text">九、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">231</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({
+  selectors: ['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],
+  switches: {'.post-toc-wrap': Pjax.switches.innerHTML},
+  analytics: false, cacheBust: false, scrollTo: !CONFIG.bookmark.enable
+});
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.text = code;
+    document.body.appendChild(script);
+  });
+});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
