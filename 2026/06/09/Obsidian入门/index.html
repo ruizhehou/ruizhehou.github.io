@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Obsidian 是什么：本地优先的 Markdown 笔记软件，所有笔记是纯文本文件，永远归你所有。核心差异：双向链接让知识之间有连接，不只是存储。为什么用它：vs Notion（本地/离线/隐私）vs Roam（免费/轻量）vs 文件夹（可视化连接）。怎么用：Vault 概念、双链语法、Graph View、标签与属性、模板、常用插件（Dataview/Calendar/Templater/Excalidraw）。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Obsidian：把笔记变成知识网络">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/09/Obsidian入门/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-09T20:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-09T20:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="生活">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/09/Obsidian入门/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>Obsidian：把笔记变成知识网络 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-09T20:00:00+08:00" content="2026-06-09">06-09</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">Obsidian：把笔记变成知识网络</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>大多数笔记软件帮你做的是"存储"：把内容放进去，需要时找出来。文件夹套文件夹，搜索关键词，基本够用。</p>
+
+<p>但知识不是这样工作的。一个概念的价值，往往来自它和其他概念的关系。Transformer 和 Attention 有关，Attention 和 Self-Attention 有关，Self-Attention 和 BERT 有关……这些关联，放进普通文件夹里就断了，你写笔记的时候建立的连接，下次想用的时候找不回来。</p>
+
+<p>Obsidian 的核心主张是：笔记之间应该有连接，你的知识库应该是一张网，而不是一棵树。</p>
+
+
+<h2 id="Obsidian是什么">一、Obsidian 是什么</h2>
+
+<p>Obsidian 是一个<strong>本地优先的 Markdown 笔记软件</strong>。</p>
+
+<p>几个关键特征：</p>
+
+<p><strong>本地存储，纯文本。</strong> 你所有的笔记都是 <code>.md</code> 文件，存在你电脑上的某个文件夹里。没有云端数据库，没有专有格式，用任何文本编辑器都能打开。这个文件夹叫 <strong>Vault（库）</strong>。</p>
+
+<p><strong>永远属于你。</strong> 公司倒了、产品停服——你的笔记还在。因为它就是一堆 .md 文件。十年后你仍然能读它们，不依赖任何软件。</p>
+
+<p><strong>双向链接。</strong> 在笔记里写 <code>[[FlashAttention]]</code>，就自动在当前笔记和 FlashAttention 那篇笔记之间建立了一条链接。并且是双向的——打开 FlashAttention 那篇，能看到"哪些笔记链接了我"。</p>
+
+<p><strong>可扩展。</strong> Obsidian 有丰富的插件生态，社区插件数量超过 1000 个，能实现番茄钟、习惯追踪、数据库查询、手绘白板等各种功能。</p>
+
+<p>免费使用（个人用途），同步功能收费，但你可以用 iCloud / Dropbox / Git 自己同步，完全免费。</p>
+
+
+<h2 id="为什么用Obsidian">二、为什么用 Obsidian</h2>
+
+<h3 id="对比其他工具">对比其他常见笔记工具</h3>
+
+<p><strong>vs Notion</strong>：Notion 功能更强（数据库、协作），但所有数据在 Notion 的服务器上，断网无法使用，速度也受网络影响。Obsidian 完全本地，打开即用，数据只在本地。如果你很在意数据隐私和长期可用性，Obsidian 是更好的选择。</p>
+
+<p><strong>vs Apple Notes / 印象笔记</strong>：这类工具把笔记锁在专有格式里。Apple Notes 的笔记不是普通文件，想迁移很麻烦。Obsidian 的 .md 文件可以随时用任何工具打开，没有迁移成本。</p>
+
+<p><strong>vs 普通文件夹 + Markdown</strong>：直接用文件夹当然也行，但 Obsidian 在上面加了很多东西：双向链接可视化、全局搜索、Graph View、模板……把 Markdown 文件夹变成了真正可用的知识管理系统。</p>
+
+<h3 id="最适合做什么">最适合做什么</h3>
+
+<ul>
+  <li><strong>读书/学习笔记</strong>：读完一篇论文或一本书，把核心概念记下来，和已有的笔记建立连接</li>
+  <li><strong>技术知识沉淀</strong>：工作中遇到的问题和解决方案，长期积累的技术笔记</li>
+  <li><strong>写作草稿</strong>：先把想法碎片化记下来，慢慢组织成完整文章</li>
+  <li><strong>日记/周记</strong>：搭配 Calendar 插件，按日期管理日常记录</li>
+</ul>
+
+
+<h2 id="核心概念">三、核心概念</h2>
+
+<h3 id="Vault">Vault（库）</h3>
+
+<p>Vault 就是一个普通的文件夹，里面放你所有的 .md 笔记文件。Obsidian 打开 Vault 后，把它当成一个整体管理——搜索、链接、图谱，都在这个 Vault 范围内。</p>
+
+<p>你可以建多个 Vault，比如一个用于工作笔记，一个用于个人知识库，互不干扰。</p>
+
+<h3 id="双向链接">双向链接（Backlinks）</h3>
+
+<p>这是 Obsidian 和普通文件夹最大的区别。</p>
+
+<p>在笔记里用 <code>[[文件名]]</code> 语法创建链接：</p>
+
+<pre><code class="language-markdown">今天读了关于 [[FlashAttention]] 的论文。
+它解决的核心问题和 [[GPU资源模型]] 里讲的内存带宽瓶颈有关。
+</code></pre>
+
+<p>这样，FlashAttention 那篇笔记的"被链接"（Backlinks）面板里就会出现这篇笔记——你不需要手动维护这个关系，链接是双向自动的。</p>
+
+<p>这个机制的价值在于：几个月后你打开 FlashAttention 笔记，能看到"还有哪些地方提到了它"，发现你自己都忘了的关联。</p>
+
+<h3 id="Graph View">Graph View（图谱视图）</h3>
+
+<p>把所有笔记和它们之间的链接关系，可视化成一张节点图。每个笔记是一个节点，每条链接是一条边。链接越多的笔记，节点越大。</p>
+
+<p>这张图能让你看到知识库的整体结构：哪些概念是核心枢纽、哪些笔记是孤立的（没有任何链接，说明还没和其他知识建立连接）、哪些领域的笔记自然形成了聚簇。</p>
+
+<h3 id="标签和属性">标签和属性（Tags &amp; Properties）</h3>
+
+<p>除了双链，还可以用标签分类：</p>
+
+<pre><code class="language-markdown">---
+tags: [论文, AI, 推理优化]
+date: 2026-06-09
+status: 阅读中
+---
+
+# FlashAttention 笔记
+...
+</code></pre>
+
+<p>文件开头的 <code>---</code> 之间是 YAML 格式的属性（Frontmatter），Obsidian 能识别并用于筛选和查询。这是构建结构化知识库的基础。</p>
+
+
+<h2 id="基本使用">四、基本使用：快速上手</h2>
+
+<h3 id="安装和创建Vault">安装和创建 Vault</h3>
+
+<p>从 <code>obsidian.md</code> 下载，支持 macOS / Windows / Linux / iOS / Android。</p>
+
+<p>打开后选择"Create new vault"，指定一个本地文件夹，比如 <code>~/Documents/MyNotes</code>。这个文件夹就是你的 Vault。</p>
+
+<h3 id="创建和链接笔记">创建和链接笔记</h3>
+
+<pre><code class="language-markdown"># FlashAttention 阅读笔记
+
+来源：arxiv.org/abs/2205.14135
+
+## 核心洞察
+标准 Attention 的瓶颈是 [[内存带宽]]，不是算力。
+具体原理见 [[GPU资源模型#HBM]]。
+
+## 三个关键技术
+1. **分块 Tiling**：把 Q/K/V 切成小块加载进 SRAM
+2. **在线 Softmax**：增量计算，不需要物化 N×N 矩阵
+3. **反向重计算**：不存储注意力权重，反向时重新计算
+
+## 相关
+- [[FlashAttention-2]]
+- [[PagedAttention]]
+- [[vLLM]]
+</code></pre>
+
+<p><code>[[文件名]]</code> 创建链接，<code>[[文件名#标题]]</code> 链接到具体章节。如果被链接的文件不存在，Obsidian 会显示为红色链接，点击可以快速创建那篇笔记。</p>
+
+<h3 id="常用快捷键">常用快捷键</h3>
+
+<ul>
+  <li><code>Cmd/Ctrl + N</code>：新建笔记</li>
+  <li><code>Cmd/Ctrl + O</code>：快速打开（搜索笔记名）</li>
+  <li><code>Cmd/Ctrl + Shift + F</code>：全局搜索（搜索所有笔记内容）</li>
+  <li><code>[[</code>：触发链接自动补全</li>
+  <li><code>Cmd/Ctrl + P</code>：命令面板（搜索所有可用命令）</li>
+  <li><code>Cmd/Ctrl + E</code>：切换编辑/预览模式</li>
+</ul>
+
+<h3 id="文件夹结构建议">文件夹结构</h3>
+
+<p>Obsidian 不强制任何文件夹结构，但一个常见的起点：</p>
+
+<pre><code class="language-text">MyNotes/
+├── 00-Inbox/         # 临时放刚记录的想法，等待整理
+├── 01-Projects/      # 进行中的项目笔记
+├── 02-Areas/         # 长期关注的领域（工作、读书、健康…）
+├── 03-Resources/     # 参考资料、阅读笔记
+├── 04-Archive/       # 归档的旧笔记
+└── Templates/        # 笔记模板
+</code></pre>
+
+<p>这是 PARA 方法的 Obsidian 版本。但不要一开始就设计太复杂的结构——先用起来，随着笔记增多再慢慢调整。</p>
+
+
+<h2 id="常用插件">五、常用插件推荐</h2>
+
+<p>在 Settings → Community Plugins 里启用插件市场，搜索安装：</p>
+
+<p><strong>Dataview</strong>：用类 SQL 语法查询笔记。比如显示所有 status 为"阅读中"的笔记：</p>
+
+<pre><code class="language-dataview">TABLE date, tags
+FROM ""
+WHERE status = "阅读中"
+SORT date DESC
+</code></pre>
+
+<p>这让你的笔记库变成了一个可查询的数据库。</p>
+
+<p><strong>Templater</strong>：比内置模板更强大的模板插件。可以在模板里用 JavaScript 写动态内容，比如自动填入今天日期、当前文件名：</p>
+
+<pre><code class="language-markdown">---
+date: &lt;% tp.date.now("YYYY-MM-DD") %&gt;
+title: &lt;% tp.file.title %&gt;
+status: 草稿
+---
+
+# &lt;% tp.file.title %&gt;
+</code></pre>
+
+<p><strong>Calendar</strong>：在侧边栏显示日历，点击日期直接跳到或创建那天的日记。适合做每日记录的人。</p>
+
+<p><strong>Excalidraw</strong>：在 Obsidian 里画手绘风格的图，可以把图片嵌入笔记。解释复杂系统架构时很好用。</p>
+
+<p><strong>Obsidian Git</strong>：自动把 Vault 提交到 Git 仓库，实现版本控制和备份。免费同步方案之一。</p>
+
+<p><strong>Advanced Tables</strong>：让 Markdown 表格编辑体验好很多，支持 Tab 键在格子间移动、自动对齐。</p>
+
+
+<h2 id="适合谁">六、适合谁，怎么开始</h2>
+
+<p>Obsidian 不是所有人的最优解。适合你的条件：</p>
+
+<ul>
+  <li>你不介意用 Markdown（或者愿意学一点点 Markdown 语法）</li>
+  <li>你有长期积累知识的需求，而不只是临时记录待办事项</li>
+  <li>你在意数据归你所有、不被某个平台锁定</li>
+  <li>你愿意花一点时间配置工具</li>
+</ul>
+
+<p>如果你只是需要一个简单的待办清单或者临时便签，Obsidian 有点重了。</p>
+
+<p><strong>怎么开始：</strong></p>
+
+<ol>
+  <li>下载安装，新建一个 Vault</li>
+  <li>记几篇最近在看的笔记，有意识地在里面用 <code>[[]]</code> 创建链接</li>
+  <li>打开 Graph View，看看你的知识网络长什么样</li>
+  <li>安装 Dataview 和 Templater 两个插件，解锁更多可能</li>
+  <li>不要一开始就花大量时间"设计系统"——先记，系统会自然生长出来</li>
+</ol>
+
+<p>最后一点值得强调：很多人在 Obsidian 上花了很多时间折腾插件和结构，但记的笔记很少。工具是手段，不是目的。先用起来，再慢慢优化。</p>
+
+
+<h2 id="总结">七、总结</h2>
+
+<ul>
+  <li><strong>Obsidian 是什么</strong>：本地优先的 Markdown 笔记软件，所有笔记是纯文本文件，永远归你所有</li>
+  <li><strong>核心差异</strong>：双向链接让知识之间有连接，Graph View 让知识结构可视化</li>
+  <li><strong>基本语法</strong>：<code>[[文件名]]</code> 创建链接，YAML Frontmatter 定义属性，<code>#标签</code> 分类</li>
+  <li><strong>必装插件</strong>：Dataview（查询）、Templater（模板）、Calendar（日记）</li>
+  <li><strong>开始建议</strong>：别花太多时间设计系统，先记笔记，边用边优化</li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/生活/" rel="tag"><i class="fa fa-tag"></i> 生活</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Obsidian是什么"><span class="nav-number">1.</span> <span class="nav-text">一、Obsidian 是什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么用Obsidian"><span class="nav-number">2.</span> <span class="nav-text">二、为什么用 Obsidian</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#核心概念"><span class="nav-number">3.</span> <span class="nav-text">三、核心概念</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#基本使用"><span class="nav-number">4.</span> <span class="nav-text">四、基本使用：快速上手</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#常用插件"><span class="nav-number">5.</span> <span class="nav-text">五、常用插件推荐</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#适合谁"><span class="nav-number">6.</span> <span class="nav-text">六、适合谁，怎么开始</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">七、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">240</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

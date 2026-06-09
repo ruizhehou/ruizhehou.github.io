@@ -6338,4 +6338,10 @@ x = \frac{4-\pi}{4}r \approx0.2146r
     <content><![CDATA[FlashAttention 的核心洞察：标准 Attention 的瓶颈是 HBM 内存带宽（N×N 矩阵反复读写），不是算力。三个关键技术：(1)分块Tiling——Q/K/V 切成小块加载进 SRAM（片上快速缓存），在片上完成计算，HBM 访问从 O(N²)降到 O(Nd)；(2)在线 Softmax——维护运行最大值 m 和归一化因子 ℓ，用 exp(m_old-m_new) 重缩放因子实现增量计算，数学上与标准 Softmax 完全等价；(3)反向重计算——不保存 N×N 注意力权重矩阵，反向传播时重新计算，训练显存从 O(N²)降到 O(N)。FlashAttention-2 三处改进：延迟归一化（非矩阵乘法运算从 T 次降到 1 次）、增加序列维度并行（解决小 batch 推理 GPU 利用率低问题）、优化 warp 分工（减少同步开销）。实际效果：比标准 Attention 快 2-4 倍（v1），再快约 2 倍（v2），精度完全无损，PyTorch 2.0+ 自动使用。]]></content>
       <tags><tag>架构</tag><tag>工程实践</tag></tags>
   </entry>
+  <entry>
+    <title>Obsidian：把笔记变成知识网络</title>
+    <url>/2026/06/09/Obsidian%E5%85%A5%E9%97%A8/</url>
+    <content><![CDATA[Obsidian是本地优先的Markdown笔记软件，所有笔记是纯文本.md文件，存在本地文件夹（Vault）里，永远归你所有。核心差异：双向链接[[文件名]]让笔记之间互相关联，Graph View把知识结构可视化成节点图。vs Notion（本地/离线/隐私）vs Apple Notes（无专有格式锁定）vs普通文件夹（加了链接可视化和查询）。核心概念：Vault（本地文件夹）、双向链接（Backlinks自动双向）、Graph View（节点图可视化）、YAML Frontmatter属性（tags/date/status等）。基本使用：[[]]创建链接，#标签分类，常用快捷键（Cmd+N新建/Cmd+O快速打开/Cmd+Shift+F全局搜索）。推荐插件：Dataview（类SQL查询笔记）、Templater（动态模板）、Calendar（日记日历）、Excalidraw（手绘图）、Obsidian Git（版本控制备份）。适合：在意数据隐私/有长期知识积累需求/愿意用Markdown。开始建议：别花太多时间设计系统，先记笔记边用边优化。]]></content>
+      <tags><tag>生活</tag><tag>工程实践</tag></tags>
+  </entry>
 </search>
