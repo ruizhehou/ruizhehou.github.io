@@ -213,6 +213,11 @@
         thread_settings: ThreadSettingsOverrides,
     },
 
+    /// Agent 间通信，记录进 Assistant 历史，走正常 submission 生命周期
+    InterAgentCommunication {
+        communication: InterAgentCommunication,
+    },
+
     /// 审批命令执行
     ExecApproval { id: String, turn_id: Option&lt;String&gt;, decision: ReviewDecision },
 
