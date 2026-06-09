@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="FlashAttention 的核心洞察：注意力机制的瓶颈不是算力，是内存带宽。标准 Attention 需要把 N×N 的注意力矩阵写入再读出 HBM，IO 复杂度 O(N²)。FlashAttention 用分块（Tiling）+在线 Softmax+反向重计算，把 HBM 访问降到 O(N)，在不损失精度的前提下提速 2-4 倍。FlashAttention-2 进一步减少非矩阵乘法运算、改进并行策略，再快约 2 倍。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FlashAttention：注意力的瓶颈不是算力，是内存带宽">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/09/FlashAttention/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-09T18:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-09T18:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/09/FlashAttention/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>FlashAttention：注意力的瓶颈不是算力，是内存带宽 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-09T18:00:00+08:00" content="2026-06-09">06-09</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">FlashAttention：注意力的瓶颈不是算力，是内存带宽</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>Transformer 的 Self-Attention 计算理论上需要 O(N²) 的算力和内存，其中 N 是序列长度。很多人以为瓶颈是 O(N²) 的算力——计算量太大。但 FlashAttention 的作者发现事情不是这样的：<strong>标准 Attention 的真正瓶颈是内存带宽，不是算力</strong>。GPU 的 SRAM（片上缓存）读写速度比 HBM（显存）快几十倍，而标准实现在 HBM 上做了大量不必要的读写。</p>
+
+<p>FlashAttention 的核心贡献：用分块（Tiling）和在线 Softmax 技术，把 HBM 访问次数从 O(N²) 降到 O(N)，在数学上完全等价的前提下，训练提速 2-4 倍，同时支持更长的上下文窗口。</p>
+
+
+<h2 id="标准Attention的问题">一、标准 Attention 的 IO 问题</h2>
+
+<p>先看标准 Attention 的计算流程：</p>
+
+<pre><code class="language-python"># 标准 Attention（简化版）
+# Q, K, V: shape [N, d]，N 是序列长度，d 是 head dimension
+
+S = Q @ K.T / sqrt(d)   # [N, N] 注意力分数矩阵
+P = softmax(S)           # [N, N] 注意力权重
+O = P @ V               # [N, d] 输出
+</code></pre>
+
+<p>问题在 <code>S</code> 和 <code>P</code> 这两个 N×N 矩阵上。</p>
+
+<p>以序列长度 N=4096、FP16 为例，S 矩阵大小是 4096×4096×2 bytes ≈ <strong>32MB</strong>。这个矩阵必须写入 HBM，然后读出来计算 Softmax，写回 HBM，再读出来做矩阵乘法。标准实现里，这个 N×N 矩阵在 HBM 上来回读写了多次。</p>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 580 200" style="max-width:560px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.fat{fill:currentColor;font-family:inherit;}</style>
+  <!-- Standard attention flow -->
+  <text x="290" y="18" text-anchor="middle" font-size="11" class="fat" opacity="0.4">标准 Attention：N×N 矩阵在 HBM 多次读写</text>
+  <!-- Q,K,V -->
+  <rect x="10" y="30" width="60" height="40" rx="5" fill="rgba(33,150,243,0.15)" stroke="rgba(33,150,243,0.4)" stroke-width="1.5"/>
+  <text x="40" y="54" text-anchor="middle" font-size="11" class="fat">Q,K,V</text>
+  <text x="40" y="80" text-anchor="middle" font-size="9" class="fat" opacity="0.4">HBM</text>
+  <!-- Arrow -->
+  <line x1="72" y1="50" x2="92" y2="50" stroke="rgba(128,128,128,0.4)" stroke-width="1.5" marker-end="url(#fa1)"/>
+  <!-- S = QK^T -->
+  <rect x="94" y="22" width="80" height="56" rx="5" fill="rgba(244,67,54,0.1)" stroke="rgba(244,67,54,0.35)" stroke-width="1.5"/>
+  <text x="134" y="48" text-anchor="middle" font-size="10" fill="rgba(244,67,54,0.8)">S = QKᵀ/√d</text>
+  <text x="134" y="64" text-anchor="middle" font-size="9" class="fat" opacity="0.4">写入 HBM</text>
+  <text x="134" y="75" text-anchor="middle" font-size="8" fill="rgba(244,67,54,0.5)">N×N 矩阵</text>
+  <!-- Arrow -->
+  <line x1="176" y1="50" x2="196" y2="50" stroke="rgba(128,128,128,0.4)" stroke-width="1.5" marker-end="url(#fa2)"/>
+  <!-- softmax -->
+  <rect x="198" y="30" width="80" height="40" rx="5" fill="rgba(244,67,54,0.1)" stroke="rgba(244,67,54,0.35)" stroke-width="1.5"/>
+  <text x="238" y="48" text-anchor="middle" font-size="10" fill="rgba(244,67,54,0.8)">softmax(S)</text>
+  <text x="238" y="63" text-anchor="middle" font-size="9" class="fat" opacity="0.4">读 HBM</text>
+  <!-- Arrow -->
+  <line x1="280" y1="50" x2="300" y2="50" stroke="rgba(128,128,128,0.4)" stroke-width="1.5" marker-end="url(#fa3)"/>
+  <!-- P -->
+  <rect x="302" y="22" width="60" height="56" rx="5" fill="rgba(244,67,54,0.1)" stroke="rgba(244,67,54,0.35)" stroke-width="1.5"/>
+  <text x="332" y="48" text-anchor="middle" font-size="10" fill="rgba(244,67,54,0.8)">P</text>
+  <text x="332" y="62" text-anchor="middle" font-size="9" class="fat" opacity="0.4">写 HBM</text>
+  <text x="332" y="75" text-anchor="middle" font-size="8" fill="rgba(244,67,54,0.5)">N×N</text>
+  <!-- Arrow -->
+  <line x1="364" y1="50" x2="384" y2="50" stroke="rgba(128,128,128,0.4)" stroke-width="1.5" marker-end="url(#fa4)"/>
+  <!-- O = PV -->
+  <rect x="386" y="30" width="80" height="40" rx="5" fill="rgba(76,175,80,0.1)" stroke="rgba(76,175,80,0.35)" stroke-width="1.5"/>
+  <text x="426" y="48" text-anchor="middle" font-size="10" fill="rgba(76,175,80,0.8)">O = P·V</text>
+  <text x="426" y="63" text-anchor="middle" font-size="9" class="fat" opacity="0.4">读 HBM</text>
+  <!-- Arrow -->
+  <line x1="468" y1="50" x2="488" y2="50" stroke="rgba(128,128,128,0.4)" stroke-width="1.5" marker-end="url(#fa5)"/>
+  <!-- Output -->
+  <rect x="490" y="30" width="60" height="40" rx="5" fill="rgba(76,175,80,0.12)" stroke="rgba(76,175,80,0.4)" stroke-width="1.5"/>
+  <text x="520" y="54" text-anchor="middle" font-size="11" class="fat">输出 O</text>
+  <!-- 底部说明 -->
+  <text x="290" y="120" text-anchor="middle" font-size="10" fill="rgba(244,67,54,0.6)">S 和 P 两个 N×N 矩阵在 HBM 反复读写 → IO 瓶颈</text>
+  <text x="290" y="138" text-anchor="middle" font-size="10" class="fat" opacity="0.4">N=4096 时，S、P 矩阵各约 32MB，HBM IO 复杂度 O(N²)</text>
+  <defs>
+    <marker id="fa1" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.4)"/></marker>
+    <marker id="fa2" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.4)"/></marker>
+    <marker id="fa3" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.4)"/></marker>
+    <marker id="fa4" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.4)"/></marker>
+    <marker id="fa5" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.4)"/></marker>
+  </defs>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">标准 Attention：N×N 注意力矩阵在 HBM 多次读写，IO 复杂度 O(N²)</figcaption>
+</figure>
+
+<p>HBM 带宽大约是 SRAM 的 10-40 倍慢（见 GPU 资源模型那篇）。大量时间消耗在等待 HBM 传输数据上，GPU 的计算单元却在空转——这就是为什么标准 Attention 是内存带宽受限，而不是算力受限。</p>
+
+
+<h2 id="FlashAttention的三个关键技术">二、FlashAttention 的三个关键技术</h2>
+
+<h3 id="分块Tiling">1. 分块（Tiling）：让数据留在 SRAM</h3>
+
+<p>FlashAttention 的基本思路：不要把整个 N×N 矩阵写入 HBM，而是把 Q、K、V 切成小块（Block），每次只把一个块加载进 SRAM，在片上完成计算，最后把结果写回 HBM。</p>
+
+<p>如果 SRAM 能装下一个块的 Q、K、V 数据，整个计算过程就只需要：</p>
+<ul>
+  <li>把 Q、K、V 从 HBM 读一遍：O(Nd)</li>
+  <li>把输出 O 写回 HBM 一遍：O(Nd)</li>
+  <li>合计 HBM 访问：<strong>O(Nd)</strong>，而不是 O(N²)</li>
+</ul>
+
+<p>问题来了：Softmax 需要一整行的数据才能计算归一化因子（分母 <code>sum(exp(x_i))</code>），但分块计算时，你每次只能看到一小块数据，怎么算完整行的 Softmax？</p>
+
+<h3 id="在线Softmax">2. 在线 Softmax（Online Softmax）：增量计算归一化</h3>
+
+<p>这是 FlashAttention 最精妙的部分。它利用数学上的分块等价性，在不看完整行的情况下，增量地维护一个"运行中的 Softmax 估计"。</p>
+
+<p>标准的数值稳定 Softmax 是：</p>
+
+<pre><code class="language-python">def softmax(x):
+    m = max(x)              # 减去最大值保证数值稳定
+    e = exp(x - m)
+    return e / sum(e)
+</code></pre>
+
+<p>在线 Softmax 的思路：假设你先看到 x 的前半段（x₁），再看到后半段（x₂）。你可以维护两个运行状态——<strong>当前最大值 m</strong> 和<strong>归一化因子 ℓ</strong>，处理每个新块时更新它们：</p>
+
+<pre><code class="language-python">def online_softmax_step(m_prev, l_prev, O_prev, Q_block, K_block, V_block):
+    # 计算这个 K_block 对应的注意力分数
+    S_block = Q_block @ K_block.T / sqrt(d)
+
+    # 更新运行最大值
+    m_new = max(m_prev, max(S_block))
+
+    # 更新归一化因子（用新的最大值重新缩放旧的）
+    l_new = exp(m_prev - m_new) * l_prev + sum(exp(S_block - m_new))
+
+    # 更新输出（重新缩放旧的，加上新块的贡献）
+    O_new = (exp(m_prev - m_new) * l_prev * O_prev
+             + exp(S_block - m_new) @ V_block) / l_new
+
+    return m_new, l_new, O_new
+</code></pre>
+
+<p>关键在于 <code>exp(m_prev - m_new)</code> 这个重缩放因子：每当发现新的更大值，它会把之前的贡献按比例调小，保证最终结果和一次性看完整行的 Softmax 在数学上完全等价。</p>
+
+<p>这个技巧让 FlashAttention 可以按块处理，而不需要把整个 N×N 矩阵物化到 HBM 上。</p>
+
+<h3 id="反向重计算">3. 反向传播重计算（Recomputation）：省内存，不省精度</h3>
+
+<p>训练时不只要前向传播，还要反向传播求梯度。标准 Attention 在前向时会把 P（N×N 的注意力权重矩阵）存储下来，供反向传播使用。这就是为什么序列越长，训练时的显存消耗越爆。</p>
+
+<p>FlashAttention 的选择：<strong>前向传播时不保存 P，反向传播时重新计算它</strong>。</p>
+
+<p>需要保存的只有：</p>
+<ul>
+  <li>Q、K、V（原本就要保存的）</li>
+  <li>每个块的 softmax 统计量 m 和 ℓ（每行只有两个标量）</li>
+</ul>
+
+<p>反向传播时，用这些信息重新计算出需要的 P 块。多了一次重计算（额外的算力消耗），但避免了把 N×N 矩阵写入 HBM（大量节省 IO）。由于 IO 才是瓶颈，这个交换是划算的：实际测量表明重计算带来的算力开销远小于节省的 IO 开销。</p>
+
+<p>这个思路和梯度检查点（Gradient Checkpointing）类似，但粒度更细，直接在 Attention 层内部实现。</p>
+
+
+<h2 id="FlashAttention整体流程">三、FlashAttention 的完整计算图</h2>
+
+<figure style="margin: 2em 0; text-align: center;">
+<svg viewBox="0 0 580 220" style="max-width:560px;width:100%;" xmlns="http://www.w3.org/2000/svg">
+  <style>.fbt{fill:currentColor;font-family:inherit;}</style>
+  <text x="290" y="18" text-anchor="middle" font-size="11" class="fbt" opacity="0.4">FlashAttention：分块加载到 SRAM，在片上完成计算</text>
+
+  <!-- HBM section -->
+  <rect x="10" y="28" width="560" height="60" rx="6" fill="rgba(244,67,54,0.05)" stroke="rgba(244,67,54,0.2)" stroke-width="1"/>
+  <text x="30" y="45" font-size="10" fill="rgba(244,67,54,0.5)">HBM（慢）</text>
+  <rect x="60" y="34" width="60" height="44" rx="4" fill="rgba(33,150,243,0.12)" stroke="rgba(33,150,243,0.3)" stroke-width="1"/>
+  <text x="90" y="60" text-anchor="middle" font-size="10" class="fbt">Q 块</text>
+  <rect x="140" y="34" width="60" height="44" rx="4" fill="rgba(33,150,243,0.12)" stroke="rgba(33,150,243,0.3)" stroke-width="1"/>
+  <text x="170" y="60" text-anchor="middle" font-size="10" class="fbt">K 块</text>
+  <rect x="220" y="34" width="60" height="44" rx="4" fill="rgba(33,150,243,0.12)" stroke="rgba(33,150,243,0.3)" stroke-width="1"/>
+  <text x="250" y="60" text-anchor="middle" font-size="10" class="fbt">V 块</text>
+  <rect x="380" y="34" width="60" height="44" rx="4" fill="rgba(76,175,80,0.12)" stroke="rgba(76,175,80,0.3)" stroke-width="1"/>
+  <text x="410" y="56" text-anchor="middle" font-size="10" fill="rgba(76,175,80,0.8)">O 块</text>
+  <text x="410" y="70" text-anchor="middle" font-size="8" class="fbt" opacity="0.4">写回一次</text>
+  <text x="460" y="56" text-anchor="middle" font-size="10" class="fbt" opacity="0.3">（N×N 矩阵</text>
+  <text x="460" y="70" text-anchor="middle" font-size="10" fill="rgba(244,67,54,0.5)">不存储）</text>
+
+  <!-- Arrow down to SRAM -->
+  <line x1="90" y1="80" x2="90" y2="108" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#fb1)"/>
+  <line x1="170" y1="80" x2="170" y2="108" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#fb2)"/>
+  <line x1="250" y1="80" x2="250" y2="108" stroke="rgba(128,128,128,0.3)" stroke-width="1.5" marker-end="url(#fb3)"/>
+  <line x1="410" y1="108" x2="410" y2="80" stroke="rgba(76,175,80,0.3)" stroke-width="1.5" marker-end="url(#fb4)"/>
+
+  <!-- SRAM section -->
+  <rect x="10" y="110" width="560" height="80" rx="6" fill="rgba(76,175,80,0.05)" stroke="rgba(76,175,80,0.25)" stroke-width="1.5"/>
+  <text x="30" y="128" font-size="10" fill="rgba(76,175,80,0.6)">SRAM（快，片上）</text>
+  <!-- Q block in SRAM -->
+  <rect x="50" y="132" width="55" height="48" rx="4" fill="rgba(33,150,243,0.2)" stroke="rgba(33,150,243,0.5)" stroke-width="1.5"/>
+  <text x="77" y="162" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.9)">Q_i</text>
+  <!-- K block -->
+  <rect x="118" y="132" width="55" height="48" rx="4" fill="rgba(33,150,243,0.2)" stroke="rgba(33,150,243,0.5)" stroke-width="1.5"/>
+  <text x="145" y="162" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.9)">K_j</text>
+  <!-- V block -->
+  <rect x="186" y="132" width="55" height="48" rx="4" fill="rgba(33,150,243,0.2)" stroke="rgba(33,150,243,0.5)" stroke-width="1.5"/>
+  <text x="213" y="162" text-anchor="middle" font-size="10" fill="rgba(33,150,243,0.9)">V_j</text>
+  <!-- compute -->
+  <rect x="262" y="124" width="120" height="64" rx="6" fill="rgba(255,152,0,0.1)" stroke="rgba(255,152,0,0.35)" stroke-width="1.5"/>
+  <text x="322" y="147" text-anchor="middle" font-size="10" fill="rgba(255,152,0,0.8)">S_ij = Q_i·K_j/√d</text>
+  <text x="322" y="163" text-anchor="middle" font-size="10" fill="rgba(255,152,0,0.8)">在线 Softmax</text>
+  <text x="322" y="179" text-anchor="middle" font-size="9" class="fbt" opacity="0.45">更新 m, ℓ, O_i</text>
+  <!-- O in SRAM -->
+  <rect x="400" y="132" width="55" height="48" rx="4" fill="rgba(76,175,80,0.2)" stroke="rgba(76,175,80,0.5)" stroke-width="1.5"/>
+  <text x="427" y="156" text-anchor="middle" font-size="10" fill="rgba(76,175,80,0.9)">O_i</text>
+  <text x="427" y="172" text-anchor="middle" font-size="8" class="fbt" opacity="0.4">累积</text>
+
+  <!-- bottom label -->
+  <text x="290" y="208" text-anchor="middle" font-size="10" class="fbt" opacity="0.35">循环所有 j（K/V 块），O_i 累积完成后写回 HBM → HBM 访问 O(Nd)</text>
+  <defs>
+    <marker id="fb1" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="fb2" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="fb3" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(128,128,128,0.3)"/></marker>
+    <marker id="fb4" markerWidth="7" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="rgba(76,175,80,0.3)"/></marker>
+  </defs>
+</svg>
+<figcaption style="font-size:12px;color:#999;margin-top:8px;">FlashAttention：Q/K/V 分块加载进 SRAM，片上完成计算，不把 N×N 矩阵写入 HBM</figcaption>
+</figure>
+
+<p>具体算法流程：</p>
+<ol>
+  <li>把 Q 按行分成若干块 Q₁, Q₂, …（外层循环）</li>
+  <li>把 K、V 按列分成若干块 K₁, K₂, … 和 V₁, V₂, …（内层循环）</li>
+  <li>对每个 (Q_i, K_j, V_j) 组合：加载进 SRAM，计算 S_ij = Q_i · K_j^T，用在线 Softmax 更新运行统计量 m 和 ℓ，累积输出 O_i</li>
+  <li>处理完所有 K/V 块后，O_i 计算完成，写回 HBM</li>
+</ol>
+
+<p>整个过程，Q、K、V 各从 HBM 读一次，O 写回一次，HBM 访问总量是 O(Nd)，而不是 O(N²)。</p>
+
+
+<h2 id="FlashAttention2的改进">四、FlashAttention-2 的改进</h2>
+
+<p>FlashAttention-2 在 v1 基础上做了三处优化，整体再提速约 2 倍：</p>
+
+<h3 id="减少非矩阵乘法运算">1. 减少非矩阵乘法运算</h3>
+
+<p>GPU 对矩阵乘法有专门的 Tensor Core 加速，吞吐量极高；但对其他运算（加法、乘法、exp）则没有这种加速，算力远低。这类运算叫做"非矩阵乘法 FLOPs"（non-matmul FLOPs）。</p>
+
+<p>在 FlashAttention v1 中，每处理完一个 K/V 块，就要对累积的 O_i 做一次重缩放（乘以 <code>exp(m_old - m_new) * l_old / l_new</code>）。如果有 T 个 K/V 块，就有 T 次重缩放，这些都是非矩阵乘法运算。</p>
+
+<p>FlashAttention-2 的改进：<strong>延迟重缩放</strong>。在内层循环中不做归一化，先累积一个未归一化的 O_i；等所有 K/V 块处理完后，只做一次最终归一化：</p>
+
+<pre><code class="language-python"># v1：每个 K/V 块处理完都重缩放（T 次）
+for j in range(T):
+    S_ij = Q_i @ K_j.T / sqrt(d)
+    m_new = max(m, rowmax(S_ij))
+    O_i = (exp(m - m_new) * l * O_i + exp(S_ij - m_new) @ V_j)
+    l = exp(m - m_new) * l + rowsum(exp(S_ij - m_new))
+    m = m_new
+O_i = O_i / l  # 最终归一化
+
+# v2：累积未归一化的 O_tilde，最后一次归一化（1 次）
+for j in range(T):
+    S_ij = Q_i @ K_j.T / sqrt(d)
+    m_new = max(m, rowmax(S_ij))
+    O_tilde = exp(m - m_new) * O_tilde + exp(S_ij - m_new) @ V_j
+    l = exp(m - m_new) * l + rowsum(exp(S_ij - m_new))
+    m = m_new
+O_i = O_tilde / l  # 只做一次归一化
+</code></pre>
+
+<p>非矩阵乘法运算从 T 次降到 1 次，GPU 利用率提升明显。</p>
+
+<h3 id="序列维度并行">2. 序列维度并行</h3>
+
+<p>FlashAttention v1 只在 batch 和 head 维度上并行（每个 head 分配给一个 thread block）。当 batch size 很小或 head 数很少时（比如推理时 batch=1，head=8），GPU 利用率很低，大量 CUDA core 空闲。</p>
+
+<p>v2 增加了<strong>在序列维度上的并行</strong>：同一个 head 的不同 Q 块可以分配给不同的 thread block 并行计算。这让序列很长但 batch 很小的场景（推理时的典型场景）也能充分利用 GPU。</p>
+
+<h3 id="Warp分工优化">3. Warp 分工优化</h3>
+
+<p>在一个 thread block 内部，v1 把不同的 Q 块分给不同的 warp（32 线程组），warp 之间需要同步共享 K/V 数据——同步有开销，而且 K/V 数据会被多个 warp 重复读取。</p>
+
+<p>v2 改为：同一个 Q 块被一个 warp 处理，把不同的 K/V 块分给不同 warp 处理（然后 reduce 合并结果）。这减少了 warp 间同步，也让 K/V 数据的读取更高效。</p>
+
+
+<h2 id="实际效果">五、实际效果和应用</h2>
+
+<p><strong>速度提升</strong>：在 A100 上，FlashAttention v1 比标准 Attention 快约 2-4 倍（序列越长提升越明显）；FlashAttention-2 比 v1 再快约 2 倍，接近理论峰值带宽利用率。</p>
+
+<p><strong>内存节省</strong>：不再存储 N×N 注意力矩阵，训练时的峰值显存从 O(N²) 降到 O(N)。这直接让更长的上下文成为可能——GPT-3 用标准 Attention 最多支持 2K 上下文，而 FlashAttention 让训练和推理百 K 级别的上下文成为可行的工程方案。</p>
+
+<p><strong>精度无损</strong>：FlashAttention 在数学上与标准 Attention 完全等价，不是近似算法，没有任何精度损失。</p>
+
+<p><strong>已成标准**：PyTorch 2.0+ 的 <code>F.scaled_dot_product_attention</code> 在支持的设备上自动使用 FlashAttention 内核；xFormers、DeepSpeed、Megatron-LM、HuggingFace Transformers 等主流框架都已集成。现在用 Transformer 训练或推理，几乎必然在用 FlashAttention。</p>
+
+<pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+# PyTorch 2.0+ 自动使用 FlashAttention（如果硬件支持）
+output = F.scaled_dot_product_attention(
+    query, key, value,
+    attn_mask=None,
+    dropout_p=0.0,
+    is_causal=True   # 因果掩码（用于自回归生成）
+)
+</code></pre>
+
+
+<h2 id="总结">六、总结</h2>
+
+<p>FlashAttention 系列的核心洞察是：</p>
+
+<ul>
+  <li><strong>Attention 的瓶颈是内存带宽，不是算力</strong>——N×N 矩阵在 HBM 上反复读写，导致 GPU 大量时间在等数据</li>
+  <li><strong>分块（Tiling）</strong>：把 Q/K/V 切成小块，让计算留在快速的 SRAM 里，避免把 N×N 矩阵写入 HBM，HBM 访问从 O(N²) 降到 O(N)</li>
+  <li><strong>在线 Softmax</strong>：通过维护运行最大值和归一化因子，在不看完整行的情况下增量计算 Softmax，使分块成为可能</li>
+  <li><strong>反向重计算</strong>：不保存 N×N 的注意力权重矩阵，反向传播时重新计算，大幅节省训练显存</li>
+  <li><strong>FlashAttention-2</strong>：延迟归一化减少非矩阵乘法运算、增加序列维度并行、优化 warp 分工，在 v1 基础上再快约 2 倍</li>
+</ul>
+
+<p>它是一个很好的例子：算法上没有做任何近似，结果完全一样，但通过深刻理解硬件的 IO 特性，在工程实现上带来了数倍的性能提升。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#标准Attention的问题"><span class="nav-number">1.</span> <span class="nav-text">一、标准 Attention 的 IO 问题</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#FlashAttention的三个关键技术"><span class="nav-number">2.</span> <span class="nav-text">二、FlashAttention 的三个关键技术</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#FlashAttention整体流程"><span class="nav-number">3.</span> <span class="nav-text">三、完整计算图</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#FlashAttention2的改进"><span class="nav-number">4.</span> <span class="nav-text">四、FlashAttention-2 的改进</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#实际效果"><span class="nav-number">5.</span> <span class="nav-text">五、实际效果和应用</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">6.</span> <span class="nav-text">六、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">239</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
