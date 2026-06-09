@@ -6314,4 +6314,10 @@ x = \frac{4-\pi}{4}r \approx0.2146r
     <content><![CDATA[OpenAI Codex 是一个运行在终端的 coding agent，核心架构基于 SQ/EQ（Submission Queue / Event Queue）异步通信模式。用户操作通过 Op 枚举提交到 SQ（包括 StartSession、UserInput、AbortTurn 等），agent 事件通过 EventMsg 枚举发布到 EQ（包括 TurnStarted、AgentMessage、ExecApprovalRequest、TurnComplete 等）。CodexThread 是核心会话抽象，封装了 ThreadConfigSnapshot（模型配置、审批策略、沙箱权限、工作目录等），通过 TryStartTurnIfIdleRejectionReason 管理并发约束。上下文压缩（compact.rs/compact_remote_v2.rs）在对话历史超过阈值时自动触发，调用模型生成摘要替换旧内容，保留关键信息。这个设计把协议层、会话层、执行层严格分离，使得 TUI、CLI、App Server 等多个前端可以共享同一个 agent 核心。]]></content>
       <tags><tag>架构</tag><tag>工程实践</tag></tags>
   </entry>
+  <entry>
+    <title>Apache Doris 查询指南：从写对到写快</title>
+    <url>/2026/06/09/Doris%E6%9F%A5%E8%AF%A2%E6%8C%87%E5%8D%97/</url>
+    <content><![CDATA[Doris SQL查询完整指南。连接：MySQL客户端9030端口。分区裁剪（最重要）：必须带分区列过滤，对分区列做函数运算会失效，性能差距100倍以上。聚合查询：GROUPING SETS/ROLLUP同时计算多维度汇总只扫一遍数据。去重三方案：count(distinct)精确慢、bitmap_union_count精确快（整数user_id）、approx_count_distinct近似最快（1%误差）。窗口函数：rank/dense_rank/row_number排名，sum/avg聚合窗口，lag/lead取前后行计算环比同比。Join优化：Broadcast Join（小表广播）vs Shuffle Join（大表哈希分布），避免对Join列做函数运算。EXPLAIN分析：看partitions裁剪是否生效、PREAGGREGATION是否命中、Join策略选择。物化视图：CREATE MATERIALIZED VIEW预聚合，查询自动命中无需改SQL。常用函数：日期（date_format/date_add/datediff）、字符串（concat/substring/regexp_extract）、条件（if/coalesce/case when）。]]></content>
+      <tags><tag>数据库</tag><tag>工程实践</tag></tags>
+  </entry>
 </search>

@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Apache Doris SQL 查询详解：连接方式、分区裁剪（查询快慢的核心）、聚合模型与预聚合、精确去重（bitmap）vs 近似去重（HLL/approx）、窗口函数、Join 优化（Broadcast vs Shuffle）、EXPLAIN 分析查询计划、物化视图加速。同一个查询不同写法可以差 100 倍。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Apache Doris 查询指南：从写对到写快">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/09/Doris查询指南/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-09T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-09T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/09/Doris查询指南/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>Apache Doris 查询指南：从写对到写快 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+        <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+        <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+        <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+      <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-09T10:00:00+08:00" content="2026-06-09">06-09</time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">Apache Doris 查询指南：从写对到写快</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>Doris 兼容 MySQL 协议，大多数 MySQL SQL 语法可以直接用。但 Doris 是 OLAP 数据库，和 MySQL 的执行模型完全不同——同一个查询，按 OLTP 的思路写和按 OLAP 的思路写，性能可能差 100 倍以上。</p>
+
+<p>这篇文章从连接方式开始，逐步讲清楚 Doris 查询里最重要的几个概念：分区裁剪、聚合模型、去重函数选择、窗口函数、Join 优化，以及如何用 EXPLAIN 读懂查询计划。</p>
+
+
+<h2 id="连接方式">一、连接方式</h2>
+
+<p>Doris 的 FE（Frontend）节点对外提供 MySQL 协议，默认端口 9030：</p>
+
+<pre><code class="language-sql">-- MySQL 客户端直接连
+mysql -h fe_host -P 9030 -u root -p
+
+-- 查看所有数据库
+SHOW DATABASES;
+
+-- 切换数据库
+USE your_database;
+
+-- 查看表结构
+DESCRIBE table_name;
+-- 或
+SHOW CREATE TABLE table_name;
+</code></pre>
+
+<p>JDBC 连接串（Java 程序里）：</p>
+
+<pre><code class="language-java">jdbc:mysql://fe_host:9030/database?useUnicode=true&amp;characterEncoding=utf8
+</code></pre>
+
+<p>Doris 还提供 HTTP API，用于流式导入或查询元数据，但日常 SQL 查询还是走 MySQL 协议更方便。</p>
+
+
+<h2 id="基础查询">二、基础查询语法</h2>
+
+<p>基本 SELECT 语法和 MySQL 一致：</p>
+
+<pre><code class="language-sql">-- 基础查询
+SELECT user_id, order_amount, create_time
+FROM orders
+WHERE dt = '2024-01-15'
+  AND order_status = 1
+ORDER BY create_time DESC
+LIMIT 100;
+
+-- 别名
+SELECT
+    user_id                          AS uid,
+    sum(order_amount)                AS total_amount,
+    count(*)                         AS order_cnt,
+    count(distinct user_id)          AS uv
+FROM orders
+WHERE dt = '2024-01-15'
+GROUP BY user_id
+HAVING total_amount > 1000;
+</code></pre>
+
+<p>Doris 支持 CTE（WITH 子句），复杂查询里推荐用 CTE 提升可读性：</p>
+
+<pre><code class="language-sql">WITH daily_stats AS (
+    SELECT
+        dt,
+        sum(gmv)            AS total_gmv,
+        count(*)            AS order_cnt
+    FROM dws_order
+    WHERE dt BETWEEN '2024-01-01' AND '2024-01-31'
+    GROUP BY dt
+),
+ranked AS (
+    SELECT
+        dt,
+        total_gmv,
+        order_cnt,
+        rank() OVER (ORDER BY total_gmv DESC) AS gmv_rank
+    FROM daily_stats
+)
+SELECT * FROM ranked WHERE gmv_rank <= 10;
+</code></pre>
+
+
+<h2 id="分区裁剪">三、分区裁剪：查询快慢的核心</h2>
+
+<p>Doris 中大多数表按时间分区（PARTITION BY RANGE），分区裁剪是性能差距最大的地方。<strong>查询时必须带上分区列的过滤条件，否则 Doris 会扫描所有分区，性能直接崩。</strong></p>
+
+<pre><code class="language-sql">-- 好：明确指定分区列范围，只扫描 1 月的数据
+SELECT sum(gmv)
+FROM dws_order
+WHERE dt BETWEEN '2024-01-01' AND '2024-01-31';
+
+-- 坏：没有分区过滤，全表扫描
+SELECT sum(gmv)
+FROM dws_order
+WHERE order_status = 1;
+
+-- 查看表的分区信息
+SHOW PARTITIONS FROM dws_order;
+</code></pre>
+
+<p>分区裁剪是否生效，可以用 EXPLAIN 确认（后面会详细讲）。裁剪生效时，EXPLAIN 里会显示 <code>partitions=1/365</code> 这类信息，说明只扫描了 1 个分区而不是全部 365 个。</p>
+
+<p><strong>分区列过滤的几个坑：</strong></p>
+
+<pre><code class="language-sql">-- 坏：对分区列做函数运算，裁剪失效
+SELECT * FROM orders WHERE date_format(dt, '%Y-%m') = '2024-01';
+
+-- 好：改写为范围条件
+SELECT * FROM orders WHERE dt >= '2024-01-01' AND dt < '2024-02-01';
+
+-- 坏：子查询里的分区条件不一定能下推
+SELECT * FROM orders
+WHERE dt IN (SELECT max(dt) FROM orders);
+
+-- 好：先算出具体值再过滤
+SELECT * FROM orders WHERE dt = '2024-01-31';
+</code></pre>
+
+<p>除了分区裁剪，Doris 还支持按分桶列（BUCKET）的过滤，能进一步减少扫描的 Tablet 数量：</p>
+
+<pre><code class="language-sql">-- 如果表按 user_id 分桶，这个查询只扫描一个 Bucket
+SELECT * FROM user_orders
+WHERE dt = '2024-01-15' AND user_id = 12345;
+</code></pre>
+
+
+<h2 id="聚合查询">四、聚合查询与聚合模型</h2>
+
+<p>Doris 有三种数据模型：Duplicate（明细）、Aggregate（聚合）、Unique（唯一）。Aggregate 模型的表在写入时就会做预聚合，查询时无需全量扫描。</p>
+
+<h3 id="标准聚合">标准聚合函数</h3>
+
+<pre><code class="language-sql">SELECT
+    dt,
+    city,
+    channel,
+    sum(gmv)                        AS total_gmv,
+    sum(order_cnt)                  AS total_orders,
+    avg(order_amount)               AS avg_amount,
+    max(order_amount)               AS max_amount,
+    min(order_amount)               AS min_amount,
+    count(*)                        AS row_cnt,
+    count(DISTINCT user_id)         AS uv     -- 精确去重，数据量大时慢
+FROM dws_order_detail
+WHERE dt = '2024-01-15'
+GROUP BY dt, city, channel
+ORDER BY total_gmv DESC;
+</code></pre>
+
+<h3 id="rollup">GROUPING SETS / ROLLUP / CUBE</h3>
+
+<p>需要同时计算多个维度组合的汇总时，GROUPING SETS 比写多个 UNION 效率高（数据只扫一遍）：</p>
+
+<pre><code class="language-sql">-- 同时计算 (city, channel)、(city) 和总计 三个粒度的聚合
+SELECT
+    city,
+    channel,
+    sum(gmv) AS total_gmv
+FROM dws_order
+WHERE dt = '2024-01-15'
+GROUP BY GROUPING SETS (
+    (city, channel),
+    (city),
+    ()
+);
+
+-- ROLLUP：自动生成层级聚合（等价于上面从细到粗的维度组合）
+SELECT city, channel, sum(gmv)
+FROM dws_order
+WHERE dt = '2024-01-15'
+GROUP BY ROLLUP(city, channel);
+</code></pre>
+
+
+<h2 id="去重查询">五、去重查询：精确 vs 近似</h2>
+
+<p>UV（独立访客）计算是 OLAP 系统里最消耗资源的操作之一。Doris 提供了三种方案，性能和精度各有取舍。</p>
+
+<h3 id="精确去重-count-distinct">方案一：COUNT DISTINCT（精确，慢）</h3>
+
+<pre><code class="language-sql">-- 精确，但数据量大时很慢（需要全量去重）
+SELECT dt, count(DISTINCT user_id) AS uv
+FROM dws_page_view
+WHERE dt = '2024-01-15'
+GROUP BY dt;
+</code></pre>
+
+<h3 id="bitmap-去重">方案二：Bitmap（精确，快）</h3>
+
+<p>适合 user_id 是整数类型的场景。表中提前存储 Bitmap 类型的列，查询时用 <code>bitmap_union_count</code>：</p>
+
+<pre><code class="language-sql">-- 前提：表里有 user_id_bitmap 列，类型为 BITMAP
+-- 建表示例（Aggregate 模型）：
+-- user_id_bitmap BITMAP BITMAP_UNION
+
+-- 查询：速度比 count distinct 快几倍到几十倍
+SELECT
+    dt,
+    bitmap_union_count(user_id_bitmap) AS uv
+FROM ads_uv_daily
+WHERE dt = '2024-01-15'
+GROUP BY dt;
+
+-- 计算留存：昨天和今天都访问过的用户数
+SELECT
+    bitmap_and_count(
+        today.user_id_bitmap,
+        yesterday.user_id_bitmap
+    ) AS retain_uv
+FROM ads_uv_daily today
+JOIN ads_uv_daily yesterday
+    ON today.dt = '2024-01-15'
+   AND yesterday.dt = '2024-01-14';
+
+-- 从明细数据实时聚合成 Bitmap（用于 DWS 层查询）
+SELECT
+    dt,
+    bitmap_union(to_bitmap(user_id)) AS user_bitmap
+FROM dws_page_view
+WHERE dt = '2024-01-15'
+GROUP BY dt;
+</code></pre>
+
+<h3 id="hll-近似去重">方案三：HLL（近似，最快）</h3>
+
+<p>误差约 1%，数据量极大时（十亿级别）用这个：</p>
+
+<pre><code class="language-sql">-- 前提：表里有 user_id_hll 列，类型为 HLL
+-- 建表示例（Aggregate 模型）：
+-- user_id_hll HLL HLL_UNION
+
+SELECT
+    dt,
+    hll_union_agg(user_id_hll) AS approx_uv
+FROM ads_uv_hll_daily
+WHERE dt = '2024-01-15'
+GROUP BY dt;
+
+-- 从明细构建 HLL（动态计算，不需要预建列）
+SELECT
+    dt,
+    hll_union_agg(hll_hash(user_id)) AS approx_uv
+FROM dws_page_view
+WHERE dt = '2024-01-15'
+GROUP BY dt;
+
+-- 或者用内置函数（更简洁）
+SELECT
+    dt,
+    approx_count_distinct(user_id) AS approx_uv
+FROM dws_page_view
+WHERE dt = '2024-01-15'
+GROUP BY dt;
+</code></pre>
+
+<p><strong>选择策略：</strong></p>
+<ul>
+  <li>UV 需要精确 + 数据量 &lt; 亿级 → <code>count(distinct)</code></li>
+  <li>UV 需要精确 + 数据量大 + user_id 是整数 → Bitmap</li>
+  <li>UV 允许约 1% 误差 + 数据量极大 → HLL / <code>approx_count_distinct</code></li>
+</ul>
+
+
+<h2 id="窗口函数">六、窗口函数</h2>
+
+<p>窗口函数是 Doris 查询里非常常用的特性，适合计算排名、累计值、环比/同比等。</p>
+
+<h3 id="排名函数">排名函数</h3>
+
+<pre><code class="language-sql">SELECT
+    dt,
+    city,
+    gmv,
+    -- rank: 并列名次会跳号（1,1,3）
+    rank()       OVER (PARTITION BY dt ORDER BY gmv DESC) AS rnk,
+    -- dense_rank: 并列名次不跳号（1,1,2）
+    dense_rank() OVER (PARTITION BY dt ORDER BY gmv DESC) AS dense_rnk,
+    -- row_number: 唯一行号，并列时按内部顺序打号
+    row_number() OVER (PARTITION BY dt ORDER BY gmv DESC) AS row_num
+FROM dws_city_gmv
+WHERE dt = '2024-01-15';
+
+-- 取每天 GMV 最高的前 3 个城市
+SELECT * FROM (
+    SELECT
+        dt, city, gmv,
+        row_number() OVER (PARTITION BY dt ORDER BY gmv DESC) AS rn
+    FROM dws_city_gmv
+    WHERE dt BETWEEN '2024-01-01' AND '2024-01-31'
+) t
+WHERE rn <= 3;
+</code></pre>
+
+<h3 id="聚合窗口">聚合窗口（累计、移动平均）</h3>
+
+<pre><code class="language-sql">SELECT
+    dt,
+    daily_gmv,
+    -- 累计求和（从第一行到当前行）
+    sum(daily_gmv) OVER (ORDER BY dt
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS cumulative_gmv,
+    -- 近 7 天移动平均
+    avg(daily_gmv) OVER (ORDER BY dt
+        ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+    ) AS ma7_gmv
+FROM dws_daily_gmv
+WHERE dt BETWEEN '2024-01-01' AND '2024-01-31'
+ORDER BY dt;
+</code></pre>
+
+<h3 id="lag-lead">LAG / LEAD（取前后行的值，计算环比）</h3>
+
+<pre><code class="language-sql">SELECT
+    dt,
+    daily_gmv,
+    -- 取前一天的 GMV
+    lag(daily_gmv, 1, 0) OVER (ORDER BY dt) AS prev_day_gmv,
+    -- 取前 7 天的 GMV（计算周同比）
+    lag(daily_gmv, 7, 0) OVER (ORDER BY dt) AS prev_week_gmv,
+    -- 环比增长率
+    round(
+        (daily_gmv - lag(daily_gmv, 1, 0) OVER (ORDER BY dt))
+        / nullif(lag(daily_gmv, 1, 0) OVER (ORDER BY dt), 0) * 100,
+        2
+    ) AS wow_rate
+FROM dws_daily_gmv
+WHERE dt BETWEEN '2024-01-01' AND '2024-01-31'
+ORDER BY dt;
+</code></pre>
+
+
+<h2 id="join查询">七、Join 查询与性能优化</h2>
+
+<p>Doris 支持多种 Join 类型，但 Join 在分布式系统里是代价最高的操作，写法影响很大。</p>
+
+<h3 id="join类型">基本 Join 语法</h3>
+
+<pre><code class="language-sql">-- INNER JOIN
+SELECT o.order_id, o.gmv, u.city
+FROM dws_order o
+INNER JOIN dim_user u ON o.user_id = u.user_id
+WHERE o.dt = '2024-01-15';
+
+-- LEFT JOIN（保留左表所有行）
+SELECT o.order_id, o.gmv, coalesce(u.city, '未知') AS city
+FROM dws_order o
+LEFT JOIN dim_user u ON o.user_id = u.user_id
+WHERE o.dt = '2024-01-15';
+</code></pre>
+
+<h3 id="broadcast-join">Broadcast Join vs Shuffle Join</h3>
+
+<p>Doris 会自动选择 Join 策略，但了解这两种策略有助于分析慢查询：</p>
+
+<ul>
+  <li><strong>Broadcast Join</strong>：小表广播到所有节点，大表不移动。适合一大一小的 Join（小表 &lt; 几百 MB）</li>
+  <li><strong>Shuffle Join（Hash Join）</strong>：两张表都按 Join 键哈希重新分布，适合两张大表的 Join，但网络开销大</li>
+</ul>
+
+<pre><code class="language-sql">-- 强制指定 Broadcast Join（当 Doris 选错时手动干预）
+SELECT /*+ SET_VAR(broadcast_row_count_limit = 100000000) */
+    o.order_id, d.product_name
+FROM dws_order o
+JOIN [broadcast] dim_product d ON o.product_id = d.product_id
+WHERE o.dt = '2024-01-15';
+</code></pre>
+
+<h3 id="join-注意事项">Join 的几个注意事项</h3>
+
+<pre><code class="language-sql">-- 避免：在 Join 条件里对列做函数运算（会退化为笛卡尔积或全表扫描）
+-- 坏
+SELECT * FROM a JOIN b ON cast(a.user_id AS varchar) = b.user_id;
+
+-- 好：提前做类型转换，或建表时统一类型
+SELECT * FROM a JOIN b ON a.user_id = b.user_id;
+
+-- 避免：没有 Join 条件的隐式笛卡尔积（会产生巨大的中间结果集）
+-- 坏
+SELECT * FROM a, b WHERE a.dt = b.dt;  -- 如果 dt 不是 Join 键，会爆
+
+-- 好：明确写 JOIN ... ON
+SELECT * FROM a JOIN b ON a.user_id = b.user_id WHERE a.dt = '2024-01-15';
+</code></pre>
+
+
+<h2 id="explain">八、EXPLAIN：读懂查询计划</h2>
+
+<p>遇到慢查询，第一步是用 EXPLAIN 看查询计划：</p>
+
+<pre><code class="language-sql">EXPLAIN SELECT sum(gmv) FROM dws_order WHERE dt = '2024-01-15';
+</code></pre>
+
+<p>重点看这几项：</p>
+
+<ul>
+  <li><strong><code>partitions=1/365</code></strong>：分区裁剪是否生效，这里表示只扫了 365 个分区中的 1 个</li>
+  <li><strong><code>cardinality</code></strong>：预估的行数，用于优化器决策</li>
+  <li><strong><code>HASH JOIN</code> / <code>BROADCAST</code></strong>：使用了哪种 Join 策略</li>
+  <li><strong><code>PREAGGREGATION: ON/OFF</code></strong>：预聚合是否命中（Aggregate 模型表）</li>
+</ul>
+
+<pre><code class="language-sql">-- 更详细的执行计划（包含物理执行信息）
+EXPLAIN VERBOSE SELECT sum(gmv) FROM dws_order WHERE dt = '2024-01-15';
+
+-- 查询实际执行统计（需要先执行查询）
+-- 在 Doris 管理页面的 Query Profile 里查看，或通过 SQL 查询 FE 日志
+</code></pre>
+
+<p>如果 <code>PREAGGREGATION: OFF</code>，说明查询没有命中预聚合，性能会下降。常见原因是 SELECT 列表里包含了非 Key 列的非聚合函数，或者 WHERE 条件对 Value 列进行了过滤。</p>
+
+
+<h2 id="物化视图">九、物化视图加速查询</h2>
+
+<p>Doris 支持物化视图（Materialized View），把常用的聚合结果预先计算好存储起来，查询时自动命中，无需修改 SQL：</p>
+
+<pre><code class="language-sql">-- 创建物化视图（按 dt + city 预聚合）
+CREATE MATERIALIZED VIEW mv_order_city_daily AS
+SELECT
+    dt,
+    city,
+    sum(gmv)         AS total_gmv,
+    count(*)         AS order_cnt,
+    bitmap_union(to_bitmap(user_id)) AS user_bitmap
+FROM dws_order_detail
+GROUP BY dt, city;
+
+-- 查询自动命中物化视图（不需要修改 SQL）
+SELECT dt, city, sum(gmv)
+FROM dws_order_detail
+WHERE dt = '2024-01-15'
+GROUP BY dt, city;
+
+-- 确认是否命中物化视图（EXPLAIN 里看 TABLE 是否变成了 mv_order_city_daily）
+EXPLAIN SELECT dt, city, sum(gmv)
+FROM dws_order_detail
+WHERE dt = '2024-01-15'
+GROUP BY dt, city;
+</code></pre>
+
+<p>物化视图命中需要满足几个条件：查询的聚合函数和物化视图里定义的一致、GROUP BY 的维度是物化视图维度的子集、没有对 Value 列的过滤条件。</p>
+
+
+<h2 id="常用函数速查">十、常用函数速查</h2>
+
+<h3 id="日期函数">日期函数</h3>
+
+<pre><code class="language-sql">-- 当前日期/时间
+SELECT curdate(), now(), current_timestamp();
+
+-- 日期格式化
+SELECT date_format(create_time, '%Y-%m-%d') AS dt;
+
+-- 日期加减
+SELECT date_add(curdate(), INTERVAL -7 DAY);   -- 7天前
+SELECT date_sub(curdate(), INTERVAL 1 MONTH);  -- 1个月前
+
+-- 提取日期部分
+SELECT year(dt), month(dt), day(dt), weekday(dt);
+
+-- 日期差（天数）
+SELECT datediff('2024-01-31', '2024-01-01');   -- 返回 30
+</code></pre>
+
+<h3 id="字符串函数">字符串函数</h3>
+
+<pre><code class="language-sql">SELECT
+    concat('hello', ' ', 'world'),       -- 字符串拼接
+    concat_ws('-', '2024', '01', '15'),   -- 用分隔符拼接
+    substring(phone, 1, 3),              -- 子字符串
+    left(phone, 3),                      -- 左取
+    length(name),                        -- 字节长度
+    char_length(name),                   -- 字符长度（中文友好）
+    upper(name), lower(name),            -- 大小写
+    trim(name), ltrim(name), rtrim(name),-- 去空格
+    replace(str, 'old', 'new'),          -- 替换
+    like '%关键词%',                     -- 模糊匹配
+    regexp_extract(str, '\\d+', 0);      -- 正则提取
+</code></pre>
+
+<h3 id="条件函数">条件函数</h3>
+
+<pre><code class="language-sql">SELECT
+    if(score >= 60, '及格', '不及格'),
+    ifnull(city, '未知'),
+    nullif(amount, 0),   -- 如果 amount=0 返回 NULL（防止除零）
+    coalesce(city, province, country, '未知'),  -- 返回第一个非 NULL 值
+    case status
+        when 1 then '待支付'
+        when 2 then '已支付'
+        when 3 then '已取消'
+        else '未知'
+    end AS status_name,
+    case
+        when amount >= 1000 then '大额'
+        when amount >= 100  then '中额'
+        else '小额'
+    end AS amount_level;
+</code></pre>
+
+
+<h2 id="总结">十一、总结</h2>
+
+<p>Doris 查询性能的关键优先级：</p>
+
+<ol>
+  <li><strong>分区裁剪</strong>：每个查询必须带分区列过滤，是最重要的优化，不容妥协</li>
+  <li><strong>去重函数选择</strong>：大数据量的 UV 统计用 Bitmap 或 HLL，不要无脑 <code>count(distinct)</code></li>
+  <li><strong>物化视图</strong>：高频查询预先建物化视图，查询自动命中，改造成本为零</li>
+  <li><strong>EXPLAIN 先行</strong>：遇到慢查询先看执行计划，确认分区裁剪和预聚合是否生效</li>
+  <li><strong>JOIN 小心</strong>：大表 Join 大表前先过滤，尽量让一侧数据量小到可以 Broadcast</li>
+</ol>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/数据库/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#连接方式"><span class="nav-number">1.</span> <span class="nav-text">一、连接方式</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#基础查询"><span class="nav-number">2.</span> <span class="nav-text">二、基础查询语法</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#分区裁剪"><span class="nav-number">3.</span> <span class="nav-text">三、分区裁剪：查询快慢的核心</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#聚合查询"><span class="nav-number">4.</span> <span class="nav-text">四、聚合查询与聚合模型</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#去重查询"><span class="nav-number">5.</span> <span class="nav-text">五、去重查询：精确 vs 近似</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#窗口函数"><span class="nav-number">6.</span> <span class="nav-text">六、窗口函数</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#join查询"><span class="nav-number">7.</span> <span class="nav-text">七、Join 查询与性能优化</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#explain"><span class="nav-number">8.</span> <span class="nav-text">八、EXPLAIN：读懂查询计划</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#物化视图"><span class="nav-number">9.</span> <span class="nav-text">九、物化视图加速查询</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#常用函数速查"><span class="nav-number">10.</span> <span class="nav-text">十、常用函数速查</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">十一、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">236</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
