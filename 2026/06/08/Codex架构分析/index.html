@@ -353,7 +353,94 @@ ThreadRolledBack(ThreadRolledBackEvent),</code></pre>
 <p>返回值是 Submission ID，客户端可以用这个 ID 关联后续的 EQ 事件。</p>
 
 
-<h2 id="上下文压缩">五、上下文压缩：两种实现</h2>
+<h2 id="turn执行流程">五、Turn 执行流程：从 submit 到 TurnComplete</h2>
+
+<p>上面描述的 SQ/EQ 协议是通信骨架，真正让 Agent 工作的是 <code>run_turn</code> 函数（位于 <code>session/turn.rs</code>）。一次 Turn 的执行分为若干阶段：</p>
+
+<h3 id="阶段一预压缩">阶段一：预压缩检查</h3>
+
+<p>Turn 开始前，先检查是否需要在采样（调用模型）之前就做一次压缩。如果上次 Turn 结束时上下文已接近窗口上限，下一次 Turn 带来的新用户消息会直接撑破限制——这时需要提前压缩：</p>
+
+<pre><code class="language-rust">if let Err(err) = run_pre_sampling_compact(&amp;sess, &amp;turn_context, &amp;mut client_session).await {
+    // ...推送错误事件，如果是 UsageLimitExceeded 则通知 goal 系统
+    return None;
+}</code></pre>
+
+<p>如果预压缩失败（比如 token 用量已超出限制），Turn 直接终止，不进行模型调用。</p>
+
+<h3 id="阶段二上下文注入">阶段二：工具和插件注入</h3>
+
+<p>接下来构建本次 Turn 需要的所有工具和插件：</p>
+
+<pre><code class="language-rust">let (injection_items, explicitly_enabled_connectors) =
+    build_skills_and_plugins(&amp;sess, turn_context.as_ref(), &amp;input, &amp;cancellation_token).await?;</code></pre>
+
+<p><code>build_skills_and_plugins</code> 做的事情包括：扫描用户消息里是否有 <code>@mention</code>（显式提及某个工具或 skill）、加载 MCP 工具、构建 connector 工具、处理插件注入。返回的 <code>injection_items</code> 会在用户消息之前插入到对话历史，让模型知道有哪些工具可用。</p>
+
+<h3 id="阶段三hooks">阶段三：Hook 执行</h3>
+
+<p>Codex 有一套 hook 机制，允许在 Turn 的关键节点插入自定义逻辑。Turn 前有 <code>run_pending_session_start_hooks</code>（只在会话首次 Turn 触发）和 <code>run_hooks_and_record_inputs</code>（记录用户输入并执行 pre-turn hooks）。Turn 完成后有 <code>run_turn_stop_hooks</code> 和 <code>run_legacy_after_agent_hook</code>。如果任何 hook 返回"应该终止"，Turn 提前退出。</p>
+
+<h3 id="阶段四采样循环">阶段四：采样循环（核心）</h3>
+
+<p>真正的模型调用在 <code>run_sampling_request</code> 里，它是一个带重试的循环：</p>
+
+<pre><code class="language-rust">let max_retries = turn_context.provider.info().stream_max_retries();
+let mut retries = 0;
+loop {
+    let prompt = build_prompt(prompt_input, router.as_ref(), turn_context.as_ref(), base_instructions.clone());
+    let err = match try_run_sampling_request(tool_runtime.clone(), /* ... */).await {
+        Ok(output) => { return Ok(output); }
+        Err(CodexErr::ContextWindowExceeded) => {
+            sess.set_total_tokens_full(&amp;turn_context).await;
+            return Err(CodexErr::ContextWindowExceeded);
+        }
+        Err(err) => err,
+    };
+    // 处理可重试的流式错误...
+    retries += 1;
+    if retries &gt; max_retries { return Err(err); }
+}</code></pre>
+
+<p>每次循环调用一次模型，如果返回 <code>ContextWindowExceeded</code>，直接返回错误让上层触发压缩后重试；如果是网络抖动等可重试的流式错误，在重试次数内重新发起请求，重试时重新读取历史构建 prompt（而不是复用上次的）。</p>
+
+<h3 id="工具路由器">ToolRouter：工具调度</h3>
+
+<p>每次采样前，<code>built_tools</code> 构建一个 <code>ToolRouter</code>：</p>
+
+<pre><code class="language-rust">pub struct ToolRouter {
+    registry: ToolRegistry,
+    model_visible_specs: Vec&lt;ToolSpec&gt;,
+}</code></pre>
+
+<p><code>model_visible_specs</code> 是发给模型的工具描述列表，<code>registry</code> 负责实际调用。工具来源有四类：内置工具（shell 命令执行、文件读写、apply_patch 等）、MCP 工具（通过 MCP 协议接入的外部工具）、Dynamic 工具（运行时动态注册）、Extension 工具（插件提供的）。</p>
+
+<p>模型返回工具调用请求后，<code>ToolCallRuntime</code> 并发执行多个工具调用（如果模型支持 <code>parallel_tool_calls</code>），执行结果写回历史，触发下一轮采样——这个"采样→工具调用→采样"的循环一直持续到模型不再输出工具调用为止。</p>
+
+<h3 id="流式事件处理">流式事件处理</h3>
+
+<p>模型的流式响应通过 <code>ResponseEvent</code> 枚举分发：</p>
+
+<pre><code class="language-rust">ResponseEvent::OutputTextDelta(delta) =&gt; {
+    // 增量文字，推送 AgentMessageContentDeltaEvent 给 EQ
+}
+ResponseEvent::ToolCallInputDelta { call_id, delta } =&gt; {
+    // 工具调用参数增量，累积到 ToolCallRuntime
+}
+ResponseEvent::OutputItemDone(item) =&gt; {
+    // 一个完整的输出项（文字或工具调用）完成
+    // 如果是工具调用，提交到 ToolCallRuntime 执行
+}
+ResponseEvent::Completed { usage, .. } =&gt; {
+    // 模型输出完成，记录 token 用量
+}</code></pre>
+
+<p>文字增量通过 <code>AssistantTextStreamParser</code> 解析，负责从流式文字中识别引用（citations）、Plan 区块（规划模式下）等结构。工具调用参数通过 <code>FuturesOrdered</code> 并发处理，保证执行顺序和结果收集的正确性。</p>
+
+<p>整个 Turn 的事件流是：<code>TurnStarted</code> → <code>AgentMessage</code> delta × N → <code>ExecCommandBegin/OutputDelta/End</code>（如果有命令执行）→ <code>TokenCount</code> → <code>TurnComplete</code>。如果中途触发了上下文压缩，会插入 <code>ContextCompacted</code> 事件，然后 Turn 继续。</p>
+
+
+<h2 id="上下文压缩">六、上下文压缩：两种实现</h2>
 
 <p>Agent 对话越来越长，迟早会触及模型的上下文窗口限制。Codex 的解决方案是压缩（Compact）：把历史对话总结成一段文字，替换掉原始历史，释放上下文空间。</p>
 
@@ -423,7 +510,7 @@ input.push(ResponseItem::CompactionTrigger);</code></pre>
 <p>压缩完成后，无论哪种实现，都会调用 <code>sess.replace_compacted_history</code> 替换历史，然后 <code>sess.recompute_token_usage</code> 重新计算 token 用量，最后通过 EQ 推送 <code>ContextCompacted</code> 事件。</p>
 
 
-<h2 id="整体架构观察">六、整体架构观察</h2>
+<h2 id="整体架构观察">七、整体架构观察</h2>
 
 <p>把这三块放在一起看，Codex 的架构有几个一致的设计原则：</p>
 
@@ -473,8 +560,9 @@ input.push(ResponseItem::CompactionTrigger);</code></pre>
 <li class="nav-item nav-level-2"><a class="nav-link" href="#op-枚举"><span class="nav-number">2.</span> <span class="nav-text">二、Op 枚举：用户能做什么</span></a></li>
 <li class="nav-item nav-level-2"><a class="nav-link" href="#eventmsg-枚举"><span class="nav-number">3.</span> <span class="nav-text">三、EventMsg 枚举：Agent 会说什么</span></a></li>
 <li class="nav-item nav-level-2"><a class="nav-link" href="#codexthread-会话模型"><span class="nav-number">4.</span> <span class="nav-text">四、CodexThread：会话模型</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#上下文压缩"><span class="nav-number">5.</span> <span class="nav-text">五、上下文压缩：两种实现</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构观察"><span class="nav-number">6.</span> <span class="nav-text">六、整体架构观察</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#turn执行流程"><span class="nav-number">5.</span> <span class="nav-text">五、Turn 执行流程：从 submit 到 TurnComplete</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#上下文压缩"><span class="nav-number">6.</span> <span class="nav-text">六、上下文压缩：两种实现</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构观察"><span class="nav-number">7.</span> <span class="nav-text">七、整体架构观察</span></a></li>
 </ol></div>
       </div>
       <!--/noindex-->
