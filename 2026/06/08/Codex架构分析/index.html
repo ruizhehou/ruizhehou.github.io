@@ -188,60 +188,147 @@
 
 <h2 id="op-枚举">二、Op 枚举：用户能做什么</h2>
 
-<p><code>Op</code> 枚举定义了所有从客户端到 Agent 的操作类型，标注了 <code>#[non_exhaustive]</code>，意味着未来还会继续扩展。</p>
+<p><code>Op</code> 枚举定义了所有从客户端到 Agent 的操作类型。它标注了 <code>#[non_exhaustive]</code>（外部 crate 不能对其做穷举匹配，协议未来可以继续扩展而不破坏兼容性），以及 <code>#[serde(tag = "type", rename_all = "snake_case")]</code>（在 JSON wire format 里每个变体用 <code>type</code> 字段区分，值为 snake_case，比如 <code>"type": "user_input"</code>）。</p>
 
-<p>几个关键的变体：</p>
+<p>按功能分组，Op 分为六类：</p>
 
-<pre><code class="language-rust">pub enum Op {
-    /// 中断当前任务，不终止后台终端进程
-    Interrupt,
+<h3 id="会话控制">会话控制</h3>
 
-    /// 用户输入，可附带线程配置覆盖
-    UserInput {
-        items: Vec&lt;UserInput&gt;,
-        environments: Option&lt;Vec&lt;TurnEnvironmentSelection&gt;&gt;,
-        final_output_json_schema: Option&lt;Value&gt;,
-        responsesapi_client_metadata: Option&lt;HashMap&lt;String, String&gt;&gt;,
-        additional_context: BTreeMap&lt;String, AdditionalContextEntry&gt;,
-        #[serde(default, flatten)]
-        thread_settings: ThreadSettingsOverrides,
-    },
+<pre><code class="language-rust">/// 中断当前任务，但不终止后台终端进程
+/// 服务端响应 EventMsg::TurnAborted
+Interrupt,
 
-    /// 不启动新 Turn，只更新线程配置
-    ThreadSettings {
-        #[serde(flatten)]
-        thread_settings: ThreadSettingsOverrides,
-    },
+/// 终止该线程下所有正在运行的后台终端进程
+/// 用于主动停止长期运行的后台 shell（有别于 Interrupt）
+CleanBackgroundTerminals,
 
-    /// Agent 间通信，记录进 Assistant 历史，走正常 submission 生命周期
-    InterAgentCommunication {
-        communication: InterAgentCommunication,
-    },
+/// 关闭整个 Codex 实例
+Shutdown,</code></pre>
 
-    /// 审批命令执行
-    ExecApproval { id: String, turn_id: Option&lt;String&gt;, decision: ReviewDecision },
+<p><code>Interrupt</code> 和 <code>CleanBackgroundTerminals</code> 的区别值得注意：<code>Interrupt</code> 只是打断当前 Agent Turn，后台 shell 进程（比如长时间运行的 dev server）还活着；<code>CleanBackgroundTerminals</code> 则主动终止所有后台进程，用于用户确实想停掉一切的场景。</p>
 
-    /// 审批代码补丁
-    PatchApproval { id: String, decision: ReviewDecision },
+<h3 id="用户输入">用户输入</h3>
 
-    /// 触发上下文压缩
-    Compact,
+<pre><code class="language-rust">/// 用户发送消息，可附带本次 Turn 的环境选择、输出 Schema、
+/// Responses API 元数据、附加上下文，以及永久生效的线程配置覆盖
+UserInput {
+    items: Vec&lt;UserInput&gt;,
+    environments: Option&lt;Vec&lt;TurnEnvironmentSelection&gt;&gt;,
+    final_output_json_schema: Option&lt;Value&gt;,
+    responsesapi_client_metadata: Option&lt;HashMap&lt;String, String&gt;&gt;,
+    additional_context: BTreeMap&lt;String, AdditionalContextEntry&gt;,
+    // flatten：直接内嵌线程配置字段，无需嵌套对象
+    #[serde(default, flatten)]
+    thread_settings: ThreadSettingsOverrides,
+},
 
-    /// 回滚最近 N 个用户 Turn
-    ThreadRollback { num_turns: u32 },
+/// 只更新线程配置，不发消息、不启动 Turn
+/// 与 UserInput 走同一个 submission queue，保证调用顺序
+ThreadSettings {
+    #[serde(flatten)]
+    thread_settings: ThreadSettingsOverrides,
+},
 
-    /// 关闭 Codex 实例
-    Shutdown,
-    // ...
-}</code></pre>
+/// 用户用 !cmd 直接执行 shell 命令
+/// 使用用户默认 shell，支持管道/重定向等 shell 语法
+/// 输出通过 ExecCommand* 事件流式推送
+RunUserShellCommand {
+    command: String,
+},</code></pre>
 
-<p>几个设计细节值得注意：</p>
+<p><code>UserInput</code> 通过 <code>#[serde(flatten)]</code> 把 <code>ThreadSettingsOverrides</code> 的字段直接平铺进来，意味着用户每次发消息可以顺带修改模型、沙箱策略、审批模式等配置，不需要单独发一个 <code>ThreadSettings</code> Op——两步合一，减少一次往返。</p>
 
-<p><strong><code>UserInput</code> 内嵌了 <code>ThreadSettingsOverrides</code></strong>。这意味着用户每次发消息，都可以顺带修改模型、沙箱策略、审批模式等配置，不需要单独发一个 <code>ThreadSettings</code> Op。两步合一。</p>
+<p><code>final_output_json_schema</code> 允许调用方约束 Agent 本次输出的 JSON 结构，这是结构化输出场景（比如让 Agent 返回一个格式化的 JSON 对象）的入口。</p>
 
-<p><strong><code>ExecApproval</code> 和 <code>PatchApproval</code> 是独立的 Op</strong>。Agent 执行命令或打补丁之前，如果策略要求审批，会先通过 EQ 推一个审批请求事件给客户端，客户端再通过 SQ 发回审批结果。这是一个完整的异步交互回路，不是简单的"等待用户确认"阻塞调用。</p>
+<h3 id="审批回应">审批回应（与 EQ 审批请求配对）</h3>
 
-<p><strong><code>InterAgentCommunication</code></strong> 的存在说明 Codex 支持多 Agent 协作场景，一个 Agent 可以给另一个 Agent 发消息，并且这条消息会被记录进 Assistant 历史。</p>
+<p>EQ 里有若干"Agent 需要人类介入"的事件，客户端处理后通过对应的 Op 回应：</p>
+
+<pre><code class="language-rust">/// 审批/拒绝 Agent 要执行的命令
+ExecApproval { id: String, turn_id: Option&lt;String&gt;, decision: ReviewDecision },
+
+/// 审批/拒绝 Agent 要应用的代码补丁
+PatchApproval { id: String, decision: ReviewDecision },
+
+/// 回应 request_user_input 工具调用（Agent 向用户提问）
+#[serde(rename = "user_input_answer", alias = "request_user_input_response")]
+UserInputAnswer { id: String, response: RequestUserInputResponse },
+
+/// 回应 request_permissions 工具调用（运行时申请额外权限）
+RequestPermissionsResponse { id: String, response: RequestPermissionsResponse },
+
+/// 回应 dynamic tool 调用（外部系统处理完工具请求后返回结果）
+DynamicToolResponse { id: String, response: DynamicToolResponse },
+
+/// 回应 MCP elicitation 请求（MCP 服务器向用户征集输入）
+ResolveElicitation {
+    server_name: String,
+    request_id: RequestId,
+    decision: ElicitationAction,
+    content: Option&lt;Value&gt;,
+    meta: Option&lt;Value&gt;,
+},
+
+/// 批准被 Guardian 系统拒绝的操作（一次性覆盖）
+ApproveGuardianDeniedAction { event: GuardianAssessmentEvent },</code></pre>
+
+<p>这七个 Op 构成了"Agent 暂停等待人类决策"的完整机制。它们都携带一个 <code>id</code>，与 EQ 里的请求事件一一对应。<code>UserInputAnswer</code> 有一个历史兼容 alias（<code>request_user_input_response</code>），说明这个 Op 经历过重命名。</p>
+
+<h3 id="会话管理">会话管理</h3>
+
+<pre><code class="language-rust">/// 手动触发上下文压缩（对话历史超长时也会自动触发）
+Compact,
+
+/// 从内存上下文中删除最近 N 个用户 Turn
+/// 注意：不会撤销磁盘上的文件改动，客户端需自行处理
+ThreadRollback { num_turns: u32 },
+
+/// 设置线程是否允许生成记忆（Memory）
+SetThreadMemoryMode { mode: ThreadMemoryMode },
+
+/// 重新加载用户配置层（不重启线程）
+/// 用于运行时热更新 app 启用/禁用状态等配置
+ReloadUserConfig,
+
+/// 重新初始化 MCP 服务器并刷新工具列表缓存
+RefreshMcpServers { config: McpServerRefreshConfig },
+
+/// 请求 Agent 对当前代码做 Review
+Review { review_request: ReviewRequest },</code></pre>
+
+<p><code>ThreadRollback</code> 的注释特别值得关注：它只修改内存里的对话历史，<strong>不会</strong>撤销 Agent 已经写到磁盘上的文件改动。这是一个有意为之的边界——Codex 认为文件系统状态由客户端或用户自行管理，Agent 只负责管自己的会话状态。</p>
+
+<h3 id="实时对话">实时对话（语音）</h3>
+
+<pre><code class="language-rust">RealtimeConversationStart(ConversationStartParams),  // 开启语音流
+RealtimeConversationAudio(ConversationAudioParams),  // 发送音频数据
+RealtimeConversationText(ConversationTextParams),    // 发送文字到语音流
+RealtimeConversationClose,                          // 关闭语音流
+RealtimeConversationListVoices,                     // 获取支持的声音列表</code></pre>
+
+<p>这五个 Op 支持语音交互模式（通过 WebRTC）。在普通的文字 coding 场景下不会用到，但它们的存在说明 Codex 的协议层从设计上就不局限于文字。</p>
+
+<h3 id="多-agent-协作">多 Agent 协作</h3>
+
+<pre><code class="language-rust">InterAgentCommunication {
+    communication: InterAgentCommunication,
+},</code></pre>
+
+<p>这是整个 Op 枚举里最值得深入看的一个。<code>InterAgentCommunication</code> 结构体如下：</p>
+
+<pre><code class="language-rust">pub struct InterAgentCommunication {
+    pub author: AgentPath,     // 发送方 Agent 的路径标识
+    pub recipient: AgentPath,  // 主接收方
+    pub other_recipients: Vec&lt;AgentPath&gt;,  // 抄送方
+    pub content: String,
+    pub encrypted_content: Option&lt;String&gt;,  // 加密内容（与 content 互斥）
+    pub trigger_turn: bool,  // 收到消息后是否立即触发一个新 Turn
+}
+</code></pre>
+
+<p><code>trigger_turn</code> 这个字段说明了两种 Agent 间通信模式：<code>true</code> 时消息到达后立即驱动接收方 Agent 开始一个新的 Turn（主动推送，适合任务委派）；<code>false</code> 时只是把消息写进历史，等接收方下次被其他原因触发时自然读到（被动通知）。</p>
+
+<p>消息通过 <code>to_model_input_item()</code> 转换成模型的输入格式：未加密的走普通 assistant message；加密的走专门的 <code>AgentMessage</code> item 类型，内容是 <code>EncryptedContent</code>。加密消息说明 Codex 的多 Agent 场景设计里考虑了 Agent 之间信息隔离的需求。</p>
 
 
 <h2 id="eventmsg-枚举">三、EventMsg 枚举：Agent 会说什么</h2>
