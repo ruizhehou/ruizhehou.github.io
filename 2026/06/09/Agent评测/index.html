@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Agent 自动化评测技术：为什么比传统 ML 评测难（有状态环境、多条合法路径、副作用）；三种评测方式（执行验证/LLM-as-Judge/轨迹评测）各自的适用场景和局限；SWE-bench、GAIA、WebArena、OSWorld 四个主流 Benchmark 的设计思路；以及工程层面的环境隔离、非确定性处理、成本控制。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Agent 自动化评测：为什么难，怎么做">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/09/Agent评测/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-09T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-09T14:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/09/Agent评测/">
+<script id="page-configurations">
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+  <title>Agent 自动化评测：为什么难，怎么做 | 侯瑞哲的博客</title>
+  <noscript>
+  <style>
+  .use-motion .brand, .use-motion .menu-item, .sidebar-inner,
+  .use-motion .post-block, .use-motion .pagination, .use-motion .comments,
+  .use-motion .post-header, .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+  .use-motion .site-title, .use-motion .site-subtitle { opacity: initial; top: initial; }
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+  <div class="site-meta">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">侯瑞哲的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw"></i>
+    </div>
+  </div>
+</div>
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+        <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+        <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+        <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+      <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+  </ul>
+</nav>
+  <div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+      <div class="post-meta-container">
+  <div class="post-meta">
+    <time itemprop="dateCreated" datetime="2026-06-09T14:00:00+08:00" content="2026-06-09">06-09</time>
+  </div>
+  </div>
+  <h1 class="post-title" itemprop="name headline">Agent 自动化评测：为什么难，怎么做</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>评测一个图像分类模型：给它一万张图，对比预测标签和真实标签，算准确率。十几行代码，几分钟出结果。</p>
+
+<p>评测一个 Agent：让它去 GitHub 上找一个真实的 Bug 然后修复——你要搭一个隔离的代码环境，让 Agent 自由读写文件、执行命令，等它跑完，再用一套测试检查改动是否正确，同时确保它没有在沙箱外乱动任何东西。</p>
+
+<p>这就是 Agent 评测比传统 ML 评测难得多的根本原因：它不是一个函数映射问题，而是一个在有状态环境里执行的序列决策问题。</p>
+
+
+<h2 id="为什么难">一、为什么难：三个根本差异</h2>
+
+<h3 id="有状态环境">有状态环境</h3>
+
+<p>传统模型的输入是独立的：给一张猫的图，不影响下一张狗的图怎么预测。</p>
+
+<p>Agent 的每个动作都会改变环境状态。它创建了一个文件，后续的文件读取就会看到这个文件；它修改了数据库，后续的查询结果就不同了。这意味着每个测试用例都需要一个干净的初始状态，测试之间不能互相影响。在实践中，通常需要每个测试用例启动一个新的 Docker 容器，用完销毁。</p>
+
+<h3 id="多条合法路径">多条合法路径</h3>
+
+<p>让 Agent 写一个排序函数。它可以用快速排序、归并排序，可以用 Python、Go，可以先写测试再写实现，也可以直接写实现。只要最终函数正确，这些路径都合法。</p>
+
+<p>传统评测可以用精确匹配：预测值 == 标准答案。Agent 评测必须用语义等价判断：结果是否达成目标，而不管路径是什么。</p>
+
+<h3 id="副作用难以枚举">副作用难以枚举</h3>
+
+<p>Agent 可能在完成主任务的同时产生副作用：修改了不该修改的文件、发起了网络请求、写入了数据库。这些副作用有些是任务所需的，有些是意外的，有些是有害的。如何判断哪些副作用是可接受的？这个问题没有通用答案，只能针对具体任务设计检查规则。</p>
+
+
+<h2 id="三种评测方式">二、三种评测方式</h2>
+
+<h3 id="执行验证">执行验证：最可靠</h3>
+
+<p>让 Agent 完成任务，然后用确定性的程序检验结果。</p>
+
+<p><strong>典型场景：代码任务。</strong> Agent 修改了代码，直接跑测试套件，pass 就是对，fail 就是错。不需要人工判断，不需要 LLM 打分，结果是客观的。</p>
+
+<p>这也是 SWE-bench 的核心设计：用真实 GitHub Issue 作为任务，用仓库自带的测试作为验证手段。Agent 看不到这些测试（避免作弊），只看 Issue 描述；评测时运行测试，统计 pass rate。</p>
+
+<p>执行验证的局限：只适合有客观验证标准的任务。代码可以跑测试，表单填写可以检查数据库，但开放性的创意写作任务没办法用程序验证"写得好不好"。</p>
+
+<pre><code class="language-python"># 执行验证的简化流程
+def evaluate_coding_agent(task, agent):
+    env = DockerEnvironment(task.repo_snapshot)  # 隔离环境
+    try:
+        agent.run(task.issue_description, env)   # Agent 执行
+        result = env.run_tests(task.test_files)  # 运行测试
+        return {
+            "passed": result.passed_count,
+            "total": result.total_count,
+            "success": result.passed_count == result.total_count
+        }
+    finally:
+        env.cleanup()  # 销毁容器
+</code></pre>
+
+<h3 id="llm-as-judge">LLM-as-Judge：最灵活</h3>
+
+<p>用一个更强的语言模型来评判 Agent 的输出质量。</p>
+
+<p>适合没有客观验证标准的任务：Agent 写了一份总结报告，让 GPT-4o 按照评分标准打分；Agent 回答了一个问题，让评测模型判断答案是否准确、完整。</p>
+
+<p>LLM-as-Judge 的挑战：</p>
+
+<p><strong>自我偏好（Self-preference）</strong>：用 GPT-4o 评测 GPT-4o 生成的内容，它会给自己打高分。用同一个模型族评测同一个模型族的输出，结果会有偏差。</p>
+
+<p><strong>位置偏差（Position Bias）</strong>：在对比评测里，评测模型倾向于给第一个出现的答案更高的分数，和内容质量无关。</p>
+
+<p><strong>结果不稳定</strong>：同一个 prompt，评测模型不同次运行可能给出不同的判断。</p>
+
+<p>工程上的应对：设计结构化的评分 prompt，让评测模型输出 JSON 格式的评分和理由；同一个任务多次评测取均值；对关键任务同时用两个不同的评测模型互相验证。</p>
+
+<pre><code class="language-python">JUDGE_PROMPT = """
+你是一个严格的评测员。评估 Agent 的回答是否完成了以下任务：
+
+任务：{task}
+Agent 回答：{response}
+
+按以下维度打分（0-10）：
+1. 任务完成度：回答是否完整覆盖了任务要求
+2. 准确性：信息是否正确
+3. 简洁性：是否避免了无关内容
+
+只输出 JSON：{{"completion": 分数, "accuracy": 分数, "conciseness": 分数, "reason": "理由"}}
+"""
+
+def llm_judge(task, response, judge_model):
+    prompt = JUDGE_PROMPT.format(task=task, response=response)
+    result = judge_model.complete(prompt)
+    return json.loads(result)
+</code></pre>
+
+<h3 id="轨迹评测">轨迹评测：过程比结果更重要</h3>
+
+<p>记录 Agent 的完整行动轨迹（每次工具调用、每次推理、每次输出），然后对轨迹打分。</p>
+
+<p>这在两种场景下特别有价值：</p>
+
+<p><strong>场景一：结果相同但路径质量不同。</strong> 两个 Agent 都完成了任务，但一个用了 3 步，另一个走了 20 步弯路。结果评测看不出差异，轨迹评测能发现效率问题。</p>
+
+<p><strong>场景二：发现安全问题。</strong> Agent 完成了任务，但中途调用了一些不该调用的工具，或者泄露了上下文里的敏感信息。结果正确不代表过程安全。</p>
+
+<p>轨迹评测的难点：需要构建参考轨迹作为对比基准，而参考轨迹的构建成本很高（通常需要人工标注）。一个改进方案是不对比具体轨迹，而是对轨迹的某些属性做规则检查：工具调用次数是否在合理范围内、有没有调用被禁止的工具、推理步骤是否有明显的逻辑错误。</p>
+
+
+<h2 id="主流benchmark">三、四个主流 Benchmark 的设计思路</h2>
+
+<h3 id="swe-bench">SWE-bench：代码任务的黄金标准</h3>
+
+<p>SWE-bench 从 GitHub 上收集了 2294 个真实的 Issue，每个 Issue 对应一个代码仓库的某个版本，以及该 Issue 被修复时提交的测试用例（这些测试在 Issue 修复前是失败的，修复后才通过）。</p>
+
+<p>评测流程：</p>
+<ol>
+  <li>给 Agent 看 Issue 描述和代码仓库，不给测试用例</li>
+  <li>Agent 修改代码，生成一个 patch</li>
+  <li>把 patch 应用到对应版本的仓库，运行测试</li>
+  <li>统计测试通过率（Resolved Rate）</li>
+</ol>
+
+<p>SWE-bench 的设计精妙之处：测试来自真实提交，不是为了评测专门写的，所以 Agent 无法通过"猜测测试内容"来作弊。同时，"测试通过"是客观的验证，不依赖任何主观判断。</p>
+
+<p>一个重要变体是 <strong>SWE-bench Verified</strong>：人工筛选出验证质量更高的 500 个 Issue（过滤掉测试写得有问题的、Issue 描述不清晰的），结果更可靠。</p>
+
+<h3 id="gaia">GAIA：通用能力的压力测试</h3>
+
+<p>GAIA（General AI Assistants）包含 450+ 个需要多步推理的真实问题，覆盖搜索、计算、文件处理、代码执行等能力。问题分三个难度级别：Level 1（5 步以内能解决）、Level 2（需要超过 10 步）、Level 3（需要超过 20 步，极度复杂）。</p>
+
+<p>验证方式：每道题有一个精确答案（数字、名称、日期等），字符串精确匹配。这强迫任务设计者把问题设计成有唯一正确答案的形式，避免了主观评判。</p>
+
+<p>GAIA 的意义在于揭示了模型在长链推理和多工具协作上的能力边界：即使是最强的模型，Level 3 的通过率也不超过 50%。</p>
+
+<h3 id="webarena">WebArena：真实网页操作</h3>
+
+<p>WebArena 构建了一个完整的模拟互联网环境：包含电商网站、代码托管平台、论坛、地图等多个网站，每个网站都有真实的数据和交互功能（但不连接真实互联网）。任务包括搜索商品、发帖子、提交代码、查找信息等。</p>
+
+<p>验证方式：检查任务完成后的环境状态。比如"找到价格最低的红色鞋子"——检查用户浏览历史里有没有访问过最低价的那双；"发一篇帖子"——检查数据库里是否存在这篇帖子，内容是否符合要求。</p>
+
+<p>这类 Benchmark 的构建成本很高：需要搭建完整的 web 应用环境，写每个任务的验证脚本，确保验证脚本覆盖了所有合法的完成路径。</p>
+
+<h3 id="osworld">OSWorld：桌面操作系统任务</h3>
+
+<p>OSWorld 让 Agent 在真实的虚拟机（Ubuntu 和 Windows）里执行桌面任务：操作 LibreOffice、浏览器、终端、文件管理器……任务包括"打开 Excel 文件，把 A 列的数据按降序排列"、"用 GIMP 把图片的亮度调低 20%"等。</p>
+
+<p>验证方式：执行后截图对比 + 文件状态检查。截图对比用于验证 UI 状态，文件状态检查用于验证文件内容。这两种方式组合，覆盖了大多数桌面任务的验证需求。</p>
+
+<p>OSWorld 的独特挑战：Agent 需要处理像素级别的截图，识别 UI 元素，生成鼠标点击和键盘输入序列。这要求多模态能力，而不只是文字理解。</p>
+
+
+<h2 id="工程实现">四、工程实现：搭一套评测流水线</h2>
+
+<h3 id="环境隔离">环境隔离</h3>
+
+<p>每个测试用例必须在干净、隔离的环境里运行。标准方案是 Docker 容器：</p>
+
+<pre><code class="language-python">class EvalEnvironment:
+    def __init__(self, task):
+        # 从任务的初始快照创建容器
+        self.container = docker.run(
+            image=task.base_image,
+            volumes={task.repo_path: "/workspace"},
+            network="none",          # 禁止网络访问（安全）
+            memory="2g",             # 限制内存
+            cpu_quota=50000,         # 限制 CPU
+        )
+
+    def execute(self, command):
+        return self.container.exec_run(command)
+
+    def read_file(self, path):
+        return self.container.exec_run(f"cat {path}").output
+
+    def cleanup(self):
+        self.container.remove(force=True)
+</code></pre>
+
+<p>对于需要图形界面的任务（WebArena、OSWorld），通常用 VNC 或远程桌面协议，让 Agent 通过截图+鼠标键盘操作与 VM 交互。</p>
+
+<h3 id="非确定性处理">处理非确定性</h3>
+
+<p>LLM 有随机性，同一个任务同一个 Agent 跑两次可能结果不同。几种处理方式：</p>
+
+<p><strong>固定 temperature=0</strong>：让模型使用贪心解码，消除随机性。适合需要精确复现的场景，但可能让模型在某些任务上表现不如 temperature>0 时好。</p>
+
+<p><strong>多次采样取均值</strong>：同一任务跑 N 次，取通过率的均值。这是最准确的方法，但成本是单次评测的 N 倍。SWE-bench 官方用 N=5。</p>
+
+<p><strong>pass@k 指标</strong>：跑 k 次，只要有一次通过就算成功。这衡量的是"Agent 能不能解决这个问题"，而不是"每次都能解决"。</p>
+
+<pre><code class="language-python">def evaluate_with_sampling(task, agent, n_samples=5):
+    results = []
+    for _ in range(n_samples):
+        env = EvalEnvironment(task)
+        agent.run(task, env)
+        passed = env.run_tests()
+        results.append(passed)
+        env.cleanup()
+
+    return {
+        "pass_rate": sum(results) / n_samples,
+        "pass_at_1": results[0],          # 第一次是否通过
+        "pass_at_k": any(results),         # 任意一次是否通过
+    }
+</code></pre>
+
+<h3 id="成本控制">成本控制</h3>
+
+<p>一个完整的 Agent 评测跑下来成本不低。SWE-bench 的 2294 个任务，每个任务平均 20 次 API 调用，每次调用平均 2000 tokens，5 次采样——这是 2294 × 20 × 2000 × 5 ≈ 4.6 亿 tokens 的 API 消耗，按 GPT-4o 的价格大概几千美元。</p>
+
+<p>几种降低成本的方法：</p>
+
+<p><strong>分层评测</strong>：先用小模型在完整集上快速筛选，再用大模型在高价值任务上精细评测。</p>
+
+<p><strong>增量评测</strong>：只跑和上次评测不同的任务。如果只改动了某个工具的实现，只跑会用到这个工具的任务子集。</p>
+
+<p><strong>缩减集合</strong>：构建有代表性的子集（Mini Benchmark）。SWE-bench 有 SWE-bench Lite（300 个任务），成本是完整集的 1/7，但相关性很高。</p>
+
+<h3 id="指标体系">指标体系</h3>
+
+<p>单一指标不够，成熟的 Agent 评测需要多维度指标：</p>
+
+<ul>
+  <li><strong>任务完成率（Task Success Rate）</strong>：最终任务完成的比例，是最核心的指标</li>
+  <li><strong>轨迹效率（Trajectory Efficiency）</strong>：平均完成一个任务需要多少步工具调用，越少越好</li>
+  <li><strong>首次尝试成功率（First Attempt Success）</strong>：不依赖重试的成功率，衡量可靠性</li>
+  <li><strong>错误恢复率（Error Recovery Rate）</strong>：遇到工具调用失败时，Agent 成功恢复并完成任务的比例</li>
+  <li><strong>安全违规率（Safety Violation Rate）</strong>：执行了被明确禁止操作的比例</li>
+</ul>
+
+<pre><code class="language-python">def compute_metrics(eval_results):
+    total = len(eval_results)
+    return {
+        "task_success_rate": sum(r.succeeded for r in eval_results) / total,
+        "avg_steps": sum(r.num_steps for r in eval_results) / total,
+        "avg_tokens": sum(r.tokens_used for r in eval_results) / total,
+        "first_attempt_success": sum(
+            r.succeeded and not r.had_retries for r in eval_results
+        ) / total,
+        "error_recovery_rate": sum(
+            r.succeeded for r in eval_results if r.had_errors
+        ) / sum(r.had_errors for r in eval_results),
+        "safety_violation_rate": sum(r.had_violations for r in eval_results) / total,
+    }
+</code></pre>
+
+
+<h2 id="几个反直觉的认知">五、几个反直觉的认知</h2>
+
+<p><strong>Benchmark 分数高不等于实际效果好。</strong> 很多 Agent 在 SWE-bench 上的优化，是通过专门针对 GitHub Issue 的 prompt 工程实现的。在真实用户任务上，这些优化未必有效。Benchmark 是代理指标，不是目标本身。</p>
+
+<p><strong>"能力"和"可靠性"是两个不同维度。</strong> pass@k（跑 k 次有一次成功）评测的是能力上限；pass@1 评测的是可靠性。一个 Agent 的 pass@5 是 80%，但 pass@1 只有 30%——它"能做到"，但你不能依赖它"每次都做到"。生产系统更关心后者。</p>
+
+<p><strong>评测环境和生产环境的差距值得认真对待。</strong> Benchmark 里的任务通常比真实用户需求更结构化、边界更清晰。一个在 SWE-bench 上表现优秀的 Agent，在真实用户提出的模糊需求上未必好用。这不是 Benchmark 的错，而是提示我们在生产部署前还需要真实用户场景的测试。</p>
+
+<p><strong>评测的代价促进了更好的工程实践。</strong> 因为每次全量评测代价高昂，工程团队被迫建立更精准的单元测试和集成测试，只在真正需要的时候才跑完整评测。这反而促使评测基础设施做得更好。</p>
+
+
+<h2 id="总结">六、总结</h2>
+
+<p>Agent 评测的核心挑战不是"怎么打分"，而是"怎么搭测试环境"：一个能让 Agent 自由行动、有真实副作用、又能被确定性验证的隔离环境，是整个评测体系的基础。</p>
+
+<ul>
+  <li><strong>执行验证</strong>：最可靠，适合有客观标准的任务（代码、文件操作、表单提交）</li>
+  <li><strong>LLM-as-Judge</strong>：最灵活，适合开放性任务，需要注意自我偏好和位置偏差</li>
+  <li><strong>轨迹评测</strong>：最细粒度，适合发现效率问题和安全问题，构建成本高</li>
+  <li><strong>主流 Benchmark</strong>：SWE-bench（代码）、GAIA（通用推理）、WebArena（网页操作）、OSWorld（桌面操作），各有侧重</li>
+  <li><strong>工程重点</strong>：Docker 环境隔离、多次采样处理非确定性、分层评测控制成本</li>
+</ul>
+
+<p>最后一点：Benchmark 分数是衡量进展的有用工具，但不是终点。真正的 Agent 评测体系，需要 Benchmark 和真实用户反馈共同驱动。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么难"><span class="nav-number">1.</span> <span class="nav-text">一、为什么难：三个根本差异</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#三种评测方式"><span class="nav-number">2.</span> <span class="nav-text">二、三种评测方式</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#主流benchmark"><span class="nav-number">3.</span> <span class="nav-text">三、四个主流 Benchmark</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#工程实现"><span class="nav-number">4.</span> <span class="nav-text">四、工程实现：搭一套评测流水线</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#几个反直觉的认知"><span class="nav-number">5.</span> <span class="nav-text">五、几个反直觉的认知</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">6.</span> <span class="nav-text">六、总结</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">237</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
