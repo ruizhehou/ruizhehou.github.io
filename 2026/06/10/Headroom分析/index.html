@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="深度分析 20k star 开源项目 Headroom：为 AI Agent 上下文做压缩，60-95% 减少 token。从源码学习：ML 内容检测（Google Magika）、ContentRouter 内容感知路由、管道生命周期模式与扩展点、CCR 可逆压缩设计、CacheAligner KV 缓存对齐、零代码改动的代理模式、Python+Rust 混合架构，以及从失败中学习的 headroom learn 机制。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="解读 Headroom：一个 20k star 的 AI Agent 压缩层">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/10/Headroom分析/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-10T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-10T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/10/Headroom分析/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>解读 Headroom：一个 20k star 的 AI Agent 压缩层 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-10T10:00:00+08:00" content="2026-06-10">06-10</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">解读 Headroom：一个 20k star 的 AI Agent 压缩层</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p><a href="https://github.com/chopratejas/headroom" target="_blank">Headroom</a> 是一个在 LLM 调用前压缩上下文的工具，声称能减少 60-95% 的 token，同时保持答案质量。2026 年初发布，半年内积累了 20k+ star。</p>
+
+<p>这篇文章不是介绍怎么用它，而是从源码角度分析它的架构设计——有哪些工程思路值得学习。</p>
+
+
+<h2 id="它解决的问题">一、它解决的问题</h2>
+
+<p>AI Agent 在处理任务时，输入给 LLM 的内容可能极度冗余。一个典型的场景：Agent 搜索了 100 个代码文件找某个 bug，把全部内容送进 LLM——其中 90% 都是不相关的代码。一次搜索就消耗了 17,000 个 token，绝大部分是噪音。</p>
+
+<p>传统解法是"截断"（超过限制就丢掉），这会丢失重要信息。Headroom 的做法是"压缩"——识别哪些内容是关键的，剔除噪音，保留语义，同时把原文存起来，LLM 需要时可以取回。</p>
+
+<p>实测数据：代码搜索 100 个结果从 17,765 token 压缩到 1,408 token，节省 92%，准确率保持 97% 以上。</p>
+
+
+<h2 id="整体架构">二、整体架构：从输入到 LLM</h2>
+
+<pre><code class="language-text">用户请求（messages / tool outputs / logs / RAG chunks）
+    │
+    ▼
+CacheAligner         — 稳定 prompt 前缀，命中 provider KV 缓存
+    │
+    ▼
+ContentRouter        — ML 检测内容类型，分发到对应压缩器
+    ├── SmartCrusher     — JSON / 结构化数据
+    ├── CodeCompressor   — 代码（AST 级别）
+    └── Kompress-base    — 文本 / 日志（自研 HuggingFace 模型）
+    │
+    ▼
+CCR                  — 存储原文，注入检索工具
+    │
+    ▼
+Memory               — 跨 Agent 共享状态
+    │
+    ▼
+LLM Provider
+</code></pre>
+
+<p>不同模块职责清晰，接下来逐个分析最有价值的设计。</p>
+
+
+<h2 id="ML内容检测">三、用 ML 做内容类型检测，而不是规则</h2>
+
+<p>ContentRouter 需要判断一段文本是 JSON、代码、日志还是普通文本，以便选择对应的压缩算法。朴素的实现是写一堆 <code>if</code>：</p>
+
+<pre><code class="language-python"># 朴素做法（不是 Headroom 的做法）
+if text.strip().startswith('{'):
+    compress_as_json(text)
+elif text.startswith('def ') or text.startswith('class '):
+    compress_as_code(text)
+else:
+    compress_as_text(text)
+</code></pre>
+
+<p>Headroom 用的是 Google 的 <strong>Magika</strong>——一个专门做内容类型检测的深度学习模型：</p>
+
+<pre><code class="language-python">"""ML-based content type detection using Google's Magika.
+
+Magika is a deep learning model for content type detection that:
+- Runs locally (~5ms latency)
+- Supports 100+ content types
+- Has 99%+ accuracy on supported types
+- Requires no configuration
+"""
+
+class ContentType(Enum):
+    JSON = "json"
+    CODE = "code"
+    LOG = "log"
+    DIFF = "diff"
+    MARKDOWN = "markdown"
+    TEXT = "text"
+    UNKNOWN = "unknown"
+
+@dataclass
+class DetectionResult:
+    content_type: ContentType
+    confidence: float      # 0.0 到 1.0
+    raw_label: str         # Magika 原始标签
+    language: str | None   # 代码时：python / javascript / ...
+    metadata: dict
+</code></pre>
+
+<p>这里有一个值得注意的注释：<code># This is the ONLY place where we map labels - no hardcoding elsewhere</code>。所有从 Magika 标签到内部 ContentType 的映射，集中在检测器这一个文件里，其他地方不允许硬编码。这个"单一真相来源"原则，让维护和修改变得容易。</p>
+
+<p><strong>工程启示</strong>：对于分类问题，当规则边界模糊（JSON 里嵌着代码怎么算？日志里有 JSON 怎么算？）时，ML 模型比规则更健壮。5ms 的延迟对于在 LLM 调用前做预处理来说几乎可以忽略，而准确率从 80% 提升到 99% 是实质性的改变。</p>
+
+
+<h2 id="管道生命周期模式">四、管道生命周期模式与扩展点</h2>
+
+<p>Headroom 定义了一套完整的管道生命周期，每个阶段都可以被扩展：</p>
+
+<pre><code class="language-python">class PipelineStage(str, Enum):
+    SETUP = "setup"
+    PRE_START = "pre_start"
+    POST_START = "post_start"
+    INPUT_RECEIVED = "input_received"
+    INPUT_CACHED = "input_cached"      # CacheAligner 在这里
+    INPUT_ROUTED = "input_routed"      # ContentRouter 在这里
+    INPUT_COMPRESSED = "input_compressed"
+    INPUT_REMEMBERED = "input_remembered"  # Memory 在这里
+    PRE_SEND = "pre_send"
+    POST_SEND = "post_send"
+    RESPONSE_RECEIVED = "response_received"
+</code></pre>
+
+<p>扩展接口是一个 Python <code>Protocol</code>：</p>
+
+<pre><code class="language-python">class PipelineExtension(Protocol):
+    """Request lifecycle extension contract for the canonical pipeline."""
+
+    def on_pipeline_event(self, event: PipelineEvent) -> PipelineEvent | None:
+        """Handle a canonical pipeline event."""
+</code></pre>
+
+<p>扩展通过 Python entry points 动态发现：</p>
+
+<pre><code class="language-python">ENTRY_POINT_GROUP = "headroom.pipeline_extension"
+
+def discover_pipeline_extensions() -> list[PipelineExtension]:
+    """Load registered pipeline extensions from Python entry points."""
+    entries = importlib.metadata.entry_points(group=ENTRY_POINT_GROUP)
+    ...
+</code></pre>
+
+<p>这意味着：任何人可以发布一个 Python 包，在 <code>pyproject.toml</code> 里注册 entry point，Headroom 就会自动发现并加载它，不需要修改 Headroom 本身的代码。</p>
+
+<p><strong>工程启示</strong>：这是一个非常干净的插件系统设计：</p>
+<ul>
+  <li>用 <code>Protocol</code> 而不是抽象基类，更符合 Python 的鸭子类型精神，也不需要继承</li>
+  <li>通过 entry points 实现"零侵入"插件发现，不需要主程序知道插件的存在</li>
+  <li>管道阶段用 <code>Enum</code> 明确定义，防止拼写错误，也让 IDE 能给出补全</li>
+  <li><code>PipelineEvent</code> 把所有可变状态封装在一个对象里，扩展可以修改或替换它</li>
+</ul>
+
+
+<h2 id="CacheAligner">五、CacheAligner：让 Provider KV 缓存真正命中</h2>
+
+<p>LLM Provider（Anthropic、OpenAI）有 KV Cache 机制：如果连续两次请求的 prompt 前缀相同，第二次会命中缓存，延迟和费用大幅降低。</p>
+
+<p>问题是：即使"概念上"前缀相同，实际发出的 prompt 可能因为以下原因不同：</p>
+<ul>
+  <li>时间戳或请求 ID 注入在前缀里</li>
+  <li>每次请求时动态生成的内容放在了系统提示的前半段</li>
+  <li>工具列表的顺序不稳定</li>
+</ul>
+
+<p>CacheAligner 的工作是"稳定前缀"——把可变内容后移，确保静态内容（系统提示、工具定义）始终出现在 prompt 的相同位置，最大化 KV 缓存命中率。</p>
+
+<p><strong>工程启示</strong>：KV Cache 对 LLM 调用成本的影响非常大（Anthropic 的 cache hit 有 90% 的折扣）。这个优化点很容易被忽视——开发者通常关注"发送了什么内容"，但很少关注"内容的顺序和位置"。Headroom 把这个优化做成了透明的基础设施，用户不需要主动思考它。</p>
+
+
+<h2 id="CCR可逆压缩">六、CCR：把可逆性设计进压缩</h2>
+
+<p>大多数压缩方案是单向的——压缩完原文就没了。Headroom 的 CCR（Content-Compressed Retrieval）不是这样设计的：</p>
+
+<ol>
+  <li>压缩时，原文存储在本地（<strong>本地优先，数据不离开你的机器</strong>）</li>
+  <li>压缩后的内容里，注入一个 <code>headroom_retrieve</code> 工具调用</li>
+  <li>LLM 如果觉得需要原文（精细分析、验证细节），可以调用这个工具获取</li>
+  <li>LLM 不需要时，就用压缩后的摘要，节省 token</li>
+</ol>
+
+<pre><code class="language-text">压缩前：10,144 tokens（完整日志文件）
+压缩后：1,260 tokens（摘要 + headroom_retrieve 工具声明）
+LLM 找到 FATAL 错误后：调用 headroom_retrieve 获取那几行原始日志
+</code></pre>
+
+<p>这个设计体现了一个重要原则：<strong>不要让压缩丢失信息，而是把信息从"总是可见"变成"按需可见"</strong>。这和分页加载（懒加载）的思路本质相同——数据还在，只是延迟读取。</p>
+
+<p><strong>工程启示</strong>：CCR 模块的文件结构很有教学价值：</p>
+<ul>
+  <li><code>batch_processor.py</code>：批量处理多条消息</li>
+  <li><code>batch_store.py</code>：存储原文的本地数据库</li>
+  <li><code>context_tracker.py</code>：追踪哪些内容被压缩了</li>
+  <li><code>tool_injection.py</code>：向 LLM 注入 <code>headroom_retrieve</code> 工具</li>
+  <li><code>response_handler.py</code>：处理 LLM 的检索请求，返回原文</li>
+</ul>
+<p>这五个职责的划分非常清晰，每个文件只做一件事。</p>
+
+
+<h2 id="零代码改动的代理模式">七、零代码改动的代理模式</h2>
+
+<p>Headroom 提供三种接入方式，设计得很有层次：</p>
+
+<pre><code class="language-bash"># 方式一：Library — 最灵活，改代码
+from headroom import compress
+messages = compress(messages, model="claude-opus-4-7")
+
+# 方式二：Proxy — 零代码改动，拦截 HTTP 请求
+headroom proxy --port 8787
+# 然后改一行环境变量：
+# ANTHROPIC_BASE_URL=http://localhost:8787
+
+# 方式三：Agent wrap — 包装整个 agent 进程
+headroom wrap claude
+</code></pre>
+
+<p>代理模式的工程价值在于：<strong>它把压缩逻辑从应用代码里解耦了出来</strong>。你的应用只是在和一个"假装是 Anthropic API"的本地服务通信，压缩是透明发生的。这和 Service Mesh 里的 sidecar 模式是同一个思路——把横切关注点（cross-cutting concerns）抽离到独立的基础设施层。</p>
+
+<p>Headroom 的 Rust 侧有一个 <code>headroom-proxy</code> crate，代理的高性能部分用 Rust 实现。这也说明了 Python+Rust 混合架构的合理性：Python 用于业务逻辑和胶水代码，Rust 用于需要高吞吐的网络代理部分。</p>
+
+<p><strong>工程启示</strong>：设计对外接口时，考虑"用户能不改代码就用起来吗"。代理模式、ASGI 中间件、SDK 包装器——提供多个接入层次，让不同场景的用户都能以最小成本接入。</p>
+
+
+<h2 id="headroom-learn">八、headroom learn：从失败中学习</h2>
+
+<p>这是整个项目里最有意思的功能之一。</p>
+
+<p>AI Agent 在执行任务时会失败，失败的原因往往是重复的：每次都去读一个不存在的文件路径，每次都用错一个 API，每次都忘记某个项目的约定……</p>
+
+<p><code>headroom learn</code> 的工作：</p>
+<ol>
+  <li>分析历史 Agent 会话记录（Claude Code 的 session log、Codex 的历史等）</li>
+  <li>识别重复出现的失败模式</li>
+  <li>把这些模式写入 <code>CLAUDE.md</code> / <code>AGENTS.md</code>——这是 Claude Code 等工具会在每次启动时读取的"工程规范文件"</li>
+</ol>
+
+<p>效果是：Agent 把自己的失败经验沉淀成了项目的"集体记忆"，下次不再犯同样的错。</p>
+
+<p><strong>工程启示</strong>：这个功能的本质是一个反馈循环——系统从自己的运行历史里提取改进点，自动写入规范文档。人工系统也应该有类似的机制：不只是记录错误，还要把错误的规律总结成可执行的规则，写进代码规范或自动化检查里。</p>
+
+
+<h2 id="Python和Rust混合架构">九、Python + Rust 混合架构</h2>
+
+<p>仓库里有四个 Rust crate：</p>
+<ul>
+  <li><code>headroom-core</code>：核心数据结构和算法</li>
+  <li><code>headroom-parity</code>：Python/Rust 行为一致性测试</li>
+  <li><code>headroom-proxy</code>：HTTP 代理服务器</li>
+  <li><code>headroom-py</code>：Rust 代码的 Python 绑定（用 PyO3）</li>
+</ul>
+
+<p>有一个 <code>headroom-parity</code> crate 专门用于验证 Python 和 Rust 实现的行为一致性——这说明有些算法同时在 Python 和 Rust 里实现了，Python 版本用于灵活性和可读性，Rust 版本用于性能。</p>
+
+<p><strong>工程启示</strong>：混合架构的代价是维护两套实现，但 <code>parity</code> 测试是一个聪明的工程解法——用自动化测试保证两套实现的等价性，而不是靠人工保证。这个模式在需要高性能但又需要灵活性的系统里很常见（SQLite 的 WASM 端口、NumPy 的 BLAS 后端都有类似设计）。</p>
+
+
+<h2 id="工程师能学什么">十、工程师能从中学什么</h2>
+
+<p>把这个项目的设计思路归纳成几条可以直接带走的原则：</p>
+
+<p><strong>1. 用 ML 替代规则的边界在哪里</strong><br>
+规则简单直观，但边界模糊的分类问题（内容类型检测）规则很难写好。当 ML 模型足够轻量（5ms）且准确率有实质性提升时，ML 优于规则。</p>
+
+<p><strong>2. 单一真相来源（SSOT）防止分散的硬编码</strong><br>
+所有从 Magika 标签到 ContentType 的映射，集中在一个文件的一个地方。这个约束用注释明确声明，防止开发者在其他地方重复映射逻辑。</p>
+
+<p><strong>3. Protocol 比抽象基类更轻</strong><br>
+Python <code>Protocol</code> 实现了结构型子类型（structural subtyping）——只要有 <code>on_pipeline_event</code> 方法，就符合 <code>PipelineExtension</code> 接口，不需要继承。这让第三方实现更自然。</p>
+
+<p><strong>4. Entry points 实现零侵入插件系统</strong><br>
+通过 Python entry points 发现插件，主程序不需要知道插件存在，插件也不需要修改主程序。这是 Python 生态里实现插件系统的最干净方式。</p>
+
+<p><strong>5. 可逆性设计：信息从"总是可见"变成"按需可见"</strong><br>
+CCR 不丢弃原文，而是把"原文放在哪里取"的索引注入 prompt。这个思路可以推广：任何时候你需要压缩或摘要，考虑是否能保留原文并提供按需检索的接口，而不是直接截断。</p>
+
+<p><strong>6. KV 缓存优化是隐形的成本节省</strong><br>
+Provider 的 KV 缓存 hit 可以节省 90% 费用，但很少有开发者主动优化 prompt 前缀稳定性。把这个优化做进基础设施层，让上层应用无感知地受益。</p>
+
+<p><strong>7. 多层接入方式满足不同场景</strong><br>
+Library（最灵活）、Proxy（零代码）、Wrap（完整包装）——同一个功能，三种接入成本，覆盖了从"我要深度集成"到"我一行代码都不想改"的全部用户。</p>
+
+<p><strong>8. 从运行历史中提取改进点</strong><br>
+headroom learn 的思路：系统能自动分析自己的失败记录，把规律性的失败转化成可执行的规则，写入规范文档。这个反馈循环可以推广到任何有历史日志的系统。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#它解决的问题"><span class="nav-number">1.</span> <span class="nav-text">一、它解决的问题</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构"><span class="nav-number">2.</span> <span class="nav-text">二、整体架构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#ML内容检测"><span class="nav-number">3.</span> <span class="nav-text">三、用 ML 做内容检测</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#管道生命周期模式"><span class="nav-number">4.</span> <span class="nav-text">四、管道生命周期与扩展点</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#CacheAligner"><span class="nav-number">5.</span> <span class="nav-text">五、CacheAligner：KV 缓存命中</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#CCR可逆压缩"><span class="nav-number">6.</span> <span class="nav-text">六、CCR：可逆压缩设计</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#零代码改动的代理模式"><span class="nav-number">7.</span> <span class="nav-text">七、零代码改动的代理模式</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#headroom-learn"><span class="nav-number">8.</span> <span class="nav-text">八、headroom learn：从失败中学习</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Python和Rust混合架构"><span class="nav-number">9.</span> <span class="nav-text">九、Python + Rust 混合架构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#工程师能学什么"><span class="nav-number">10.</span> <span class="nav-text">十、工程师能学什么</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">241</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
