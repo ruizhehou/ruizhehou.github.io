@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="报警规则不是简单阈值判断，而是把时间窗口、聚合维度、动态阈值、缺失数据、依赖抑制和处理动作组合成低噪声故障信号。本文用规则模板讲清楚错误率、延迟、流量骤降和容量耗尽该怎么设计。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="报警规则不是 if else：从阈值到故障信号">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/11/%E6%8A%A5%E8%AD%A6%E8%A7%84%E5%88%99%E8%AE%BE%E8%AE%A1/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-11T13:10:00.000Z">
+<meta property="article:modified_time" content="2026-06-11T13:10:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="计算机科学">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/11/%E6%8A%A5%E8%AD%A6%E8%A7%84%E5%88%99%E8%AE%BE%E8%AE%A1/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>报警规则不是 if else：从阈值到故障信号 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-11T21:10:00+08:00" content="2026-06-11">06-11</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">报警规则不是 if else：从阈值到故障信号</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>第一篇讲的是监控报警体系的建设。这一篇把视角收窄到一条规则：它怎么从一堆时间序列，变成一个值得打断人的故障信号。</p>
+
+<p>很多低质量报警的根源，是把规则写成了简单的 if else：CPU 大于 80 就报警，错误数大于 10 就报警，延迟大于 500ms 就报警。这个写法看起来直观，但在生产环境里很容易误报。因为真实系统里的信号有流量周期、采样噪声、局部故障、发布扰动、依赖抖动和数据缺失。</p>
+
+<p>所以报警规则设计的目标不是「发现所有异常」，而是<strong>把异常压缩成可靠、可行动、低噪声的故障信号</strong>。</p>
+
+<h2 id="规则的输入输出">一、规则的输入输出</h2>
+
+<p>一条规则的输入通常是时间序列：某个指标在一段时间窗口内的值。输出不是一个数字，而是一个判断：正常、警告、严重、未知，以及这次判断对应的分组。</p>
+
+<table>
+<thead>
+<tr><th>概念</th><th>问题</th><th>例子</th></tr>
+</thead>
+<tbody>
+<tr><td>指标</td><td>看什么？</td><td>请求数、错误数、延迟、队列长度、CPU、磁盘</td></tr>
+<tr><td>窗口</td><td>看多久？</td><td>最近 5 分钟、最近 1 小时、过去 7 天同一时间</td></tr>
+<tr><td>聚合</td><td>按什么维度看？</td><td>单实例、服务、机房、业务线、全局</td></tr>
+<tr><td>条件</td><td>什么算异常？</td><td>错误率 > 1%、P99 > 800ms、积压增长持续 15 分钟</td></tr>
+<tr><td>动作</td><td>异常后谁处理？</td><td>值班电话、IM、工单、升级到服务 owner</td></tr>
+</tbody>
+</table>
+
+<p>如果一条规则只定义了条件，没有定义窗口、聚合和动作，它通常是不完整的。</p>
+
+<h2 id="窗口设计">二、窗口设计：不要被一个点骗了</h2>
+
+<p>时间窗口解决的是抖动问题。单个采样点可能是网络抖动、采集延迟、GC、发布瞬间或某个实例的短暂抖动。报警规则应该尽量对一段时间内的行为做判断。</p>
+
+<ul>
+  <li><strong>短窗口</strong>：发现快，噪声高。适合强故障信号，比如服务完全不可用、流量归零。</li>
+  <li><strong>长窗口</strong>：发现慢，稳定性高。适合容量、积压、慢性错误率上升。</li>
+  <li><strong>多窗口</strong>：同时看短窗口和长窗口。短窗口防止漏掉快速故障，长窗口防止瞬时误报。</li>
+</ul>
+
+<pre><code class="language-text"># 伪代码：短窗口和长窗口同时异常才打严重报警
+short_error_rate = error_rate(last_5m)
+long_error_rate  = error_rate(last_30m)
+crit = short_error_rate &gt; 5% and long_error_rate &gt; 2%
+</code></pre>
+
+<p>这个模式背后的直觉是：真正的故障通常不会只在一个采样点出现；如果短窗口尖刺很高但长窗口正常，可能只是局部抖动；如果长窗口异常但短窗口已经恢复，可能适合进入工单而不是电话。</p>
+
+<h2 id="阈值类型">三、阈值类型：固定、动态、相对变化</h2>
+
+<p>阈值不是只能写一个固定数字。不同业务形态适合不同阈值。</p>
+
+<table>
+<thead>
+<tr><th>阈值类型</th><th>适合场景</th><th>风险</th></tr>
+</thead>
+<tbody>
+<tr><td>固定阈值</td><td>容量、水位、明确 SLA，例如磁盘 &lt; 10%</td><td>不适合强周期业务</td></tr>
+<tr><td>业务阈值</td><td>订单量、支付量、成功率，有业务底线</td><td>需要产品和业务共同确认</td></tr>
+<tr><td>同比/环比</td><td>强周期流量，例如每天同一时段对比</td><td>节假日、活动、发布会导致误判</td></tr>
+<tr><td>动态基线</td><td>模式稳定但绝对值变化大</td><td>解释性差，容易让值班人不信任</td></tr>
+<tr><td>错误预算消耗</td><td>有明确 SLO 的服务</td><td>需要先建立 SLI/SLO 和预算窗口</td></tr>
+</tbody>
+</table>
+
+<p>固定阈值最容易写，也最容易滥用。比如 QPS 小于 100 是否异常，取决于服务类型、时间段、业务活动和上下游状态。相比之下，成功率、错误率、延迟分位数通常更稳定，因为它们更接近用户体验。</p>
+
+<h2 id="聚合维度">四、聚合维度：按实例报警，还是按服务报警</h2>
+
+<p>同一个指标，按不同维度聚合，会得到完全不同的告警语义。</p>
+
+<table>
+<thead>
+<tr><th>维度</th><th>看到的问题</th><th>适合动作</th></tr>
+</thead>
+<tbody>
+<tr><td>instance</td><td>单机异常、单容器异常</td><td>摘流、重启、机器排障</td></tr>
+<tr><td>cluster / AZ</td><td>机房、集群、可用区异常</td><td>流量切换、容量调整</td></tr>
+<tr><td>service</td><td>服务整体不可用或质量下降</td><td>服务 owner 介入</td></tr>
+<tr><td>business</td><td>业务链路异常</td><td>跨团队协同、事故响应</td></tr>
+</tbody>
+</table>
+
+<p>经验上，直接打断人的报警应该更偏服务或业务维度，而不是单实例维度。单实例异常如果有自动摘流和重建能力，应该先交给自动化系统处理；只有当实例异常比例超过阈值、影响服务容量时，再升级为人工报警。</p>
+
+<pre><code class="language-text"># 伪代码：不要因为一个实例 5xx 高就电话报警
+instance_error = error_rate_by_instance(last_5m)
+service_error  = error_rate_by_service(last_5m)
+bad_instance_ratio = count(instance_error &gt; 5%) / count(instance_error)
+
+warn = bad_instance_ratio &gt; 10%
+crit = service_error &gt; 5% and bad_instance_ratio &gt; 20%
+</code></pre>
+
+<h2 id="缺失数据">五、缺失数据：没有数据也是一种信号</h2>
+
+<p>报警系统里最容易被低估的问题是「没有数据」。没有数据可能意味着业务没流量，也可能意味着采集挂了、服务挂了、指标名变了、标签变了、上报链路堵了。</p>
+
+<p>处理缺失数据时，要先区分指标语义：</p>
+
+<ul>
+  <li><strong>持续流量服务</strong>：核心请求数突然为 0，通常是严重信号。</li>
+  <li><strong>低频任务</strong>：没有数据可能正常，应该用任务完成时间或调度状态判断。</li>
+  <li><strong>日志类指标</strong>：没有错误日志通常是正常，不应该进入 Unknown。</li>
+  <li><strong>采集心跳</strong>：没有数据就是采集失败，应单独报警给平台 owner。</li>
+</ul>
+
+<p>Bosun 里 Unknown 是一等状态：当表达式因为数据缺失无法评估时，告警会进入 Unknown。Prometheus 里也有 absent、up 这类处理方式。无论工具是什么，核心原则都是：不要让缺失数据悄悄变成正常，也不要让本来正常的稀疏指标一直 Unknown。</p>
+
+<h2 id="依赖抑制">六、依赖抑制：不要让一个故障变成一百条报警</h2>
+
+<p>一个数据库故障可能让十几个服务错误率升高；一个机房网络问题可能让成百上千台机器超时。如果每个下游都单独报警，值班群会被淹没，反而看不到根因。</p>
+
+<p>依赖抑制解决的是「故障风暴」问题。常见策略有三类：</p>
+
+<ul>
+  <li><strong>拓扑依赖</strong>：下游依赖已报警时，上游症状降级或合并。</li>
+  <li><strong>故障域合并</strong>：同一机房、同一集群、同一依赖引起的报警聚合成一条主告警。</li>
+  <li><strong>变更抑制</strong>：发布、扩容、演练期间，部分预期异常进入观察模式，但不能屏蔽用户影响类告警。</li>
+</ul>
+
+<p>抑制不是静默一切。用户体验层的报警应该尽量保留，因为它代表真实影响；被抑制的通常是原因层、资源层和重复症状。</p>
+
+<h2 id="规则模板">七、常见规则模板</h2>
+
+<p>下面这些模板比固定阈值更适合在生产系统里复用。</p>
+
+<h3 id="错误率规则">1. 错误率规则</h3>
+
+<pre><code class="language-text">total = requests(status=*) over 5m
+error = requests(status=5xx) over 5m
+rate  = error / total
+warn  = total &gt; min_traffic and rate &gt; 1%
+crit  = total &gt; min_traffic and rate &gt; 5%
+</code></pre>
+
+<p>注意一定要加最小流量保护。低流量服务里一次失败就可能得到 100% 错误率，但这不一定值得报警。</p>
+
+<h3 id="延迟规则">2. 延迟规则</h3>
+
+<pre><code class="language-text">p95 = latency_percentile(95, last_10m)
+p99 = latency_percentile(99, last_10m)
+warn = p95 &gt; 300ms and traffic &gt; min_traffic
+crit = p99 &gt; 1000ms and traffic &gt; min_traffic
+</code></pre>
+
+<p>延迟规则要区分成功请求和失败请求。失败请求可能很快返回 500，把它混进整体延迟会掩盖真实慢请求。</p>
+
+<h3 id="流量骤降规则">3. 流量骤降规则</h3>
+
+<pre><code class="language-text">current = qps(last_5m)
+baseline = qps(same_time_yesterday_5m)
+crit = baseline &gt; 100 and current &lt; baseline * 0.3
+</code></pre>
+
+<p>流量骤降适合入口服务、订单链路和任务入口。但它强依赖业务周期，节假日、大促、运营活动都需要额外处理。</p>
+
+<h3 id="容量耗尽规则">4. 容量耗尽规则</h3>
+
+<pre><code class="language-text">free_ratio = disk_free / disk_total
+growth_rate = disk_used_growth_per_hour
+hours_left = disk_free / growth_rate
+warn = free_ratio &lt; 15% or hours_left &lt; 24
+crit = free_ratio &lt; 8% or hours_left &lt; 6
+</code></pre>
+
+<p>容量类报警要尽量报警在「还来得及处理」的时候。磁盘 99% 才报警，技术上准确，工程上已经太晚。</p>
+
+<h2 id="质量检查表">八、上线前检查表</h2>
+
+<ul>
+  <li>这条报警是否对应真实用户影响或明确工程行动？</li>
+  <li>有没有最小流量保护，避免低流量误报？</li>
+  <li>窗口是否足够过滤瞬时抖动？</li>
+  <li>聚合维度是否匹配处理动作？</li>
+  <li>缺失数据时应该 Normal、Unknown 还是 Critical？</li>
+  <li>是否有 owner、通知渠道和升级策略？</li>
+  <li>报警内容里是否包含影响范围、当前值、阈值、最近变更、排障入口？</li>
+  <li>过去 7 天或 30 天回放会触发几次？每次是否值得处理？</li>
+</ul>
+
+<h2 id="结语">结语</h2>
+
+<p>报警规则不是 if else，而是把时间、维度、阈值、缺失数据和人类行动组合在一起的工程判断。好的规则让值班人少被打扰，但在真正出事时更早知道、更快定位、更敢行动。</p>
+
+<p>下一篇进入具体工具：用 Bosun 的 RuleConf 和表达式语言，把这些设计落成可运行的告警规则。</p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<ul>
+  <li><a href="https://sre.google/workbook/alerting-on-slos/" target="_blank" rel="noopener">Google SRE Workbook：Alerting on SLOs</a></li>
+  <li><a href="https://sre.google/sre-book/monitoring-distributed-systems/" target="_blank" rel="noopener">Google SRE：Monitoring Distributed Systems</a></li>
+  <li><a href="https://bosun.org/expressions" target="_blank" rel="noopener">Bosun Expression Documentation</a></li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/计算机科学/" rel="tag"><i class="fa fa-tag"></i> 计算机科学</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#规则的输入输出"><span class="nav-number">1.</span> <span class="nav-text">一、规则的输入输出</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#窗口设计"><span class="nav-number">2.</span> <span class="nav-text">二、窗口设计</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#阈值类型"><span class="nav-number">3.</span> <span class="nav-text">三、阈值类型</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#聚合维度"><span class="nav-number">4.</span> <span class="nav-text">四、聚合维度</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#缺失数据"><span class="nav-number">5.</span> <span class="nav-text">五、缺失数据</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#依赖抑制"><span class="nav-number">6.</span> <span class="nav-text">六、依赖抑制</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#规则模板"><span class="nav-number">7.</span> <span class="nav-text">七、规则模板</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#质量检查表"><span class="nav-number">8.</span> <span class="nav-text">八、质量检查表</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">9.</span> <span class="nav-text">结语</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-number">10.</span> <span class="nav-text">参考资料</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">244</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

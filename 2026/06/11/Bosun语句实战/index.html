@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Bosun 的核心是用表达式语言把时间序列压缩成 warn/crit 判断，再用 template 和 notification 把机器信号变成人能处理的告警。本文从 RuleConf、q()、group、归约函数、Unknown、lookup、depends 到模板通知，讲清楚 Bosun 语句怎么写。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="读懂 Bosun 语句：一条告警是怎么从指标变成人的">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/11/Bosun%E8%AF%AD%E5%8F%A5%E5%AE%9E%E6%88%98/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-11T13:20:00.000Z">
+<meta property="article:modified_time" content="2026-06-11T13:20:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="计算机科学">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/11/Bosun%E8%AF%AD%E5%8F%A5%E5%AE%9E%E6%88%98/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>读懂 Bosun 语句：一条告警是怎么从指标变成人的 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-11T21:20:00+08:00" content="2026-06-11">06-11</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">读懂 Bosun 语句：一条告警是怎么从指标变成人的</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>前两篇讲了监控报警体系和规则设计。这一篇落到 Bosun：一条告警规则在 Bosun 里怎么写，表达式怎么从时间序列变成布尔判断，模板和通知又怎么把机器信号变成人能处理的信息。</p>
+
+<p>Bosun 是一个围绕时间序列告警设计的系统。它可以采集和转发数据，查询 OpenTSDB、Graphite、Logstash/Elasticsearch、Prometheus 等后端，用自己的表达式语言计算告警条件，并用 Go template 生成通知内容。它的配置是文本文件，适合版本管理。</p>
+
+<h2 id="心智模型">一、Bosun 的心智模型</h2>
+
+<p>读 Bosun 语句，要先抓住三层：</p>
+
+<ol>
+  <li><strong>数据层</strong>：查询函数拿到时间序列，例如 <code>q()</code> 返回一组 series。</li>
+  <li><strong>表达式层</strong>：聚合、运算、比较，把 seriesSet 变成 numberSet 或 scalar。</li>
+  <li><strong>告警层</strong>：<code>warn</code>/<code>crit</code> 判断是否异常，template 渲染上下文，notification 负责发送。</li>
+</ol>
+
+<p>Bosun 官方文档里有一句非常关键：表达式最终会被归约成一个数字，0 表示不触发，非 0 表示触发；同时表达式可以产生一个或多个 group，这些 group 决定告警实例的维度。</p>
+
+<h2 id="RuleConf结构">二、RuleConf：alert、template、notification</h2>
+
+<p>Bosun 的规则文件由多个 section 组成，每个 section 有类型和名称。最常见的是 <code>alert</code>、<code>template</code>、<code>notification</code>、<code>lookup</code> 和 <code>macro</code>。</p>
+
+<pre><code class="language-text">notification oncall_email {
+    email = oncall@example.com
+}
+
+template service_basic {
+    subject = `{{.Alert.Name}} {{.Group}} {{.CurrentStatus}}`
+    body = `
+    &lt;p&gt;状态：{{.CurrentStatus}}&lt;/p&gt;
+    &lt;p&gt;告警：{{.Alert.Name}}&lt;/p&gt;
+    &lt;p&gt;分组：{{.Group}}&lt;/p&gt;
+    &lt;p&gt;规则：{{.Alert.Text}}&lt;/p&gt;
+    &lt;p&gt;最近一次异常：{{.LastAbnormalTime}}&lt;/p&gt;
+    `
+}
+
+alert api_high_error_rate {
+    template = service_basic
+    $total = sum(q(&quot;sum:rate{counter,,1}:api.request.count{service=pay,cluster=prod,status=*}&quot;, &quot;5m&quot;, &quot;&quot;))
+    $error = sum(q(&quot;sum:rate{counter,,1}:api.request.count{service=pay,cluster=prod,status=5xx}&quot;, &quot;5m&quot;, &quot;&quot;))
+    $rate = ($error / $total) * 100
+    warn = $rate &gt; 1
+    crit = $rate &gt; 5
+    warnNotification = oncall_email
+    critNotification = oncall_email
+}
+</code></pre>
+
+<p>这个例子里，<code>alert</code> 定义计算逻辑，<code>template</code> 定义通知长什么样，<code>notification</code> 定义发到哪里。生产环境里最好把通用模板和通知渠道抽出来复用，业务规则只写变量和判断。</p>
+
+<h2 id="数据类型和group">三、数据类型和 group：为什么一条规则会变成很多条告警</h2>
+
+<p>Bosun 表达式里最常见的类型有三种：</p>
+
+<ul>
+  <li><strong>Scalar</strong>：一个数字，没有业务维度。比如 <code>1</code>、<code>60</code>。</li>
+  <li><strong>NumberSet</strong>：一组带标签的数字。比如每台机器一个 CPU 使用率。</li>
+  <li><strong>SeriesSet</strong>：一组带标签的时间序列。比如每台机器最近 5 分钟的 CPU 曲线。</li>
+</ul>
+
+<p>告警实例由 alert name + group 唯一确定。比如 <code>api_high_error_rate{service=pay,cluster=prod}</code> 是一个实例，<code>api_high_error_rate{service=order,cluster=prod}</code> 是另一个实例。</p>
+
+<p>这就是为什么查询里的 tag 很重要。你写 <code>host=*</code>，就可能每台机器一条告警；你先按 service 聚合，就可能每个服务一条告警。告警维度不是通知平台决定的，而是表达式里的 group 决定的。</p>
+
+<h2 id="q函数">四、q()：从 OpenTSDB 拿时间序列</h2>
+
+<p><code>q(query, startDuration, endDuration)</code> 是 Bosun 里最常见的 OpenTSDB 查询函数。第一个参数是 OpenTSDB 查询字符串，第二个参数表示从多久以前开始，第三个参数表示到多久以前结束；第三个参数为空字符串时表示到现在。</p>
+
+<pre><code class="language-text"># 最近 5 分钟 CPU，每个 host 一条时间序列
+$q = q(&quot;avg:rate{counter,,1}:os.cpu{host=*}&quot;, &quot;5m&quot;, &quot;&quot;)
+
+# 最近 1 小时到 30 分钟前，用于和当前窗口对比
+$previous = q(&quot;sum:api.request.count{service=pay}&quot;, &quot;1h&quot;, &quot;30m&quot;)
+</code></pre>
+
+<p>Bosun 查询出来的是 seriesSet，通常不能直接拿来做告警判断，要先通过 reduction function 归约成 numberSet。</p>
+
+<h2 id="归约函数">五、归约函数：把曲线变成数字</h2>
+
+<p>常用归约函数包括 <code>avg()</code>、<code>max()</code>、<code>min()</code>、<code>sum()</code>、<code>last()</code>、<code>percentile()</code> 等。它们会把每条时间序列压缩成一个数字，但保留 group。</p>
+
+<pre><code class="language-text">$cpu_series = q(&quot;avg:rate{counter,,1}:os.cpu{host=*}&quot;, &quot;5m&quot;, &quot;&quot;)
+$cpu_avg = avg($cpu_series)
+$cpu_max = max($cpu_series)
+
+warn = $cpu_avg &gt; 80
+crit = $cpu_max &gt; 95
+</code></pre>
+
+<p>这里 <code>$cpu_avg</code> 和 <code>$cpu_max</code> 都是按 host 分组的 numberSet。如果有 100 台机器，就可能得到 100 个判断结果。</p>
+
+<h2 id="warn和crit">六、warn / crit：0 与非 0</h2>
+
+<p>Bosun 的 <code>warn</code> 和 <code>crit</code> 表达式必须返回 scalar 或 numberSet。结果为 0 表示 false，不触发；非 0 表示 true，触发。crit 优先于 warn：如果 crit 为真，就不会再按 warn 处理。</p>
+
+<pre><code class="language-text">alert api_latency_high {
+    template = service_basic
+    $latency = percentile(q(&quot;avg:api.latency.ms{service=pay,cluster=prod}&quot;, &quot;10m&quot;, &quot;&quot;), 95)
+    warn = $latency &gt; 300
+    crit = $latency &gt; 1000
+    warnNotification = oncall_email
+    critNotification = oncall_email
+}
+</code></pre>
+
+<p>变量以 <code>$</code> 开头，但 Bosun 的变量本质是文本替换，不是传统编程语言里的强类型变量。复杂表达式建议主动加括号，避免展开后优先级不符合预期。</p>
+
+<h2 id="Unknown和缺失数据">七、Unknown：缺失数据怎么处理</h2>
+
+<p>Bosun 会记住某条规则见过的 tagset。如果之后这个 tagset 不再出现，表达式无法评估，就可能进入 Unknown。Unknown 很有价值，因为它能暴露采集失败、服务停止上报、指标改名等问题。</p>
+
+<p>但不是所有缺失都应该报警。日志类指标没有数据可能代表没有错误；低频任务没有数据可能代表任务还没到调度时间。Bosun 提供了几个关键选项：</p>
+
+<ul>
+  <li><code>unknown = 5m</code>：指定多久无法评估后进入 Unknown。</li>
+  <li><code>ignoreUnknown = true</code>：忽略 Unknown，不让它变成告警。</li>
+  <li><code>unknownIsNormal = true</code>：把 Unknown 视为恢复正常，适合错误日志这类稀疏信号。</li>
+  <li><code>nv(numberSet, scalar)</code>：在二元运算中把 NaN 替换成指定值，防止缺失组导致错误扩散。</li>
+</ul>
+
+<pre><code class="language-text">alert api_no_traffic {
+    template = service_basic
+    $qps = sum(q(&quot;sum:rate{counter,,1}:api.request.count{service=pay,cluster=prod}&quot;, &quot;10m&quot;, &quot;&quot;))
+    crit = nv($qps, 0) &lt; 1
+    critNotification = oncall_email
+}
+</code></pre>
+
+<p>这个例子把缺失流量当成 0 处理，适合应该持续有请求的入口服务。但如果是低频后台任务，这样写就会误报。</p>
+
+<h2 id="lookup和动态阈值">八、lookup：不同服务用不同阈值</h2>
+
+<p>统一阈值很容易出问题。支付服务和后台管理服务、核心接口和低频接口，不应该共享同一个错误率阈值。Bosun 的 lookup table 可以根据 tag 返回不同阈值或通知人。</p>
+
+<pre><code class="language-text">lookup api_threshold {
+    entry service=pay,cluster=prod {
+        warn = 1
+        crit = 5
+        owner = oncall_email
+    }
+    entry service=*,cluster=prod {
+        warn = 3
+        crit = 10
+        owner = oncall_email
+    }
+}
+
+alert api_error_rate_by_lookup {
+    template = service_basic
+    $total = sum(q(&quot;sum:rate{counter,,1}:api.request.count{service=*,cluster=prod,status=*}&quot;, &quot;5m&quot;, &quot;&quot;))
+    $error = sum(q(&quot;sum:rate{counter,,1}:api.request.count{service=*,cluster=prod,status=5xx}&quot;, &quot;5m&quot;, &quot;&quot;))
+    $rate = ($error / $total) * 100
+    warn = $rate &gt; lookup(&quot;api_threshold&quot;, &quot;warn&quot;)
+    crit = $rate &gt; lookup(&quot;api_threshold&quot;, &quot;crit&quot;)
+    warnNotification = lookup(&quot;api_threshold&quot;, &quot;owner&quot;)
+    critNotification = lookup(&quot;api_threshold&quot;, &quot;owner&quot;)
+}
+</code></pre>
+
+<p>lookup 的价值不只是动态阈值，也可以做动态路由：不同 service、cluster、host 匹配到不同通知渠道。这样规则可以保持通用，责任关系放到表里维护。</p>
+
+<h2 id="depends和squelch">九、depends 与 squelch：控制告警风暴</h2>
+
+<p><code>depends</code> 用来表达规则依赖：当另一个告警已经触发时，本告警可以不再评估。典型场景是 host down 后，host 上的 CPU、磁盘、进程告警都不应该继续刷屏。</p>
+
+<pre><code class="language-text">alert host_down {
+    template = service_basic
+    $up = avg(q(&quot;avg:host.alive{host=*}&quot;, &quot;5m&quot;, &quot;&quot;))
+    crit = nv($up, 0) == 0
+    critNotification = oncall_email
+}
+
+alert host_high_cpu {
+    template = service_basic
+    depends = alert(&quot;host_down&quot;, &quot;crit&quot;)
+    $cpu = avg(q(&quot;avg:rate{counter,,1}:os.cpu{host=*}&quot;, &quot;5m&quot;, &quot;&quot;))
+    warn = $cpu &gt; 80
+    crit = $cpu &gt; 95
+    warnNotification = oncall_email
+    critNotification = oncall_email
+}
+</code></pre>
+
+<p><code>squelch</code> 则是按 tag 直接抑制某些范围，比如演练环境、临时集群、已下线机房。它更像配置层面的过滤。</p>
+
+<h2 id="模板和通知">十、模板和通知：让告警可处理</h2>
+
+<p>告警内容不是越短越好，而是要让值班人不用再问三件事：影响是什么、为什么触发、下一步去哪看。</p>
+
+<pre><code class="language-text">template service_basic {
+    subject = `{{.Alert.Name}} {{.Group}} {{.CurrentStatus}}`
+    body = `
+    &lt;h3&gt;{{.Alert.Name}}&lt;/h3&gt;
+    &lt;p&gt;&lt;b&gt;状态：&lt;/b&gt;{{.CurrentStatus}}&lt;/p&gt;
+    &lt;p&gt;&lt;b&gt;分组：&lt;/b&gt;{{.Group}}&lt;/p&gt;
+    &lt;p&gt;&lt;b&gt;规则：&lt;/b&gt;{{.Alert.Text}}&lt;/p&gt;
+    &lt;p&gt;&lt;b&gt;最近异常：&lt;/b&gt;{{.LastAbnormalTime}}&lt;/p&gt;
+    &lt;p&gt;&lt;b&gt;处理建议：&lt;/b&gt;{{.Alert.Vars.runbook}}&lt;/p&gt;
+    `
+}
+
+alert api_high_error_rate {
+    template = service_basic
+    $runbook = https://wiki.example.com/runbook/api-error-rate
+    # ...表达式略...
+}
+</code></pre>
+
+<p>一个高质量模板至少应该包含：当前值、阈值、分组、服务 owner、最近变更、相关图表、runbook、静默入口和升级方式。Bosun 的模板基于 Go template，并提供了 Graph、Eval、Lookup 等上下文函数，可以把表达式结果和图直接放进通知里。</p>
+
+<h2 id="常见坑">十一、常见坑</h2>
+
+<ul>
+  <li><strong>把所有 tag 都带进告警</strong>：group 过细会制造大量告警实例。先想清楚处理动作，再决定 group。</li>
+  <li><strong>低流量下算比例</strong>：没有最小流量保护，错误率会被少量请求放大。</li>
+  <li><strong>忽略 Unknown</strong>：采集挂了和服务挂了都可能表现为无数据，不能默认正常。</li>
+  <li><strong>变量不加括号</strong>：Bosun 变量是文本替换，复杂表达式要显式括号。</li>
+  <li><strong>没有回测</strong>：规则上线前应该用历史窗口测试，看看过去 7 天会触发几次。</li>
+  <li><strong>通知没有上下文</strong>：只写「错误率高」没有意义，必须带当前值、阈值、影响范围和排障入口。</li>
+</ul>
+
+<h2 id="结语">结语</h2>
+
+<p>Bosun 语句的难点，不在函数多，而在它把「时间序列计算」和「告警实例维度」绑在一起。你写的每个 tag、每个聚合、每个 lookup，都会影响最后谁被叫醒、看到什么、能不能处理。</p>
+
+<p>所以写 Bosun 规则时，不要只问语法能不能跑，还要问三个工程问题：这条规则代表什么故障？它会产生多少告警实例？收到它的人能不能立刻行动？</p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<ul>
+  <li><a href="https://bosun.org/documentation.html" target="_blank" rel="noopener">Bosun Documentation</a></li>
+  <li><a href="https://bosun.org/definitions" target="_blank" rel="noopener">Bosun Definitions / RuleConf</a></li>
+  <li><a href="https://bosun.org/expressions" target="_blank" rel="noopener">Bosun Expression Documentation</a></li>
+  <li><a href="https://bosun.org/notifications" target="_blank" rel="noopener">Bosun Notification Customization</a></li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/计算机科学/" rel="tag"><i class="fa fa-tag"></i> 计算机科学</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#心智模型"><span class="nav-number">1.</span> <span class="nav-text">一、心智模型</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#RuleConf结构"><span class="nav-number">2.</span> <span class="nav-text">二、RuleConf 结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#数据类型和group"><span class="nav-number">3.</span> <span class="nav-text">三、数据类型和 group</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#q函数"><span class="nav-number">4.</span> <span class="nav-text">四、q() 函数</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#归约函数"><span class="nav-number">5.</span> <span class="nav-text">五、归约函数</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#warn和crit"><span class="nav-number">6.</span> <span class="nav-text">六、warn / crit</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Unknown和缺失数据"><span class="nav-number">7.</span> <span class="nav-text">七、Unknown 和缺失数据</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#lookup和动态阈值"><span class="nav-number">8.</span> <span class="nav-text">八、lookup 和动态阈值</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#depends和squelch"><span class="nav-number">9.</span> <span class="nav-text">九、depends 与 squelch</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#模板和通知"><span class="nav-number">10.</span> <span class="nav-text">十、模板和通知</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#常见坑"><span class="nav-number">11.</span> <span class="nav-text">十一、常见坑</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">12.</span> <span class="nav-text">结语</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-number">13.</span> <span class="nav-text">参考资料</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">244</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

@@ -1,6 +1,589 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>你收到的每一条告警，都在暴露系统设计的问题</title>
+    <url>/2026/06/11/%E7%9B%91%E6%8E%A7%E6%8A%A5%E8%AD%A6%E4%BD%93%E7%B3%BB%E5%BB%BA%E8%AE%BE/</url>
+    <content><![CDATA[<p>很多团队一开始建设监控，都会从「先把图画出来」开始：CPU、内存、QPS、延迟、错误率，能接的指标全接上。看板很快变得很丰富，但线上真正出问题时，值班同学仍然不知道该先看哪里、谁应该处理、这条告警是不是必须现在起床。</p>
+
+<p>这说明监控报警体系的核心不是「数据可视化」，而是<strong>故障反馈系统</strong>：系统出问题时，它能不能把正确的信号，在正确的时间，交给正确的人，并附带足够的上下文让人行动。</p>
+
+<p>所以这篇文章不从某个工具讲起，而是从体系建设讲起。工具可以是 Bosun、Prometheus、Grafana、OpenTSDB、夜莺或自研平台，但它们最终都要回答同一个问题：<strong>什么情况值得打断一个人？</strong></p>
+
+<h2 id="监控不是看板">一、监控不是看板，是反馈系统</h2>
+
+<p>看板回答的是「现在长什么样」；报警回答的是「要不要立刻行动」。这两个目标很容易混在一起，但工程上必须分开。</p>
+
+<table>
+<thead>
+<tr><th>类型</th><th>核心问题</th><th>典型读者</th><th>设计重点</th></tr>
+</thead>
+<tbody>
+<tr><td>Dashboard</td><td>系统现在是什么状态？</td><td>研发、值班、排障人员</td><td>展示关键指标、支持下钻、辅助定位</td></tr>
+<tr><td>Alert</td><td>现在是否需要人介入？</td><td>值班人员、服务负责人</td><td>低噪声、可行动、可升级、可恢复</td></tr>
+<tr><td>Report</td><td>长期趋势如何？</td><td>团队负责人、容量规划人员</td><td>周/月维度趋势、容量、成本、质量</td></tr>
+</tbody>
+</table>
+
+<p>一个常见反模式是：把看板上的每条曲线都加一个阈值，超过就报警。这样做会制造大量噪音，因为很多指标只是诊断线索，不是故障信号。比如 CPU 突然升高可能是正常扩容、批任务、缓存预热，也可能是死循环；它值得出现在看板上，但不一定值得半夜叫醒人。</p>
+
+<p>更好的做法是先定义「故障」：用户不可用、请求失败率上升、核心链路延迟恶化、数据积压导致交付超时、容量即将耗尽。然后再倒推需要哪些指标、日志和链路信息。</p>
+
+<h2 id="先定义故障">二、先定义故障，再定义指标</h2>
+
+<p>监控建设的第一步不是埋点，而是列出系统承诺。一个支付系统的承诺可能是「下单链路成功率」「支付回调时效」「账务一致性」；一个推荐系统的承诺可能是「接口延迟」「特征新鲜度」「召回结果数量」；一个调度系统的承诺可能是「任务按时完成」「队列积压可控」「异常任务可恢复」。</p>
+
+<p>这些承诺落到监控上，就是 SLI（服务水平指标）。当 SLI 有了目标值，就形成 SLO。报警应该尽量围绕 SLO 或明确的故障症状设计，而不是围绕机器指标设计。</p>
+
+<ul>
+  <li><strong>用户是否受影响</strong>：成功率、端到端延迟、可用性、错误页面比例。</li>
+  <li><strong>业务是否受影响</strong>：订单创建量、支付成功量、任务完成量、消息消费延迟。</li>
+  <li><strong>系统是否快到极限</strong>：队列积压、连接池耗尽、磁盘剩余、CPU throttling、线程池拒绝。</li>
+  <li><strong>依赖是否异常</strong>：数据库慢查询、RPC 错误率、缓存命中率、第三方超时。</li>
+</ul>
+
+<p>指标不是越多越好。指标的价值在于它能支持决策：要不要报警、谁处理、怎么定位、怎么恢复。不能支持决策的指标，可以进看板，不应该进报警。</p>
+
+<h2 id="四层指标模型">三、四层指标模型：从用户到机器</h2>
+
+<p>一个可维护的监控体系，最好按层分解。每一层解决不同问题，报警级别也不同。</p>
+
+<table>
+<thead>
+<tr><th>层级</th><th>关注对象</th><th>典型指标</th><th>是否适合直接报警</th></tr>
+</thead>
+<tbody>
+<tr><td>用户体验层</td><td>用户看到的结果</td><td>可用性、成功率、P95/P99、端到端耗时</td><td>适合，优先级最高</td></tr>
+<tr><td>业务过程层</td><td>核心业务流是否正常</td><td>订单量、支付量、履约时效、任务完成率</td><td>适合，需结合业务周期</td></tr>
+<tr><td>服务接口层</td><td>服务自身是否健康</td><td>QPS、错误率、延迟、依赖耗时、线程池</td><td>适合，是主要报警层</td></tr>
+<tr><td>资源基础层</td><td>机器和基础设施</td><td>CPU、内存、磁盘、网络、FD、GC</td><td>部分适合，多数用于定位</td></tr>
+</tbody>
+</table>
+
+<p>这个分层的价值在于：当用户体验层报警时，说明事故可能已经发生；当服务接口层报警时，说明故障正在形成；当资源基础层报警时，通常只是原因候选。一个成熟体系会把不同层的信号串起来，而不是让所有层都平等地打到值班群。</p>
+
+<h2 id="链路怎么闭合">四、从采集到通知：链路怎么闭合</h2>
+
+<p>监控报警链路可以拆成六段：采集、存储、计算、规则、路由、处置。任何一段不稳定，最后都会变成「漏报」或「误报」。</p>
+
+<ol>
+  <li><strong>采集</strong>：应用埋点、exporter、agent、日志采集、链路追踪。关键是命名规范和标签规范。</li>
+  <li><strong>存储</strong>：时序数据库保存指标，日志系统保存事件，trace 系统保存调用链。关键是容量、高基数控制和查询性能。</li>
+  <li><strong>计算</strong>：窗口聚合、同比环比、分位数、错误预算消耗、异常检测。关键是把原始数据压缩成判断信号。</li>
+  <li><strong>规则</strong>：warn/crit、持续时间、缺失数据、依赖抑制、静默策略。关键是可解释、可测试、可版本管理。</li>
+  <li><strong>路由</strong>：按服务、业务线、机房、环境、严重级别分派到对应人和渠道。关键是不要让所有告警进一个大群。</li>
+  <li><strong>处置</strong>：确认、升级、恢复、复盘、规则修正。关键是把每次告警变成系统改进。</li>
+</ol>
+
+<p>很多团队的问题不在采集，而在后半段：指标已经有了，但规则没有 owner；告警能发出来，但不知道该找谁；故障恢复了，但告警规则不修；重复告警被静默，但根因没有处理。这样的系统只能叫「通知系统」，还不是报警体系。</p>
+
+<h2 id="报警生命周期">五、报警生命周期：触发不是结束</h2>
+
+<p>一条报警从出生到消失，应该有完整生命周期。</p>
+
+<table>
+<thead>
+<tr><th>阶段</th><th>系统动作</th><th>人的动作</th><th>常见问题</th></tr>
+</thead>
+<tbody>
+<tr><td>触发</td><td>规则计算为异常，生成事件</td><td>判断是否真实影响</td><td>阈值太敏感，瞬时抖动触发</td></tr>
+<tr><td>合并</td><td>同类事件按服务/集群/故障域聚合</td><td>只处理主告警</td><td>同一故障打出几十条消息</td></tr>
+<tr><td>通知</td><td>按严重级别路由到 IM、电话、工单</td><td>确认接收</td><td>所有级别都走同一渠道</td></tr>
+<tr><td>升级</td><td>超时未 ack 或级别升高后升级</td><td>接力处理</td><td>值班人没响应无人兜底</td></tr>
+<tr><td>恢复</td><td>规则回到正常，自动关闭或等待确认</td><td>确认业务恢复</td><td>恢复消息缺失，状态长期悬挂</td></tr>
+<tr><td>复盘</td><td>沉淀根因和改进项</td><td>修规则、修系统、修流程</td><td>只处理事故，不处理告警质量</td></tr>
+</tbody>
+</table>
+
+<p>报警平台要保存这条生命周期，因为它是衡量体系质量的原始数据。平均确认时间、平均恢复时间、重复告警率、静默率、误报率、无人认领率，都是监控体系本身的监控指标。</p>
+
+<h2 id="降噪原则">六、降噪原则：每条报警都要有行动</h2>
+
+<p>报警噪声不是小问题，它会直接破坏人的响应能力。噪声高到一定程度后，值班人员会形成肌肉记忆：先忽略，再等群里有人问，最后只对电话有反应。到了这个阶段，报警系统已经失去信用。</p>
+
+<p>降噪最重要的原则是：<strong>每条报警都必须对应一个行动</strong>。如果一条报警没有明确行动，它就不应该打断人。</p>
+
+<ul>
+  <li><strong>没有行动手册</strong>：不要直接进入高优先级报警，先补 runbook。</li>
+  <li><strong>没有 owner</strong>：不要进公共大群，先建立服务到责任人的映射。</li>
+  <li><strong>无法判断影响</strong>：降级为观察项，补业务或用户体验层指标。</li>
+  <li><strong>总是自动恢复</strong>：检查是否需要扩大窗口、增加持续时间或改成趋势告警。</li>
+  <li><strong>总是重复触发</strong>：做合并、抑制、升级，而不是让人处理重复消息。</li>
+</ul>
+
+<p>好的报警不是「异常检测器」，而是「行动触发器」。异常检测可以很多，真正进入人类注意力系统的必须很少。</p>
+
+<h2 id="成熟度路线">七、一条务实的建设路线</h2>
+
+<p>监控报警体系不可能一次建完，比较务实的路线是从核心链路开始，逐步向平台化演进。</p>
+
+<ol>
+  <li><strong>第一阶段：核心链路可见</strong>。为最重要的 3-5 条业务链路建立成功率、延迟、流量、错误率看板。</li>
+  <li><strong>第二阶段：核心故障可叫醒</strong>。只把用户影响明确、行动明确的规则接入电话或强提醒。</li>
+  <li><strong>第三阶段：规则可治理</strong>。规则进入版本管理，有 owner、说明、runbook、变更记录和回测。</li>
+  <li><strong>第四阶段：告警可运营</strong>。统计误报率、重复率、确认时间、恢复时间，定期清理低质量规则。</li>
+  <li><strong>第五阶段：平台化与自动化</strong>。服务目录、值班表、变更系统、发布系统、故障复盘系统打通，支持自动抑制、自动归因和自动恢复。</li>
+</ol>
+
+<p>这条路线的重点不是工具升级，而是组织能力升级。监控报警体系本质上是一套生产反馈机制，它把系统故障、人员职责、响应流程和工程改进连接在一起。</p>
+
+<h2 id="结语">结语</h2>
+
+<p>监控报警体系做得好，值班的人会更少被无意义打扰，但真正出事时反应更快；系统 owner 会更清楚自己的服务边界；团队会更容易从事故里学习。</p>
+
+<p>下一篇继续讲更具体的问题：一条报警规则到底应该怎么设计，为什么阈值不是 if else，窗口、聚合、同比、缺失数据和依赖抑制分别解决什么问题。</p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<ul>
+  <li><a href="https://sre.google/sre-book/monitoring-distributed-systems/" target="_blank" rel="noopener">Google SRE：Monitoring Distributed Systems</a></li>
+  <li><a href="https://sre.google/workbook/alerting-on-slos/" target="_blank" rel="noopener">Google SRE Workbook：Alerting on SLOs</a></li>
+  <li><a href="https://bosun.org/documentation.html" target="_blank" rel="noopener">Bosun Documentation</a></li>
+</ul>]]></content>
+      <tags>
+        <tag>架构</tag>
+        <tag>计算机科学</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>报警规则不是 if else：从阈值到故障信号</title>
+    <url>/2026/06/11/%E6%8A%A5%E8%AD%A6%E8%A7%84%E5%88%99%E8%AE%BE%E8%AE%A1/</url>
+    <content><![CDATA[<p>第一篇讲的是监控报警体系的建设。这一篇把视角收窄到一条规则：它怎么从一堆时间序列，变成一个值得打断人的故障信号。</p>
+
+<p>很多低质量报警的根源，是把规则写成了简单的 if else：CPU 大于 80 就报警，错误数大于 10 就报警，延迟大于 500ms 就报警。这个写法看起来直观，但在生产环境里很容易误报。因为真实系统里的信号有流量周期、采样噪声、局部故障、发布扰动、依赖抖动和数据缺失。</p>
+
+<p>所以报警规则设计的目标不是「发现所有异常」，而是<strong>把异常压缩成可靠、可行动、低噪声的故障信号</strong>。</p>
+
+<h2 id="规则的输入输出">一、规则的输入输出</h2>
+
+<p>一条规则的输入通常是时间序列：某个指标在一段时间窗口内的值。输出不是一个数字，而是一个判断：正常、警告、严重、未知，以及这次判断对应的分组。</p>
+
+<table>
+<thead>
+<tr><th>概念</th><th>问题</th><th>例子</th></tr>
+</thead>
+<tbody>
+<tr><td>指标</td><td>看什么？</td><td>请求数、错误数、延迟、队列长度、CPU、磁盘</td></tr>
+<tr><td>窗口</td><td>看多久？</td><td>最近 5 分钟、最近 1 小时、过去 7 天同一时间</td></tr>
+<tr><td>聚合</td><td>按什么维度看？</td><td>单实例、服务、机房、业务线、全局</td></tr>
+<tr><td>条件</td><td>什么算异常？</td><td>错误率 > 1%、P99 > 800ms、积压增长持续 15 分钟</td></tr>
+<tr><td>动作</td><td>异常后谁处理？</td><td>值班电话、IM、工单、升级到服务 owner</td></tr>
+</tbody>
+</table>
+
+<p>如果一条规则只定义了条件，没有定义窗口、聚合和动作，它通常是不完整的。</p>
+
+<h2 id="窗口设计">二、窗口设计：不要被一个点骗了</h2>
+
+<p>时间窗口解决的是抖动问题。单个采样点可能是网络抖动、采集延迟、GC、发布瞬间或某个实例的短暂抖动。报警规则应该尽量对一段时间内的行为做判断。</p>
+
+<ul>
+  <li><strong>短窗口</strong>：发现快，噪声高。适合强故障信号，比如服务完全不可用、流量归零。</li>
+  <li><strong>长窗口</strong>：发现慢，稳定性高。适合容量、积压、慢性错误率上升。</li>
+  <li><strong>多窗口</strong>：同时看短窗口和长窗口。短窗口防止漏掉快速故障，长窗口防止瞬时误报。</li>
+</ul>
+
+<pre><code class="language-text"># 伪代码：短窗口和长窗口同时异常才打严重报警
+short_error_rate = error_rate(last_5m)
+long_error_rate  = error_rate(last_30m)
+crit = short_error_rate &gt; 5% and long_error_rate &gt; 2%
+</code></pre>
+
+<p>这个模式背后的直觉是：真正的故障通常不会只在一个采样点出现；如果短窗口尖刺很高但长窗口正常，可能只是局部抖动；如果长窗口异常但短窗口已经恢复，可能适合进入工单而不是电话。</p>
+
+<h2 id="阈值类型">三、阈值类型：固定、动态、相对变化</h2>
+
+<p>阈值不是只能写一个固定数字。不同业务形态适合不同阈值。</p>
+
+<table>
+<thead>
+<tr><th>阈值类型</th><th>适合场景</th><th>风险</th></tr>
+</thead>
+<tbody>
+<tr><td>固定阈值</td><td>容量、水位、明确 SLA，例如磁盘 &lt; 10%</td><td>不适合强周期业务</td></tr>
+<tr><td>业务阈值</td><td>订单量、支付量、成功率，有业务底线</td><td>需要产品和业务共同确认</td></tr>
+<tr><td>同比/环比</td><td>强周期流量，例如每天同一时段对比</td><td>节假日、活动、发布会导致误判</td></tr>
+<tr><td>动态基线</td><td>模式稳定但绝对值变化大</td><td>解释性差，容易让值班人不信任</td></tr>
+<tr><td>错误预算消耗</td><td>有明确 SLO 的服务</td><td>需要先建立 SLI/SLO 和预算窗口</td></tr>
+</tbody>
+</table>
+
+<p>固定阈值最容易写，也最容易滥用。比如 QPS 小于 100 是否异常，取决于服务类型、时间段、业务活动和上下游状态。相比之下，成功率、错误率、延迟分位数通常更稳定，因为它们更接近用户体验。</p>
+
+<h2 id="聚合维度">四、聚合维度：按实例报警，还是按服务报警</h2>
+
+<p>同一个指标，按不同维度聚合，会得到完全不同的告警语义。</p>
+
+<table>
+<thead>
+<tr><th>维度</th><th>看到的问题</th><th>适合动作</th></tr>
+</thead>
+<tbody>
+<tr><td>instance</td><td>单机异常、单容器异常</td><td>摘流、重启、机器排障</td></tr>
+<tr><td>cluster / AZ</td><td>机房、集群、可用区异常</td><td>流量切换、容量调整</td></tr>
+<tr><td>service</td><td>服务整体不可用或质量下降</td><td>服务 owner 介入</td></tr>
+<tr><td>business</td><td>业务链路异常</td><td>跨团队协同、事故响应</td></tr>
+</tbody>
+</table>
+
+<p>经验上，直接打断人的报警应该更偏服务或业务维度，而不是单实例维度。单实例异常如果有自动摘流和重建能力，应该先交给自动化系统处理；只有当实例异常比例超过阈值、影响服务容量时，再升级为人工报警。</p>
+
+<pre><code class="language-text"># 伪代码：不要因为一个实例 5xx 高就电话报警
+instance_error = error_rate_by_instance(last_5m)
+service_error  = error_rate_by_service(last_5m)
+bad_instance_ratio = count(instance_error &gt; 5%) / count(instance_error)
+
+warn = bad_instance_ratio &gt; 10%
+crit = service_error &gt; 5% and bad_instance_ratio &gt; 20%
+</code></pre>
+
+<h2 id="缺失数据">五、缺失数据：没有数据也是一种信号</h2>
+
+<p>报警系统里最容易被低估的问题是「没有数据」。没有数据可能意味着业务没流量，也可能意味着采集挂了、服务挂了、指标名变了、标签变了、上报链路堵了。</p>
+
+<p>处理缺失数据时，要先区分指标语义：</p>
+
+<ul>
+  <li><strong>持续流量服务</strong>：核心请求数突然为 0，通常是严重信号。</li>
+  <li><strong>低频任务</strong>：没有数据可能正常，应该用任务完成时间或调度状态判断。</li>
+  <li><strong>日志类指标</strong>：没有错误日志通常是正常，不应该进入 Unknown。</li>
+  <li><strong>采集心跳</strong>：没有数据就是采集失败，应单独报警给平台 owner。</li>
+</ul>
+
+<p>Bosun 里 Unknown 是一等状态：当表达式因为数据缺失无法评估时，告警会进入 Unknown。Prometheus 里也有 absent、up 这类处理方式。无论工具是什么，核心原则都是：不要让缺失数据悄悄变成正常，也不要让本来正常的稀疏指标一直 Unknown。</p>
+
+<h2 id="依赖抑制">六、依赖抑制：不要让一个故障变成一百条报警</h2>
+
+<p>一个数据库故障可能让十几个服务错误率升高；一个机房网络问题可能让成百上千台机器超时。如果每个下游都单独报警，值班群会被淹没，反而看不到根因。</p>
+
+<p>依赖抑制解决的是「故障风暴」问题。常见策略有三类：</p>
+
+<ul>
+  <li><strong>拓扑依赖</strong>：下游依赖已报警时，上游症状降级或合并。</li>
+  <li><strong>故障域合并</strong>：同一机房、同一集群、同一依赖引起的报警聚合成一条主告警。</li>
+  <li><strong>变更抑制</strong>：发布、扩容、演练期间，部分预期异常进入观察模式，但不能屏蔽用户影响类告警。</li>
+</ul>
+
+<p>抑制不是静默一切。用户体验层的报警应该尽量保留，因为它代表真实影响；被抑制的通常是原因层、资源层和重复症状。</p>
+
+<h2 id="规则模板">七、常见规则模板</h2>
+
+<p>下面这些模板比固定阈值更适合在生产系统里复用。</p>
+
+<h3 id="错误率规则">1. 错误率规则</h3>
+
+<pre><code class="language-text">total = requests(status=*) over 5m
+error = requests(status=5xx) over 5m
+rate  = error / total
+warn  = total &gt; min_traffic and rate &gt; 1%
+crit  = total &gt; min_traffic and rate &gt; 5%
+</code></pre>
+
+<p>注意一定要加最小流量保护。低流量服务里一次失败就可能得到 100% 错误率，但这不一定值得报警。</p>
+
+<h3 id="延迟规则">2. 延迟规则</h3>
+
+<pre><code class="language-text">p95 = latency_percentile(95, last_10m)
+p99 = latency_percentile(99, last_10m)
+warn = p95 &gt; 300ms and traffic &gt; min_traffic
+crit = p99 &gt; 1000ms and traffic &gt; min_traffic
+</code></pre>
+
+<p>延迟规则要区分成功请求和失败请求。失败请求可能很快返回 500，把它混进整体延迟会掩盖真实慢请求。</p>
+
+<h3 id="流量骤降规则">3. 流量骤降规则</h3>
+
+<pre><code class="language-text">current = qps(last_5m)
+baseline = qps(same_time_yesterday_5m)
+crit = baseline &gt; 100 and current &lt; baseline * 0.3
+</code></pre>
+
+<p>流量骤降适合入口服务、订单链路和任务入口。但它强依赖业务周期，节假日、大促、运营活动都需要额外处理。</p>
+
+<h3 id="容量耗尽规则">4. 容量耗尽规则</h3>
+
+<pre><code class="language-text">free_ratio = disk_free / disk_total
+growth_rate = disk_used_growth_per_hour
+hours_left = disk_free / growth_rate
+warn = free_ratio &lt; 15% or hours_left &lt; 24
+crit = free_ratio &lt; 8% or hours_left &lt; 6
+</code></pre>
+
+<p>容量类报警要尽量报警在「还来得及处理」的时候。磁盘 99% 才报警，技术上准确，工程上已经太晚。</p>
+
+<h2 id="质量检查表">八、上线前检查表</h2>
+
+<ul>
+  <li>这条报警是否对应真实用户影响或明确工程行动？</li>
+  <li>有没有最小流量保护，避免低流量误报？</li>
+  <li>窗口是否足够过滤瞬时抖动？</li>
+  <li>聚合维度是否匹配处理动作？</li>
+  <li>缺失数据时应该 Normal、Unknown 还是 Critical？</li>
+  <li>是否有 owner、通知渠道和升级策略？</li>
+  <li>报警内容里是否包含影响范围、当前值、阈值、最近变更、排障入口？</li>
+  <li>过去 7 天或 30 天回放会触发几次？每次是否值得处理？</li>
+</ul>
+
+<h2 id="结语">结语</h2>
+
+<p>报警规则不是 if else，而是把时间、维度、阈值、缺失数据和人类行动组合在一起的工程判断。好的规则让值班人少被打扰，但在真正出事时更早知道、更快定位、更敢行动。</p>
+
+<p>下一篇进入具体工具：用 Bosun 的 RuleConf 和表达式语言，把这些设计落成可运行的告警规则。</p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<ul>
+  <li><a href="https://sre.google/workbook/alerting-on-slos/" target="_blank" rel="noopener">Google SRE Workbook：Alerting on SLOs</a></li>
+  <li><a href="https://sre.google/sre-book/monitoring-distributed-systems/" target="_blank" rel="noopener">Google SRE：Monitoring Distributed Systems</a></li>
+  <li><a href="https://bosun.org/expressions" target="_blank" rel="noopener">Bosun Expression Documentation</a></li>
+</ul>]]></content>
+      <tags>
+        <tag>架构</tag>
+        <tag>计算机科学</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>读懂 Bosun 语句：一条告警是怎么从指标变成人的</title>
+    <url>/2026/06/11/Bosun%E8%AF%AD%E5%8F%A5%E5%AE%9E%E6%88%98/</url>
+    <content><![CDATA[<p>前两篇讲了监控报警体系和规则设计。这一篇落到 Bosun：一条告警规则在 Bosun 里怎么写，表达式怎么从时间序列变成布尔判断，模板和通知又怎么把机器信号变成人能处理的信息。</p>
+
+<p>Bosun 是一个围绕时间序列告警设计的系统。它可以采集和转发数据，查询 OpenTSDB、Graphite、Logstash/Elasticsearch、Prometheus 等后端，用自己的表达式语言计算告警条件，并用 Go template 生成通知内容。它的配置是文本文件，适合版本管理。</p>
+
+<h2 id="心智模型">一、Bosun 的心智模型</h2>
+
+<p>读 Bosun 语句，要先抓住三层：</p>
+
+<ol>
+  <li><strong>数据层</strong>：查询函数拿到时间序列，例如 <code>q()</code> 返回一组 series。</li>
+  <li><strong>表达式层</strong>：聚合、运算、比较，把 seriesSet 变成 numberSet 或 scalar。</li>
+  <li><strong>告警层</strong>：<code>warn</code>/<code>crit</code> 判断是否异常，template 渲染上下文，notification 负责发送。</li>
+</ol>
+
+<p>Bosun 官方文档里有一句非常关键：表达式最终会被归约成一个数字，0 表示不触发，非 0 表示触发；同时表达式可以产生一个或多个 group，这些 group 决定告警实例的维度。</p>
+
+<h2 id="RuleConf结构">二、RuleConf：alert、template、notification</h2>
+
+<p>Bosun 的规则文件由多个 section 组成，每个 section 有类型和名称。最常见的是 <code>alert</code>、<code>template</code>、<code>notification</code>、<code>lookup</code> 和 <code>macro</code>。</p>
+
+<pre><code class="language-text">notification oncall_email {
+    email = oncall@example.com
+}
+
+template service_basic {
+    subject = `{{.Alert.Name}} {{.Group}} {{.CurrentStatus}}`
+    body = `
+    &lt;p&gt;状态：{{.CurrentStatus}}&lt;/p&gt;
+    &lt;p&gt;告警：{{.Alert.Name}}&lt;/p&gt;
+    &lt;p&gt;分组：{{.Group}}&lt;/p&gt;
+    &lt;p&gt;规则：{{.Alert.Text}}&lt;/p&gt;
+    &lt;p&gt;最近一次异常：{{.LastAbnormalTime}}&lt;/p&gt;
+    `
+}
+
+alert api_high_error_rate {
+    template = service_basic
+    $total = sum(q(&quot;sum:rate{counter,,1}:api.request.count{service=pay,cluster=prod,status=*}&quot;, &quot;5m&quot;, &quot;&quot;))
+    $error = sum(q(&quot;sum:rate{counter,,1}:api.request.count{service=pay,cluster=prod,status=5xx}&quot;, &quot;5m&quot;, &quot;&quot;))
+    $rate = ($error / $total) * 100
+    warn = $rate &gt; 1
+    crit = $rate &gt; 5
+    warnNotification = oncall_email
+    critNotification = oncall_email
+}
+</code></pre>
+
+<p>这个例子里，<code>alert</code> 定义计算逻辑，<code>template</code> 定义通知长什么样，<code>notification</code> 定义发到哪里。生产环境里最好把通用模板和通知渠道抽出来复用，业务规则只写变量和判断。</p>
+
+<h2 id="数据类型和group">三、数据类型和 group：为什么一条规则会变成很多条告警</h2>
+
+<p>Bosun 表达式里最常见的类型有三种：</p>
+
+<ul>
+  <li><strong>Scalar</strong>：一个数字，没有业务维度。比如 <code>1</code>、<code>60</code>。</li>
+  <li><strong>NumberSet</strong>：一组带标签的数字。比如每台机器一个 CPU 使用率。</li>
+  <li><strong>SeriesSet</strong>：一组带标签的时间序列。比如每台机器最近 5 分钟的 CPU 曲线。</li>
+</ul>
+
+<p>告警实例由 alert name + group 唯一确定。比如 <code>api_high_error_rate{service=pay,cluster=prod}</code> 是一个实例，<code>api_high_error_rate{service=order,cluster=prod}</code> 是另一个实例。</p>
+
+<p>这就是为什么查询里的 tag 很重要。你写 <code>host=*</code>，就可能每台机器一条告警；你先按 service 聚合，就可能每个服务一条告警。告警维度不是通知平台决定的，而是表达式里的 group 决定的。</p>
+
+<h2 id="q函数">四、q()：从 OpenTSDB 拿时间序列</h2>
+
+<p><code>q(query, startDuration, endDuration)</code> 是 Bosun 里最常见的 OpenTSDB 查询函数。第一个参数是 OpenTSDB 查询字符串，第二个参数表示从多久以前开始，第三个参数表示到多久以前结束；第三个参数为空字符串时表示到现在。</p>
+
+<pre><code class="language-text"># 最近 5 分钟 CPU，每个 host 一条时间序列
+$q = q(&quot;avg:rate{counter,,1}:os.cpu{host=*}&quot;, &quot;5m&quot;, &quot;&quot;)
+
+# 最近 1 小时到 30 分钟前，用于和当前窗口对比
+$previous = q(&quot;sum:api.request.count{service=pay}&quot;, &quot;1h&quot;, &quot;30m&quot;)
+</code></pre>
+
+<p>Bosun 查询出来的是 seriesSet，通常不能直接拿来做告警判断，要先通过 reduction function 归约成 numberSet。</p>
+
+<h2 id="归约函数">五、归约函数：把曲线变成数字</h2>
+
+<p>常用归约函数包括 <code>avg()</code>、<code>max()</code>、<code>min()</code>、<code>sum()</code>、<code>last()</code>、<code>percentile()</code> 等。它们会把每条时间序列压缩成一个数字，但保留 group。</p>
+
+<pre><code class="language-text">$cpu_series = q(&quot;avg:rate{counter,,1}:os.cpu{host=*}&quot;, &quot;5m&quot;, &quot;&quot;)
+$cpu_avg = avg($cpu_series)
+$cpu_max = max($cpu_series)
+
+warn = $cpu_avg &gt; 80
+crit = $cpu_max &gt; 95
+</code></pre>
+
+<p>这里 <code>$cpu_avg</code> 和 <code>$cpu_max</code> 都是按 host 分组的 numberSet。如果有 100 台机器，就可能得到 100 个判断结果。</p>
+
+<h2 id="warn和crit">六、warn / crit：0 与非 0</h2>
+
+<p>Bosun 的 <code>warn</code> 和 <code>crit</code> 表达式必须返回 scalar 或 numberSet。结果为 0 表示 false，不触发；非 0 表示 true，触发。crit 优先于 warn：如果 crit 为真，就不会再按 warn 处理。</p>
+
+<pre><code class="language-text">alert api_latency_high {
+    template = service_basic
+    $latency = percentile(q(&quot;avg:api.latency.ms{service=pay,cluster=prod}&quot;, &quot;10m&quot;, &quot;&quot;), 95)
+    warn = $latency &gt; 300
+    crit = $latency &gt; 1000
+    warnNotification = oncall_email
+    critNotification = oncall_email
+}
+</code></pre>
+
+<p>变量以 <code>$</code> 开头，但 Bosun 的变量本质是文本替换，不是传统编程语言里的强类型变量。复杂表达式建议主动加括号，避免展开后优先级不符合预期。</p>
+
+<h2 id="Unknown和缺失数据">七、Unknown：缺失数据怎么处理</h2>
+
+<p>Bosun 会记住某条规则见过的 tagset。如果之后这个 tagset 不再出现，表达式无法评估，就可能进入 Unknown。Unknown 很有价值，因为它能暴露采集失败、服务停止上报、指标改名等问题。</p>
+
+<p>但不是所有缺失都应该报警。日志类指标没有数据可能代表没有错误；低频任务没有数据可能代表任务还没到调度时间。Bosun 提供了几个关键选项：</p>
+
+<ul>
+  <li><code>unknown = 5m</code>：指定多久无法评估后进入 Unknown。</li>
+  <li><code>ignoreUnknown = true</code>：忽略 Unknown，不让它变成告警。</li>
+  <li><code>unknownIsNormal = true</code>：把 Unknown 视为恢复正常，适合错误日志这类稀疏信号。</li>
+  <li><code>nv(numberSet, scalar)</code>：在二元运算中把 NaN 替换成指定值，防止缺失组导致错误扩散。</li>
+</ul>
+
+<pre><code class="language-text">alert api_no_traffic {
+    template = service_basic
+    $qps = sum(q(&quot;sum:rate{counter,,1}:api.request.count{service=pay,cluster=prod}&quot;, &quot;10m&quot;, &quot;&quot;))
+    crit = nv($qps, 0) &lt; 1
+    critNotification = oncall_email
+}
+</code></pre>
+
+<p>这个例子把缺失流量当成 0 处理，适合应该持续有请求的入口服务。但如果是低频后台任务，这样写就会误报。</p>
+
+<h2 id="lookup和动态阈值">八、lookup：不同服务用不同阈值</h2>
+
+<p>统一阈值很容易出问题。支付服务和后台管理服务、核心接口和低频接口，不应该共享同一个错误率阈值。Bosun 的 lookup table 可以根据 tag 返回不同阈值或通知人。</p>
+
+<pre><code class="language-text">lookup api_threshold {
+    entry service=pay,cluster=prod {
+        warn = 1
+        crit = 5
+        owner = oncall_email
+    }
+    entry service=*,cluster=prod {
+        warn = 3
+        crit = 10
+        owner = oncall_email
+    }
+}
+
+alert api_error_rate_by_lookup {
+    template = service_basic
+    $total = sum(q(&quot;sum:rate{counter,,1}:api.request.count{service=*,cluster=prod,status=*}&quot;, &quot;5m&quot;, &quot;&quot;))
+    $error = sum(q(&quot;sum:rate{counter,,1}:api.request.count{service=*,cluster=prod,status=5xx}&quot;, &quot;5m&quot;, &quot;&quot;))
+    $rate = ($error / $total) * 100
+    warn = $rate &gt; lookup(&quot;api_threshold&quot;, &quot;warn&quot;)
+    crit = $rate &gt; lookup(&quot;api_threshold&quot;, &quot;crit&quot;)
+    warnNotification = lookup(&quot;api_threshold&quot;, &quot;owner&quot;)
+    critNotification = lookup(&quot;api_threshold&quot;, &quot;owner&quot;)
+}
+</code></pre>
+
+<p>lookup 的价值不只是动态阈值，也可以做动态路由：不同 service、cluster、host 匹配到不同通知渠道。这样规则可以保持通用，责任关系放到表里维护。</p>
+
+<h2 id="depends和squelch">九、depends 与 squelch：控制告警风暴</h2>
+
+<p><code>depends</code> 用来表达规则依赖：当另一个告警已经触发时，本告警可以不再评估。典型场景是 host down 后，host 上的 CPU、磁盘、进程告警都不应该继续刷屏。</p>
+
+<pre><code class="language-text">alert host_down {
+    template = service_basic
+    $up = avg(q(&quot;avg:host.alive{host=*}&quot;, &quot;5m&quot;, &quot;&quot;))
+    crit = nv($up, 0) == 0
+    critNotification = oncall_email
+}
+
+alert host_high_cpu {
+    template = service_basic
+    depends = alert(&quot;host_down&quot;, &quot;crit&quot;)
+    $cpu = avg(q(&quot;avg:rate{counter,,1}:os.cpu{host=*}&quot;, &quot;5m&quot;, &quot;&quot;))
+    warn = $cpu &gt; 80
+    crit = $cpu &gt; 95
+    warnNotification = oncall_email
+    critNotification = oncall_email
+}
+</code></pre>
+
+<p><code>squelch</code> 则是按 tag 直接抑制某些范围，比如演练环境、临时集群、已下线机房。它更像配置层面的过滤。</p>
+
+<h2 id="模板和通知">十、模板和通知：让告警可处理</h2>
+
+<p>告警内容不是越短越好，而是要让值班人不用再问三件事：影响是什么、为什么触发、下一步去哪看。</p>
+
+<pre><code class="language-text">template service_basic {
+    subject = `{{.Alert.Name}} {{.Group}} {{.CurrentStatus}}`
+    body = `
+    &lt;h3&gt;{{.Alert.Name}}&lt;/h3&gt;
+    &lt;p&gt;&lt;b&gt;状态：&lt;/b&gt;{{.CurrentStatus}}&lt;/p&gt;
+    &lt;p&gt;&lt;b&gt;分组：&lt;/b&gt;{{.Group}}&lt;/p&gt;
+    &lt;p&gt;&lt;b&gt;规则：&lt;/b&gt;{{.Alert.Text}}&lt;/p&gt;
+    &lt;p&gt;&lt;b&gt;最近异常：&lt;/b&gt;{{.LastAbnormalTime}}&lt;/p&gt;
+    &lt;p&gt;&lt;b&gt;处理建议：&lt;/b&gt;{{.Alert.Vars.runbook}}&lt;/p&gt;
+    `
+}
+
+alert api_high_error_rate {
+    template = service_basic
+    $runbook = https://wiki.example.com/runbook/api-error-rate
+    # ...表达式略...
+}
+</code></pre>
+
+<p>一个高质量模板至少应该包含：当前值、阈值、分组、服务 owner、最近变更、相关图表、runbook、静默入口和升级方式。Bosun 的模板基于 Go template，并提供了 Graph、Eval、Lookup 等上下文函数，可以把表达式结果和图直接放进通知里。</p>
+
+<h2 id="常见坑">十一、常见坑</h2>
+
+<ul>
+  <li><strong>把所有 tag 都带进告警</strong>：group 过细会制造大量告警实例。先想清楚处理动作，再决定 group。</li>
+  <li><strong>低流量下算比例</strong>：没有最小流量保护，错误率会被少量请求放大。</li>
+  <li><strong>忽略 Unknown</strong>：采集挂了和服务挂了都可能表现为无数据，不能默认正常。</li>
+  <li><strong>变量不加括号</strong>：Bosun 变量是文本替换，复杂表达式要显式括号。</li>
+  <li><strong>没有回测</strong>：规则上线前应该用历史窗口测试，看看过去 7 天会触发几次。</li>
+  <li><strong>通知没有上下文</strong>：只写「错误率高」没有意义，必须带当前值、阈值、影响范围和排障入口。</li>
+</ul>
+
+<h2 id="结语">结语</h2>
+
+<p>Bosun 语句的难点，不在函数多，而在它把「时间序列计算」和「告警实例维度」绑在一起。你写的每个 tag、每个聚合、每个 lookup，都会影响最后谁被叫醒、看到什么、能不能处理。</p>
+
+<p>所以写 Bosun 规则时，不要只问语法能不能跑，还要问三个工程问题：这条规则代表什么故障？它会产生多少告警实例？收到它的人能不能立刻行动？</p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<ul>
+  <li><a href="https://bosun.org/documentation.html" target="_blank" rel="noopener">Bosun Documentation</a></li>
+  <li><a href="https://bosun.org/definitions" target="_blank" rel="noopener">Bosun Definitions / RuleConf</a></li>
+  <li><a href="https://bosun.org/expressions" target="_blank" rel="noopener">Bosun Expression Documentation</a></li>
+  <li><a href="https://bosun.org/notifications" target="_blank" rel="noopener">Bosun Notification Customization</a></li>
+</ul>]]></content>
+      <tags>
+        <tag>架构</tag>
+        <tag>计算机科学</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Dijkstra&#39;s Shortest Path Algorithm|Dijkstra最短路径算法</title>
     <url>/2020/08/03/Dijkstra-s-Shortest-Path-Algorithm-Dijkstra%E6%9C%80%E7%9F%AD%E8%B7%AF%E5%BE%84%E7%AE%97%E6%B3%95/</url>
     <content><![CDATA[<h2 id="问题描述">问题描述</h2>

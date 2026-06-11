@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="监控报警体系不是把指标画成看板，而是把系统故障转化为正确的人在正确时间采取行动的反馈系统。本文从 SLI/SLO、分层指标、采集链路、告警生命周期、降噪和成熟度路线，系统讲清楚监控报警体系应该怎么建设。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="你收到的每一条告警，都在暴露系统设计的问题">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/11/%E7%9B%91%E6%8E%A7%E6%8A%A5%E8%AD%A6%E4%BD%93%E7%B3%BB%E5%BB%BA%E8%AE%BE/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-11T13:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-11T13:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="计算机科学">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/11/%E7%9B%91%E6%8E%A7%E6%8A%A5%E8%AD%A6%E4%BD%93%E7%B3%BB%E5%BB%BA%E8%AE%BE/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>你收到的每一条告警，都在暴露系统设计的问题 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-11T21:00:00+08:00" content="2026-06-11">06-11</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">你收到的每一条告警，都在暴露系统设计的问题</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>很多团队一开始建设监控，都会从「先把图画出来」开始：CPU、内存、QPS、延迟、错误率，能接的指标全接上。看板很快变得很丰富，但线上真正出问题时，值班同学仍然不知道该先看哪里、谁应该处理、这条告警是不是必须现在起床。</p>
+
+<p>这说明监控报警体系的核心不是「数据可视化」，而是<strong>故障反馈系统</strong>：系统出问题时，它能不能把正确的信号，在正确的时间，交给正确的人，并附带足够的上下文让人行动。</p>
+
+<p>所以这篇文章不从某个工具讲起，而是从体系建设讲起。工具可以是 Bosun、Prometheus、Grafana、OpenTSDB、夜莺或自研平台，但它们最终都要回答同一个问题：<strong>什么情况值得打断一个人？</strong></p>
+
+<h2 id="监控不是看板">一、监控不是看板，是反馈系统</h2>
+
+<p>看板回答的是「现在长什么样」；报警回答的是「要不要立刻行动」。这两个目标很容易混在一起，但工程上必须分开。</p>
+
+<table>
+<thead>
+<tr><th>类型</th><th>核心问题</th><th>典型读者</th><th>设计重点</th></tr>
+</thead>
+<tbody>
+<tr><td>Dashboard</td><td>系统现在是什么状态？</td><td>研发、值班、排障人员</td><td>展示关键指标、支持下钻、辅助定位</td></tr>
+<tr><td>Alert</td><td>现在是否需要人介入？</td><td>值班人员、服务负责人</td><td>低噪声、可行动、可升级、可恢复</td></tr>
+<tr><td>Report</td><td>长期趋势如何？</td><td>团队负责人、容量规划人员</td><td>周/月维度趋势、容量、成本、质量</td></tr>
+</tbody>
+</table>
+
+<p>一个常见反模式是：把看板上的每条曲线都加一个阈值，超过就报警。这样做会制造大量噪音，因为很多指标只是诊断线索，不是故障信号。比如 CPU 突然升高可能是正常扩容、批任务、缓存预热，也可能是死循环；它值得出现在看板上，但不一定值得半夜叫醒人。</p>
+
+<p>更好的做法是先定义「故障」：用户不可用、请求失败率上升、核心链路延迟恶化、数据积压导致交付超时、容量即将耗尽。然后再倒推需要哪些指标、日志和链路信息。</p>
+
+<h2 id="先定义故障">二、先定义故障，再定义指标</h2>
+
+<p>监控建设的第一步不是埋点，而是列出系统承诺。一个支付系统的承诺可能是「下单链路成功率」「支付回调时效」「账务一致性」；一个推荐系统的承诺可能是「接口延迟」「特征新鲜度」「召回结果数量」；一个调度系统的承诺可能是「任务按时完成」「队列积压可控」「异常任务可恢复」。</p>
+
+<p>这些承诺落到监控上，就是 SLI（服务水平指标）。当 SLI 有了目标值，就形成 SLO。报警应该尽量围绕 SLO 或明确的故障症状设计，而不是围绕机器指标设计。</p>
+
+<ul>
+  <li><strong>用户是否受影响</strong>：成功率、端到端延迟、可用性、错误页面比例。</li>
+  <li><strong>业务是否受影响</strong>：订单创建量、支付成功量、任务完成量、消息消费延迟。</li>
+  <li><strong>系统是否快到极限</strong>：队列积压、连接池耗尽、磁盘剩余、CPU throttling、线程池拒绝。</li>
+  <li><strong>依赖是否异常</strong>：数据库慢查询、RPC 错误率、缓存命中率、第三方超时。</li>
+</ul>
+
+<p>指标不是越多越好。指标的价值在于它能支持决策：要不要报警、谁处理、怎么定位、怎么恢复。不能支持决策的指标，可以进看板，不应该进报警。</p>
+
+<h2 id="四层指标模型">三、四层指标模型：从用户到机器</h2>
+
+<p>一个可维护的监控体系，最好按层分解。每一层解决不同问题，报警级别也不同。</p>
+
+<table>
+<thead>
+<tr><th>层级</th><th>关注对象</th><th>典型指标</th><th>是否适合直接报警</th></tr>
+</thead>
+<tbody>
+<tr><td>用户体验层</td><td>用户看到的结果</td><td>可用性、成功率、P95/P99、端到端耗时</td><td>适合，优先级最高</td></tr>
+<tr><td>业务过程层</td><td>核心业务流是否正常</td><td>订单量、支付量、履约时效、任务完成率</td><td>适合，需结合业务周期</td></tr>
+<tr><td>服务接口层</td><td>服务自身是否健康</td><td>QPS、错误率、延迟、依赖耗时、线程池</td><td>适合，是主要报警层</td></tr>
+<tr><td>资源基础层</td><td>机器和基础设施</td><td>CPU、内存、磁盘、网络、FD、GC</td><td>部分适合，多数用于定位</td></tr>
+</tbody>
+</table>
+
+<p>这个分层的价值在于：当用户体验层报警时，说明事故可能已经发生；当服务接口层报警时，说明故障正在形成；当资源基础层报警时，通常只是原因候选。一个成熟体系会把不同层的信号串起来，而不是让所有层都平等地打到值班群。</p>
+
+<h2 id="链路怎么闭合">四、从采集到通知：链路怎么闭合</h2>
+
+<p>监控报警链路可以拆成六段：采集、存储、计算、规则、路由、处置。任何一段不稳定，最后都会变成「漏报」或「误报」。</p>
+
+<ol>
+  <li><strong>采集</strong>：应用埋点、exporter、agent、日志采集、链路追踪。关键是命名规范和标签规范。</li>
+  <li><strong>存储</strong>：时序数据库保存指标，日志系统保存事件，trace 系统保存调用链。关键是容量、高基数控制和查询性能。</li>
+  <li><strong>计算</strong>：窗口聚合、同比环比、分位数、错误预算消耗、异常检测。关键是把原始数据压缩成判断信号。</li>
+  <li><strong>规则</strong>：warn/crit、持续时间、缺失数据、依赖抑制、静默策略。关键是可解释、可测试、可版本管理。</li>
+  <li><strong>路由</strong>：按服务、业务线、机房、环境、严重级别分派到对应人和渠道。关键是不要让所有告警进一个大群。</li>
+  <li><strong>处置</strong>：确认、升级、恢复、复盘、规则修正。关键是把每次告警变成系统改进。</li>
+</ol>
+
+<p>很多团队的问题不在采集，而在后半段：指标已经有了，但规则没有 owner；告警能发出来，但不知道该找谁；故障恢复了，但告警规则不修；重复告警被静默，但根因没有处理。这样的系统只能叫「通知系统」，还不是报警体系。</p>
+
+<h2 id="报警生命周期">五、报警生命周期：触发不是结束</h2>
+
+<p>一条报警从出生到消失，应该有完整生命周期。</p>
+
+<table>
+<thead>
+<tr><th>阶段</th><th>系统动作</th><th>人的动作</th><th>常见问题</th></tr>
+</thead>
+<tbody>
+<tr><td>触发</td><td>规则计算为异常，生成事件</td><td>判断是否真实影响</td><td>阈值太敏感，瞬时抖动触发</td></tr>
+<tr><td>合并</td><td>同类事件按服务/集群/故障域聚合</td><td>只处理主告警</td><td>同一故障打出几十条消息</td></tr>
+<tr><td>通知</td><td>按严重级别路由到 IM、电话、工单</td><td>确认接收</td><td>所有级别都走同一渠道</td></tr>
+<tr><td>升级</td><td>超时未 ack 或级别升高后升级</td><td>接力处理</td><td>值班人没响应无人兜底</td></tr>
+<tr><td>恢复</td><td>规则回到正常，自动关闭或等待确认</td><td>确认业务恢复</td><td>恢复消息缺失，状态长期悬挂</td></tr>
+<tr><td>复盘</td><td>沉淀根因和改进项</td><td>修规则、修系统、修流程</td><td>只处理事故，不处理告警质量</td></tr>
+</tbody>
+</table>
+
+<p>报警平台要保存这条生命周期，因为它是衡量体系质量的原始数据。平均确认时间、平均恢复时间、重复告警率、静默率、误报率、无人认领率，都是监控体系本身的监控指标。</p>
+
+<h2 id="降噪原则">六、降噪原则：每条报警都要有行动</h2>
+
+<p>报警噪声不是小问题，它会直接破坏人的响应能力。噪声高到一定程度后，值班人员会形成肌肉记忆：先忽略，再等群里有人问，最后只对电话有反应。到了这个阶段，报警系统已经失去信用。</p>
+
+<p>降噪最重要的原则是：<strong>每条报警都必须对应一个行动</strong>。如果一条报警没有明确行动，它就不应该打断人。</p>
+
+<ul>
+  <li><strong>没有行动手册</strong>：不要直接进入高优先级报警，先补 runbook。</li>
+  <li><strong>没有 owner</strong>：不要进公共大群，先建立服务到责任人的映射。</li>
+  <li><strong>无法判断影响</strong>：降级为观察项，补业务或用户体验层指标。</li>
+  <li><strong>总是自动恢复</strong>：检查是否需要扩大窗口、增加持续时间或改成趋势告警。</li>
+  <li><strong>总是重复触发</strong>：做合并、抑制、升级，而不是让人处理重复消息。</li>
+</ul>
+
+<p>好的报警不是「异常检测器」，而是「行动触发器」。异常检测可以很多，真正进入人类注意力系统的必须很少。</p>
+
+<h2 id="成熟度路线">七、一条务实的建设路线</h2>
+
+<p>监控报警体系不可能一次建完，比较务实的路线是从核心链路开始，逐步向平台化演进。</p>
+
+<ol>
+  <li><strong>第一阶段：核心链路可见</strong>。为最重要的 3-5 条业务链路建立成功率、延迟、流量、错误率看板。</li>
+  <li><strong>第二阶段：核心故障可叫醒</strong>。只把用户影响明确、行动明确的规则接入电话或强提醒。</li>
+  <li><strong>第三阶段：规则可治理</strong>。规则进入版本管理，有 owner、说明、runbook、变更记录和回测。</li>
+  <li><strong>第四阶段：告警可运营</strong>。统计误报率、重复率、确认时间、恢复时间，定期清理低质量规则。</li>
+  <li><strong>第五阶段：平台化与自动化</strong>。服务目录、值班表、变更系统、发布系统、故障复盘系统打通，支持自动抑制、自动归因和自动恢复。</li>
+</ol>
+
+<p>这条路线的重点不是工具升级，而是组织能力升级。监控报警体系本质上是一套生产反馈机制，它把系统故障、人员职责、响应流程和工程改进连接在一起。</p>
+
+<h2 id="结语">结语</h2>
+
+<p>监控报警体系做得好，值班的人会更少被无意义打扰，但真正出事时反应更快；系统 owner 会更清楚自己的服务边界；团队会更容易从事故里学习。</p>
+
+<p>下一篇继续讲更具体的问题：一条报警规则到底应该怎么设计，为什么阈值不是 if else，窗口、聚合、同比、缺失数据和依赖抑制分别解决什么问题。</p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<ul>
+  <li><a href="https://sre.google/sre-book/monitoring-distributed-systems/" target="_blank" rel="noopener">Google SRE：Monitoring Distributed Systems</a></li>
+  <li><a href="https://sre.google/workbook/alerting-on-slos/" target="_blank" rel="noopener">Google SRE Workbook：Alerting on SLOs</a></li>
+  <li><a href="https://bosun.org/documentation.html" target="_blank" rel="noopener">Bosun Documentation</a></li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/计算机科学/" rel="tag"><i class="fa fa-tag"></i> 计算机科学</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#监控不是看板"><span class="nav-number">1.</span> <span class="nav-text">一、监控不是看板</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#先定义故障"><span class="nav-number">2.</span> <span class="nav-text">二、先定义故障</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#四层指标模型"><span class="nav-number">3.</span> <span class="nav-text">三、四层指标模型</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#链路怎么闭合"><span class="nav-number">4.</span> <span class="nav-text">四、链路怎么闭合</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#报警生命周期"><span class="nav-number">5.</span> <span class="nav-text">五、报警生命周期</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#降噪原则"><span class="nav-number">6.</span> <span class="nav-text">六、降噪原则</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#成熟度路线"><span class="nav-number">7.</span> <span class="nav-text">七、成熟度路线</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">8.</span> <span class="nav-text">结语</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-number">9.</span> <span class="nav-text">参考资料</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">244</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
