@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Anthropic 的 Claude Fable 5 和 Codex 里的 GPT-5.5，不只是两个旗舰模型的横向比较，而是两种 agent 产品哲学的分岔：一个强调长周期自治交付，一个强调嵌入真实工程工作台。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="模型开始接手几天的活：Fable 与 Codex GPT-5.5 的分岔">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/11/Fable%E4%B8%8ECodex-GPT-5-5/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-11T12:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-11T12:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="计算机科学">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/11/Fable%E4%B8%8ECodex-GPT-5-5/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>模型开始接手几天的活：Fable 与 Codex GPT-5.5 的分岔 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-11T20:00:00+08:00" content="2026-06-11">06-11</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">模型开始接手几天的活：Fable 与 Codex GPT-5.5 的分岔</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>如果说过去两年大模型的竞争，核心问题是「谁答得更准」，那么 Anthropic 的 <a href="https://www.anthropic.com/claude/fable" target="_blank" rel="noopener">Claude Fable 5</a> 和 Codex 里的 GPT-5.5，把问题推进到了另一个层面：<strong>谁能更稳定地接手一段复杂工作，并把它做成可交付结果</strong>。</p>
+
+<p>这不是一次简单的模型参数对比。Fable 更像一个被安全边界包起来的高自治专家；Codex GPT-5.5 更像一个深度接入开发环境的工程协作者。前者强调「把长任务交出去」，后者强调「把模型放进真实工作台」。</p>
+
+<h2 id="Fable先把长任务接起来">一、Fable 先把长任务接起来</h2>
+
+<p>Anthropic 在 2026 年 6 月 9 日发布 Claude Fable 5，把它定位为面向广泛用户开放的 Mythos-level 模型。官方页面给它的关键词非常明确：最困难的知识工作、编码问题、长时间异步任务，以及过去模型难以持续完成的复杂项目。</p>
+
+<p>这说明 Fable 的目标不是让用户多问几轮，而是让用户敢把一段完整工作交出去。Anthropic 明确提到，在 Claude Code 或 Claude Managed Agents 这类 agent harness 中，Fable 可以连续工作数天：跨阶段规划、委派子任务，并检查自己的工作。这个描述很关键，因为它把模型能力从「回答质量」拉到了「任务持久性」。</p>
+
+<p>Fable 适合的场景也很清楚：大型代码迁移、复杂实现、多日 autonomous session、企业知识工作、深度研究，以及包含图表、表格、PDF、界面截图的视觉理解。尤其是视觉能力，Anthropic 把它放在 coding workflow 里讲：模型不仅看文档，也看自己实现出来的界面是否符合目标。</p>
+
+<p>但 Fable 不是完全无遮挡的 Mythos。Anthropic 同时发布的 Claude Mythos 5 与 Fable 共享底层能力，但 Mythos 主要面向 Project Glasswing 下的受信任客户；Fable 则带有更强的安全分类器。涉及网络安全、生物、化学等敏感方向时，Fable 请求可能被路由到 Claude Opus 4.8。官方还要求使用 Fable 接受 30 天数据留存，用于安全监控。</p>
+
+<p>所以 Fable 的本质是：<strong>把更高自治能力开放给通用用户，但用更强的安全路由把边界框起来</strong>。这对普通知识工作和大多数工程任务影响不大，但对安全研究、逆向分析、生命科学等双用途任务，用户会明显感受到边界。</p>
+
+<h2 id="Codex把模型放进工作台">二、Codex 把模型放进工作台</h2>
+
+<p>GPT-5.5 在 Codex 里的重点，不只是「模型更聪明」，而是「模型更会使用开发环境」。OpenAI 在 2026 年 4 月 23 日发布 GPT-5.5 时，把它描述为面向真实工作的模型：写代码、调试、在线研究、分析数据、创建文档和表格、操作软件，并在多个工具之间移动直到任务完成。</p>
+
+<p>放到 Codex 里，这个定位就变得很具体：模型不是孤立生成答案，而是在「读仓库、改文件、跑命令、读错误、继续 patch」的循环中工作。OpenAI 公告明确说，GPT-5.5 已向 ChatGPT 和 Codex 用户推出；在 Codex 中，它面向 Plus、Pro、Business、Enterprise、Edu 和 Go 计划开放，提供 400K 上下文窗口，并有 Fast mode。</p>
+
+<p>如果看 API 层面，GPT-5.5 的规格也很强。OpenAI 的模型文档显示，<code>gpt-5.5</code> 支持文本和图像输入、文本输出，API 上下文窗口约 1M token，最大输出 128K token，并支持 Web search、File search、Code interpreter、Hosted shell、Apply patch、Skills、Computer use、MCP、Tool search 等工具能力。</p>
+
+<p>这就是 Codex GPT-5.5 的产品差异：它的优势不只在模型本身，而在模型被放进了完整的工程工作流。对开发者来说，真正重要的是它能否定位到正确文件、理解周边影响、跑出失败用例、再把补丁收敛到可验证状态。</p>
+
+<h2 id="参数对比不是终点">三、参数对比不是终点</h2>
+
+<table>
+<thead>
+<tr><th>维度</th><th>Claude Fable 5</th><th>Codex GPT-5.5</th></tr>
+</thead>
+<tbody>
+<tr><td>核心定位</td><td>高自治、长周期、复杂知识工作与编码任务</td><td>嵌入开发环境的 agentic coding 与工具协作</td></tr>
+<tr><td>上下文</td><td>Claude API 默认 1M token</td><td>API 约 1M token；Codex 产品中 400K token</td></tr>
+<tr><td>最大输出</td><td>128K token</td><td>128K token</td></tr>
+<tr><td>API 价格</td><td>输入 $10 / MTok，输出 $50 / MTok</td><td>输入 $5 / MTok，输出 $30 / MTok</td></tr>
+<tr><td>典型使用方式</td><td>Claude API、Claude Code、Claude Managed Agents、云平台</td><td>ChatGPT、Codex、Responses API 与工具链</td></tr>
+<tr><td>安全边界</td><td>Fable 带安全分类器，高风险方向可能 fallback 到 Opus 4.8</td><td>沿用 OpenAI 服务与 API 的安全机制，Codex 侧强调权限、工具与执行边界</td></tr>
+<tr><td>适合任务</td><td>多日复杂任务、代码迁移、深度研究、文档密集型工作</td><td>真实仓库里的实现、调试、重构、测试、验证闭环</td></tr>
+</tbody>
+</table>
+
+<p>只看表格，Fable 的上下文、输出和长周期定位非常强；Codex GPT-5.5 的价格、工具链和工程闭环更有吸引力。但如果只把它们放在同一张参数表里，反而会漏掉最重要的区别：<strong>一个是在提高「可交接任务」的上限，一个是在提高「真实工作流」的完成率</strong>。</p>
+
+<p>Anthropic 自己的 Fable 页面强调 coding、knowledge work、vision、computer use 上的 state-of-the-art；OpenAI 的 GPT-5.5 页面则强调 agentic coding、computer use、knowledge work 和科学研究。两边都在争同一块高地：模型不再只是回答问题，而是开始承担行动。</p>
+
+<h2 id="怎么选择">四、怎么选择</h2>
+
+<p>如果你的目标是把一个模糊、复杂、多阶段的问题交给模型，比如「理解一个大型系统后完成迁移方案」「读一批 PDF 和表格后形成可审阅报告」「连续几天推进一个高不确定性的研究任务」，Fable 更值得优先尝试。它的设计目标就是长时间自治和高难度交付，1M 上下文、128K 输出和更强的跨模态理解，都会对这类任务有帮助。</p>
+
+<p>但如果你的工作现场是代码仓库、终端、测试、patch、浏览器和本地环境，Codex GPT-5.5 可能更顺手。它不一定在所有 benchmark 上都领先，但它更贴近工程师每天真实的闭环：定位问题、修改代码、跑测试、读报错、继续修。再加上 GPT-5.5 API 价格低于 Fable，长期使用时成本优势也更明显。</p>
+
+<p>可以用一个更直接的判断：</p>
+
+<ul>
+  <li><strong>任务像「整包外包」</strong>：优先看 Fable。重点是模型能否在低监督下持续推进。</li>
+  <li><strong>任务像「工程结对」</strong>：优先看 Codex GPT-5.5。重点是模型能否在仓库、终端和测试之间稳定闭环。</li>
+  <li><strong>任务涉及敏感安全或生命科学方向</strong>：要提前考虑 Fable 的 fallback 和数据留存要求。</li>
+  <li><strong>任务会产生大量 token 成本</strong>：要把 GPT-5.5 更低 API 单价和 Codex 实际上下文窗口一起算。</li>
+</ul>
+
+<h2 id="真正的分水岭">五、真正的分水岭</h2>
+
+<p>Fable 与 Codex GPT-5.5 的竞争，不只是 Anthropic 和 OpenAI 谁的旗舰模型更强，而是下一代 AI 工作方式的两个方向。</p>
+
+<p>Fable 代表的是「把复杂任务交给模型」：模型要能长时间保持目标、拆解阶段、调用工具、检查结果，并在用户低干预的情况下推进。Codex GPT-5.5 代表的是「把模型放进真实工作台」：模型要理解项目结构、遵守本地约束、跑真实命令、修改真实文件，并把输出变成可验证的工程结果。</p>
+
+<p>一句话概括：<strong>Fable 像是一个更敢接整包复杂工作的自治专家；Codex GPT-5.5 像是一个嵌在开发环境里的高能力同事。</strong></p>
+
+<p>下一阶段的模型竞争，可能不再是单纯比较谁回答得更漂亮，而是谁能在你的上下文、工具、权限和安全边界里，把事情持续做完。</p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<ul>
+  <li><a href="https://www.anthropic.com/claude/fable" target="_blank" rel="noopener">Anthropic：Claude Fable 5</a></li>
+  <li><a href="https://platform.claude.com/docs/en/about-claude/models/overview" target="_blank" rel="noopener">Anthropic：Claude models overview</a></li>
+  <li><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5" target="_blank" rel="noopener">Anthropic：Prompting Claude Fable 5</a></li>
+  <li><a href="https://openai.com/index/introducing-gpt-5-5/" target="_blank" rel="noopener">OpenAI：Introducing GPT-5.5</a></li>
+  <li><a href="https://platform.openai.com/docs/models/gpt-5.5" target="_blank" rel="noopener">OpenAI API：GPT-5.5 model</a></li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/计算机科学/" rel="tag"><i class="fa fa-tag"></i> 计算机科学</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Fable先把长任务接起来"><span class="nav-number">1.</span> <span class="nav-text">一、Fable 先把长任务接起来</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Codex把模型放进工作台"><span class="nav-number">2.</span> <span class="nav-text">二、Codex 把模型放进工作台</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#参数对比不是终点"><span class="nav-number">3.</span> <span class="nav-text">三、参数对比不是终点</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#怎么选择"><span class="nav-number">4.</span> <span class="nav-text">四、怎么选择</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#真正的分水岭"><span class="nav-number">5.</span> <span class="nav-text">五、真正的分水岭</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-number">6.</span> <span class="nav-text">参考资料</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">242</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
