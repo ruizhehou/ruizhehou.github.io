@@ -201,7 +201,35 @@
 
 
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/13/Presto%E6%9F%A5%E8%AF%A2%E5%BC%95%E6%93%8E/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/06/13/Presto%E6%9F%A5%E8%AF%A2%E5%BC%95%E6%93%8E/" class="post-title-link" itemprop="url">一条 SQL 穿过集群：Presto 为什么能把很多数据源当成一张表</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2026-06-13T10:00:00+08:00">2026-06-13</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>Presto 不是另一套数据库，而是把多个数据源接到同一个 SQL 执行层上的分布式查询引擎。本文从 Coordinator、Worker、Connector、Split、Stage、Task、Driver 和 Exchange 讲清楚它的执行模型、快在哪里、慢在哪里，以及和 Hive、Spark、ClickHouse、Doris 的边界。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/11/%E7%AE%97%E6%B3%95%E5%B7%A5%E7%A8%8B%E5%92%8C%E5%90%8E%E7%AB%AF%E5%B7%A5%E7%A8%8B%E5%B8%88%E7%9A%84%E5%8C%BA%E5%88%AB/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -3328,7 +3356,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">245</span>
+          <span class="site-state-item-count">246</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

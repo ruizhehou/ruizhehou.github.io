@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Presto 不是另一套数据库，而是把多个数据源接到同一个 SQL 执行层上的分布式查询引擎。本文从 Coordinator、Worker、Connector、Split、Stage、Task、Driver 和 Exchange 讲清楚它的执行模型、快在哪里、慢在哪里，以及和 Hive、Spark、ClickHouse、Doris 的边界。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一条 SQL 穿过集群：Presto 为什么能把很多数据源当成一张表">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/13/Presto%E6%9F%A5%E8%AF%A2%E5%BC%95%E6%93%8E/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-13T02:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-13T02:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="架构">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/13/Presto%E6%9F%A5%E8%AF%A2%E5%BC%95%E6%93%8E/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>一条 SQL 穿过集群：Presto 为什么能把很多数据源当成一张表 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-13T10:00:00+08:00" content="2026-06-13">06-13</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">一条 SQL 穿过集群：Presto 为什么能把很多数据源当成一张表</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>很多人第一次听到 Presto，会把它理解成「一个更快的 Hive」或者「另一套 OLAP 数据库」。这个理解都不准确。Presto 更像是一个分布式 SQL 执行层：它自己不强调存储数据，而是把 Hive、Iceberg、MySQL、Kafka、ClickHouse、Elasticsearch 等数据源接到同一个查询引擎里，让你用一条 SQL 去访问多个地方的数据。</p>
+
+<p>所以，理解 Presto 的关键不是背语法，而是理解一条 SQL 怎么穿过一个集群：谁负责解析和调度，谁负责真正扫数据，数据源怎么接入，中间结果怎么在节点之间交换，以及为什么有些查询很快、有些查询会把整个集群拖慢。</p>
+
+<h2 id="一条-sql-为什么要离开数据库">一、一条 SQL 为什么要离开数据库</h2>
+
+<p>在传统数据库里，SQL 通常被送到一个存储和计算一体的系统中执行。表、索引、优化器、执行器、事务、缓存都在同一个数据库体系里。这个模型非常适合在线业务，但在数据平台里很快会遇到几个问题。</p>
+
+<ul>
+  <li><strong>数据分散</strong>：一部分在 Hive 或 Iceberg，一部分在 MySQL，一部分在 Kafka，一部分在日志系统。</li>
+  <li><strong>查询临时</strong>：分析师和工程师经常要做探索式查询，不一定值得先建一张宽表或同步一份数据。</li>
+  <li><strong>数据太大</strong>：单机执行不现实，需要把扫描、过滤、聚合、Join 拆到很多机器上并行执行。</li>
+  <li><strong>存储演进快</strong>：底层可能从 HDFS 到对象存储，从 Hive 表到 Iceberg/Hudi/Delta Lake，但上层仍希望用 SQL。</li>
+</ul>
+
+<p>Presto 解决的就是这个问题：把 SQL 作为统一入口，把计算层从存储层里抽出来。它不是把所有数据搬进自己，而是在查询时通过 connector 访问不同数据源，再用一套分布式执行模型把结果算出来。</p>
+
+<h2 id="presto-不是什么">二、Presto 不是什么</h2>
+
+<p>讲 Presto 之前，先把边界说清楚。</p>
+
+<p><strong>Presto 不是一个传统数据库。</strong> 它不以自有存储为核心，不负责像 MySQL 那样管理行记录、事务日志、二级索引和强事务。它更像查询引擎：拿到 SQL，生成计划，调度 worker 执行，最后返回结果。</p>
+
+<p><strong>Presto 也不是一个批处理框架。</strong> 它不像 Spark 那样提供通用 RDD/DataFrame 编程模型、机器学习生态和复杂 DAG 作业开发体验。Presto 的中心是 SQL，是交互式分析，是让人尽快拿到查询结果。</p>
+
+<p><strong>Presto 也不是万能加速器。</strong> 如果底层数据没有分区、文件过碎、Join 键严重倾斜、需要扫描海量列，Presto 不会凭空让数据变少。它能做的是把合理的查询并行化，把能下推的过滤下推，把能减少的数据尽早减少。</p>
+
+<h2 id="集群角色">三、集群角色：Coordinator、Worker 和 Connector</h2>
+
+<p>Presto 集群最核心的角色有三类。</p>
+
+<table>
+<thead>
+<tr><th>角色</th><th>主要职责</th><th>可以类比成</th></tr>
+</thead>
+<tbody>
+<tr><td>Coordinator</td><td>接收 SQL、解析语义、生成查询计划、选择执行策略、调度 worker、汇总最终结果</td><td>大脑和调度中心</td></tr>
+<tr><td>Worker</td><td>执行 task，读取 split，运行 operator，处理过滤、投影、聚合、Join 和数据交换</td><td>真正干活的计算节点</td></tr>
+<tr><td>Connector</td><td>把外部数据源适配成 Presto 能理解的 catalog、schema、table、split 和列类型</td><td>连接不同数据系统的驱动</td></tr>
+</tbody>
+</table>
+
+<pre><code class="language-text">Client SQL
+    ↓
+Coordinator: parse / analyze / optimize / schedule
+    ↓
+Workers: tasks / drivers / operators
+    ↓
+Connectors: Hive / Iceberg / MySQL / Kafka / Elasticsearch ...
+    ↓
+Storage systems</code></pre>
+
+<p>这套架构里，Coordinator 不应该承担大量数据处理。大集群里通常会让 Coordinator 专心做解析、计划和调度，不把扫描和计算任务压到它身上。Worker 才是横向扩展的主体；你加机器，主要是加 worker 的并行处理能力。</p>
+
+<h2 id="一条-sql-的执行路径">四、一条 SQL 的执行路径</h2>
+
+<p>一条 SQL 在 Presto 里大致会经历下面这条路径。</p>
+
+<pre><code class="language-sql">SELECT region, count(*)
+FROM hive.dw.orders
+WHERE dt = '2026-06-13'
+GROUP BY region;</code></pre>
+
+<p><strong>第一步，Statement 变成 Query。</strong> 用户提交的是一段 SQL 文本，Presto 先做解析、语义分析和权限检查，确认表、列、函数、类型都能对上。</p>
+
+<p><strong>第二步，Query 变成 Query Plan。</strong> 优化器会把声明式 SQL 转成执行计划，决定先过滤还是先 Join，哪些列需要读取，哪些表达式能下推，哪些聚合可以拆成局部聚合和最终聚合。</p>
+
+<p><strong>第三步，Plan 被切成 Stage。</strong> 分布式执行不能把整个计划扔给一台机器。Presto 会把物理计划拆成多个 plan fragment，并组织成 stage 树。每个 stage 代表一段可以并行执行的计划。</p>
+
+<p><strong>第四步，Stage 落到 Task。</strong> Stage 本身只是 Coordinator 里的调度模型，真正落到 worker 上执行的是 task。一个 stage 通常会被拆成多个 task，分布在不同 worker 上跑。</p>
+
+<p><strong>第五步，Task 处理 Split。</strong> Split 可以理解为输入数据的一小段。对于 Hive 表，它可能对应一个文件块或文件切片；对于其他 connector，它可能对应某种可并行读取的分片。Coordinator 会向 connector 要 split 列表，再把 split 调度给 worker。</p>
+
+<p><strong>第六步，Driver 串起 Operator。</strong> Task 里有多个 driver。Driver 是更底层的并行执行单元，由一串 operator 组成，比如 table scan、filter、project、partial aggregation、hash join、final aggregation。数据以 pipeline 的方式在 operator 之间流动。</p>
+
+<p><strong>第七步，Exchange 连接不同 Stage。</strong> 当一个 stage 的输出要作为另一个 stage 的输入时，就需要 exchange。比如 group by 要按照 key 重分布数据，Join 要把同一个 key 的数据送到同一批 worker。很多慢查询，慢的不是扫描，而是 exchange 带来的网络传输、序列化、内存压力和数据倾斜。</p>
+
+<h2 id="connector-的价值">五、Connector 的价值：把不同系统翻译成同一套 SQL 世界</h2>
+
+<p>Presto 最有价值的抽象之一是 connector。没有 connector，Presto 只是一个分布式执行框架；有了 connector，它才变成「SQL on everything」。</p>
+
+<p>Connector 要回答几个问题：</p>
+
+<ul>
+  <li>有哪些 catalog、schema、table？</li>
+  <li>每张表有哪些列，列类型是什么？</li>
+  <li>这张表能被拆成哪些 split 并行读取？</li>
+  <li>哪些过滤条件、列裁剪、聚合或限制可以下推到底层数据源？</li>
+  <li>底层系统的权限、分区、文件格式、统计信息如何映射到 Presto？</li>
+</ul>
+
+<p>比如访问 Hive 时，Presto 需要从 Metastore 读取表结构和分区信息，再从 HDFS 或对象存储读取 ORC/Parquet 文件。访问 MySQL 时，Presto 需要把远端表映射成 catalog 下的 schema/table，并尽可能把简单过滤下推给 MySQL。访问 Kafka 时，connector 还要把消息 topic 映射成可查询的表结构。</p>
+
+<p>因此，Presto 的能力上限并不只取决于执行引擎，也取决于 connector 做得好不好。一个优秀 connector 能减少扫描、减少网络传输、保留底层系统的特性；一个很薄的 connector 只能把所有数据拉上来再算，性能自然会差很多。</p>
+
+<h2 id="为什么快">六、Presto 为什么快</h2>
+
+<p>Presto 的快，主要来自几件事叠加。</p>
+
+<ul>
+  <li><strong>MPP 并行</strong>：查询被拆成多个 stage、task 和 split，在多台 worker 上同时执行。</li>
+  <li><strong>Pipeline 执行</strong>：数据不必每一步都落盘，operator 之间可以边读边算边传递。</li>
+  <li><strong>列裁剪</strong>：只读取查询需要的列，配合 ORC/Parquet 这类列式格式，能显著减少 IO。</li>
+  <li><strong>谓词下推</strong>：能下推到底层数据源或文件格式的过滤条件，尽量在更靠近数据的位置执行。</li>
+  <li><strong>局部聚合</strong>：group by、count、sum 这类聚合可以先在本地 worker 做 partial aggregation，再做最终聚合。</li>
+  <li><strong>常驻服务</strong>：相比每次启动批处理作业，Presto worker 是常驻进程，适合低延迟交互式查询。</li>
+</ul>
+
+<p>但这些优化都有前提。查询必须能被拆分，数据必须能被并行读取，过滤条件必须能减少输入规模，Join 和 group by 的 key 不能严重倾斜。否则，Presto 只能把问题暴露得更快，而不是把问题消除。</p>
+
+<h2 id="慢在哪里">七、Presto 慢在哪里</h2>
+
+<p>排查 Presto 慢查询时，可以先问五个问题。</p>
+
+<table>
+<thead>
+<tr><th>现象</th><th>常见原因</th><th>排查方向</th></tr>
+</thead>
+<tbody>
+<tr><td>扫描量巨大</td><td>没带分区条件、列裁剪失效、文件格式不合适</td><td>看 input rows/input bytes，检查 where 条件和表分区</td></tr>
+<tr><td>Planning 很慢</td><td>分区太多、元数据服务慢、小文件过多</td><td>看 planning time，检查 Metastore、分区数量和文件数量</td></tr>
+<tr><td>Join 很慢</td><td>大表 Join 大表、Join key 倾斜、build side 过大</td><td>看各 stage 数据量，检查 Join 顺序和 key 分布</td></tr>
+<tr><td>Exchange 很重</td><td>group by 或 Join 需要大量重分布</td><td>看 network bytes、blocked time、stage 间数据传输</td></tr>
+<tr><td>内存压力大</td><td>高基数聚合、排序、窗口函数、Hash Join</td><td>看 peak memory、spill、失败 query 的错误类型</td></tr>
+</tbody>
+</table>
+
+<p>很多人优化 Presto SQL 时只盯着 SQL 写法，但真正的瓶颈经常在数据布局。比如同一条按天查询，如果表按 dt 分区并且文件是列式格式，Presto 可能只读当天几个列；如果表没有分区，或者分区字段被函数包住导致无法裁剪，就会变成全表扫描。</p>
+
+<h2 id="生产实践">八、生产里怎么用好 Presto</h2>
+
+<p>Presto 进入生产后，重点不只是「把集群搭起来」，而是治理查询行为。</p>
+
+<ul>
+  <li><strong>把场景分层</strong>：BI 看板、临时分析、数据校验、低频报表不要都挤在同一个资源池里。</li>
+  <li><strong>用 Resource Group 做治理</strong>：按用户、来源、查询类型拆资源组，限制并发、排队、内存和单查询资源上限。</li>
+  <li><strong>推动分区和列式存储</strong>：对大表来说，正确的分区、排序、文件大小和 ORC/Parquet 格式比 SQL 小技巧更重要。</li>
+  <li><strong>限制危险 SQL</strong>：没有分区条件的大表扫描、笛卡尔积、无界排序、高基数 distinct，都应该有审计或拦截机制。</li>
+  <li><strong>看懂 Query Plan</strong>：使用 EXPLAIN、EXPLAIN ANALYZE、Web UI、JMX 指标观察 stage、task、input、output、blocked time 和 memory。</li>
+  <li><strong>把小文件治理当前置工作</strong>：小文件会拖慢元数据加载和 split 调度，最终表现为 planning 慢、worker 空转和吞吐下降。</li>
+</ul>
+
+<p>一个健康的 Presto 集群，应该让大多数人可以快速做探索式分析，同时不允许少数危险查询拖垮所有人。这也是 Resource Group、队列、限流、超时、查询审计和 SQL 规范真正发挥作用的地方。</p>
+
+<h2 id="和其他系统的边界">九、和 Hive、Spark、ClickHouse、Doris 的边界</h2>
+
+<p>Presto 经常和 Hive、Spark、ClickHouse、Doris 放在一起比较，但它们解决的问题不完全一样。</p>
+
+<table>
+<thead>
+<tr><th>系统</th><th>更适合</th><th>和 Presto 的关系</th></tr>
+</thead>
+<tbody>
+<tr><td>Hive</td><td>离线数仓、批量 SQL、稳定 ETL</td><td>Presto 常通过 Hive connector 读取 Hive 表，适合更交互的查询</td></tr>
+<tr><td>Spark</td><td>通用批处理、复杂 ETL、机器学习、流批任务</td><td>Spark 更像计算框架，Presto 更像 SQL 查询服务</td></tr>
+<tr><td>ClickHouse</td><td>高性能列式 OLAP、明细聚合、单系统内查询</td><td>ClickHouse 自带存储，Presto 更强调跨源联邦查询</td></tr>
+<tr><td>Doris</td><td>实时数仓、报表分析、向量化 OLAP 查询</td><td>Doris 是数据库形态，Presto 是计算层形态</td></tr>
+<tr><td>Iceberg/Hudi/Delta Lake</td><td>数据湖表格式、快照、schema 演进、增量语义</td><td>Presto 可以作为访问这些表格式的 SQL 引擎之一</td></tr>
+</tbody>
+</table>
+
+<p>如果你的核心问题是「数据在很多地方，希望临时用 SQL 统一查」，Presto 很合适。如果你的核心问题是「我要建设一个高并发、低延迟、强存储优化的 OLAP 服务」，ClickHouse 或 Doris 这类存储计算结合更紧的系统可能更合适。如果你的核心问题是「复杂批处理、机器学习训练、长链路 ETL」，Spark 仍然有不可替代的生态优势。</p>
+
+<h2 id="常见误解">十、几个常见误解</h2>
+
+<h3 id="误解一-presto-能替代数仓">误解一：Presto 能替代数仓</h3>
+
+<p>Presto 可以查询数仓，但它不等于数仓。数仓还包括数据建模、分层、口径、权限、血缘、质量、调度、成本治理和生命周期。Presto 只是其中的查询入口和执行层。</p>
+
+<h3 id="误解二-加-worker-就一定变快">误解二：加 worker 就一定变快</h3>
+
+<p>如果瓶颈是扫描和并行度，加 worker 可能有帮助；如果瓶颈是 coordinator planning、元数据、小文件、Join 倾斜、单点数据源吞吐或网络 exchange，加机器只会让问题变得更贵。</p>
+
+<h3 id="误解三-sql-能跑就说明写得对">误解三：SQL 能跑就说明写得对</h3>
+
+<p>在 Presto 里，SQL 能跑只是第一步。你还要看扫描了多少数据、是否触发跨节点重分布、是否利用分区、是否把小表放到 build side、是否出现数据倾斜，以及这条查询会不会影响同集群里的其他人。</p>
+
+<h2 id="结语">结语</h2>
+
+<p>Presto 的核心价值，是把分散的数据源拉到同一个 SQL 工作台上，并用分布式执行模型把一次查询拆成很多可以并行完成的小任务。它让数据探索更快，让跨源查询更自然，也让数据平台不必为每个临时问题都先搬一次数据。</p>
+
+<p>但 Presto 的能力不是魔法。它依赖底层数据布局、connector 质量、查询计划、资源治理和使用者的 SQL 习惯。真正用好 Presto，不是记住几个参数，而是能沿着「SQL → Plan → Stage → Task → Split → Driver → Operator → Exchange」这条链路，看清楚每一份数据在哪里被读取、在哪里被减少、在哪里被重分布、在哪里变成瓶颈。</p>
+
+<p>如果一句话概括：Presto 不是另一座仓库，而是一条把很多仓库接到同一个查询现场的高速路。路修得好不好，既取决于引擎，也取决于数据怎么摆、车怎么调度，以及有没有人维护交通秩序。</p>
+
+<h2 id="延伸阅读">延伸阅读</h2>
+
+<ul>
+  <li><a href="https://prestodb.github.io/docs/current/overview.html" target="_blank" rel="noopener">Presto 官方文档：Overview</a></li>
+  <li><a href="https://prestodb.github.io/docs/current/overview/concepts.html" target="_blank" rel="noopener">Presto 官方文档：Concepts</a></li>
+  <li><a href="https://prestodb.github.io/docs/current/connector.html" target="_blank" rel="noopener">Presto 官方文档：Connectors</a></li>
+  <li><a href="https://prestodb.github.io/docs/current/admin/resource-groups.html" target="_blank" rel="noopener">Presto 官方文档：Resource Groups</a></li>
+</ul>
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/%E6%9E%B6%E6%9E%84/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#一条-sql-为什么要离开数据库"><span class="nav-number">1.</span> <span class="nav-text">一、一条 SQL 为什么要离开数据库</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#presto-不是什么"><span class="nav-number">2.</span> <span class="nav-text">二、Presto 不是什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#集群角色"><span class="nav-number">3.</span> <span class="nav-text">三、集群角色</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#一条-sql-的执行路径"><span class="nav-number">4.</span> <span class="nav-text">四、一条 SQL 的执行路径</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#connector-的价值"><span class="nav-number">5.</span> <span class="nav-text">五、Connector 的价值</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么快"><span class="nav-number">6.</span> <span class="nav-text">六、Presto 为什么快</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#慢在哪里"><span class="nav-number">7.</span> <span class="nav-text">七、Presto 慢在哪里</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#生产实践"><span class="nav-number">8.</span> <span class="nav-text">八、生产里怎么用好 Presto</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#和其他系统的边界"><span class="nav-number">9.</span> <span class="nav-text">九、和其他系统的边界</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#常见误解"><span class="nav-number">10.</span> <span class="nav-text">十、几个常见误解</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">11.</span> <span class="nav-text">结语</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#延伸阅读"><span class="nav-number">12.</span> <span class="nav-text">延伸阅读</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">246</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
