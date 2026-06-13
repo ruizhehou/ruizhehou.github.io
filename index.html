@@ -223,7 +223,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>Presto 不是另一套数据库，而是把多个数据源接到同一个 SQL 执行层上的分布式查询引擎。本文从 Coordinator、Worker、Connector、Split、Stage、Task、Driver 和 Exchange 讲清楚它的执行模型、快在哪里、慢在哪里，以及和 Hive、Spark、ClickHouse、Doris 的边界。</p>
+          <p>Presto 是一个分布式 SQL 查询引擎，核心价值不是存数据，而是把 Hive、Iceberg、MySQL、Kafka、Elasticsearch 等数据源接入同一个 SQL 执行层。本文用一条 SQL 的执行过程讲清楚它是什么、和数据库/Hive/Spark 的区别、Coordinator/Worker/Connector 怎么协作、为什么快、什么时候会慢，以及生产里该怎么用。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>

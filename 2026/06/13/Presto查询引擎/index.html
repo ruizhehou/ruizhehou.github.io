@@ -23,14 +23,14 @@
     var NexT = window.NexT || {};
     var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
-  <meta name="description" content="Presto 不是另一套数据库，而是把多个数据源接到同一个 SQL 执行层上的分布式查询引擎。本文从 Coordinator、Worker、Connector、Split、Stage、Task、Driver 和 Exchange 讲清楚它的执行模型、快在哪里、慢在哪里，以及和 Hive、Spark、ClickHouse、Doris 的边界。">
+  <meta name="description" content="Presto 是一个分布式 SQL 查询引擎，核心价值不是存数据，而是把 Hive、Iceberg、MySQL、Kafka、Elasticsearch 等数据源接入同一个 SQL 执行层。本文用一条 SQL 的执行过程讲清楚它是什么、和数据库/Hive/Spark 的区别、Coordinator/Worker/Connector 怎么协作、为什么快、什么时候会慢，以及生产里该怎么用。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="一条 SQL 穿过集群：Presto 为什么能把很多数据源当成一张表">
 <meta property="og:url" content="https://ruizhehou.github.io/2026/06/13/Presto%E6%9F%A5%E8%AF%A2%E5%BC%95%E6%93%8E/index.html">
 <meta property="og:site_name" content="侯瑞哲的博客">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2026-06-13T02:00:00.000Z">
-<meta property="article:modified_time" content="2026-06-13T02:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-14T02:00:00.000Z">
 <meta property="article:author" content="侯瑞哲">
 <meta property="article:tag" content="数据库">
 <meta property="article:tag" content="架构">
@@ -75,119 +75,237 @@
 
   <div class="post-body" itemprop="articleBody">
 
-<p>很多人第一次听到 Presto，会把它理解成「一个更快的 Hive」或者「另一套 OLAP 数据库」。这个理解都不准确。Presto 更像是一个分布式 SQL 执行层：它自己不强调存储数据，而是把 Hive、Iceberg、MySQL、Kafka、ClickHouse、Elasticsearch 等数据源接到同一个查询引擎里，让你用一条 SQL 去访问多个地方的数据。</p>
+<p>如果只用一句话解释 Presto，我会这么说：<strong>Presto 是一个分布式 SQL 查询引擎，用来把很多地方的数据临时接到同一个 SQL 执行层里查询</strong>。</p>
 
-<p>所以，理解 Presto 的关键不是背语法，而是理解一条 SQL 怎么穿过一个集群：谁负责解析和调度，谁负责真正扫数据，数据源怎么接入，中间结果怎么在节点之间交换，以及为什么有些查询很快、有些查询会把整个集群拖慢。</p>
+<p>这句话里最重要的是两个词：<strong>查询引擎</strong>，以及<strong>很多地方的数据</strong>。Presto 的重点不是自己存多少数据，而是让你可以用 SQL 去查询已经存在于 Hive、Iceberg、MySQL、Kafka、Elasticsearch、对象存储或其他系统里的数据。</p>
 
-<h2 id="一条-sql-为什么要离开数据库">一、一条 SQL 为什么要离开数据库</h2>
+<p>所以，理解 Presto 不要先把它想成 MySQL、ClickHouse 或 Doris 这样的数据库，而要把它想成一个「分布式查询调度中心」：用户提交 SQL，Coordinator 负责理解和拆解这条 SQL，Worker 负责并行干活，Connector 负责和不同数据源打交道，最后把结果汇总回来。</p>
 
-<p>在传统数据库里，SQL 通常被送到一个存储和计算一体的系统中执行。表、索引、优化器、执行器、事务、缓存都在同一个数据库体系里。这个模型非常适合在线业务，但在数据平台里很快会遇到几个问题。</p>
+<h2 id="先给一个准确定位">一、先给一个准确定位</h2>
+
+<p>Presto 的定位可以拆成三层。</p>
+
+<table>
+<thead>
+<tr><th>关键词</th><th>含义</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>SQL 查询引擎</td><td>入口是 SQL，输出是查询结果</td><td>它关心怎么把 SQL 变成可执行计划</td></tr>
+<tr><td>分布式</td><td>不是单机执行，而是很多 Worker 一起执行</td><td>一张大表会被拆成很多 Split 并行扫描</td></tr>
+<tr><td>联邦查询</td><td>可以通过 Connector 查询不同数据源</td><td>同一条 SQL 可以访问 Hive、MySQL、Kafka 等系统</td></tr>
+</tbody>
+</table>
+
+<p>更工程化一点说：Presto 接收一条 SQL，把它解析成查询计划，再把查询计划切成多个 Stage、Task 和 Split，分发到多个 Worker 上执行。Worker 从不同 Connector 读取数据，在本地做过滤、投影、聚合、Join，然后通过 Exchange 在节点之间交换中间结果，最后由 Coordinator 汇总返回。</p>
+
+<p>这就是 Presto 的核心：<strong>它不是数据的最终归宿，而是数据查询时的统一执行现场</strong>。</p>
+
+<h2 id="一个直观例子">二、一个直观例子：为什么需要 Presto</h2>
+
+<p>假设公司里有这些数据：</p>
 
 <ul>
-  <li><strong>数据分散</strong>：一部分在 Hive 或 Iceberg，一部分在 MySQL，一部分在 Kafka，一部分在日志系统。</li>
-  <li><strong>查询临时</strong>：分析师和工程师经常要做探索式查询，不一定值得先建一张宽表或同步一份数据。</li>
-  <li><strong>数据太大</strong>：单机执行不现实，需要把扫描、过滤、聚合、Join 拆到很多机器上并行执行。</li>
-  <li><strong>存储演进快</strong>：底层可能从 HDFS 到对象存储，从 Hive 表到 Iceberg/Hudi/Delta Lake，但上层仍希望用 SQL。</li>
+  <li>用户行为日志在 Hive 或 Iceberg 表里；</li>
+  <li>订单明细在 MySQL 里；</li>
+  <li>实时曝光和点击消息在 Kafka 里；</li>
+  <li>搜索索引和部分画像在 Elasticsearch 里。</li>
 </ul>
 
-<p>Presto 解决的就是这个问题：把 SQL 作为统一入口，把计算层从存储层里抽出来。它不是把所有数据搬进自己，而是在查询时通过 connector 访问不同数据源，再用一套分布式执行模型把结果算出来。</p>
+<p>现在你想临时回答一个问题：今天每个城市的访问用户里，有多少人产生了订单？如果不用 Presto，常见做法是先把 MySQL 订单同步到数仓，再建临时表，再跑 Hive 或 Spark 任务。这个流程适合稳定报表，但对临时探索来说太重。</p>
 
-<h2 id="presto-不是什么">二、Presto 不是什么</h2>
+<p>Presto 的做法是：不一定先搬数据，而是用 Connector 直接连接不同数据源，然后在查询时把它们接到同一个 SQL 世界里。</p>
 
-<p>讲 Presto 之前，先把边界说清楚。</p>
+<pre><code class="language-sql">SELECT
+  u.city,
+  count(DISTINCT o.order_id) AS order_cnt
+FROM hive.dw.user_log u
+JOIN mysql.order_db.orders o
+  ON u.user_id = o.user_id
+WHERE u.dt = '2026-06-14'
+GROUP BY u.city;</code></pre>
 
-<p><strong>Presto 不是一个传统数据库。</strong> 它不以自有存储为核心，不负责像 MySQL 那样管理行记录、事务日志、二级索引和强事务。它更像查询引擎：拿到 SQL，生成计划，调度 worker 执行，最后返回结果。</p>
+<p>这条 SQL 看起来像是在查同一个数据库里的两张表，但实际上一张表可能在 Hive，另一张表可能在 MySQL。Presto 负责把这件事变成一个分布式查询任务：能下推的过滤尽量下推，能并行扫描的地方并行扫描，需要 Join 的地方通过网络把数据重新分布到合适的 Worker 上。</p>
 
-<p><strong>Presto 也不是一个批处理框架。</strong> 它不像 Spark 那样提供通用 RDD/DataFrame 编程模型、机器学习生态和复杂 DAG 作业开发体验。Presto 的中心是 SQL，是交互式分析，是让人尽快拿到查询结果。</p>
+<p>这也是 Presto 最吸引人的地方：<strong>数据可以分散，查询入口可以统一</strong>。</p>
 
-<p><strong>Presto 也不是万能加速器。</strong> 如果底层数据没有分区、文件过碎、Join 键严重倾斜、需要扫描海量列，Presto 不会凭空让数据变少。它能做的是把合理的查询并行化，把能下推的过滤下推，把能减少的数据尽早减少。</p>
+<h2 id="它不是什么">三、Presto 不是什么</h2>
 
-<h2 id="集群角色">三、集群角色：Coordinator、Worker 和 Connector</h2>
+<p>为了避免误解，先讲 Presto 不是什么。</p>
 
-<p>Presto 集群最核心的角色有三类。</p>
+<h3 id="不是传统数据库">它不是传统数据库</h3>
+
+<p>MySQL 这类数据库通常同时负责存储、索引、事务、日志、锁、查询优化和执行。Presto 不以自有存储为中心，也不负责像 MySQL 那样管理 redo log、binlog、二级索引和强事务。</p>
+
+<p>Presto 更像一个计算层：拿到 SQL，生成计划，调度 Worker，从外部数据源读取数据并计算结果。所以说它是查询引擎，比说它是数据库更准确。</p>
+
+<h3 id="不是-hive-的简单替代品">它不是 Hive 的简单替代品</h3>
+
+<p>Hive 更偏离线批处理，适合稳定 ETL、大规模离线任务和数仓分层建设。Presto 更偏交互式分析，适合临时查数、BI 查询、数据探索和跨源联合查询。</p>
+
+<pre><code class="language-text">Hive：更适合大批量、离线、稳定产出
+Presto：更适合交互式、临时、多源查询</code></pre>
+
+<h3 id="不是-spark">它也不是 Spark</h3>
+
+<p>Spark 是通用分布式计算框架，可以写复杂程序，做 ETL、机器学习、流处理和批处理。Presto 更聚焦 SQL 查询服务。</p>
+
+<pre><code class="language-text">Spark：我是一个通用计算框架
+Presto：我是一个分布式 SQL 查询引擎</code></pre>
+
+<p>如果你要写复杂的数据处理流程，Spark 通常更合适；如果你要快速用 SQL 查已有数据，Presto 通常更直接。</p>
+
+<h2 id="核心结构">四、核心结构：Coordinator、Worker 和 Connector</h2>
+
+<p>Presto 集群里最重要的是三个角色。</p>
 
 <table>
 <thead>
 <tr><th>角色</th><th>主要职责</th><th>可以类比成</th></tr>
 </thead>
 <tbody>
-<tr><td>Coordinator</td><td>接收 SQL、解析语义、生成查询计划、选择执行策略、调度 worker、汇总最终结果</td><td>大脑和调度中心</td></tr>
-<tr><td>Worker</td><td>执行 task，读取 split，运行 operator，处理过滤、投影、聚合、Join 和数据交换</td><td>真正干活的计算节点</td></tr>
-<tr><td>Connector</td><td>把外部数据源适配成 Presto 能理解的 catalog、schema、table、split 和列类型</td><td>连接不同数据系统的驱动</td></tr>
+<tr><td>Coordinator</td><td>接收 SQL、解析语义、生成查询计划、调度 Worker、汇总结果</td><td>大脑和调度中心</td></tr>
+<tr><td>Worker</td><td>执行 Task，扫描数据，运行 Operator，处理过滤、聚合、Join、排序</td><td>真正干活的计算节点</td></tr>
+<tr><td>Connector</td><td>把外部数据源适配成 Presto 能理解的 Catalog、Schema、Table、Split 和类型</td><td>连接不同数据系统的驱动</td></tr>
 </tbody>
 </table>
 
 <pre><code class="language-text">Client SQL
     ↓
-Coordinator: parse / analyze / optimize / schedule
+Coordinator：parse / analyze / optimize / schedule
     ↓
-Workers: tasks / drivers / operators
+Workers：tasks / drivers / operators
     ↓
-Connectors: Hive / Iceberg / MySQL / Kafka / Elasticsearch ...
+Connectors：Hive / Iceberg / MySQL / Kafka / Elasticsearch ...
     ↓
 Storage systems</code></pre>
 
-<p>这套架构里，Coordinator 不应该承担大量数据处理。大集群里通常会让 Coordinator 专心做解析、计划和调度，不把扫描和计算任务压到它身上。Worker 才是横向扩展的主体；你加机器，主要是加 worker 的并行处理能力。</p>
+<p>Coordinator 不应该承担大量数据处理。它更像大脑，负责计划和调度。真正消耗 CPU、内存、网络和 IO 的地方，主要在 Worker。Connector 则是 Presto 能跨数据源查询的关键；没有 Connector，Presto 只是一个 SQL 执行框架，有了 Connector，它才变成「SQL on everything」。</p>
 
-<h2 id="一条-sql-的执行路径">四、一条 SQL 的执行路径</h2>
+<h2 id="一条-sql-怎么执行">五、一条 SQL 怎么执行</h2>
 
-<p>一条 SQL 在 Presto 里大致会经历下面这条路径。</p>
+<p>以一条简单 SQL 为例：</p>
 
 <pre><code class="language-sql">SELECT region, count(*)
 FROM hive.dw.orders
-WHERE dt = '2026-06-13'
+WHERE dt = '2026-06-14'
 GROUP BY region;</code></pre>
 
-<p><strong>第一步，Statement 变成 Query。</strong> 用户提交的是一段 SQL 文本，Presto 先做解析、语义分析和权限检查，确认表、列、函数、类型都能对上。</p>
+<p>它在 Presto 里大概会经历这些步骤。</p>
 
-<p><strong>第二步，Query 变成 Query Plan。</strong> 优化器会把声明式 SQL 转成执行计划，决定先过滤还是先 Join，哪些列需要读取，哪些表达式能下推，哪些聚合可以拆成局部聚合和最终聚合。</p>
+<pre><code class="language-text">SQL 文本
+  ↓
+解析成语法树
+  ↓
+语义分析：表是否存在，字段是否存在，类型是否匹配
+  ↓
+生成逻辑计划
+  ↓
+优化计划：分区裁剪、列裁剪、谓词下推、聚合拆分
+  ↓
+生成分布式执行计划
+  ↓
+拆成多个 Stage
+  ↓
+每个 Stage 拆成多个 Task
+  ↓
+Task 分配到 Worker
+  ↓
+Worker 读取 Split
+  ↓
+Operator 执行 scan / filter / project / aggregation / join
+  ↓
+不同 Worker 通过 Exchange 交换数据
+  ↓
+Coordinator 返回结果</code></pre>
 
-<p><strong>第三步，Plan 被切成 Stage。</strong> 分布式执行不能把整个计划扔给一台机器。Presto 会把物理计划拆成多个 plan fragment，并组织成 stage 树。每个 stage 代表一段可以并行执行的计划。</p>
+<p>这条链路里有几个概念尤其重要。</p>
 
-<p><strong>第四步，Stage 落到 Task。</strong> Stage 本身只是 Coordinator 里的调度模型，真正落到 worker 上执行的是 task。一个 stage 通常会被拆成多个 task，分布在不同 worker 上跑。</p>
+<h3 id="split">Split：数据切片</h3>
 
-<p><strong>第五步，Task 处理 Split。</strong> Split 可以理解为输入数据的一小段。对于 Hive 表，它可能对应一个文件块或文件切片；对于其他 connector，它可能对应某种可并行读取的分片。Coordinator 会向 connector 要 split 列表，再把 split 调度给 worker。</p>
+<p>Presto 不会让一台机器扫完整张大表，而是把输入数据拆成很多 Split。对于 Hive 表，一个 Split 可能对应一个文件、一段文件，或者某种可并行读取的数据片段。</p>
 
-<p><strong>第六步，Driver 串起 Operator。</strong> Task 里有多个 driver。Driver 是更底层的并行执行单元，由一串 operator 组成，比如 table scan、filter、project、partial aggregation、hash join、final aggregation。数据以 pipeline 的方式在 operator 之间流动。</p>
+<pre><code class="language-text">orders 表
+  ├── split 1
+  ├── split 2
+  ├── split 3
+  ├── split 4
+  └── ...</code></pre>
 
-<p><strong>第七步，Exchange 连接不同 Stage。</strong> 当一个 stage 的输出要作为另一个 stage 的输入时，就需要 exchange。比如 group by 要按照 key 重分布数据，Join 要把同一个 key 的数据送到同一批 worker。很多慢查询，慢的不是扫描，而是 exchange 带来的网络传输、序列化、内存压力和数据倾斜。</p>
+<p>这些 Split 会被分配给不同 Worker 并行处理。Presto 的并行能力，首先就来自这里。</p>
 
-<h2 id="connector-的价值">五、Connector 的价值：把不同系统翻译成同一套 SQL 世界</h2>
+<h3 id="stage-task-driver-operator">Stage、Task、Driver、Operator</h3>
 
-<p>Presto 最有价值的抽象之一是 connector。没有 connector，Presto 只是一个分布式执行框架；有了 connector，它才变成「SQL on everything」。</p>
+<p>Stage 是分布式执行计划里的阶段。比如一个查询可能先扫描并做局部聚合，再把中间结果汇总成最终聚合。每个 Stage 会被拆成多个 Task，Task 运行在 Worker 上。</p>
 
-<p>Connector 要回答几个问题：</p>
+<p>Task 内部还有更细的执行单元。Driver 把一串 Operator 串起来，Operator 才是真正处理数据的算子，比如 TableScan、Filter、Project、HashJoin、Aggregation、OrderBy、Exchange。</p>
+
+<pre><code class="language-text">Query
+  └── Stage
+        └── Task on Worker
+              └── Driver
+                    ├── TableScanOperator
+                    ├── FilterOperator
+                    ├── ProjectOperator
+                    └── AggregationOperator</code></pre>
+
+<p>所以，一条 SQL 并不是被某个神秘黑盒一次性执行完，而是被拆成许多小的、可以并行调度的执行单元。</p>
+
+<h3 id="exchange">Exchange：很多慢查询真正慢的地方</h3>
+
+<p>Presto 查询不只是读数据，还经常需要在 Worker 之间交换数据。比如 Join 和 Group By 都可能要求相同 key 的数据被送到同一批 Worker 上。</p>
+
+<pre><code class="language-text">Worker A：user_id 1, 3, 5
+Worker B：user_id 2, 4, 6
+
+按照 user_id hash 重新分发
+
+Worker A：user_id 1, 2
+Worker B：user_id 3, 4
+Worker C：user_id 5, 6</code></pre>
+
+<p>这个过程就是 Exchange。它会消耗网络、CPU 序列化、内存和队列等待。很多 Presto 慢查询，慢的不是 Table Scan，而是 Join、Group By、Order By 引发的大量 Exchange。</p>
+
+<h2 id="connector-为什么关键">六、Connector 为什么关键</h2>
+
+<p>Connector 是 Presto 能够查询多种数据源的根本原因。它要回答几个问题：</p>
 
 <ul>
-  <li>有哪些 catalog、schema、table？</li>
+  <li>这个数据源有哪些 Catalog、Schema、Table？</li>
   <li>每张表有哪些列，列类型是什么？</li>
-  <li>这张表能被拆成哪些 split 并行读取？</li>
-  <li>哪些过滤条件、列裁剪、聚合或限制可以下推到底层数据源？</li>
-  <li>底层系统的权限、分区、文件格式、统计信息如何映射到 Presto？</li>
+  <li>这张表能被拆成哪些 Split 并行读取？</li>
+  <li>哪些过滤条件、列裁剪、聚合或 limit 可以下推到底层？</li>
+  <li>底层系统的权限、分区、文件格式、统计信息如何映射给 Presto？</li>
 </ul>
 
-<p>比如访问 Hive 时，Presto 需要从 Metastore 读取表结构和分区信息，再从 HDFS 或对象存储读取 ORC/Parquet 文件。访问 MySQL 时，Presto 需要把远端表映射成 catalog 下的 schema/table，并尽可能把简单过滤下推给 MySQL。访问 Kafka 时，connector 还要把消息 topic 映射成可查询的表结构。</p>
+<p>比如访问 Hive 时，Presto 需要从 Metastore 读取表结构和分区信息，再从 HDFS 或对象存储读取 ORC/Parquet 文件。访问 MySQL 时，Presto 需要把远端表映射成可查询表，并尽可能把简单过滤下推给 MySQL。访问 Kafka 时，Connector 还要把 Topic 里的消息解释成表结构。</p>
 
-<p>因此，Presto 的能力上限并不只取决于执行引擎，也取决于 connector 做得好不好。一个优秀 connector 能减少扫描、减少网络传输、保留底层系统的特性；一个很薄的 connector 只能把所有数据拉上来再算，性能自然会差很多。</p>
+<p>所以 Presto 的性能不只取决于执行引擎，也取决于 Connector 做得好不好。一个优秀的 Connector 能减少扫描、减少网络传输、保留底层系统的能力；一个很薄的 Connector 只能把大量数据拉上来再算，性能自然会差。</p>
 
-<h2 id="为什么快">六、Presto 为什么快</h2>
+<h2 id="为什么快">七、Presto 为什么快</h2>
 
 <p>Presto 的快，主要来自几件事叠加。</p>
 
 <ul>
-  <li><strong>MPP 并行</strong>：查询被拆成多个 stage、task 和 split，在多台 worker 上同时执行。</li>
-  <li><strong>Pipeline 执行</strong>：数据不必每一步都落盘，operator 之间可以边读边算边传递。</li>
-  <li><strong>列裁剪</strong>：只读取查询需要的列，配合 ORC/Parquet 这类列式格式，能显著减少 IO。</li>
-  <li><strong>谓词下推</strong>：能下推到底层数据源或文件格式的过滤条件，尽量在更靠近数据的位置执行。</li>
-  <li><strong>局部聚合</strong>：group by、count、sum 这类聚合可以先在本地 worker 做 partial aggregation，再做最终聚合。</li>
-  <li><strong>常驻服务</strong>：相比每次启动批处理作业，Presto worker 是常驻进程，适合低延迟交互式查询。</li>
+  <li><strong>分布式并行</strong>：大表被拆成很多 Split，多个 Worker 同时扫描和计算。</li>
+  <li><strong>Pipeline 执行</strong>：数据尽量边读边过滤、边投影、边聚合，而不是每一步都落盘。</li>
+  <li><strong>列裁剪</strong>：SQL 只查三列，底层 ORC/Parquet 就尽量只读这三列。</li>
+  <li><strong>谓词下推</strong>：比如 dt 分区条件能下推时，就只读对应分区，而不是全表扫描。</li>
+  <li><strong>局部聚合</strong>：先在各 Worker 本地做 partial aggregation，再做 final aggregation，减少跨节点传输。</li>
+  <li><strong>常驻服务</strong>：Worker 是常驻进程，不需要像某些批任务一样每次重新启动一套执行环境。</li>
 </ul>
 
-<p>但这些优化都有前提。查询必须能被拆分，数据必须能被并行读取，过滤条件必须能减少输入规模，Join 和 group by 的 key 不能严重倾斜。否则，Presto 只能把问题暴露得更快，而不是把问题消除。</p>
+<p>例如下面这条查询：</p>
 
-<h2 id="慢在哪里">七、Presto 慢在哪里</h2>
+<pre><code class="language-sql">SELECT city, count(*)
+FROM hive.dw.orders
+WHERE dt = '2026-06-14'
+GROUP BY city;</code></pre>
 
-<p>排查 Presto 慢查询时，可以先问五个问题。</p>
+<p>如果表按 dt 分区，文件是 Parquet 或 ORC，查询只需要 city 这一列，Presto 就可能只读当天分区里的少数列，并且先在每个 Worker 本地算出一部分 count，再汇总最终结果。这就是它适合交互式分析的原因。</p>
+
+<h2 id="慢在哪里">八、Presto 什么时候会慢</h2>
+
+<p>Presto 不是魔法。它能把合理的查询并行化，但不能凭空让数据变少。下面这些情况经常会让 Presto 慢下来。</p>
 
 <table>
 <thead>
@@ -196,28 +314,13 @@ GROUP BY region;</code></pre>
 <tbody>
 <tr><td>扫描量巨大</td><td>没带分区条件、列裁剪失效、文件格式不合适</td><td>看 input rows/input bytes，检查 where 条件和表分区</td></tr>
 <tr><td>Planning 很慢</td><td>分区太多、元数据服务慢、小文件过多</td><td>看 planning time，检查 Metastore、分区数量和文件数量</td></tr>
-<tr><td>Join 很慢</td><td>大表 Join 大表、Join key 倾斜、build side 过大</td><td>看各 stage 数据量，检查 Join 顺序和 key 分布</td></tr>
-<tr><td>Exchange 很重</td><td>group by 或 Join 需要大量重分布</td><td>看 network bytes、blocked time、stage 间数据传输</td></tr>
-<tr><td>内存压力大</td><td>高基数聚合、排序、窗口函数、Hash Join</td><td>看 peak memory、spill、失败 query 的错误类型</td></tr>
+<tr><td>Join 很慢</td><td>大表 Join 大表、Join key 倾斜、build side 过大</td><td>看各 Stage 数据量，检查 Join 顺序和 key 分布</td></tr>
+<tr><td>Exchange 很重</td><td>Group By 或 Join 需要大量重分布</td><td>看 network bytes、blocked time、Stage 间数据传输</td></tr>
+<tr><td>内存压力大</td><td>高基数聚合、排序、窗口函数、Hash Join</td><td>看 peak memory、spill、失败 Query 的错误类型</td></tr>
 </tbody>
 </table>
 
-<p>很多人优化 Presto SQL 时只盯着 SQL 写法，但真正的瓶颈经常在数据布局。比如同一条按天查询，如果表按 dt 分区并且文件是列式格式，Presto 可能只读当天几个列；如果表没有分区，或者分区字段被函数包住导致无法裁剪，就会变成全表扫描。</p>
-
-<h2 id="生产实践">八、生产里怎么用好 Presto</h2>
-
-<p>Presto 进入生产后，重点不只是「把集群搭起来」，而是治理查询行为。</p>
-
-<ul>
-  <li><strong>把场景分层</strong>：BI 看板、临时分析、数据校验、低频报表不要都挤在同一个资源池里。</li>
-  <li><strong>用 Resource Group 做治理</strong>：按用户、来源、查询类型拆资源组，限制并发、排队、内存和单查询资源上限。</li>
-  <li><strong>推动分区和列式存储</strong>：对大表来说，正确的分区、排序、文件大小和 ORC/Parquet 格式比 SQL 小技巧更重要。</li>
-  <li><strong>限制危险 SQL</strong>：没有分区条件的大表扫描、笛卡尔积、无界排序、高基数 distinct，都应该有审计或拦截机制。</li>
-  <li><strong>看懂 Query Plan</strong>：使用 EXPLAIN、EXPLAIN ANALYZE、Web UI、JMX 指标观察 stage、task、input、output、blocked time 和 memory。</li>
-  <li><strong>把小文件治理当前置工作</strong>：小文件会拖慢元数据加载和 split 调度，最终表现为 planning 慢、worker 空转和吞吐下降。</li>
-</ul>
-
-<p>一个健康的 Presto 集群，应该让大多数人可以快速做探索式分析，同时不允许少数危险查询拖垮所有人。这也是 Resource Group、队列、限流、超时、查询审计和 SQL 规范真正发挥作用的地方。</p>
+<p>尤其要注意小文件和数据倾斜。小文件会让 Coordinator 和 Worker 花大量时间做元数据处理和任务调度；数据倾斜会让某几个 Worker 处理远多于其他节点的数据，整个查询只能等最慢的节点完成。</p>
 
 <h2 id="和其他系统的边界">九、和 Hive、Spark、ClickHouse、Doris 的边界</h2>
 
@@ -228,25 +331,40 @@ GROUP BY region;</code></pre>
 <tr><th>系统</th><th>更适合</th><th>和 Presto 的关系</th></tr>
 </thead>
 <tbody>
-<tr><td>Hive</td><td>离线数仓、批量 SQL、稳定 ETL</td><td>Presto 常通过 Hive connector 读取 Hive 表，适合更交互的查询</td></tr>
+<tr><td>Hive</td><td>离线数仓、批量 SQL、稳定 ETL</td><td>Presto 常通过 Hive Connector 读取 Hive 表，适合更交互的查询</td></tr>
 <tr><td>Spark</td><td>通用批处理、复杂 ETL、机器学习、流批任务</td><td>Spark 更像计算框架，Presto 更像 SQL 查询服务</td></tr>
 <tr><td>ClickHouse</td><td>高性能列式 OLAP、明细聚合、单系统内查询</td><td>ClickHouse 自带存储，Presto 更强调跨源联邦查询</td></tr>
 <tr><td>Doris</td><td>实时数仓、报表分析、向量化 OLAP 查询</td><td>Doris 是数据库形态，Presto 是计算层形态</td></tr>
-<tr><td>Iceberg/Hudi/Delta Lake</td><td>数据湖表格式、快照、schema 演进、增量语义</td><td>Presto 可以作为访问这些表格式的 SQL 引擎之一</td></tr>
+<tr><td>Iceberg/Hudi/Delta Lake</td><td>数据湖表格式、快照、Schema 演进、增量语义</td><td>Presto 可以作为访问这些表格式的 SQL 引擎之一</td></tr>
 </tbody>
 </table>
 
-<p>如果你的核心问题是「数据在很多地方，希望临时用 SQL 统一查」，Presto 很合适。如果你的核心问题是「我要建设一个高并发、低延迟、强存储优化的 OLAP 服务」，ClickHouse 或 Doris 这类存储计算结合更紧的系统可能更合适。如果你的核心问题是「复杂批处理、机器学习训练、长链路 ETL」，Spark 仍然有不可替代的生态优势。</p>
+<p>如果核心问题是「数据在很多地方，希望临时用 SQL 统一查」，Presto 很合适。如果核心问题是「我要建设一个高并发、低延迟、强存储优化的 OLAP 服务」，ClickHouse 或 Doris 这类系统可能更合适。如果核心问题是「复杂批处理、机器学习训练、长链路 ETL」，Spark 仍然有不可替代的生态优势。</p>
 
-<h2 id="常见误解">十、几个常见误解</h2>
+<h2 id="生产使用要点">十、生产里怎么用好 Presto</h2>
+
+<p>Presto 进入生产后，重点不只是把集群搭起来，而是治理查询行为。</p>
+
+<ul>
+  <li><strong>把场景分层</strong>：BI 看板、临时分析、数据校验、低频报表不要都挤在同一个资源池里。</li>
+  <li><strong>用 Resource Group 做治理</strong>：按用户、来源、查询类型拆资源组，限制并发、排队、内存和单查询资源上限。</li>
+  <li><strong>推动分区和列式存储</strong>：对大表来说，正确的分区、排序、文件大小和 ORC/Parquet 格式比 SQL 小技巧更重要。</li>
+  <li><strong>限制危险 SQL</strong>：没有分区条件的大表扫描、笛卡尔积、无界排序、高基数 distinct，都应该有审计或拦截机制。</li>
+  <li><strong>看懂 Query Plan</strong>：使用 EXPLAIN、EXPLAIN ANALYZE、Web UI、JMX 指标观察 Stage、Task、Input、Output、Blocked Time 和 Memory。</li>
+  <li><strong>把小文件治理前置</strong>：小文件会拖慢元数据加载和 Split 调度，最终表现为 Planning 慢、Worker 空转和吞吐下降。</li>
+</ul>
+
+<p>一个健康的 Presto 集群，应该让大多数人可以快速做探索式分析，同时不允许少数危险查询拖垮所有人。这也是 Resource Group、队列、限流、超时、查询审计和 SQL 规范真正发挥作用的地方。</p>
+
+<h2 id="常见误解">十一、几个常见误解</h2>
 
 <h3 id="误解一-presto-能替代数仓">误解一：Presto 能替代数仓</h3>
 
 <p>Presto 可以查询数仓，但它不等于数仓。数仓还包括数据建模、分层、口径、权限、血缘、质量、调度、成本治理和生命周期。Presto 只是其中的查询入口和执行层。</p>
 
-<h3 id="误解二-加-worker-就一定变快">误解二：加 worker 就一定变快</h3>
+<h3 id="误解二-加-worker-就一定变快">误解二：加 Worker 就一定变快</h3>
 
-<p>如果瓶颈是扫描和并行度，加 worker 可能有帮助；如果瓶颈是 coordinator planning、元数据、小文件、Join 倾斜、单点数据源吞吐或网络 exchange，加机器只会让问题变得更贵。</p>
+<p>如果瓶颈是扫描和并行度，加 Worker 可能有帮助；如果瓶颈是 Coordinator Planning、元数据、小文件、Join 倾斜、单点数据源吞吐或网络 Exchange，加机器只会让问题变得更贵。</p>
 
 <h3 id="误解三-sql-能跑就说明写得对">误解三：SQL 能跑就说明写得对</h3>
 
@@ -254,11 +372,11 @@ GROUP BY region;</code></pre>
 
 <h2 id="结语">结语</h2>
 
-<p>Presto 的核心价值，是把分散的数据源拉到同一个 SQL 工作台上，并用分布式执行模型把一次查询拆成很多可以并行完成的小任务。它让数据探索更快，让跨源查询更自然，也让数据平台不必为每个临时问题都先搬一次数据。</p>
+<p>Presto 是为了解决一个非常现实的问题出现的：<strong>数据越来越分散，但人仍然希望用一条 SQL 快速分析它们</strong>。</p>
 
-<p>但 Presto 的能力不是魔法。它依赖底层数据布局、connector 质量、查询计划、资源治理和使用者的 SQL 习惯。真正用好 Presto，不是记住几个参数，而是能沿着「SQL → Plan → Stage → Task → Split → Driver → Operator → Exchange」这条链路，看清楚每一份数据在哪里被读取、在哪里被减少、在哪里被重分布、在哪里变成瓶颈。</p>
+<p>它不负责成为所有数据的家，而是负责让不同数据源可以被统一查询。它快，是因为分布式并行、Pipeline 执行、列裁剪、谓词下推和局部聚合；它慢，通常是因为扫描数据太多、Join 太重、Exchange 太大、数据倾斜、小文件太多，或者资源治理不足。</p>
 
-<p>如果一句话概括：Presto 不是另一座仓库，而是一条把很多仓库接到同一个查询现场的高速路。路修得好不好，既取决于引擎，也取决于数据怎么摆、车怎么调度，以及有没有人维护交通秩序。</p>
+<p>所以真正理解 Presto，要抓住这句话：<strong>Presto 不是数据库本身，而是一个把很多数据源接入同一个 SQL 世界的分布式查询引擎</strong>。</p>
 
 <h2 id="延伸阅读">延伸阅读</h2>
 
@@ -298,18 +416,19 @@ GROUP BY region;</code></pre>
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
         <div class="post-toc motion-element"><ol class="nav">
-<li class="nav-item nav-level-2"><a class="nav-link" href="#一条-sql-为什么要离开数据库"><span class="nav-number">1.</span> <span class="nav-text">一、一条 SQL 为什么要离开数据库</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#presto-不是什么"><span class="nav-number">2.</span> <span class="nav-text">二、Presto 不是什么</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#集群角色"><span class="nav-number">3.</span> <span class="nav-text">三、集群角色</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#一条-sql-的执行路径"><span class="nav-number">4.</span> <span class="nav-text">四、一条 SQL 的执行路径</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#connector-的价值"><span class="nav-number">5.</span> <span class="nav-text">五、Connector 的价值</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么快"><span class="nav-number">6.</span> <span class="nav-text">六、Presto 为什么快</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#慢在哪里"><span class="nav-number">7.</span> <span class="nav-text">七、Presto 慢在哪里</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#生产实践"><span class="nav-number">8.</span> <span class="nav-text">八、生产里怎么用好 Presto</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#先给一个准确定位"><span class="nav-number">1.</span> <span class="nav-text">一、先给一个准确定位</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#一个直观例子"><span class="nav-number">2.</span> <span class="nav-text">二、一个直观例子</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#它不是什么"><span class="nav-number">3.</span> <span class="nav-text">三、Presto 不是什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#核心结构"><span class="nav-number">4.</span> <span class="nav-text">四、核心结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#一条-sql-怎么执行"><span class="nav-number">5.</span> <span class="nav-text">五、一条 SQL 怎么执行</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#connector-为什么关键"><span class="nav-number">6.</span> <span class="nav-text">六、Connector 为什么关键</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么快"><span class="nav-number">7.</span> <span class="nav-text">七、Presto 为什么快</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#慢在哪里"><span class="nav-number">8.</span> <span class="nav-text">八、Presto 什么时候会慢</span></a></li>
 <li class="nav-item nav-level-2"><a class="nav-link" href="#和其他系统的边界"><span class="nav-number">9.</span> <span class="nav-text">九、和其他系统的边界</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#常见误解"><span class="nav-number">10.</span> <span class="nav-text">十、几个常见误解</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">11.</span> <span class="nav-text">结语</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#延伸阅读"><span class="nav-number">12.</span> <span class="nav-text">延伸阅读</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#生产使用要点"><span class="nav-number">10.</span> <span class="nav-text">十、生产里怎么用好 Presto</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#常见误解"><span class="nav-number">11.</span> <span class="nav-text">十一、几个常见误解</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">12.</span> <span class="nav-text">结语</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#延伸阅读"><span class="nav-number">13.</span> <span class="nav-text">延伸阅读</span></a></li>
 </ol></div>
       </div>
       <!--/noindex-->
