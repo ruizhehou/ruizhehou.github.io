@@ -1,6 +1,367 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>模型吃进去的东西，为什么需要一个 Feature Store</title>
+    <url>/2026/06/14/FeatureStore%E7%89%B9%E5%BE%81%E5%B9%B3%E5%8F%B0/</url>
+    <content><![CDATA[<p>模型上线以后，最容易被忽略的问题往往不是模型结构，而是模型吃进去的东西。</p>
+
+<p>一个推荐模型、风控模型、广告排序模型或者搜索排序模型，看起来是在做「预测」，但它真正依赖的是一组输入变量：用户最近 7 天点击了多少次、商家近 1 小时订单量是多少、商品历史点击率是多少、用户和商品类目的匹配度是多少、当前请求是不是高峰期。这些输入变量，就是特征。</p>
+
+<p><strong>Feature Store，也就是特征平台，本质上是一套管理模型输入的工程体系</strong>。它要解决的问题不是「模型怎么训练」，而是「模型训练和线上推理时用到的特征，能不能一致、可信、可复用、可监控」。</p>
+
+<h2 id="先说结论">一、先说结论：Feature Store 不是 Redis</h2>
+
+<p>很多人第一次听到 Feature Store，会把它理解成「存特征的地方」，然后自然想到 Redis、HBase、Hive 或一批宽表。这个理解只对了一小部分。</p>
+
+<p>Redis 可以是 Feature Store 的在线存储，Hive/Iceberg 可以是 Feature Store 的离线存储，但它们本身都不是完整的 Feature Store。真正的 Feature Store 至少要管理下面这条链路：</p>
+
+<pre><code class="language-text">特征定义
+  ↓
+特征计算
+  ↓
+离线存储 / 在线存储
+  ↓
+训练集构造 / 在线特征服务
+  ↓
+版本、血缘、监控、权限、治理</code></pre>
+
+<p>所以更准确地说：<strong>Feature Store 是模型输入资产的生命周期管理系统</strong>。它把散落在 SQL、Flink 任务、Python 脚本、Redis key、Hive 表和模型服务代码里的特征，收拢成一套可定义、可生产、可查询、可复用、可追踪的基础设施。</p>
+
+<h2 id="什么是特征">二、什么是特征：不是字段，而是模型决策的输入资产</h2>
+
+<p>特征可以来自业务表、行为日志、实时事件、画像系统、地理位置、设备信息、统计窗口，也可以来自另一个模型的输出。</p>
+
+<table>
+<thead>
+<tr><th>特征类型</th><th>例子</th><th>常见来源</th></tr>
+</thead>
+<tbody>
+<tr><td>用户特征</td><td>用户近 7 天点击次数、近 30 天购买金额、用户所在城市</td><td>行为日志、订单表、用户画像</td></tr>
+<tr><td>商品特征</td><td>商品价格、历史点击率、近 1 小时曝光次数</td><td>商品库、曝光日志、交易日志</td></tr>
+<tr><td>商家特征</td><td>商家近 10 分钟压单量、履约准时率、投诉率</td><td>订单流、履约系统、客服系统</td></tr>
+<tr><td>上下文特征</td><td>当前小时、是否节假日、入口页面、当前位置</td><td>请求上下文、配置系统、地理服务</td></tr>
+<tr><td>交叉特征</td><td>用户是否买过该类目、用户和商家的距离、用户对类目的偏好</td><td>多源 Join、实时计算、按需计算</td></tr>
+</tbody>
+</table>
+
+<p>特征不是简单字段，因为它背后有口径。比如「用户最近 7 天订单数」至少要回答这些问题：</p>
+
+<ul>
+  <li>按支付时间还是创建时间统计？</li>
+  <li>是否包含取消订单、退款订单、测试订单？</li>
+  <li>7 天是自然日还是滚动 168 小时？</li>
+  <li>数据延迟多久？多久更新一次？</li>
+  <li>离线训练和线上推理是不是同一个口径？</li>
+</ul>
+
+<p>如果这些问题没有被定义清楚，特征就不是资产，只是某个脚本里的临时变量。</p>
+
+<h2 id="为什么需要特征平台">三、为什么需要特征平台</h2>
+
+<p>小团队、单模型、离线实验阶段，算法工程师自己写 SQL 和 Python 脚本就能跑起来。但只要模型开始上线，问题就会集中出现。</p>
+
+<h3 id="训练和线上不一致">1. 训练和线上不一致</h3>
+
+<p>离线训练时，特征可能用 Spark SQL 算；线上推理时，特征可能由 Java 服务从 Redis、MySQL 或实时流里取。两套逻辑一开始看起来一样，时间久了就会慢慢分叉。</p>
+
+<pre><code class="language-text">离线训练：用户近 7 天下单次数，按自然日统计，包含取消订单
+线上推理：用户近 168 小时下单次数，按滚动窗口统计，不包含取消订单</code></pre>
+
+<p>模型训练时看到的输入分布，和上线后看到的输入分布不一致，这就是 Training-Serving Skew。它特别难排查，因为模型服务没有报错，接口也正常返回，但效果会慢慢变差。</p>
+
+<h3 id="特征重复建设">2. 特征重复建设</h3>
+
+<p>不同模型经常需要类似特征：用户近 7 天点击次数、商家近 1 小时订单量、商品历史 CTR、用户对类目的偏好分。如果每个团队各写一遍，就会出现名字不同但含义相同、名字相同但口径不同、没人知道哪个版本可信的问题。</p>
+
+<p>Feature Store 要把这些高价值特征沉淀为可复用资产，让算法同学先搜索、复用、评估，再决定是否新增。</p>
+
+<h3 id="数据穿越">3. 数据穿越</h3>
+
+<p>训练样本有一个事件时间。比如你要预测用户在 10:00 是否会点击某个商品，那么训练时不能使用 10:00 之后才产生的信息。</p>
+
+<pre><code class="language-text">样本时间：2026-06-01 10:00:00
+错误特征：用户当天总下单次数
+问题：这个特征可能包含 10:00 之后的订单，模型偷看了未来</code></pre>
+
+<p>这种问题叫数据穿越，也叫 label leakage 或 future leakage。线下指标会很好，线上效果会崩。Feature Store 需要支持 Point-in-Time Join：构造训练集时，只能取样本时刻之前已经可见的特征值。</p>
+
+<h3 id="线上低延迟取数">4. 线上低延迟取数</h3>
+
+<p>训练任务可以跑几十分钟甚至几个小时，但线上推理通常只有几十毫秒到一两百毫秒。模型服务不可能每次请求都去 Hive 里跑 SQL，也不应该在请求链路里做复杂 Join。</p>
+
+<p>因此，在线特征通常要提前写入 Redis、HBase、Cassandra、DynamoDB、RocksDB 或自研 KV。Feature Store 要负责把复杂计算前置，把线上查询变成稳定、批量、低延迟的特征读取。</p>
+
+<h2 id="核心架构">四、核心架构：Registry、Offline Store、Online Store</h2>
+
+<p>一个典型 Feature Store 可以拆成几层。</p>
+
+<pre><code class="language-text">原始数据源
+MySQL / Kafka / Hive / Logs / Object Storage
+        ↓
+特征计算层
+Batch: Spark / Hive / SQL
+Stream: Flink / Kafka Streams
+Realtime: Request-time Transform
+        ↓
+Feature Registry
+特征定义 / 元数据 / 血缘 / 权限 / 版本
+        ↓
+┌───────────────────┬───────────────────┐
+│ Offline Store     │ Online Store      │
+│ Hive / Iceberg    │ Redis / HBase / KV│
+│ 用于训练和回放      │ 用于线上推理        │
+└───────────────────┴───────────────────┘
+        ↓                       ↓
+Training Dataset         Online Feature Serving
+        ↓                       ↓
+Model Training           Model Inference</code></pre>
+
+<p>这里面有三个核心组件。</p>
+
+<table>
+<thead>
+<tr><th>组件</th><th>负责什么</th><th>典型系统</th></tr>
+</thead>
+<tbody>
+<tr><td>Feature Registry</td><td>管理特征定义、实体、版本、owner、血缘、权限</td><td>元数据库、Git、配置中心、平台服务</td></tr>
+<tr><td>Offline Store</td><td>保存历史特征，用于训练、评估、回放、Point-in-Time Join</td><td>Hive、Iceberg、Hudi、Delta Lake、Parquet</td></tr>
+<tr><td>Online Store</td><td>保存最新可服务特征，用于线上模型推理低延迟查询</td><td>Redis、HBase、Cassandra、DynamoDB、RocksDB、KV</td></tr>
+</tbody>
+</table>
+
+<p>Feature Store 的难点不在某一个存储，而在这三者必须围绕同一套特征定义协同工作。</p>
+
+<h2 id="特征定义层">五、特征定义层：把口径写成资产</h2>
+
+<p>特征定义层是 Feature Store 的起点。没有定义，后面的存储、服务和监控都会变成无源之水。</p>
+
+<pre><code class="language-yaml">feature_name: user_order_cnt_7d
+entity: user_id
+type: int64
+description: 用户最近 7 天完成订单数
+owner: growth_model_team
+source: order_detail
+window: 7d
+update_frequency: 1h
+offline: true
+online: true
+ttl: 30d</code></pre>
+
+<p>一个好的特征定义至少要回答：</p>
+
+<ul>
+  <li>这个特征叫什么，含义是什么？</li>
+  <li>它属于哪个实体，比如 user_id、item_id、shop_id？</li>
+  <li>它的数据类型、默认值、缺失值语义是什么？</li>
+  <li>它从哪个数据源来，计算逻辑是什么？</li>
+  <li>它多久更新一次，能不能线上服务？</li>
+  <li>谁负责维护，哪些模型正在使用？</li>
+  <li>它有没有敏感属性，是否需要权限审批？</li>
+</ul>
+
+<p>这一步看起来像文档，但它不是文档。它应该变成平台可执行、可校验、可追踪的定义。否则口径统一只会停留在约定层面。</p>
+
+<h2 id="离线和在线路径">六、离线和在线路径为什么必须同时设计</h2>
+
+<p>同一个特征，在训练和推理时的使用方式完全不同。</p>
+
+<table>
+<thead>
+<tr><th>维度</th><th>离线特征</th><th>在线特征</th></tr>
+</thead>
+<tbody>
+<tr><td>主要用途</td><td>训练、评估、回放、样本构造</td><td>线上实时推理</td></tr>
+<tr><td>数据规模</td><td>很大，按历史批量扫描</td><td>单次很小，但并发高</td></tr>
+<tr><td>延迟要求</td><td>分钟级、小时级可接受</td><td>毫秒级到几十毫秒</td></tr>
+<tr><td>查询方式</td><td>批量 Join、历史回溯</td><td>按 entity key 批量点查</td></tr>
+<tr><td>核心风险</td><td>数据穿越、口径错误、历史不可复现</td><td>超时、缺失、新鲜度不足、服务不可用</td></tr>
+</tbody>
+</table>
+
+<p>比如同一个特征 <code>user_click_cnt_7d</code>：</p>
+
+<pre><code class="language-text">训练时：
+对过去半年所有样本，取每个样本时刻之前 7 天的点击次数
+
+线上时：
+请求来了，根据 user_id 立刻取当前最近 7 天点击次数</code></pre>
+
+<p>Feature Store 的核心价值，就是让这两个路径来自同一套定义，而不是由离线 SQL 和线上服务各写一份逻辑。</p>
+
+<h2 id="point-in-time-join">七、Point-in-Time Join：防止模型偷看未来</h2>
+
+<p>Point-in-Time Join 是 Feature Store 里最关键、也最容易被低估的能力之一。</p>
+
+<p>训练样本通常长这样：</p>
+
+<pre><code class="language-text">user_id | item_id | event_time           | label
+1001    | A       | 2026-06-01 10:00:00  | 1
+1002    | B       | 2026-06-01 10:05:00  | 0</code></pre>
+
+<p>拼接特征时，不能拿用户当前最新特征，而要拿 <code>event_time</code> 时刻之前已经产生、并且在业务上可见的特征值。</p>
+
+<pre><code class="language-text">样本发生在 10:00
+可使用：09:59 之前已经可见的用户特征
+不可使用：10:00 之后才产生或回填出来的特征</code></pre>
+
+<p>这里还要区分几个时间：</p>
+
+<ul>
+  <li><strong>事件时间</strong>：业务事件真实发生的时间。</li>
+  <li><strong>处理时间</strong>：数据被计算任务处理的时间。</li>
+  <li><strong>特征时间</strong>：特征值对应的业务时间窗口。</li>
+  <li><strong>可见时间</strong>：这个特征值真正能被训练或线上系统看到的时间。</li>
+</ul>
+
+<p>如果这几个时间混在一起，训练集就很容易穿越。Feature Store 做得好不好，很大程度上取决于它能不能让训练集构造过程时间正确。</p>
+
+<h2 id="在线特征服务">八、在线特征服务：模型请求里最容易超时的部分</h2>
+
+<p>线上推理链路通常不是只有模型推理。很多时候，特征查询比模型本身更容易成为瓶颈。</p>
+
+<pre><code class="language-text">用户请求
+  ↓
+召回候选 item
+  ↓
+批量查询用户特征、item 特征、上下文特征
+  ↓
+拼接模型输入向量
+  ↓
+模型打分
+  ↓
+排序和业务规则
+  ↓
+返回结果</code></pre>
+
+<p>在线 Feature Serving 要重点考虑：</p>
+
+<ul>
+  <li><strong>批量查询</strong>：一次请求可能要给几十、几百个候选 item 拼特征。</li>
+  <li><strong>超时控制</strong>：特征服务不能无限等待，超时后要有默认值或降级策略。</li>
+  <li><strong>热点 key</strong>：热门商品、热门商家、热门城市可能导致存储热点。</li>
+  <li><strong>新鲜度</strong>：实时特征过期以后，模型可能还在正常返回，但效果已经不可信。</li>
+  <li><strong>缺失值语义</strong>：缺失、为 0、未知、未覆盖，不能随便混在一起。</li>
+  <li><strong>多版本兼容</strong>：新老模型可能同时在线，依赖不同特征版本。</li>
+</ul>
+
+<p>这部分更像后端基础设施，而不只是算法问题。一个不稳定的在线特征服务，会直接拖垮模型服务的 P99 延迟和可用性。</p>
+
+<h2 id="特征监控">九、特征监控：模型没有报错，不代表它没坏</h2>
+
+<p>模型系统最危险的故障，很多时候不是接口 500，而是静默变差。模型正常返回，日志正常写入，但输入特征已经变了。</p>
+
+<p>Feature Store 至少应该监控这些指标：</p>
+
+<table>
+<thead>
+<tr><th>监控项</th><th>说明</th><th>典型问题</th></tr>
+</thead>
+<tbody>
+<tr><td>缺失率</td><td>特征为空或默认值的比例</td><td>上游任务失败、Key 不匹配、覆盖率下降</td></tr>
+<tr><td>新鲜度</td><td>特征距离最近更新时间多久</td><td>实时任务延迟、批任务未产出</td></tr>
+<tr><td>分布变化</td><td>均值、分位数、枚举分布变化</td><td>数据漂移、口径变更、异常回填</td></tr>
+<tr><td>线上离线一致性</td><td>同一批样本在线离线特征是否一致</td><td>Training-Serving Skew</td></tr>
+<tr><td>调用性能</td><td>P50/P95/P99、错误率、超时率</td><td>在线存储热点、服务容量不足</td></tr>
+</tbody>
+</table>
+
+<p>比如 <code>item_ctr_1d</code> 均值突然下降 90%，或者 <code>user_city_id</code> 缺失率从 1% 变成 40%，模型服务可能完全不会报错，但线上排序结果已经变坏了。</p>
+
+<h2 id="和数仓模型平台的关系">十、和数仓、模型平台、实时计算平台的关系</h2>
+
+<p>Feature Store 很容易和数仓、模型平台、实时计算平台混在一起。它们不是替代关系，而是边界不同。</p>
+
+<table>
+<thead>
+<tr><th>系统</th><th>核心对象</th><th>Feature Store 与它的关系</th></tr>
+</thead>
+<tbody>
+<tr><td>数据仓库</td><td>表、指标、主题域、数据质量</td><td>Feature Store 的离线特征经常来自数仓，但它更关注模型输入口径和时间正确性</td></tr>
+<tr><td>实时计算平台</td><td>流任务、窗口、状态、延迟</td><td>实时特征通常由 Flink/Kafka Streams 生产，再写入 Online Store</td></tr>
+<tr><td>模型平台</td><td>训练任务、模型版本、评估、部署、推理服务</td><td>模型平台管理模型生命周期，Feature Store 管理特征生命周期</td></tr>
+<tr><td>服务治理平台</td><td>接口、限流、熔断、监控、发布</td><td>在线 Feature Serving 需要复用这些后端稳定性能力</td></tr>
+</tbody>
+</table>
+
+<p>一句话区分：<strong>数仓管理企业数据资产，模型平台管理模型资产，Feature Store 管理模型输入资产</strong>。</p>
+
+<h2 id="建设路线">十一、建设路线：不要一上来就造大而全平台</h2>
+
+<p>Feature Store 最容易失败的方式，是一开始就想做成大而全平台。更实际的路径应该是从痛点最明确的地方开始。</p>
+
+<table>
+<thead>
+<tr><th>阶段</th><th>目标</th><th>重点能力</th></tr>
+</thead>
+<tbody>
+<tr><td>第一阶段</td><td>统一口径</td><td>特征命名、owner、描述、数据源、更新时间、使用方登记</td></tr>
+<tr><td>第二阶段</td><td>沉淀离线特征</td><td>离线特征表、训练集构造、历史版本、基础血缘</td></tr>
+<tr><td>第三阶段</td><td>解决时间正确性</td><td>Point-in-Time Join、特征快照、回填和可见时间管理</td></tr>
+<tr><td>第四阶段</td><td>建设在线服务</td><td>Online Store、批量查询、超时、默认值、降级、P99 监控</td></tr>
+<tr><td>第五阶段</td><td>治理和复用</td><td>特征搜索、权限、敏感标记、质量监控、成本归因、下线流程</td></tr>
+</tbody>
+</table>
+
+<p>如果团队只有一个离线模型，没必要一开始就建设复杂 Feature Store。先把特征定义、训练集构造和数据穿越问题解决好，价值会更直接。如果已经有多个模型团队、多个在线模型、实时特征和大量重复特征，再建设完整平台才更有收益。</p>
+
+<h2 id="适用场景">十二、什么场景需要 Feature Store</h2>
+
+<p>适合建设 Feature Store 的场景通常有这些信号：</p>
+
+<ul>
+  <li>多个模型团队反复使用同一批用户、商品、商家或上下文特征；</li>
+  <li>训练和线上特征不一致，线上效果经常无法复现；</li>
+  <li>实时或近实时特征越来越多，在线取数链路变复杂；</li>
+  <li>模型上线后，特征缺失、分布漂移、新鲜度问题频繁影响效果；</li>
+  <li>团队希望沉淀高价值特征，而不是每个模型重新造一遍；</li>
+  <li>金融、风控、推荐、广告、搜索等场景对特征口径、可解释性和审计要求很高。</li>
+</ul>
+
+<p>不太需要一开始就上完整 Feature Store 的场景也很明确：</p>
+
+<ul>
+  <li>只有一个很简单的模型；</li>
+  <li>模型完全离线运行，不需要在线推理；</li>
+  <li>特征数量少，变化慢，复用需求弱；</li>
+  <li>团队还没有稳定的数据、训练和部署流程；</li>
+  <li>当前最大问题不是特征复用，而是基础数据质量还没做好。</li>
+</ul>
+
+<h2 id="常见误解">十三、几个常见误解</h2>
+
+<h3 id="误解一-feature-store-就是-redis">误解一：Feature Store 就是 Redis</h3>
+
+<p>Redis 只是可能的在线存储之一。Feature Store 还包括特征定义、离线存储、训练集构造、版本、血缘、监控和治理。</p>
+
+<h3 id="误解二-feature-store-就是宽表">误解二：Feature Store 就是一堆宽表</h3>
+
+<p>宽表只解决了一部分离线拼接问题，不解决在线服务、时间穿越、版本管理、复用搜索和特征监控。</p>
+
+<h3 id="误解三-有了平台算法就不用关心数据">误解三：有了 Feature Store，算法就不用关心数据了</h3>
+
+<p>相反，Feature Store 会让数据问题更透明。算法仍然要关心特征含义、分布、缺失值、样本偏差、特征穿越和线上效果。平台只是把这些问题标准化，不会替你判断特征是否有效。</p>
+
+<h3 id="误解四-特征越多越好">误解四：Feature Store 里的特征越多越好</h3>
+
+<p>不是。没人用、没人维护、口径混乱的特征越多，平台越难治理。好的 Feature Store 不是特征数量最多，而是高价值特征可复用、口径可信、训练线上一致、质量可监控、成本可控制。</p>
+
+<h2 id="结语">结语</h2>
+
+<p>Feature Store 的本质不是一个存储系统，而是一套围绕模型输入的工程体系。</p>
+
+<p>它管理的是特征定义、特征计算、特征存储、训练集构造、在线查询、版本血缘、质量监控和权限治理。它解决的核心问题是：<strong>模型训练时用的特征，和模型上线时看到的特征，必须一致、可信、可复用、可监控</strong>。</p>
+
+<p>如果说模型平台管理的是「模型怎么训练、部署和服务」，那么 Feature Store 管理的就是：<strong>模型到底吃什么，以及这些输入能不能长期可靠</strong>。</p>
+
+<h2 id="延伸阅读">延伸阅读</h2>
+
+<ul>
+  <li><a href="https://docs.feast.dev/getting-started/components/overview" target="_blank" rel="noopener">Feast 官方文档：Feature Store 组件概览</a></li>
+  <li><a href="https://docs.tecton.ai/docs/concepts/tecton-concepts" target="_blank" rel="noopener">Tecton 官方文档：Feature Platform Concepts</a></li>
+  <li><a href="https://www.uber.com/en-CA/blog/michelangelo-machine-learning-platform/" target="_blank" rel="noopener">Uber Engineering：Michelangelo Machine Learning Platform</a></li>
+</ul>]]></content>
+  </entry>
+  <entry>
     <title>一条 SQL 穿过集群：Presto 为什么能把很多数据源当成一张表</title>
     <url>/2026/06/13/Presto%E6%9F%A5%E8%AF%A2%E5%BC%95%E6%93%8E/</url>
     <content><![CDATA[<p>如果只用一句话解释 Presto，我会这么说：<strong>Presto 是一个分布式 SQL 查询引擎，用来把很多地方的数据临时接到同一个 SQL 执行层里查询</strong>。</p>
