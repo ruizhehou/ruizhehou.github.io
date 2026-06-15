@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="物化就是把本来需要现场计算的结果提前算好并存起来，用存储成本和更新复杂度换查询速度、稳定性和低延迟。本文从订单统计、物化视图、Feature Store 特征物化、缓存和中间表讲起，解释物化解决什么问题、带来哪些代价，以及什么时候应该物化。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="为什么有些结果要提前算好：物化到底是什么意思">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/15/%E4%BB%80%E4%B9%88%E6%98%AF%E7%89%A9%E5%8C%96/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-15T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-15T04:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="架构">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/15/%E4%BB%80%E4%B9%88%E6%98%AF%E7%89%A9%E5%8C%96/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>为什么有些结果要提前算好：物化到底是什么意思 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-15T12:00:00+08:00" content="2026-06-15">06-15</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">为什么有些结果要提前算好：物化到底是什么意思</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>很多系统里都会出现一个词：物化。数据库有物化视图，Feature Store 有特征物化，数据仓库有中间结果物化，推荐系统会把候选集和统计特征提前物化，缓存系统本质上也在物化一部分计算结果。</p>
+
+<p>这个词听起来有点抽象，但本质非常简单：<strong>物化就是把本来需要现场计算的结果，提前算好并真实存下来，后面直接读取</strong>。</p>
+
+<p>它解决的是一个非常朴素的问题：有些结果每次重新算太慢、太贵、太不稳定，所以不如提前算好，用存储和更新成本换查询速度。</p>
+
+<h2 id="一句话解释">一、一句话解释</h2>
+
+<p>不物化，是每次用的时候现场算。</p>
+
+<p>物化，是提前算好，存起来，用的时候直接拿。</p>
+
+<pre><code class="language-text">不物化：
+请求来了 → 扫原始数据 → Join / 聚合 / 排序 → 返回结果
+
+物化：
+提前计算 → 保存结果 → 请求来了 → 直接读取结果</code></pre>
+
+<p>所以物化不是某一种具体技术，而是一种系统设计思路：<strong>把计算从查询时刻前移到写入、调度、构建或预处理阶段</strong>。</p>
+
+<h2 id="订单例子">二、从一个订单统计例子开始</h2>
+
+<p>假设你有一张订单表：</p>
+
+<pre><code class="language-text">orders
+- order_id
+- user_id
+- amount
+- created_at
+- status</code></pre>
+
+<p>现在要查询一个指标：用户最近 7 天完成订单数。</p>
+
+<p>如果不物化，每次查询都现场算：</p>
+
+<pre><code class="language-sql">SELECT count(*)
+FROM orders
+WHERE user_id = 1001
+  AND status = 'paid'
+  AND created_at &gt;= now() - interval '7' day;</code></pre>
+
+<p>这个逻辑没问题，但如果线上每个请求都这么算，就会有几个问题：</p>
+
+<ul>
+  <li>每次都要访问订单明细；</li>
+  <li>每次都要过滤时间窗口；</li>
+  <li>高并发时数据库压力很大；</li>
+  <li>如果还要 Join 其他表，延迟会更不可控。</li>
+</ul>
+
+<p>物化的做法是提前把结果算好：</p>
+
+<pre><code class="language-text">user_order_stats
+user_id | order_cnt_7d | pay_amount_7d | update_time
+1001    | 12           | 356.50        | 2026-06-15 12:00:00
+1002    | 3            | 89.00         | 2026-06-15 12:00:00
+1003    | 0            | 0.00          | 2026-06-15 12:00:00</code></pre>
+
+<p>后面查询时，不再扫订单明细，而是直接按 <code>user_id</code> 读取这张统计结果表。</p>
+
+<pre><code class="language-text">user_id = 1001 → order_cnt_7d = 12</code></pre>
+
+<p>这就是物化：把「从订单明细实时聚合」变成「读取已经聚合好的结果」。</p>
+
+<h2 id="物化视图">三、物化视图：数据库里的典型例子</h2>
+
+<p>数据库里经常会区分普通视图和物化视图。</p>
+
+<p>普通视图只是保存一段 SQL 定义：</p>
+
+<pre><code class="language-sql">CREATE VIEW user_order_summary AS
+SELECT user_id, count(*) AS order_cnt
+FROM orders
+GROUP BY user_id;</code></pre>
+
+<p>你查询这个视图时，数据库仍然要执行背后的 SQL。普通视图更像一个 SQL 别名，并不一定保存结果。</p>
+
+<p>物化视图则不同，它会把查询结果保存下来：</p>
+
+<pre><code class="language-sql">CREATE MATERIALIZED VIEW user_order_summary AS
+SELECT user_id, count(*) AS order_cnt
+FROM orders
+GROUP BY user_id;</code></pre>
+
+<p>后面查询类似的统计时，可以直接读取物化视图里的结果，而不是每次重新扫订单表。</p>
+
+<table>
+<thead>
+<tr><th>类型</th><th>保存什么</th><th>查询时发生什么</th></tr>
+</thead>
+<tbody>
+<tr><td>普通视图</td><td>SQL 定义</td><td>查询时重新执行 SQL</td></tr>
+<tr><td>物化视图</td><td>SQL 结果</td><td>查询时读取已保存结果</td></tr>
+</tbody>
+</table>
+
+<p>这也是为什么物化视图能加速查询：它把聚合、Join、过滤等计算提前做了。</p>
+
+<h2 id="特征物化">四、Feature Store 里的特征物化</h2>
+
+<p>在 Feature Store 里，「物化」经常指把特征提前计算出来，并写入在线或离线存储。</p>
+
+<pre><code class="language-text">原始数据：订单、点击、曝光、商家状态
+        ↓
+特征计算：Spark / Flink / SQL
+        ↓
+离线存储：Hive / Iceberg / Hudi，用于训练
+        ↓
+在线存储：Redis / HBase / KV，用于线上推理</code></pre>
+
+<p>比如推荐模型需要这些特征：</p>
+
+<ul>
+  <li><code>user_click_cnt_7d</code>：用户近 7 天点击次数；</li>
+  <li><code>item_ctr_1d</code>：商品近 1 天点击率；</li>
+  <li><code>shop_order_cnt_1h</code>：商家近 1 小时订单量；</li>
+  <li><code>user_category_prefer_score</code>：用户对某个类目的偏好分。</li>
+</ul>
+
+<p>线上推理不能每次请求都现场扫日志、Join 订单表、聚合最近 7 天行为。推荐请求可能只有几十毫秒到一两百毫秒，现场算根本来不及。所以这些特征通常要提前物化到 Online Store。</p>
+
+<pre><code class="language-text">模型请求来了
+  ↓
+按 user_id / item_id / shop_id 批量读取已物化特征
+  ↓
+拼接模型输入
+  ↓
+模型打分
+  ↓
+返回排序结果</code></pre>
+
+<p>这里的物化重点是：把复杂计算提前做，把线上请求变成简单读取。</p>
+
+<h2 id="中间结果物化">五、中间结果物化：长链路里的检查点</h2>
+
+<p>数据任务里也经常会物化中间结果。</p>
+
+<p>比如一个任务链路：</p>
+
+<pre><code class="language-text">原始日志
+  ↓
+清洗过滤
+  ↓
+用户行为聚合
+  ↓
+和订单表 Join
+  ↓
+生成训练样本
+  ↓
+训练模型</code></pre>
+
+<p>如果每次训练都从原始日志重新跑完整链路，成本会很高，也不利于排查问题。更常见的做法是在关键步骤物化中间表：</p>
+
+<pre><code class="language-text">dwd_user_behavior_clean
+  ↓
+dws_user_behavior_1d
+  ↓
+ads_model_training_samples</code></pre>
+
+<p>这样做有几个好处：</p>
+
+<ul>
+  <li>下游可以复用中间结果；</li>
+  <li>任务失败后可以从中间层恢复；</li>
+  <li>每一层可以做数据质量校验；</li>
+  <li>排查问题时可以定位是哪一层开始异常；</li>
+  <li>不用每个下游都重复清洗和聚合。</li>
+</ul>
+
+<p>所以物化不仅是性能优化，也是工程可维护性的手段。</p>
+
+<h2 id="缓存也是物化吗">六、缓存也是物化吗</h2>
+
+<p>从广义上说，缓存也是一种物化：把某次计算或查询结果保存下来，后续请求直接复用。</p>
+
+<table>
+<thead>
+<tr><th>方式</th><th>物化什么</th><th>特点</th></tr>
+</thead>
+<tbody>
+<tr><td>缓存</td><td>热点查询或计算结果</td><td>通常有 TTL，可能随时失效</td></tr>
+<tr><td>物化视图</td><td>某个 SQL 查询结果</td><td>更结构化，有刷新策略</td></tr>
+<tr><td>中间表</td><td>数据链路中的阶段性结果</td><td>可复用、可追踪、可校验</td></tr>
+<tr><td>特征物化</td><td>模型需要的特征值</td><td>强调训练和线上一致性、新鲜度、低延迟</td></tr>
+</tbody>
+</table>
+
+<p>它们的共同点都是：提前保存结果，减少后续重复计算。</p>
+
+<p>区别在于治理要求不同。缓存可以比较临时，过期了重新算；特征物化和物化视图通常需要更明确的口径、刷新策略、版本和一致性保障。</p>
+
+<h2 id="为什么需要物化">七、为什么需要物化</h2>
+
+<p>物化通常是为了四类目标。</p>
+
+<h3 id="降低查询延迟">1. 降低查询延迟</h3>
+
+<p>现场计算可能需要扫大量数据、做 Join、聚合和排序。物化后，查询可以直接读取结果，延迟会显著下降。</p>
+
+<h3 id="降低计算成本">2. 降低重复计算成本</h3>
+
+<p>如果很多下游都在算同一个指标或特征，不如统一算一次并物化。这样既节省资源，也减少口径不一致。</p>
+
+<h3 id="提高稳定性">3. 提高线上稳定性</h3>
+
+<p>线上请求链路越短，依赖越少，稳定性越高。把复杂计算前置到离线任务或流式任务里，可以让线上只做简单读取。</p>
+
+<h3 id="增强可复用和可排查">4. 增强可复用和可排查</h3>
+
+<p>物化后的中间表、特征表、聚合表可以被多个任务复用，也可以作为数据质量校验和问题排查的边界。</p>
+
+<h2 id="物化的代价">八、物化不是免费的</h2>
+
+<p>物化听起来很美好，但它一定有代价。</p>
+
+<table>
+<thead>
+<tr><th>代价</th><th>说明</th><th>典型问题</th></tr>
+</thead>
+<tbody>
+<tr><td>存储成本</td><td>结果要保存下来</td><td>物化太多导致存储膨胀</td></tr>
+<tr><td>更新成本</td><td>原始数据变化后，结果要刷新</td><td>刷新慢、任务失败、增量逻辑复杂</td></tr>
+<tr><td>新鲜度问题</td><td>物化结果可能落后于真实数据</td><td>线上读到旧特征、旧指标</td></tr>
+<tr><td>一致性问题</td><td>多个物化结果之间可能口径不一致</td><td>离线和在线结果对不上</td></tr>
+<tr><td>治理成本</td><td>需要管理 owner、生命周期、血缘</td><td>没人敢删、没人知道谁在用</td></tr>
+</tbody>
+</table>
+
+<p>因此，物化的本质是权衡：</p>
+
+<pre><code class="language-text">用存储成本 + 更新复杂度 + 新鲜度风险
+换查询速度 + 线上稳定性 + 下游复用</code></pre>
+
+<p>不是所有结果都应该物化。只有当重复计算成本高、查询延迟敏感、口径需要复用、线上链路需要稳定时，物化才值得。</p>
+
+<h2 id="刷新策略">九、物化结果怎么更新</h2>
+
+<p>物化后的结果必须更新，否则很快就会变成旧数据。常见刷新策略有几种。</p>
+
+<table>
+<thead>
+<tr><th>策略</th><th>做法</th><th>适合场景</th></tr>
+</thead>
+<tbody>
+<tr><td>全量刷新</td><td>每次重新计算完整结果</td><td>数据量较小、逻辑简单、周期较长</td></tr>
+<tr><td>增量刷新</td><td>只处理新增或变更数据</td><td>数据量大、更新频繁、需要节省成本</td></tr>
+<tr><td>定时刷新</td><td>每小时、每天固定刷新</td><td>报表、离线特征、数仓汇总</td></tr>
+<tr><td>事件触发刷新</td><td>上游数据变化后触发更新</td><td>配置、库存、状态类数据</td></tr>
+<tr><td>流式维护</td><td>通过 Flink/Kafka Streams 持续更新</td><td>实时特征、实时看板、近实时指标</td></tr>
+</tbody>
+</table>
+
+<p>刷新策略决定了物化结果的新鲜度和成本。比如每天全量刷新很简单，但数据可能延迟一天；流式维护更实时，但系统复杂度更高。</p>
+
+<h2 id="什么时候应该物化">十、什么时候应该物化</h2>
+
+<p>可以用几个问题判断是否值得物化。</p>
+
+<ul>
+  <li><strong>是否被频繁查询？</strong> 高频查询更适合物化。</li>
+  <li><strong>现场计算是否很贵？</strong> 大表扫描、多表 Join、高基数聚合更适合物化。</li>
+  <li><strong>延迟是否敏感？</strong> 线上请求、BI 看板、模型推理更适合物化。</li>
+  <li><strong>口径是否需要复用？</strong> 多个团队都用同一指标或特征时更适合物化。</li>
+  <li><strong>数据变化是否可控？</strong> 如果变化太快且要求强一致，物化维护成本会很高。</li>
+  <li><strong>能否接受一定延迟？</strong> 不能接受旧数据时，要谨慎物化或用流式维护。</li>
+</ul>
+
+<p>如果一个结果很少被查、现场计算很便宜、数据变化又非常频繁，就不一定值得物化。</p>
+
+<h2 id="什么时候不该物化">十一、什么时候不该物化</h2>
+
+<p>这些场景不适合盲目物化：</p>
+
+<ul>
+  <li>查询很少发生，提前计算大部分时间都浪费；</li>
+  <li>结果依赖强实时数据，旧结果会带来错误决策；</li>
+  <li>原始数据频繁变更，增量维护比现场计算更复杂；</li>
+  <li>口径还不稳定，过早物化会制造更多历史包袱；</li>
+  <li>没有 owner、血缘和下线机制，物化表会无限膨胀。</li>
+</ul>
+
+<p>物化不是“越多越好”。很多数仓和平台变慢，不是因为没有物化，而是因为物化了太多没人维护、没人使用、没人敢删的中间结果。</p>
+
+<h2 id="物化和预计算缓存索引的区别">十二、物化、预计算、缓存、索引有什么区别</h2>
+
+<p>这些词经常一起出现，但侧重点不同。</p>
+
+<table>
+<thead>
+<tr><th>概念</th><th>核心含义</th><th>例子</th></tr>
+</thead>
+<tbody>
+<tr><td>物化</td><td>把计算结果真实保存下来</td><td>物化视图、特征表、中间汇总表</td></tr>
+<tr><td>预计算</td><td>提前执行计算</td><td>提前算好用户近 7 天点击数</td></tr>
+<tr><td>缓存</td><td>保存近期或热点结果以便复用</td><td>Redis 缓存商品详情、接口结果</td></tr>
+<tr><td>索引</td><td>保存辅助查找结构，而不是完整查询结果</td><td>B+ 树索引、倒排索引</td></tr>
+<tr><td>预聚合</td><td>提前按维度做聚合</td><td>按天、城市、类目聚合 GMV</td></tr>
+</tbody>
+</table>
+
+<p>它们可以组合使用。比如一个 OLAP 系统可以用索引加速过滤，用物化视图保存预聚合结果，用缓存保存热点查询结果。</p>
+
+<h2 id="特征平台里的例子">十三、回到特征平台：物化到底做了什么</h2>
+
+<p>在特征平台里，物化通常有两个方向。</p>
+
+<table>
+<thead>
+<tr><th>方向</th><th>含义</th><th>用途</th></tr>
+</thead>
+<tbody>
+<tr><td>物化到 Offline Store</td><td>保存历史特征结果</td><td>训练、回放、Point-in-Time Join</td></tr>
+<tr><td>物化到 Online Store</td><td>保存最新可服务特征</td><td>线上低延迟推理</td></tr>
+</tbody>
+</table>
+
+<p>比如 <code>user_order_cnt_7d</code> 这个特征：</p>
+
+<pre><code class="language-text">离线物化：
+每天/每小时保存历史特征版本，用于训练集构造
+
+在线物化：
+把最新特征写入 Redis/HBase，线上请求按 user_id 直接读</code></pre>
+
+<p>这里必须同时关注三件事：</p>
+
+<ul>
+  <li><strong>口径一致</strong>：离线和在线是否用同一套定义；</li>
+  <li><strong>时间正确</strong>：训练时是否只取样本时刻可见的特征；</li>
+  <li><strong>新鲜度可控</strong>：线上读到的特征是否足够新。</li>
+</ul>
+
+<p>所以 Feature Store 里的物化，不只是把数据写到 Redis，而是把特征从定义、计算、存储到服务变成一条可治理的链路。</p>
+
+<h2 id="结语">结语</h2>
+
+<p>物化的本质，是把计算结果从「临时算出来」变成「提前算好并保存」。</p>
+
+<p>它非常有用，因为很多系统都在用它降低延迟、减少重复计算、稳定线上链路、提高复用。但它也不是免费的：你要付出存储成本、刷新成本、新鲜度成本、一致性成本和治理成本。</p>
+
+<p>所以判断要不要物化，不是问「能不能提前算」，而是问：<strong>这个结果是否足够常用、足够昂贵、足够影响线上延迟，并且我们是否有能力维护它的更新和一致性</strong>。</p>
+
+<p>一句话总结：<strong>物化就是用可维护的存储，换可预期的查询速度</strong>。</p>
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/%E6%9E%B6%E6%9E%84/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#一句话解释"><span class="nav-number">1.</span> <span class="nav-text">一、一句话解释</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#订单例子"><span class="nav-number">2.</span> <span class="nav-text">二、从一个订单统计例子开始</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#物化视图"><span class="nav-number">3.</span> <span class="nav-text">三、物化视图</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#特征物化"><span class="nav-number">4.</span> <span class="nav-text">四、Feature Store 里的特征物化</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#中间结果物化"><span class="nav-number">5.</span> <span class="nav-text">五、中间结果物化</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#缓存也是物化吗"><span class="nav-number">6.</span> <span class="nav-text">六、缓存也是物化吗</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么需要物化"><span class="nav-number">7.</span> <span class="nav-text">七、为什么需要物化</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#物化的代价"><span class="nav-number">8.</span> <span class="nav-text">八、物化不是免费的</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#刷新策略"><span class="nav-number">9.</span> <span class="nav-text">九、物化结果怎么更新</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么时候应该物化"><span class="nav-number">10.</span> <span class="nav-text">十、什么时候应该物化</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么时候不该物化"><span class="nav-number">11.</span> <span class="nav-text">十一、什么时候不该物化</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#物化和预计算缓存索引的区别"><span class="nav-number">12.</span> <span class="nav-text">十二、物化、预计算、缓存、索引的区别</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#特征平台里的例子"><span class="nav-number">13.</span> <span class="nav-text">十三、回到特征平台</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">14.</span> <span class="nav-text">结语</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">250</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
