@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="模型系统最危险的故障常常不是接口报错，而是输入特征悄悄变了。本文从缺失率、默认值比例、新鲜度、分布漂移、PSI/KS、枚举异常、线上离线差异和告警治理讲起，说明特征监控和普通服务监控的区别，以及 Feature Store 在模型上线后应该承担什么监控责任。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="模型没有报错，为什么效果在变差：特征监控到底要看什么">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/15/%E7%89%B9%E5%BE%81%E7%9B%91%E6%8E%A7%E6%95%B0%E6%8D%AE%E6%BC%82%E7%A7%BB/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-15T03:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-15T03:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="分布式">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/15/%E7%89%B9%E5%BE%81%E7%9B%91%E6%8E%A7%E6%95%B0%E6%8D%AE%E6%BC%82%E7%A7%BB/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>模型没有报错，为什么效果在变差：特征监控到底要看什么 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-15T11:00:00+08:00" content="2026-06-15">06-15</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">模型没有报错，为什么效果在变差：特征监控到底要看什么</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>模型系统最危险的故障，经常不是接口 500，也不是服务超时，而是<strong>模型正常返回，但决策质量正在变差</strong>。</p>
+
+<p>推荐还能返回商品，风控还能给出分数，广告还能完成排序，搜索还能出结果。监控看起来一切正常：QPS 正常、错误率正常、P99 正常、模型服务也没有重启。但业务指标开始下滑，点击率变差，误杀率变高，转化率下降，投诉增加。</p>
+
+<p>这类问题的根因，很多时候不是模型代码坏了，而是模型输入的特征变了。特征缺失、默认值变多、实时特征延迟、上游口径变更、枚举值新增、分布漂移、线上离线不一致，都会让模型在一个它没有见过的输入空间里做判断。</p>
+
+<h2 id="静默故障">一、模型系统最怕静默故障</h2>
+
+<p>传统后端服务的故障通常比较显性：</p>
+
+<ul>
+  <li>接口 500；</li>
+  <li>数据库超时；</li>
+  <li>缓存击穿；</li>
+  <li>消息堆积；</li>
+  <li>线程池打满。</li>
+</ul>
+
+<p>这些故障会直接体现在错误率、延迟、资源利用率、队列长度上。但模型系统有一种特殊故障：<strong>系统还在正常运行，只是输出质量变差</strong>。</p>
+
+<pre><code class="language-text">接口层：200 OK
+模型层：正常返回 score
+特征层：部分特征全是默认值
+业务层：转化率下降、误杀率上升、用户体验变差</code></pre>
+
+<p>如果只看服务监控，你会觉得系统没问题；如果只等业务指标报警，通常已经晚了。特征监控的价值，就是在模型效果明显变坏之前，提前发现输入正在偏离预期。</p>
+
+<h2 id="特征监控和服务监控的区别">二、特征监控和服务监控有什么不同</h2>
+
+<p>服务监控回答的是：系统有没有稳定地提供服务。特征监控回答的是：模型吃进去的数据还可信吗。</p>
+
+<table>
+<thead>
+<tr><th>监控类型</th><th>关注对象</th><th>典型指标</th><th>发现的问题</th></tr>
+</thead>
+<tbody>
+<tr><td>服务监控</td><td>接口和系统运行状态</td><td>QPS、错误率、P95/P99、CPU、内存</td><td>服务不可用、依赖超时、容量不足</td></tr>
+<tr><td>数据监控</td><td>数据产出和链路质量</td><td>产出延迟、行数、分区缺失、重复率</td><td>ETL 失败、上游断流、数据重复</td></tr>
+<tr><td>特征监控</td><td>模型输入的稳定性</td><td>缺失率、默认值比例、分布漂移、新鲜度、线上离线差异</td><td>特征变坏、口径变化、训练服务偏差</td></tr>
+<tr><td>模型监控</td><td>模型输出和业务效果</td><td>预测分布、AUC、CTR、转化率、误杀率</td><td>模型衰退、策略失效、概念漂移</td></tr>
+</tbody>
+</table>
+
+<p>这几类监控不是替代关系，而是递进关系。服务监控告诉你系统是否活着；特征监控告诉你模型是否还在吃正常的数据；模型监控告诉你输出是否还有效；业务监控告诉你最终结果是否还健康。</p>
+
+<h2 id="第一层可用性">三、第一层：特征可用性</h2>
+
+<p>特征监控最基础的一层，是判断特征有没有按预期出现。</p>
+
+<table>
+<thead>
+<tr><th>指标</th><th>含义</th><th>常见问题</th></tr>
+</thead>
+<tbody>
+<tr><td>缺失率</td><td>特征为空、null、无法取到的比例</td><td>上游任务失败、Join key 不匹配、覆盖率下降</td></tr>
+<tr><td>默认值比例</td><td>特征被填成默认值的比例</td><td>在线取数失败、fallback 过多、特征服务降级</td></tr>
+<tr><td>零值比例</td><td>数值特征为 0 的比例</td><td>计数任务异常、窗口没有数据、业务断流</td></tr>
+<tr><td>覆盖率</td><td>有有效特征值的请求或样本比例</td><td>新用户、新商品、新城市覆盖不足</td></tr>
+<tr><td>枚举合法率</td><td>类别特征是否落在已知枚举集合内</td><td>上游新增枚举、编码表变更、脏数据进入</td></tr>
+</tbody>
+</table>
+
+<p>一个常见坑是只监控 null，不监控默认值。线上系统为了可用性，往往会把缺失特征填成 0、-1、unknown、平均值或历史值。接口不会失败，但模型看到的是另一种分布。</p>
+
+<pre><code class="language-text">user_order_cnt_7d 缺失率：0%
+user_order_cnt_7d 默认值比例：45%
+
+结论：不是没有缺失，而是缺失被默认值掩盖了</code></pre>
+
+<p>所以特征平台要明确记录缺失和默认值语义。0、unknown、缺失、未覆盖、超时降级，不能全部混成一个值。</p>
+
+<h2 id="第二层新鲜度">四、第二层：特征新鲜度</h2>
+
+<p>很多特征不是有没有的问题，而是新不新。</p>
+
+<p>比如风控模型里的「用户近 5 分钟失败支付次数」、推荐模型里的「商品近 10 分钟曝光次数」、履约模型里的「商家当前压单量」。这些特征如果延迟 30 分钟，值仍然存在，但已经失去意义。</p>
+
+<table>
+<thead>
+<tr><th>指标</th><th>含义</th><th>例子</th></tr>
+</thead>
+<tbody>
+<tr><td>feature_lag</td><td>当前时间减去特征最新更新时间</td><td>实时特征已经 20 分钟未更新</td></tr>
+<tr><td>window_delay</td><td>窗口结束到结果可见之间的延迟</td><td>10:00 窗口 10:08 才写入 Online Store</td></tr>
+<tr><td>source_lag</td><td>上游事件流的消费延迟</td><td>Kafka lag 持续增长</td></tr>
+<tr><td>materialization_lag</td><td>离线到在线物化延迟</td><td>批任务产出后 1 小时才进入 Redis</td></tr>
+</tbody>
+</table>
+
+<p>新鲜度监控要按特征类型设置阈值。用户长期画像延迟一天可能没问题；实时风控特征延迟 5 分钟就可能不可接受。统一用一个延迟阈值，会导致该报警的不报警，不该报警的一直报警。</p>
+
+<h2 id="第三层分布漂移">五、第三层：特征分布漂移</h2>
+
+<p>特征存在，也足够新，不代表它还正常。它的分布可能已经变了。</p>
+
+<p>比如：</p>
+
+<ul>
+  <li><code>item_price</code> 的中位数突然翻倍；</li>
+  <li><code>user_age</code> 缺失率不变，但 18 岁以下占比突然上升；</li>
+  <li><code>shop_order_cnt_1h</code> 的 P99 降到接近 0；</li>
+  <li><code>city_id</code> 新增了一批模型训练时没见过的城市；</li>
+  <li><code>device_type</code> 的 top1 从 iOS 变成 unknown。</li>
+</ul>
+
+<p>数值特征通常看这些统计量：</p>
+
+<ul>
+  <li>均值、标准差、最小值、最大值；</li>
+  <li>P50、P90、P95、P99；</li>
+  <li>分桶占比；</li>
+  <li>异常值比例；</li>
+  <li>和训练基线或历史窗口的距离。</li>
+</ul>
+
+<p>类别特征通常看这些统计量：</p>
+
+<ul>
+  <li>top N 枚举值占比；</li>
+  <li>unknown / other 比例；</li>
+  <li>新枚举数量；</li>
+  <li>低频枚举数量；</li>
+  <li>训练集中未出现过的类别比例。</li>
+</ul>
+
+<p>分布漂移监控的核心不是追求一个神奇指标，而是回答：<strong>线上输入和模型训练时相比，是否已经变成了另一个世界</strong>。</p>
+
+<h2 id="psi-ks-怎么用">六、PSI、KS 这些指标怎么用</h2>
+
+<p>实际做漂移监控时，经常会用 PSI、KS、KL 散度、JS 散度、Wasserstein Distance 等指标。它们都在衡量两个分布是否相似，但适用场景不完全一样。</p>
+
+<table>
+<thead>
+<tr><th>指标</th><th>适合场景</th><th>注意点</th></tr>
+</thead>
+<tbody>
+<tr><td>PSI</td><td>业务上常用于特征稳定性、分桶后分布对比</td><td>依赖分桶方式，小样本时不稳定</td></tr>
+<tr><td>KS</td><td>数值特征两组分布的累积分布差异</td><td>更适合连续数值，不能解释业务原因</td></tr>
+<tr><td>KL 散度</td><td>概率分布差异</td><td>对 0 概率敏感，通常需要平滑</td></tr>
+<tr><td>JS 散度</td><td>更稳定的分布差异度量</td><td>仍然需要结合业务阈值解释</td></tr>
+<tr><td>分位数差异</td><td>延迟、价格、计数类特征</td><td>简单直观，适合告警解释</td></tr>
+</tbody>
+</table>
+
+<p>PSI 的思路很直观：把训练期或基线期的特征分布分成多个桶，再比较当前线上流量在这些桶里的占比是否变化很大。</p>
+
+<pre><code class="language-text">PSI = Σ (actual_pct - expected_pct) * ln(actual_pct / expected_pct)</code></pre>
+
+<p>但不要把 PSI 阈值当成通用真理。不同业务、不同特征、不同流量规模，对漂移的容忍度不同。一个强特征轻微漂移可能就影响很大；一个弱特征大幅漂移可能没有业务影响。</p>
+
+<p>更稳妥的做法是：漂移指标只负责告诉你「这里不一样了」，是否需要报警还要结合流量占比、特征重要性、模型输出变化和业务指标。</p>
+
+<h2 id="漂移类型">七、先区分几种漂移</h2>
+
+<p>不是所有漂移都代表故障。特征监控要能区分至少四类情况。</p>
+
+<table>
+<thead>
+<tr><th>类型</th><th>含义</th><th>例子</th><th>处理方式</th></tr>
+</thead>
+<tbody>
+<tr><td>数据漂移</td><td>输入特征分布变了</td><td>新城市上线导致 city_id 分布变化</td><td>评估模型是否覆盖新流量</td></tr>
+<tr><td>概念漂移</td><td>特征和标签之间的关系变了</td><td>促销期间价格敏感度变化</td><td>重训模型或调整策略</td></tr>
+<tr><td>标签漂移</td><td>目标变量分布变了</td><td>整体转化率下降</td><td>排查业务环境和样本构造</td></tr>
+<tr><td>管道故障</td><td>数据链路或口径异常</td><td>某个实时特征全变成 0</td><td>回滚、修复上游、降级</td></tr>
+</tbody>
+</table>
+
+<p>数据漂移不一定是坏事。新品类上线、新区域扩展、节假日活动都会带来自然漂移。真正需要快速处理的是管道故障和不可解释的漂移。</p>
+
+<h2 id="基线怎么选">八、基线怎么选</h2>
+
+<p>漂移监控一定要回答「和谁比」。常见基线有三种。</p>
+
+<table>
+<thead>
+<tr><th>基线</th><th>适合场景</th><th>风险</th></tr>
+</thead>
+<tbody>
+<tr><td>训练集基线</td><td>判断线上输入是否偏离模型训练分布</td><td>训练集太老时会让正常业务增长都变成漂移</td></tr>
+<tr><td>滚动历史基线</td><td>判断当前窗口是否偏离最近稳定状态</td><td>慢性漂移可能被滚动基线吞掉</td></tr>
+<tr><td>分群基线</td><td>新老用户、城市、渠道、设备分别比较</td><td>维度过多会造成告警爆炸</td></tr>
+</tbody>
+</table>
+
+<p>生产里通常要组合使用：</p>
+
+<ul>
+  <li>和训练集比，判断模型是否仍然在熟悉的分布上工作；</li>
+  <li>和昨天、上周同周期比，发现突发异常；</li>
+  <li>按核心分群比，避免整体正常掩盖局部问题。</li>
+</ul>
+
+<p>比如整体缺失率只有 2%，看起来没问题；但新用户缺失率是 35%，某个城市缺失率是 60%，这才是真正影响模型的地方。</p>
+
+<h2 id="线上离线一致性">九、线上离线一致性也要监控</h2>
+
+<p>特征监控不只看线上分布，还要看同一个请求在离线和线上是否算出同样的特征。</p>
+
+<p>常见做法是从线上流量里抽样，记录请求上下文、模型版本、特征版本、线上特征值和特征来源。离线系统再按同一批请求回放一次特征计算，对比两边结果。</p>
+
+<pre><code class="language-text">online_feature_log
+request_id
+model_version
+feature_view
+feature_version
+entity_key
+online_value
+feature_time
+visible_time
+source
+
+离线回放后对比：
+online_value vs offline_recomputed_value</code></pre>
+
+<p>如果同一个特征长期出现线上离线差异，就说明两套计算逻辑、数据源、窗口定义或默认值策略在分叉。这类问题往往比单纯分布漂移更危险，因为它直接破坏训练和推理的一致性。</p>
+
+<h2 id="告警怎么设计">十、特征告警怎么设计</h2>
+
+<p>特征监控如果直接把所有异常都报警，会很快变成噪音。一个模型可能有几百到几千个特征，每个特征都有缺失率、新鲜度、分布、枚举、延迟等指标，简单阈值会把人淹没。</p>
+
+<p>告警设计要考虑几件事：</p>
+
+<ul>
+  <li><strong>连续窗口</strong>：不要单个窗口异常就报警，要求连续 N 个窗口异常。</li>
+  <li><strong>流量占比</strong>：影响 0.1% 流量和影响 40% 流量不是一个级别。</li>
+  <li><strong>特征重要性</strong>：核心特征漂移优先级更高，低价值特征可以只记录。</li>
+  <li><strong>模型输出联动</strong>：特征异常是否同时导致 score 分布变化。</li>
+  <li><strong>业务护栏</strong>：是否伴随 CTR、转化率、误杀率等指标变化。</li>
+  <li><strong>分群影响</strong>：整体不明显但关键人群异常，也应该提升优先级。</li>
+</ul>
+
+<p>一个更可用的告警规则，不是「PSI &gt; 0.2 就报警」，而是：</p>
+
+<pre><code class="language-text">核心特征 PSI 连续 3 个窗口超过阈值
+且影响流量超过 10%
+且模型 score 均值或分位数出现同步变化
+则触发 P1 告警
+
+普通特征单窗口漂移
+只进入日报或看板，不打扰值班人</code></pre>
+
+<p>特征告警的目标不是证明某个统计量异常，而是帮助人判断：这件事值不值得立刻处理。</p>
+
+<h2 id="不同场景看什么">十一、不同场景重点看什么</h2>
+
+<p>不同业务模型最该看的特征监控不一样。</p>
+
+<table>
+<thead>
+<tr><th>场景</th><th>重点特征</th><th>重点监控</th></tr>
+</thead>
+<tbody>
+<tr><td>推荐</td><td>用户行为、商品热度、类目偏好、曝光点击统计</td><td>新鲜度、冷启动覆盖率、热门 item 分布、score 分布</td></tr>
+<tr><td>广告</td><td>广告主、预算、出价、点击转化统计</td><td>预算状态延迟、CTR/CVR 特征漂移、分渠道分布</td></tr>
+<tr><td>风控</td><td>设备、账户、交易频次、失败次数、黑名单命中</td><td>实时特征延迟、缺失率、异常枚举、误杀率联动</td></tr>
+<tr><td>搜索排序</td><td>Query、文档质量、相关性、点击反馈</td><td>Query 分布漂移、新词覆盖、文档特征缺失</td></tr>
+<tr><td>履约调度</td><td>位置、距离、商家压单、骑手状态、天气</td><td>实时性、地理特征缺失、城市分群异常</td></tr>
+</tbody>
+</table>
+
+<p>比如风控更怕实时特征延迟和缺失，因为一个关键风险特征没拿到，可能直接放过高风险交易。推荐更怕行为分布漂移和新商品覆盖不足，因为模型会在冷启动流量上变得保守或失真。</p>
+
+<h2 id="feature-store-的角色">十二、Feature Store 应该承担什么角色</h2>
+
+<p>Feature Store 不只是存特征，也应该成为特征监控的天然落点。因为它最清楚：</p>
+
+<ul>
+  <li>特征定义是什么；</li>
+  <li>特征属于哪个实体；</li>
+  <li>特征从哪个数据源来；</li>
+  <li>特征多久更新一次；</li>
+  <li>哪些模型正在使用这个特征；</li>
+  <li>线上服务取到的值是什么；</li>
+  <li>离线训练时用的是哪个版本。</li>
+</ul>
+
+<p>因此，一个成熟 Feature Store 应该提供：</p>
+
+<table>
+<thead>
+<tr><th>能力</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>特征画像</td><td>展示每个特征的分布、缺失率、新鲜度、枚举值</td></tr>
+<tr><td>基线管理</td><td>记录训练集基线、历史稳定基线、分群基线</td></tr>
+<tr><td>线上采样</td><td>采集线上请求中的特征值和模型版本</td></tr>
+<tr><td>离线回放</td><td>对线上样本重新计算离线特征，检查一致性</td></tr>
+<tr><td>影响分析</td><td>知道一个异常特征影响哪些模型和业务</td></tr>
+<tr><td>告警治理</td><td>按 owner、重要性、流量影响和连续窗口生成告警</td></tr>
+</tbody>
+</table>
+
+<p>这也是为什么特征监控不应该只是 Grafana 上几条孤立曲线，而应该和 Feature Registry、模型版本、实验平台、线上日志打通。</p>
+
+<h2 id="排查路径">十三、一次特征异常该怎么排查</h2>
+
+<p>当收到一个特征漂移或缺失告警时，可以按这个顺序排查。</p>
+
+<pre><code class="language-text">1. 先确认影响范围
+   哪个模型、哪个特征、哪个分群、多少流量？
+
+2. 看特征可用性
+   缺失率、默认值比例、覆盖率是否异常？
+
+3. 看新鲜度
+   特征是否延迟？上游数据源是否断流？Online Store 是否写入失败？
+
+4. 看分布变化
+   均值、分位数、topN、PSI/KS 是否变化？变化从什么时候开始？
+
+5. 看上游变更
+   数据源、ETL、Flink 任务、特征定义、枚举表是否发布过？
+
+6. 看模型输出
+   score 分布、分桶通过率、排序位置是否同步变化？
+
+7. 看业务指标
+   CTR、CVR、误杀率、投诉率、履约指标是否受影响？
+
+8. 决策
+   回滚特征、切默认值、降级模型、重训模型，还是只记录观察？</code></pre>
+
+<p>这个排查路径的重点是从输入到输出再到业务结果，而不是一上来就重训模型。很多线上效果问题，重训只能掩盖问题，不能修复上游特征链路。</p>
+
+<h2 id="常见误解">十四、几个常见误解</h2>
+
+<h3 id="误解一-模型服务没报错就没问题">误解一：模型服务没报错就没问题</h3>
+
+<p>模型服务没报错，只能说明系统还能返回结果，不能说明结果仍然可靠。特征缺失、分布漂移和口径变更都可能在 200 OK 里发生。</p>
+
+<h3 id="误解二-只看模型输出就够了">误解二：只看模型输出就够了</h3>
+
+<p>模型输出是结果，特征是原因。只看 score 分布，通常已经晚了一步；提前发现输入异常，才能更快定位问题。</p>
+
+<h3 id="误解三-漂移一定是坏事">误解三：漂移一定是坏事</h3>
+
+<p>漂移可能是自然业务变化，比如节假日、新城市、新品类、新渠道。真正的问题是不可解释的漂移、重要特征漂移、伴随模型输出和业务指标变化的漂移。</p>
+
+<h3 id="误解四-所有特征都要同等监控">误解四：所有特征都要同等监控</h3>
+
+<p>不是。几千个特征如果同等告警，值班人会被噪音淹没。应该按特征重要性、使用模型数量、影响流量、业务风险做分级。</p>
+
+<h2 id="结语">结语</h2>
+
+<p>模型上线以后，真正难的是持续确认：模型今天吃进去的数据，还是不是训练时那种数据。</p>
+
+<p>特征监控要看的不是一条曲线，而是一套链路：特征是否存在，是否新鲜，分布是否稳定，线上离线是否一致，模型输出是否随之变化，业务指标是否受到影响。</p>
+
+<p>如果说 Feature Store 管理的是模型输入资产，那么特征监控就是这些资产的健康检查。它不保证模型一定有效，但它能让模型变差这件事更早被看见、更快被定位、更少靠运气。</p>
+
+<p>一句话总结：<strong>模型没有报错，不代表模型系统没坏；特征没有被监控，模型效果就只能靠业务指标事后发现</strong>。</p>
+
+<h2 id="延伸阅读">延伸阅读</h2>
+
+<ul>
+  <li><a href="https://www.tensorflow.org/tfx/tutorials/data_validation/tfdv_basic" target="_blank" rel="noopener">TensorFlow Data Validation：Data validation tutorial</a></li>
+  <li><a href="https://docs.evidentlyai.com/metrics/preset_data_drift" target="_blank" rel="noopener">Evidently 官方文档：Data Drift Preset</a></li>
+  <li><a href="https://docs.evidentlyai.com/metrics/explainer_drift" target="_blank" rel="noopener">Evidently 官方文档：Data Drift detection</a></li>
+</ul>
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/%E6%9E%B6%E6%9E%84/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"><i class="fa fa-tag"></i> 分布式</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#静默故障"><span class="nav-number">1.</span> <span class="nav-text">一、模型系统最怕静默故障</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#特征监控和服务监控的区别"><span class="nav-number">2.</span> <span class="nav-text">二、特征监控和服务监控有什么不同</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第一层可用性"><span class="nav-number">3.</span> <span class="nav-text">三、第一层：特征可用性</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第二层新鲜度"><span class="nav-number">4.</span> <span class="nav-text">四、第二层：特征新鲜度</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#第三层分布漂移"><span class="nav-number">5.</span> <span class="nav-text">五、第三层：特征分布漂移</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#psi-ks-怎么用"><span class="nav-number">6.</span> <span class="nav-text">六、PSI、KS 这些指标怎么用</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#漂移类型"><span class="nav-number">7.</span> <span class="nav-text">七、先区分几种漂移</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#基线怎么选"><span class="nav-number">8.</span> <span class="nav-text">八、基线怎么选</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#线上离线一致性"><span class="nav-number">9.</span> <span class="nav-text">九、线上离线一致性也要监控</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#告警怎么设计"><span class="nav-number">10.</span> <span class="nav-text">十、特征告警怎么设计</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#不同场景看什么"><span class="nav-number">11.</span> <span class="nav-text">十一、不同场景重点看什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#feature-store-的角色"><span class="nav-number">12.</span> <span class="nav-text">十二、Feature Store 应该承担什么角色</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#排查路径"><span class="nav-number">13.</span> <span class="nav-text">十三、一次特征异常该怎么排查</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#常见误解"><span class="nav-number">14.</span> <span class="nav-text">十四、几个常见误解</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">15.</span> <span class="nav-text">结语</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#延伸阅读"><span class="nav-number">16.</span> <span class="nav-text">延伸阅读</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">249</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
