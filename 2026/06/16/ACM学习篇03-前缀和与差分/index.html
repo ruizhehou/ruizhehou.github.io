@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ACM 学习篇第三课：理解前缀和与差分，一个用来快速查询区间，一个用来快速处理区间修改。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ACM 学习篇 03：前缀和与差分">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8703-%E5%89%8D%E7%BC%80%E5%92%8C%E4%B8%8E%E5%B7%AE%E5%88%86/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-16T06:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-16T06:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据结构与算法">
+<meta property="article:tag" content="算法题目">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8703-%E5%89%8D%E7%BC%80%E5%92%8C%E4%B8%8E%E5%B7%AE%E5%88%86/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>ACM 学习篇 03：前缀和与差分 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-16T14:00:00+08:00" content="2026-06-16">06-16</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">ACM 学习篇 03：前缀和与差分</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<h2 id="区间问题为什么需要预处理">区间问题为什么需要预处理</h2>
+
+<p>很多题都会反复问同一类问题：某个区间的和是多少，某个矩形里的数是多少，很多次区间加法之后每个位置是多少。</p>
+<p>如果每次都从头扫一遍，复杂度很容易变成 <code>O(nq)</code>。当 <code>n</code> 和 <code>q</code> 都到 <code>1e5</code> 时，这就不可接受了。</p>
+<p>前缀和与差分解决的就是这种重复劳动。前缀和偏向查询，差分偏向修改。</p>
+
+<h2 id="一维前缀和">一维前缀和</h2>
+
+<p>一维前缀和的定义很简单：</p>
+<pre><code class="language-cpp">prefix[i] = a[1] + a[2] + ... + a[i]</code></pre>
+<p>写代码时，我更喜欢用 1 下标，这样区间 <code>[l, r]</code> 的和就很顺手：</p>
+<pre><code class="language-cpp">vector&lt;long long&gt; pre(n + 1, 0);
+for (int i = 1; i &lt;= n; i++) {
+    pre[i] = pre[i - 1] + a[i];
+}
+
+long long rangeSum(int l, int r) {
+    return pre[r] - pre[l - 1];
+}</code></pre>
+<p>预处理一次是 <code>O(n)</code>，之后每次区间求和是 <code>O(1)</code>。这就是前缀和最直接的价值。</p>
+
+<h2 id="什么时候想到前缀和">什么时候想到前缀和</h2>
+
+<p>看到这些关键词，可以先想前缀和：</p>
+<ul>
+  <li>多次查询区间和；</li>
+  <li>连续子数组、连续区间；</li>
+  <li>求某段的平均值、总贡献、数量；</li>
+  <li>固定右端点，快速知道左边某段信息；</li>
+  <li>子数组和等于某个值。</li>
+</ul>
+<p>前缀和不一定只存“和”。只要信息可以通过前缀相减得到，就可以考虑前缀数组。比如字符出现次数、某类元素个数、奇偶数量，都可以做成前缀统计。</p>
+
+<h2 id="前缀和加哈希">前缀和加哈希</h2>
+
+<p>有些题不是问一个固定区间，而是问有多少个子数组满足某个条件。比如子数组和等于 <code>k</code>。</p>
+<p>如果当前前缀和是 <code>sum</code>，想找一个以前的位置 <code>j</code>，让 <code>sum - pre[j] = k</code>，也就是 <code>pre[j] = sum - k</code>。所以可以用哈希表记录以前出现过的前缀和。</p>
+<pre><code class="language-cpp">long long ans = 0, sum = 0;
+unordered_map&lt;long long, int&gt; cnt;
+cnt[0] = 1;
+
+for (int x : a) {
+    sum += x;
+    if (cnt.count(sum - k)) ans += cnt[sum - k];
+    cnt[sum]++;
+}</code></pre>
+<p>这类写法很重要，因为它把“枚举左右端点”变成了“枚举右端点，再查需要的左端点”。</p>
+
+<h2 id="二维前缀和">二维前缀和</h2>
+
+<p>二维前缀和用来快速求矩形区域的和。设 <code>s[i][j]</code> 表示左上角到 <code>(i, j)</code> 这个矩形的总和：</p>
+<pre><code class="language-cpp">for (int i = 1; i &lt;= n; i++) {
+    for (int j = 1; j &lt;= m; j++) {
+        s[i][j] = s[i - 1][j] + s[i][j - 1] - s[i - 1][j - 1] + a[i][j];
+    }
+}</code></pre>
+<p>查询 <code>(x1, y1)</code> 到 <code>(x2, y2)</code> 的矩形和：</p>
+<pre><code class="language-cpp">long long query(int x1, int y1, int x2, int y2) {
+    return s[x2][y2] - s[x1 - 1][y2] - s[x2][y1 - 1] + s[x1 - 1][y1 - 1];
+}</code></pre>
+<p>二维前缀和最容易错的是容斥里的加减号。可以把它理解成：先取大矩形，再减掉上面和左边多出来的部分，因为左上角被减了两次，所以要加回来一次。</p>
+
+<h2 id="一维差分">一维差分</h2>
+
+<p>前缀和适合“多次区间查询”。差分适合“多次区间修改”。</p>
+<p>如果要把区间 <code>[l, r]</code> 每个数都加上 <code>x</code>，直接改是 <code>O(n)</code>。用差分数组，只要改两个点：</p>
+<pre><code class="language-cpp">diff[l] += x;
+diff[r + 1] -= x;</code></pre>
+<p>所有修改做完以后，再做一次前缀累加，还原最终数组：</p>
+<pre><code class="language-cpp">for (int i = 1; i &lt;= n; i++) {
+    diff[i] += diff[i - 1];
+    a[i] += diff[i];
+}</code></pre>
+<p>这背后的想法是：在 <code>l</code> 位置开始增加，在 <code>r + 1</code> 位置停止增加。</p>
+
+<h2 id="二维差分">二维差分</h2>
+
+<p>二维差分处理的是矩形区域整体加值。给矩形 <code>(x1, y1)</code> 到 <code>(x2, y2)</code> 加上 <code>v</code>：</p>
+<pre><code class="language-cpp">d[x1][y1] += v;
+d[x2 + 1][y1] -= v;
+d[x1][y2 + 1] -= v;
+d[x2 + 1][y2 + 1] += v;</code></pre>
+<p>最后对差分数组做二维前缀和，就能得到每个格子的最终增量。</p>
+<p>二维差分不需要一开始就背得很熟。先把一维差分理解成“从这里开始影响，到那里结束影响”，再看二维版本，就会发现它其实是在四个角上控制影响范围。</p>
+
+<h2 id="这一篇先记住什么">这一篇先记住什么</h2>
+
+<ul>
+  <li>前缀和：预处理一次，让区间查询变快。</li>
+  <li>差分：延迟结算，让区间修改变快。</li>
+  <li>一维问题先想 1 下标，能少掉很多边界烦恼。</li>
+  <li>遇到子数组和、区间和、矩形和、批量区间加法，先看看能不能用这两个工具。</li>
+</ul>
+<p>下一篇写双指针和滑动窗口。它们解决的是另一类问题：如何让左右边界只往前走，不回头。</p>
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E7%AE%97%E6%B3%95/" rel="tag"><i class="fa fa-tag"></i> 数据结构与算法</a>
+          <a href="/tags/%E7%AE%97%E6%B3%95%E9%A2%98%E7%9B%AE/" rel="tag"><i class="fa fa-tag"></i> 算法题目</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+          <a href="/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8704-%E5%8F%8C%E6%8C%87%E9%92%88%E4%B8%8E%E6%BB%91%E5%8A%A8%E7%AA%97%E5%8F%A3/" rel="next" title="ACM 学习篇 04：双指针与滑动窗口">
+            <i class="fa fa-chevron-left"></i> ACM 学习篇 04：双指针与滑动窗口
+          </a>
+        </div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+          <a href="/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8702-%E6%8E%92%E5%BA%8F%E4%B8%8E%E4%BA%8C%E5%88%86/" rel="prev" title="ACM 学习篇 02：排序与二分">
+            ACM 学习篇 02：排序与二分 <i class="fa fa-chevron-right"></i>
+          </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </article>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#区间问题为什么需要预处理"><span class="nav-number">1.</span> <span class="nav-text">区间问题为什么需要预处理</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#一维前缀和"><span class="nav-number">2.</span> <span class="nav-text">一维前缀和</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么时候想到前缀和"><span class="nav-number">3.</span> <span class="nav-text">什么时候想到前缀和</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#前缀和加哈希"><span class="nav-number">4.</span> <span class="nav-text">前缀和加哈希</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#二维前缀和"><span class="nav-number">5.</span> <span class="nav-text">二维前缀和</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#一维差分"><span class="nav-number">6.</span> <span class="nav-text">一维差分</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#二维差分"><span class="nav-number">7.</span> <span class="nav-text">二维差分</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#这一篇先记住什么"><span class="nav-number">8.</span> <span class="nav-text">这一篇先记住什么</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">259</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

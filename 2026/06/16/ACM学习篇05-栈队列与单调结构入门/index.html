@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ACM 学习篇第五课：从栈和队列开始，理解单调栈、单调队列为什么能在线性时间维护“最近更大值”和“窗口最值”。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ACM 学习篇 05：栈、队列与单调结构入门">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8705-%E6%A0%88%E9%98%9F%E5%88%97%E4%B8%8E%E5%8D%95%E8%B0%83%E7%BB%93%E6%9E%84%E5%85%A5%E9%97%A8/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-16T08:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-16T08:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据结构与算法">
+<meta property="article:tag" content="算法题目">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8705-%E6%A0%88%E9%98%9F%E5%88%97%E4%B8%8E%E5%8D%95%E8%B0%83%E7%BB%93%E6%9E%84%E5%85%A5%E9%97%A8/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>ACM 学习篇 05：栈、队列与单调结构入门 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-16T16:00:00+08:00" content="2026-06-16">06-16</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">ACM 学习篇 05：栈、队列与单调结构入门</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<h2 id="先把栈和队列想简单">先把栈和队列想简单</h2>
+
+<p>栈和队列是最基础的数据结构之一。栈是后进先出，队列是先进先出。</p>
+<p>单独看它们并不复杂，但在 ACM 里，真正常见的是它们的两个变体：单调栈和单调队列。它们的共同点是：在容器里维护某种单调顺序，把不可能成为答案的元素提前删掉。</p>
+
+<h2 id="栈处理最近关系">栈：处理最近关系</h2>
+
+<p>普通栈最适合处理“最近的还没匹配的东西”。比如括号匹配：</p>
+<pre><code class="language-cpp">bool ok(string s) {
+    stack&lt;char&gt; st;
+    for (char c : s) {
+        if (c == '(') st.push(c);
+        else {
+            if (st.empty()) return false;
+            st.pop();
+        }
+    }
+    return st.empty();
+}</code></pre>
+<p>栈的意义在于：如果一个左括号还没被匹配，它会留在栈里；新的右括号只能先匹配最近的那个左括号。</p>
+
+<h2 id="队列处理先后顺序">队列：处理先后顺序</h2>
+
+<p>队列适合处理先进先出的过程，比如 BFS。</p>
+<pre><code class="language-cpp">queue&lt;int&gt; q;
+q.push(start);
+vis[start] = true;
+while (!q.empty()) {
+    int u = q.front();
+    q.pop();
+    for (int v : g[u]) {
+        if (!vis[v]) {
+            vis[v] = true;
+            q.push(v);
+        }
+    }
+}</code></pre>
+<p>BFS 之所以能一层一层扩展，就是因为队列保证先进入的点先被处理。</p>
+
+<h2 id="单调栈下一个更大元素">单调栈：下一个更大元素</h2>
+
+<p>单调栈常用来找“左边或右边第一个比我大/小的元素”。</p>
+<p>比如对每个位置，找右边第一个更大的数：</p>
+<pre><code class="language-cpp">vector&lt;int&gt; ans(n, -1);
+stack&lt;int&gt; st; // 存下标，栈内对应值保持递减
+
+for (int i = 0; i &lt; n; i++) {
+    while (!st.empty() &amp;&amp; a[i] &gt; a[st.top()]) {
+        ans[st.top()] = a[i];
+        st.pop();
+    }
+    st.push(i);
+}</code></pre>
+<p>为什么弹栈？因为当前 <code>a[i]</code> 已经成为那些较小元素右边第一个更大的数。它们的答案确定了，就不需要再留在栈里。</p>
+<p>单调栈的复杂度是 <code>O(n)</code>，因为每个元素最多进栈一次、出栈一次。</p>
+
+<h2 id="单调栈还能做什么">单调栈还能做什么</h2>
+
+<p>单调栈常见题型包括：</p>
+<ul>
+  <li>下一个更大元素、下一个更小元素；</li>
+  <li>每天温度这类“还要等几天”的问题；</li>
+  <li>柱状图中最大矩形；</li>
+  <li>每个元素作为最小值或最大值能影响多大区间。</li>
+</ul>
+<p>看到“最近一个比它大”“最近一个比它小”“左右边界由大小关系决定”，就可以想单调栈。</p>
+
+<h2 id="单调队列滑动窗口最大值">单调队列：滑动窗口最大值</h2>
+
+<p>单调队列常用来维护滑动窗口里的最大值或最小值。</p>
+<p>以窗口最大值为例，队列里存下标，并让对应值保持递减：</p>
+<pre><code class="language-cpp">deque&lt;int&gt; dq;
+vector&lt;int&gt; ans;
+
+for (int i = 0; i &lt; n; i++) {
+    while (!dq.empty() &amp;&amp; dq.front() &lt;= i - k) dq.pop_front();
+    while (!dq.empty() &amp;&amp; a[dq.back()] &lt;= a[i]) dq.pop_back();
+    dq.push_back(i);
+    if (i &gt;= k - 1) ans.push_back(a[dq.front()]);
+}</code></pre>
+<p>队首永远是当前窗口里最大的元素。队尾那些比当前元素小的值，以后不可能再成为最大值，因为当前元素更大、位置还更靠后，所以可以直接删掉。</p>
+
+<h2 id="单调结构的共同思想">单调结构的共同思想</h2>
+
+<p>单调栈和单调队列看起来一个用栈，一个用队列，但思想非常像：把没有未来的元素删掉。</p>
+<ul>
+  <li>单调栈删除的是“答案已经被当前元素确定”的元素；</li>
+  <li>单调队列删除的是“以后不可能成为窗口最值”的元素；</li>
+  <li>它们都依赖每个元素最多进出一次，所以是线性的。</li>
+</ul>
+<p>刚开始学时，不需要急着记很多模板。先把“为什么能弹掉”想清楚，模板自然会稳。</p>
+
+<h2 id="这一篇先记住什么">这一篇先记住什么</h2>
+
+<ul>
+  <li>栈适合处理最近未匹配关系，队列适合处理先进先出的层次关系。</li>
+  <li>单调栈常找最近更大或更小元素。</li>
+  <li>单调队列常维护滑动窗口最大值或最小值。</li>
+  <li>单调结构的核心是删掉不可能成为答案的元素。</li>
+</ul>
+<p>下一篇可以继续往基础数据结构走：哈希表与计数，看看如何把“查找”和“统计”做得更快。</p>
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E7%AE%97%E6%B3%95/" rel="tag"><i class="fa fa-tag"></i> 数据结构与算法</a>
+          <a href="/tags/%E7%AE%97%E6%B3%95%E9%A2%98%E7%9B%AE/" rel="tag"><i class="fa fa-tag"></i> 算法题目</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+          <a href="/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8704-%E5%8F%8C%E6%8C%87%E9%92%88%E4%B8%8E%E6%BB%91%E5%8A%A8%E7%AA%97%E5%8F%A3/" rel="prev" title="ACM 学习篇 04：双指针与滑动窗口">
+            ACM 学习篇 04：双指针与滑动窗口 <i class="fa fa-chevron-right"></i>
+          </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </article>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#先把栈和队列想简单"><span class="nav-number">1.</span> <span class="nav-text">先把栈和队列想简单</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#栈处理最近关系"><span class="nav-number">2.</span> <span class="nav-text">栈：处理最近关系</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#队列处理先后顺序"><span class="nav-number">3.</span> <span class="nav-text">队列：处理先后顺序</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#单调栈下一个更大元素"><span class="nav-number">4.</span> <span class="nav-text">单调栈：下一个更大元素</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#单调栈还能做什么"><span class="nav-number">5.</span> <span class="nav-text">单调栈还能做什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#单调队列滑动窗口最大值"><span class="nav-number">6.</span> <span class="nav-text">单调队列：滑动窗口最大值</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#单调结构的共同思想"><span class="nav-number">7.</span> <span class="nav-text">单调结构的共同思想</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#这一篇先记住什么"><span class="nav-number">8.</span> <span class="nav-text">这一篇先记住什么</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">259</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

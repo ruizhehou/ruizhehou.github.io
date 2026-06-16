@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ACM 学习篇第二课：从排序、比较器、lower_bound 到二分答案，理解“有序”和“单调性”为什么是算法竞赛里最常用的入口。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ACM 学习篇 02：排序与二分">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8702-%E6%8E%92%E5%BA%8F%E4%B8%8E%E4%BA%8C%E5%88%86/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-16T05:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-16T05:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据结构与算法">
+<meta property="article:tag" content="算法题目">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8702-%E6%8E%92%E5%BA%8F%E4%B8%8E%E4%BA%8C%E5%88%86/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>ACM 学习篇 02：排序与二分 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-16T13:00:00+08:00" content="2026-06-16">06-16</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">ACM 学习篇 02：排序与二分</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<h2 id="为什么先学排序和二分">为什么先学排序和二分</h2>
+
+<p>上一篇把复杂度、输入输出和代码模板准备好了，这一篇进入第一个真正高频的基础工具：排序与二分。</p>
+<p>排序看起来只是把数组排一下，二分看起来只是查一个数。但在 ACM 里，它们经常是把一道题从暴力枚举变成可做算法的第一步。</p>
+<p>很多问题本来是乱的：数值乱、位置乱、时间乱、区间乱。排序做的事情，就是先给这些对象建立一个顺序。顺序一旦建立，后面就可能出现“左边都满足、右边都不满足”这样的结构，二分就有了用武之地。</p>
+
+<h2 id="排序先解决顺序问题">排序先解决顺序问题</h2>
+
+<p>C++ 里最常用的是 <code>sort</code>。默认从小到大排序：</p>
+<pre><code class="language-cpp">vector&lt;int&gt; a = {3, 1, 4, 1, 5};
+sort(a.begin(), a.end());</code></pre>
+<p>如果要从大到小，可以写比较器：</p>
+<pre><code class="language-cpp">sort(a.begin(), a.end(), [](int x, int y) {
+    return x &gt; y;
+});</code></pre>
+<p>排序结构体时，比较器要明确你最关心的字段。比如区间先按左端点升序，再按右端点升序：</p>
+<pre><code class="language-cpp">struct Segment {
+    int l, r;
+};
+
+sort(seg.begin(), seg.end(), [](const Segment&amp; a, const Segment&amp; b) {
+    if (a.l != b.l) return a.l &lt; b.l;
+    return a.r &lt; b.r;
+});</code></pre>
+<p>比较器最重要的一点是保持一致性。不要写出一会儿认为 <code>a &lt; b</code>，一会儿又认为 <code>b &lt; a</code> 的逻辑，否则排序结果会变得不可控。</p>
+
+<h2 id="排序之后能做什么">排序之后能做什么</h2>
+
+<p>排序之后，常见的变化有几类。</p>
+<ul>
+  <li>去重：先排序，再用 <code>unique</code> 把重复元素压掉；</li>
+  <li>找相邻差值：最小差值通常会出现在排序后的相邻元素之间；</li>
+  <li>贪心选择：活动安排、区间覆盖、会议室这类题经常先按某个维度排序；</li>
+  <li>配对：一个最小配一个最大，或者两个指针从两头往中间走；</li>
+  <li>离散化：把很大的值域压成较小的排名。</li>
+</ul>
+<p>所以看到题目里有“大小关系”“排名”“最近”“第 k 个”“区间端点”“时间先后”，都可以先想一下排序会不会让结构变清楚。</p>
+
+<h2 id="二分查找先写稳">二分查找先写稳</h2>
+
+<p>在有序数组里查找，可以直接用标准库。</p>
+<pre><code class="language-cpp">auto it = lower_bound(a.begin(), a.end(), x); // 第一个 &gt;= x 的位置
+if (it != a.end() &amp;&amp; *it == x) {
+    int pos = it - a.begin();
+}</code></pre>
+<p><code>lower_bound</code> 找第一个大于等于 <code>x</code> 的位置，<code>upper_bound</code> 找第一个大于 <code>x</code> 的位置。它们常用来统计某个数出现了多少次：</p>
+<pre><code class="language-cpp">int cnt = upper_bound(a.begin(), a.end(), x) - lower_bound(a.begin(), a.end(), x);</code></pre>
+<p>自己写二分时，我更推荐先掌握“找第一个满足条件的位置”这一种模板。</p>
+<pre><code class="language-cpp">int l = 0, r = n - 1;
+int ans = n;
+while (l &lt;= r) {
+    int mid = l + (r - l) / 2;
+    if (check(mid)) {
+        ans = mid;
+        r = mid - 1;
+    } else {
+        l = mid + 1;
+    }
+}</code></pre>
+<p>这个模板背后的意思是：如果 <code>mid</code> 满足条件，答案可能就是它，也可能在更左边；如果不满足，答案只能去右边找。</p>
+
+<h2 id="二分答案看单调性">二分答案看单调性</h2>
+
+<p>二分不只能在数组里找数，还能在答案范围里找答案。这叫二分答案。</p>
+<p>判断能不能二分答案，关键不是题目里有没有数组，而是有没有单调性。也就是说，如果某个答案 <code>x</code> 可行，那么比它更大或更小的一侧是不是一定也可行。</p>
+<p>比如“最小化最大值”经常可以二分：给一个上限 <code>x</code>，检查能不能在这个限制下完成任务。如果 <code>x</code> 可以完成，那么更大的上限通常也可以完成，于是可行区间是连续的。</p>
+<pre><code class="language-cpp">bool check(int limit) {
+    // 判断 limit 作为答案是否可行
+}
+
+int l = 0, r = 1e9, ans = r;
+while (l &lt;= r) {
+    int mid = l + (r - l) / 2;
+    if (check(mid)) {
+        ans = mid;
+        r = mid - 1;
+    } else {
+        l = mid + 1;
+    }
+}</code></pre>
+<p>二分答案时，真正难的往往不是二分模板，而是 <code>check</code> 怎么写。<code>check</code> 通常会结合贪心、前缀和、图论或动态规划。</p>
+
+<h2 id="最容易错的地方">最容易错的地方</h2>
+
+<ul>
+  <li>边界写错：到底是找第一个满足，还是最后一个满足；</li>
+  <li><code>mid = (l + r) / 2</code> 可能溢出，稳妥写法是 <code>l + (r - l) / 2</code>；</li>
+  <li><code>check</code> 没有单调性，却硬套二分；</li>
+  <li>排序比较器写得不稳定，导致结果不符合预期；</li>
+  <li>二分浮点答案时精度和循环次数没有控制好。</li>
+</ul>
+<p>我自己的习惯是：写二分前先在纸上画一条线，标出“不满足”和“满足”的分界点。能画出来，模板就不容易写乱。</p>
+
+<h2 id="这一篇先记住什么">这一篇先记住什么</h2>
+
+<ul>
+  <li>排序的价值不是“排好看”，而是制造顺序。</li>
+  <li>二分的本质不是“折半查找”，而是利用单调性缩小范围。</li>
+  <li>遇到最小化最大值、最大化最小值、是否可行这类问题，要主动想二分答案。</li>
+</ul>
+<p>下一篇继续学一个非常基础但很强的工具：前缀和与差分。它们解决的是“区间反复求”和“区间反复改”的问题。</p>
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E7%AE%97%E6%B3%95/" rel="tag"><i class="fa fa-tag"></i> 数据结构与算法</a>
+          <a href="/tags/%E7%AE%97%E6%B3%95%E9%A2%98%E7%9B%AE/" rel="tag"><i class="fa fa-tag"></i> 算法题目</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+          <a href="/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8703-%E5%89%8D%E7%BC%80%E5%92%8C%E4%B8%8E%E5%B7%AE%E5%88%86/" rel="next" title="ACM 学习篇 03：前缀和与差分">
+            <i class="fa fa-chevron-left"></i> ACM 学习篇 03：前缀和与差分
+          </a>
+        </div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+          <a href="/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8701-%E5%A4%8D%E6%9D%82%E5%BA%A6%E8%BE%93%E5%85%A5%E8%BE%93%E5%87%BA%E5%92%8C%E4%BB%A3%E7%A0%81%E6%A8%A1%E6%9D%BF/" rel="prev" title="ACM 学习篇 01：复杂度、输入输出和代码模板">
+            ACM 学习篇 01：复杂度、输入输出和代码模板 <i class="fa fa-chevron-right"></i>
+          </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </article>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么先学排序和二分"><span class="nav-number">1.</span> <span class="nav-text">为什么先学排序和二分</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#排序先解决顺序问题"><span class="nav-number">2.</span> <span class="nav-text">排序先解决顺序问题</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#排序之后能做什么"><span class="nav-number">3.</span> <span class="nav-text">排序之后能做什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#二分查找先写稳"><span class="nav-number">4.</span> <span class="nav-text">二分查找先写稳</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#二分答案看单调性"><span class="nav-number">5.</span> <span class="nav-text">二分答案看单调性</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#最容易错的地方"><span class="nav-number">6.</span> <span class="nav-text">最容易错的地方</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#这一篇先记住什么"><span class="nav-number">7.</span> <span class="nav-text">这一篇先记住什么</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">259</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
