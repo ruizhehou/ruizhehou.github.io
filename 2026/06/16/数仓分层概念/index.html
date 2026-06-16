@@ -86,7 +86,9 @@
 
 <p>如果只用一句话解释这些概念，可以这样理解：</p>
 
-<pre><code class="language-text">ODS：把原始数据接进来，尽量保留现场
+<pre><code class="language-text">STG：在进入正式数仓前先接住和缓冲数据
+ODS：把原始数据接进来，尽量保留现场
+TMP：承接加工过程里的临时中间结果
 DWD：把数据清洗成可信、可复用的明细事实
 DIM：沉淀业务对象的维度信息
 DWS：围绕主题和实体做公共汇总
@@ -97,6 +99,8 @@ ADS：面向具体应用、报表、看板和接口输出结果</code></pre>
 <pre><code class="language-text">业务系统 / 日志 / MQ / 第三方数据
           ↓
         STG / ODS
+          ↓
+      TMP（可选）
           ↓
         DWD + DIM
           ↓
@@ -179,7 +183,40 @@ ADS：面向具体应用、报表、看板和接口输出结果</code></pre>
 
 <p>可以把 STG 理解成进入正式数仓前的卸货区。货先放在这里，检查包装、数量和格式，再进入 ODS 或 DWD。</p>
 
-<h2 id="DWD">五、DWD：明细事实层</h2>
+<h2 id="TMP">五、TMP：临时加工层</h2>
+
+<p>TMP 通常是 Temporary 的缩写，也叫<strong>临时层、临时表层、临时加工层</strong>。它和 STG 都带一点「临时」的味道，但位置和职责不一样：<strong>STG 更像进入正式数仓前的接入缓冲，TMP 更像加工任务内部的中间草稿</strong>。</p>
+
+<p>TMP 的核心职责是：<strong>把复杂加工过程中的中间结果临时落下来，方便拆分 SQL、复用本次任务结果、排查问题或承接一次性数据处理</strong>。</p>
+
+<p>比如订单明细加工可能需要先把订单、支付、退款、优惠、配送等多张表拼到一起。如果一条 SQL 太长，或者中间结果需要反复校验，就可能先落一张临时表：</p>
+
+<pre><code class="language-text">tmp_trade_order_pay_refund_di
+- order_id
+- user_id
+- shop_id
+- pay_amount
+- refund_amount
+- coupon_amount
+- delivery_status
+- dt</code></pre>
+
+<p>这张表的价值不是对外提供稳定口径，而是帮助当前加工任务把复杂逻辑拆开。任务跑完、回灌结束或问题排查完成后，它就应该被清理，或者至少有明确的保留周期。</p>
+
+<p>TMP 层常见用途包括：</p>
+
+<ul>
+  <li>把很长的 SQL 拆成几步，降低开发和排障难度；</li>
+  <li>承接历史回灌、数据修复、一次性分析的中间结果；</li>
+  <li>在 DWD、DWS、ADS 加工过程中临时缓存 Join 或聚合结果；</li>
+  <li>保存校验样本、异常数据、重跑任务的阶段性结果。</li>
+</ul>
+
+<p>TMP 最大的风险是「临时表长期化」。如果一张 TMP 表开始被多个下游长期依赖，它就不应该继续叫 TMP，而应该被重新建模，沉淀到 DWD、DWS 或 ADS。</p>
+
+<p>一句话：<strong>TMP 是加工过程里的临时工作台，不是稳定的数据资产层</strong>。</p>
+
+<h2 id="DWD">六、DWD：明细事实层</h2>
 
 <p>DWD 通常叫 Data Warehouse Detail，也就是<strong>明细数据层</strong>。它是数仓里非常关键的一层。</p>
 
@@ -223,7 +260,7 @@ status = 9  测试订单</code></pre>
 
 <p>一句话：<strong>DWD 是把原始数据变成标准业务事实</strong>。</p>
 
-<h2 id="DIM">六、DIM：维度层</h2>
+<h2 id="DIM">七、DIM：维度层</h2>
 
 <p>DIM 是 Dimension 的缩写，也就是<strong>维度层</strong>。</p>
 
@@ -251,7 +288,7 @@ dim_item_category_df
 
 <p>DIM 层最容易被低估。没有好的维度层，DWD 明细表就很难被稳定解释，DWS 和 ADS 的口径也会漂。</p>
 
-<h2 id="DWS">七、DWS：公共汇总层</h2>
+<h2 id="DWS">八、DWS：公共汇总层</h2>
 
 <p>DWS 通常叫 Data Warehouse Summary，也就是<strong>汇总数据层、公共汇总层、主题汇总层</strong>。</p>
 
@@ -287,7 +324,7 @@ dws_trade_shop_1d_di
 
 <p>一句话：<strong>DWS 是把明细事实聚合成公共业务能力</strong>。</p>
 
-<h2 id="ADS">八、ADS：应用数据层</h2>
+<h2 id="ADS">九、ADS：应用数据层</h2>
 
 <p>ADS 通常叫 Application Data Service，也叫<strong>应用层、数据服务层、应用数据层</strong>。</p>
 
@@ -321,7 +358,7 @@ dws_trade_shop_1d_di
 
 <p>一句话：<strong>ADS 是把数仓能力包装成业务能直接使用的数据产品</strong>。</p>
 
-<h2 id="订单链路例子">九、用订单分析串起来看一遍</h2>
+<h2 id="订单链路例子">十、用订单分析串起来看一遍</h2>
 
 <p>假设我们要做一个「城市经营看板」，展示每天每个城市的 GMV、订单数、支付用户数和退款率。</p>
 
@@ -331,25 +368,29 @@ dws_trade_shop_1d_di
    ods_trade_order_info_di
    从订单库同步原始订单数据
 
-2. DWD
+2. TMP（可选）
+   tmp_trade_order_pay_refund_di
+   在复杂加工中临时拼接订单、支付、退款等中间结果
+
+3. DWD
    dwd_trade_order_detail_di
    清洗测试订单、统一状态、明确一行一单
 
-3. DIM
+4. DIM
    dim_city_df / dim_shop_df / dim_user_df
    补充城市、商家、用户等解释信息
 
-4. DWS
+5. DWS
    dws_trade_city_1d_di
    按城市和日期汇总订单数、GMV、退款金额
 
-5. ADS
+6. ADS
    ads_city_business_dashboard_di
    拼出看板所需字段，补充目标达成率、同比环比、排序展示</code></pre>
 
 <p>同一个指标在不同层的形态不同。DWD 里是一笔笔订单，DWS 里是按城市和天聚合后的公共结果，ADS 里是经营看板直接使用的最终宽表。</p>
 
-<h2 id="层级对比">十、几层之间到底怎么区分</h2>
+<h2 id="层级对比">十一、几层之间到底怎么区分</h2>
 
 <table>
 <thead>
@@ -358,6 +399,7 @@ dws_trade_shop_1d_di
 <tbody>
 <tr><td>STG</td><td>数据先接住</td><td>文件、批次、原始记录</td><td>数据开发、同步任务</td></tr>
 <tr><td>ODS</td><td>原始数据保留下来</td><td>接近源表或原始日志</td><td>数据开发、排障、下游加工</td></tr>
+<tr><td>TMP</td><td>中间结果先落下</td><td>任务中间表、临时宽表、批次结果</td><td>数据开发、一次性分析</td></tr>
 <tr><td>DWD</td><td>明细事实变可信</td><td>订单、支付、点击、曝光等事实明细</td><td>数据开发、分析师、算法工程</td></tr>
 <tr><td>DIM</td><td>业务对象可解释</td><td>用户、商家、商品、城市等维度</td><td>所有下游</td></tr>
 <tr><td>DWS</td><td>公共指标可复用</td><td>按主题、实体、时间窗口汇总</td><td>数据开发、分析师、应用层</td></tr>
@@ -369,13 +411,14 @@ dws_trade_shop_1d_di
 
 <ul>
   <li>如果主要为了保留源数据，是 ODS；</li>
+  <li>如果主要为了支撑某个加工任务的中间计算，是 TMP；</li>
   <li>如果主要为了沉淀可信明细，是 DWD；</li>
   <li>如果主要为了解释实体属性，是 DIM；</li>
   <li>如果主要为了复用公共汇总，是 DWS；</li>
   <li>如果主要为了服务具体应用，是 ADS。</li>
 </ul>
 
-<h2 id="命名方式">十一、常见表命名怎么读</h2>
+<h2 id="命名方式">十二、常见表命名怎么读</h2>
 
 <p>很多数仓表名会长成这样：</p>
 
@@ -403,7 +446,7 @@ dws_trade_shop_1d_di
 
 <p>命名不是越长越好，而是要让别人一眼看出：这张表在哪一层、属于哪个业务域、是什么对象、什么粒度、怎么分区。</p>
 
-<h2 id="事实表和维度表">十二、事实表和维度表</h2>
+<h2 id="事实表和维度表">十三、事实表和维度表</h2>
 
 <p>理解 DWD 和 DIM 时，经常会遇到两个词：事实表和维度表。</p>
 
@@ -416,7 +459,7 @@ dws_trade_shop_1d_di
 
 <p>数仓里常说的「星型模型」就是一张事实表周围连接多张维度表。DWD 里沉淀可信事实，DIM 里沉淀稳定维度，DWS 再基于它们做公共汇总。</p>
 
-<h2 id="数据集市和DM">十三、DM：数据集市是什么</h2>
+<h2 id="数据集市和DM">十四、DM：数据集市是什么</h2>
 
 <p>DM 通常指 Data Mart，也就是<strong>数据集市</strong>。它不是所有公司都会单独放在标准分层里，但在大型组织里很常见。</p>
 
@@ -433,7 +476,7 @@ dws_trade_shop_1d_di
 
 <p>如果公共数仓解决的是全公司统一口径，数据集市解决的就是某个业务方向的高频使用和快速交付。</p>
 
-<h2 id="实时数仓里的分层">十四、实时数仓里的这些层还存在吗</h2>
+<h2 id="实时数仓里的分层">十五、实时数仓里的这些层还存在吗</h2>
 
 <p>实时数仓里仍然会使用类似分层，只是计算引擎和数据形态变了。</p>
 
@@ -446,7 +489,7 @@ Doris / ClickHouse   → realtime_ads</code></pre>
 
 <p>但原则仍然相同：原始数据、可信明细、公共汇总、应用服务要尽量分清。否则实时链路也会陷入同样的问题：口径重复、逻辑散落、异常难排查。</p>
 
-<h2 id="常见误区">十五、常见误区</h2>
+<h2 id="常见误区">十六、常见误区</h2>
 
 <p>数仓分层最常见的问题，不是大家不知道 ODS、DWD、DWS、ADS 这几个词，而是表名像分层，实际职责没有分清。</p>
 
@@ -456,6 +499,7 @@ Doris / ClickHouse   → realtime_ads</code></pre>
 </thead>
 <tbody>
 <tr><td>ODS 里做太多清洗</td><td>原始现场丢失，排障困难</td><td>ODS 尽量贴源，清洗放到 DWD</td></tr>
+<tr><td>TMP 长期被下游依赖</td><td>临时表变成隐形公共层，血缘和口径失控</td><td>设置生命周期，复用稳定后沉淀到 DWD/DWS/ADS</td></tr>
 <tr><td>DWD 做成汇总表</td><td>明细不可复用，下游难扩展</td><td>DWD 保持稳定明细粒度</td></tr>
 <tr><td>DWS 只服务一个报表</td><td>公共层退化成应用层</td><td>DWS 围绕主题沉淀可复用汇总</td></tr>
 <tr><td>ADS 堆满复杂清洗逻辑</td><td>口径散落，维护成本高</td><td>把公共逻辑下沉到 DWD/DWS</td></tr>
@@ -464,7 +508,7 @@ Doris / ClickHouse   → realtime_ads</code></pre>
 </tbody>
 </table>
 
-<h2 id="怎么落地">十六、真正落地时怎么做</h2>
+<h2 id="怎么落地">十七、真正落地时怎么做</h2>
 
 <p>如果从零建设一个数仓，不应该先纠结表名前缀，而应该先回答几个问题。</p>
 
@@ -483,9 +527,9 @@ Doris / ClickHouse   → realtime_ads</code></pre>
 
 <p>ODS、DWD、DWS、ADS 这些缩写本身并不神秘。它们只是把数据从「原始」到「可用」再到「可服务」的过程拆成几个责任清晰的阶段。</p>
 
-<p>ODS 保留现场，DWD 沉淀可信明细，DIM 解释业务对象，DWS 提供公共汇总，ADS 面向具体应用交付结果。STG、TMP、DM 等层则根据团队规模、数据复杂度和交付方式补充使用。</p>
+<p>STG 负责接入缓冲，ODS 保留现场，TMP 承接加工过程里的临时中间结果，DWD 沉淀可信明细，DIM 解释业务对象，DWS 提供公共汇总，ADS 面向具体应用交付结果。DM 等层则根据团队规模、数据复杂度和交付方式补充使用。</p>
 
-<p>判断一张表应该放在哪一层，不要只看它叫什么，而要问：<strong>它是在保留原始数据、清洗明细事实、解释维度属性、沉淀公共汇总，还是服务具体应用？</strong></p>
+<p>判断一张表应该放在哪一层，不要只看它叫什么，而要问：<strong>它是在接入缓冲、保留原始数据、支撑临时加工、清洗明细事实、解释维度属性、沉淀公共汇总，还是服务具体应用？</strong></p>
 
 <p>这就是数仓分层最重要的意义：让数据链路里的每一步都有明确责任，让同一份数据可以被更多人放心复用。</p>
   </div>
@@ -522,19 +566,20 @@ Doris / ClickHouse   → realtime_ads</code></pre>
 <li class="nav-item nav-level-2"><a class="nav-link" href="#为什么需要分层"><span class="nav-number">2.</span> <span class="nav-text">二、为什么需要数仓分层</span></a></li>
 <li class="nav-item nav-level-2"><a class="nav-link" href="#ODS"><span class="nav-number">3.</span> <span class="nav-text">三、ODS</span></a></li>
 <li class="nav-item nav-level-2"><a class="nav-link" href="#STG"><span class="nav-number">4.</span> <span class="nav-text">四、STG</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#DWD"><span class="nav-number">5.</span> <span class="nav-text">五、DWD</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#DIM"><span class="nav-number">6.</span> <span class="nav-text">六、DIM</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#DWS"><span class="nav-number">7.</span> <span class="nav-text">七、DWS</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#ADS"><span class="nav-number">8.</span> <span class="nav-text">八、ADS</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#订单链路例子"><span class="nav-number">9.</span> <span class="nav-text">九、用订单分析串起来看一遍</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#层级对比"><span class="nav-number">10.</span> <span class="nav-text">十、几层之间到底怎么区分</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#命名方式"><span class="nav-number">11.</span> <span class="nav-text">十一、常见表命名怎么读</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#事实表和维度表"><span class="nav-number">12.</span> <span class="nav-text">十二、事实表和维度表</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#数据集市和DM"><span class="nav-number">13.</span> <span class="nav-text">十三、DM：数据集市是什么</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#实时数仓里的分层"><span class="nav-number">14.</span> <span class="nav-text">十四、实时数仓里的这些层还存在吗</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#常见误区"><span class="nav-number">15.</span> <span class="nav-text">十五、常见误区</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#怎么落地"><span class="nav-number">16.</span> <span class="nav-text">十六、真正落地时怎么做</span></a></li>
-<li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">17.</span> <span class="nav-text">结语</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#TMP"><span class="nav-number">5.</span> <span class="nav-text">五、TMP</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#DWD"><span class="nav-number">6.</span> <span class="nav-text">六、DWD</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#DIM"><span class="nav-number">7.</span> <span class="nav-text">七、DIM</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#DWS"><span class="nav-number">8.</span> <span class="nav-text">八、DWS</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#ADS"><span class="nav-number">9.</span> <span class="nav-text">九、ADS</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#订单链路例子"><span class="nav-number">10.</span> <span class="nav-text">十、用订单分析串起来看一遍</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#层级对比"><span class="nav-number">11.</span> <span class="nav-text">十一、几层之间到底怎么区分</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#命名方式"><span class="nav-number">12.</span> <span class="nav-text">十二、常见表命名怎么读</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#事实表和维度表"><span class="nav-number">13.</span> <span class="nav-text">十三、事实表和维度表</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#数据集市和DM"><span class="nav-number">14.</span> <span class="nav-text">十四、DM：数据集市是什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#实时数仓里的分层"><span class="nav-number">15.</span> <span class="nav-text">十五、实时数仓里的这些层还存在吗</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#常见误区"><span class="nav-number">16.</span> <span class="nav-text">十六、常见误区</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#怎么落地"><span class="nav-number">17.</span> <span class="nav-text">十七、真正落地时怎么做</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">18.</span> <span class="nav-text">结语</span></a></li>
 </ol></div>
       </div>
       <!--/noindex-->
