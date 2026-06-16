@@ -388,6 +388,7 @@ body.dark-mode .content.index.posts-expand > .pagination .extend:focus {
 
 .content.index.posts-expand > article.post-block .post-title {
   font-size: 20px;
+  font-weight: 700;
   line-height: 1.6;
   margin: 0;
   text-align: left;
