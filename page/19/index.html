@@ -203,7 +203,7 @@
   <p class="home-kicker">最近更新</p>
   <h2>按时间写下的文章</h2>
   <div class="home-latest-status" aria-label="最近更新分页信息">
-    <span>共 <strong>252</strong> 篇</span>
+    <span>共 <strong>255</strong> 篇</span>
     <span>每页 <strong>10</strong> 篇</span>
     <span>第 <strong>19</strong> / 26 页</span>
     <span>本页 <strong>10</strong> 篇</span>
@@ -211,7 +211,94 @@
   </div>
 </div>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/28/insert%E8%AF%AD%E5%8F%A5%E7%9A%84%E9%94%81%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%99%E4%B9%88%E5%A4%9A%EF%BC%9F/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2020/08/28/insert%E8%AF%AD%E5%8F%A5%E7%9A%84%E9%94%81%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%99%E4%B9%88%E5%A4%9A%EF%BC%9F/" class="post-title-link" itemprop="url">insert语句的锁为什么这么多？</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2020-08-28T15:40:09+08:00">2020-08-28</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>在上一篇文章中，我提到MySQL对自增主键锁做了优化，尽量在申请到自增id以后，就释放自增锁。 因此，insert语句是一个很轻量的操作。不过，这个结论是对于“普通的insert语句”才有效。也就是说，还有些insert语句是属于“特殊情况”的，在执行过程中需要给...</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/28/insert%E8%AF%AD%E5%8F%A5%E7%9A%84%E9%94%81%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%99%E4%B9%88%E5%A4%9A%EF%BC%9F_%E5%89%AF%E6%9C%AC/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2020/08/28/insert%E8%AF%AD%E5%8F%A5%E7%9A%84%E9%94%81%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%99%E4%B9%88%E5%A4%9A%EF%BC%9F_%E5%89%AF%E6%9C%AC/" class="post-title-link" itemprop="url">insert语句的锁为什么这么多？</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2020-08-28T15:40:09+08:00">2020-08-28</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>在上一篇文章中，我提到MySQL对自增主键锁做了优化，尽量在申请到自增id以后，就释放自增锁。 因此，insert语句是一个很轻量的操作。不过，这个结论是对于“普通的insert语句”才有效。也就是说，还有些insert语句是属于“特殊情况”的，在执行过程中需要给...</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/28/MySQL%E8%87%AA%E5%A2%9E%E4%B8%BB%E9%94%AE%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E6%98%AF%E8%BF%9E%E7%BB%AD%E7%9A%84%EF%BC%9F/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2020/08/28/MySQL%E8%87%AA%E5%A2%9E%E4%B8%BB%E9%94%AE%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E6%98%AF%E8%BF%9E%E7%BB%AD%E7%9A%84%EF%BC%9F/" class="post-title-link" itemprop="url">MySQL自增主键为什么不是连续的？</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2020-08-28T13:52:22+08:00">2020-08-28</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>为了便于说明，我们创建一个表t，其中id是自增主键字段、c是唯一索引。 12345678CREATE TABLE `t` (  `id` int(11) NOT NULL AUTO_INCREMENT,  `c` int(11) DEFAULT NULL,  `d...</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/28/%E8%AE%A8%E8%AE%BA%E5%B7%B2%E7%BB%8F%E5%88%B0%E8%BE%BE%E4%BA%86-%E6%B0%B4%E8%BE%B9-%EF%BC%8C%E6%98%AF%E5%90%A6%E5%96%9D%E6%B0%B4%E5%B0%B1%E7%9C%8B%E4%BD%A0%E7%9A%84%E5%86%B3%E5%BF%83%E4%BA%86/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -240,7 +327,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/28/MySQL%E5%A6%82%E4%BD%95%E6%AD%A3%E7%A1%AE%E5%9C%B0%E6%98%BE%E7%A4%BA%E9%9A%8F%E6%9C%BA%E6%B6%88%E6%81%AF%EF%BC%9F/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -269,7 +356,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/28/%E5%85%B3%E4%BA%8EMySQL%E7%9A%84row-ID/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -298,7 +385,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/27/epoll%E7%9A%84%E4%BC%98%E5%8A%A3%E5%92%8C%E5%8E%9F%E7%90%86/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -327,7 +414,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/27/new-%E5%92%8C-init-%E7%9A%84%E5%8C%BA%E5%88%AB/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -356,7 +443,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/27/%E6%88%91%E6%9C%AC%E5%B0%B1%E8%82%A4%E6%B5%85%EF%BC%8C%E4%BD%86%E6%88%91%E5%90%91%E5%BE%80%E5%B4%87%E9%AB%98/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -385,7 +472,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/26/%E4%B8%8D%E6%98%AF%E7%BB%99%E6%96%87%E6%98%8E%E4%BB%A5%E5%B2%81%E6%9C%88%EF%BC%8C%E8%80%8C%E6%98%AF%E7%BB%99%E5%B2%81%E6%9C%88%E4%BB%A5%E6%96%87%E6%98%8E/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -413,94 +500,6 @@
         <div class="post-eof"></div>
       </footer>
   </article>
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/26/%E5%8F%AF%E4%B8%8D%E5%8F%AF%E4%BB%A5%E4%BD%BF%E7%94%A8join/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2020/08/26/%E5%8F%AF%E4%B8%8D%E5%8F%AF%E4%BB%A5%E4%BD%BF%E7%94%A8join/" class="post-title-link" itemprop="url">可不可以使用join</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2020-08-26T11:05:38+08:00">2020-08-26</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>能不能使用join语句？  如果可以使用Index Nested-Loop Join算法，也就是说可以用上被驱动表上的索引，是没问题的。 如果使用Block Nested_Loop Join算法，扫描行数就会过多。尤其是在大表上的join操作，这样可能要扫描被驱动...</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2020/08/25/MySQL%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E6%97%B6%E5%A4%84%E7%90%86%E8%BF%87%E6%9C%9F%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%A1%88/" class="post-title-link" itemprop="url">MySQL读写分离时处理过期读的一些方案</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2020-08-25T09:28:59+08:00">2020-08-25</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>读写分离的主要目标是分摊主库的压力。每个大型架构最终都会实现读写分离。 读写分离的架构有两种。  图1中的结构是客户端（client）主动做负载均衡，这种模式下一般会把数据库的连接信息放在客户端的连接层。也就是说，由客户端来选择后端数据库进行查询。 还有一种架构是...</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/24/%E8%A2%AB%E8%AE%A8%E5%8E%8C%E7%9A%84%E5%8B%87%E6%B0%94/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2020/08/24/%E8%A2%AB%E8%AE%A8%E5%8E%8C%E7%9A%84%E5%8B%87%E6%B0%94/" class="post-title-link" itemprop="url">被讨厌的勇气</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2020-08-24T22:39:28+08:00">2020-08-24</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>「被讨厌的勇气」真是一本好书，希望大家都能看一看。 这里开始简单记录书中一些我认为很有意义的话。  阿德勒心理学就是勇气心理学，人不能缺乏”获得幸福的勇气“。 人之所以不幸正是因为自己亲手选择了”不幸“，而不是因为生来就不幸。是因为你认为”不幸“对你自身而言是一种...</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
 
   <nav class="pagination" aria-label="最近更新分页">
     <a class="extend prev" rel="prev" href="/page/18/">上一页</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/18/">18</a><span class="page-number current">19</span><a class="page-number" href="/page/20/">20</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/20/">下一页</a>
@@ -569,7 +568,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
 
-          <span class="site-state-item-count">241</span>
+          <span class="site-state-item-count">255</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

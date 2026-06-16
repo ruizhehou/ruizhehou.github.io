@@ -203,7 +203,7 @@
   <p class="home-kicker">最近更新</p>
   <h2>按时间写下的文章</h2>
   <div class="home-latest-status" aria-label="最近更新分页信息">
-    <span>共 <strong>252</strong> 篇</span>
+    <span>共 <strong>255</strong> 篇</span>
     <span>每页 <strong>10</strong> 篇</span>
     <span>第 <strong>7</strong> / 26 页</span>
     <span>本页 <strong>10</strong> 篇</span>
@@ -211,7 +211,94 @@
   </div>
 </div>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/05/%E6%89%8B%E5%86%99SQLite-05-Schema%E8%A7%A3%E6%9E%90%E4%B8%8Etables%E5%91%BD%E4%BB%A4/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/05/05/%E6%89%8B%E5%86%99SQLite-05-Schema%E8%A7%A3%E6%9E%90%E4%B8%8Etables%E5%91%BD%E4%BB%A4/" class="post-title-link" itemprop="url">手写 SQLite 05：解析 sqlite_schema，实现 .tables 命令</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2026-05-05T11:00:00+08:00">05-05</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>从零实现 SQLite 系列第 05 篇：解析 sqlite_schema 表，读取所有表/索引的名称和根页号，实现 .tables 命令，并彻底告别硬编码 root_page=2。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/05/%E6%89%8B%E5%86%99SQLite-04-Record%E6%A0%BC%E5%BC%8F%E8%A7%A3%E6%9E%90/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/05/05/%E6%89%8B%E5%86%99SQLite-04-Record%E6%A0%BC%E5%BC%8F%E8%A7%A3%E6%9E%90/" class="post-title-link" itemprop="url">手写 SQLite 04：Record 格式解析——varint、Serial Type 与列值还原</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2026-05-05T10:00:00+08:00">05-05</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>从零实现 SQLite 系列第 04 篇：深入解析 SQLite Record 格式，实现 varint 解码、Serial Type 映射表、叶节点 Cell 完整解析，最终从字节流中还原出 rowid 和各列的实际值。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/05/%E6%89%8B%E5%86%99SQLite-03-%E9%81%8D%E5%8E%86B-Tree/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/05/05/%E6%89%8B%E5%86%99SQLite-03-%E9%81%8D%E5%8E%86B-Tree/" class="post-title-link" itemprop="url">手写 SQLite 03：遍历 B-Tree，从根节点走到所有叶节点</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2026-05-05T09:00:00+08:00">05-05</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>从零实现 SQLite 系列第 03 篇：实现 B-Tree 递归遍历，处理内部节点（读取子页指针和 right_most_pointer）与叶节点，收集所有叶节点的 Cell 地址，为全表扫描做好铺垫。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/04/%E6%89%8B%E5%86%99SQLite-02-B-Tree%E9%A1%B5%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -240,7 +327,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/04/%E6%89%8B%E5%86%99SQLite-01-%E6%96%87%E4%BB%B6%E6%A0%BC%E5%BC%8F%E4%B8%8E%E6%96%87%E4%BB%B6%E5%A4%B4%E8%A7%A3%E6%9E%90/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -269,7 +356,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/02/Hermes-Agent%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8FTS5/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -298,7 +385,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/02/SQLite-FTS5%E5%85%A8%E6%96%87%E6%A3%80%E7%B4%A2/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -327,7 +414,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/01/Hermes-Agent%E8%A7%A3%E6%9E%90/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -356,7 +443,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/05/01/%E8%B4%A2%E7%BB%8F%E4%B8%9A%E5%8A%A1%E7%AE%97%E6%B3%95%E5%B7%A5%E7%A8%8B%E5%B8%88/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -385,7 +472,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/04/30/%E7%A0%94%E5%8F%91%E6%95%88%E8%83%BD%E5%B7%A5%E7%A8%8B%E5%B8%88/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -413,94 +500,6 @@
         <div class="post-eof"></div>
       </footer>
   </article>
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/04/30/%E8%BD%AF%E4%BB%B6%E5%B7%A5%E7%A8%8B%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2026/04/30/%E8%BD%AF%E4%BB%B6%E5%B7%A5%E7%A8%8B%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5/" class="post-title-link" itemprop="url">软件工程最佳实践：2026 年的工程师手册</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2026-04-30T09:00:00+08:00">04-30</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>2026 年软件工程最佳实践：从代码设计、测试策略、CI/CD、可观测性到 AI 辅助开发，系统梳理现代软件工程师必须掌握的工程实践方法论。</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/04/26/%E6%89%B9%E6%B5%81%E7%BB%9F%E4%B8%80%E7%89%B9%E5%BE%81%E5%AE%9A%E4%B9%89%E8%AF%AD%E8%A8%80/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2026/04/26/%E6%89%B9%E6%B5%81%E7%BB%9F%E4%B8%80%E7%89%B9%E5%BE%81%E5%AE%9A%E4%B9%89%E8%AF%AD%E8%A8%80/" class="post-title-link" itemprop="url">批流统一特征定义语言：业界最佳实践解析</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2026-04-26T11:00:00+08:00">04-26</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>批流统一特征定义语言业界最佳实践：从 Training-Serving Skew 根因出发，解析 Tecton Python SDK、Flink SQL 统一、YAML DSL、算子库共享四种方案的设计思路、优劣与适用场景。</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/04/26/%E6%A8%A1%E5%9E%8B%E5%B9%B3%E5%8F%B0%E7%A0%94%E5%8F%91%E5%B7%A5%E7%A8%8B%E5%B8%88%E6%8A%80%E8%83%BD%E5%9B%BE%E8%B0%B1/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2026/04/26/%E6%A8%A1%E5%9E%8B%E5%B9%B3%E5%8F%B0%E7%A0%94%E5%8F%91%E5%B7%A5%E7%A8%8B%E5%B8%88%E6%8A%80%E8%83%BD%E5%9B%BE%E8%B0%B1/" class="post-title-link" itemprop="url">模型平台研发工程师技能图谱</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2026-04-26T10:00:00+08:00">04-26</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>模型平台研发工程师技能图谱：从编程语言、大数据基础、特征平台、训练框架、推理服务到系统设计，分级梳理必备技能与进阶路径。</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
 
   <nav class="pagination" aria-label="最近更新分页">
     <a class="extend prev" rel="prev" href="/page/6/">上一页</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/8/">下一页</a>
@@ -569,7 +568,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
 
-          <span class="site-state-item-count">241</span>
+          <span class="site-state-item-count">255</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
