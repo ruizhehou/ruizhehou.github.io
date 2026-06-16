@@ -1,6 +1,425 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>从原始日志到业务报表：ODS、DWD、DWS、ADS 到底在分什么层</title>
+    <url>/2026/06/16/%E6%95%B0%E4%BB%93%E5%88%86%E5%B1%82%E6%A6%82%E5%BF%B5/</url>
+    <content><![CDATA[<div class="post-body" itemprop="articleBody">
+
+<p>很多人第一次接触数据仓库时，最容易被一堆缩写劝退：ODS、DWD、DWS、ADS、DIM、STG、TMP、DM……看起来像一套黑话系统。</p>
+
+<p>但这些缩写背后真正要解决的问题并不复杂：<strong>公司里的数据从业务系统、日志、埋点、消息队列流进来以后，不能所有人都直接查原始表，也不能每个报表都从头写一遍清洗和聚合逻辑</strong>。</p>
+
+<p>所以数仓会把数据加工过程拆成不同层级。每一层负责一类事情：有的保存原始数据，有的做清洗和标准化，有的沉淀公共汇总，有的直接服务报表、看板和业务决策。</p>
+
+<h2 id="一句话总览">一、一句话总览</h2>
+
+<p>如果只用一句话解释这些概念，可以这样理解：</p>
+
+<pre><code class="language-text">ODS：把原始数据接进来，尽量保留现场
+DWD：把数据清洗成可信、可复用的明细事实
+DIM：沉淀业务对象的维度信息
+DWS：围绕主题和实体做公共汇总
+ADS：面向具体应用、报表、看板和接口输出结果</code></pre>
+
+<p>它们串起来大概是这样：</p>
+
+<pre><code class="language-text">业务系统 / 日志 / MQ / 第三方数据
+          ↓
+        STG / ODS
+          ↓
+        DWD + DIM
+          ↓
+          DWS
+          ↓
+          ADS
+          ↓
+    BI 看板 / 经营分析 / 风控策略 / 推荐特征 / API 服务</code></pre>
+
+<p>注意，数仓分层不是为了显得架构很复杂，而是为了让数据在流转过程中逐步变得<strong>可信、可复用、可追踪、可服务</strong>。</p>
+
+<h2 id="为什么需要分层">二、为什么需要数仓分层</h2>
+
+<p>假设公司只有一张订单业务库表，分析师想看城市维度 GMV，运营想看商家转化，风控想看异常下单，算法想做用户购买特征。如果所有人都直接查业务库或原始日志，很快会出现几个问题。</p>
+
+<ul>
+  <li><strong>口径不一致</strong>：有人把退款订单算进 GMV，有人不算；有人按支付时间统计，有人按下单时间统计。</li>
+  <li><strong>逻辑重复</strong>：每个报表都重复写订单状态过滤、时间分区、用户城市映射、商家类目 Join。</li>
+  <li><strong>链路不可追踪</strong>：报表数字异常时，不知道问题出在采集、清洗、维表、汇总还是展示层。</li>
+  <li><strong>性能不可控</strong>：临时分析和线上报表都扫明细大表，任务互相影响。</li>
+  <li><strong>治理困难</strong>：字段含义、生命周期、负责人、数据质量和权限都散落在各处。</li>
+</ul>
+
+<p>分层的价值就是把这些问题拆开：原始数据归原始层，公共清洗归明细层，通用汇总归汇总层，具体应用归应用层。这样一来，数据问题可以定位，指标口径可以复用，报表建设也不会每次从零开始。</p>
+
+<h2 id="ODS">三、ODS：原始数据层</h2>
+
+<p>ODS 通常叫 Operational Data Store，国内数仓里经常翻译成<strong>操作数据层、原始数据层、贴源层</strong>。</p>
+
+<p>它的核心职责是：<strong>把业务系统、日志系统、消息队列、第三方接口里的数据接入数仓，并尽量保留原始形态</strong>。</p>
+
+<p>比如订单业务库里有一张表：</p>
+
+<pre><code class="language-text">mysql.order_info
+- order_id
+- user_id
+- shop_id
+- status
+- pay_amount
+- created_at
+- updated_at</code></pre>
+
+<p>同步到数仓 ODS 后，可能会变成：</p>
+
+<pre><code class="language-text">ods_trade_order_info_di
+- order_id
+- user_id
+- shop_id
+- status
+- pay_amount
+- created_at
+- updated_at
+- dt</code></pre>
+
+<p>这里的 <code>di</code> 常表示按天增量分区，<code>dt</code> 是分区字段。不同公司命名不完全一样，但语义类似：这张表接近源系统，主要用于保留当天同步来的原始订单数据。</p>
+
+<p>ODS 层通常有几个特点：</p>
+
+<ul>
+  <li>字段尽量贴近源系统，不轻易改业务含义；</li>
+  <li>保留原始状态值、原始时间、原始主键；</li>
+  <li>可以做必要的格式修正、去重、分区补齐，但不做重业务口径加工；</li>
+  <li>主要服务下游加工和问题追溯，不直接服务复杂分析。</li>
+</ul>
+
+<p>一句话：<strong>ODS 是数据进入数仓后的第一现场</strong>。</p>
+
+<h2 id="STG">四、STG：临时接入和缓冲层</h2>
+
+<p>STG 通常是 Staging 的缩写，也叫暂存层、缓冲层。不是每个公司都会把 STG 单独作为正式分层，有些公司会把它并入 ODS。</p>
+
+<p>STG 更偏技术缓冲，常见用途包括：</p>
+
+<ul>
+  <li>接收还没有完全校验的原始文件；</li>
+  <li>承接临时导入、历史回灌、一次性修复数据；</li>
+  <li>做格式转换前的落盘，例如 JSON、CSV、日志行暂存；</li>
+  <li>隔离外部系统波动，避免直接污染正式 ODS 表。</li>
+</ul>
+
+<p>可以把 STG 理解成进入正式数仓前的卸货区。货先放在这里，检查包装、数量和格式，再进入 ODS 或 DWD。</p>
+
+<h2 id="DWD">五、DWD：明细事实层</h2>
+
+<p>DWD 通常叫 Data Warehouse Detail，也就是<strong>明细数据层</strong>。它是数仓里非常关键的一层。</p>
+
+<p>DWD 的核心职责是：<strong>把 ODS 中贴源但不够好用的数据，清洗成业务含义清晰、粒度稳定、可复用的明细事实表</strong>。</p>
+
+<p>比如 ODS 里订单状态可能很混乱：</p>
+
+<pre><code class="language-text">status = 0  创建
+status = 1  已支付
+status = 2  已取消
+status = 3  已退款
+status = 9  测试订单</code></pre>
+
+<p>DWD 层会做标准化处理，例如：</p>
+
+<ul>
+  <li>过滤测试订单、脏数据、重复数据；</li>
+  <li>统一字段命名和字段类型；</li>
+  <li>补充业务可理解的状态枚举；</li>
+  <li>把订单、支付、退款、履约等事实拆成稳定主题；</li>
+  <li>保证一张事实表有明确粒度，比如一行代表一笔订单、一笔支付、一次曝光、一次点击。</li>
+</ul>
+
+<p>一张 DWD 订单明细表可能是：</p>
+
+<pre><code class="language-text">dwd_trade_order_detail_di
+- order_id
+- user_id
+- shop_id
+- city_id
+- category_id
+- order_status
+- is_paid
+- is_refund
+- pay_amount
+- order_time
+- pay_time
+- dt</code></pre>
+
+<p>这张表仍然是明细表，不是汇总表。它的重点不是提前算好报表指标，而是让下游可以基于可信明细继续加工。</p>
+
+<p>一句话：<strong>DWD 是把原始数据变成标准业务事实</strong>。</p>
+
+<h2 id="DIM">六、DIM：维度层</h2>
+
+<p>DIM 是 Dimension 的缩写，也就是<strong>维度层</strong>。</p>
+
+<p>事实表记录「发生了什么」，维度表解释「是谁、在哪、属于什么、当前是什么状态」。例如：</p>
+
+<ul>
+  <li>订单事实：一笔订单支付了 89 元；</li>
+  <li>用户维度：这个用户来自哪个城市、注册渠道是什么、会员等级是什么；</li>
+  <li>商家维度：这个商家属于哪个品类、所在商圈是什么、是否品牌商家；</li>
+  <li>商品维度：这个商品属于哪个类目、价格带是什么、是否新品。</li>
+</ul>
+
+<p>常见维表命名类似：</p>
+
+<pre><code class="language-text">dim_user_df
+  用户维度，全量快照表
+
+dim_shop_df
+  商家维度，全量快照表
+
+dim_item_category_df
+  商品类目维度，全量快照表</code></pre>
+
+<p>这里的 <code>df</code> 常表示按天全量快照。维度数据容易变化，例如用户等级会变、商家品类会调、城市归属会改，所以维表经常需要保留每日快照，甚至用拉链表记录历史版本。</p>
+
+<p>DIM 层最容易被低估。没有好的维度层，DWD 明细表就很难被稳定解释，DWS 和 ADS 的口径也会漂。</p>
+
+<h2 id="DWS">七、DWS：公共汇总层</h2>
+
+<p>DWS 通常叫 Data Warehouse Summary，也就是<strong>汇总数据层、公共汇总层、主题汇总层</strong>。</p>
+
+<p>DWS 的核心职责是：<strong>围绕稳定的业务主题、实体和时间周期，把 DWD 明细事实聚合成可复用的公共汇总数据</strong>。</p>
+
+<p>比如很多下游都会用到这些数据：</p>
+
+<ul>
+  <li>用户近 1 天、7 天、30 天下单次数；</li>
+  <li>商家每天的订单数、支付金额、退款金额；</li>
+  <li>城市每天的访问人数、下单人数、支付转化率；</li>
+  <li>商品类目每天的曝光、点击、成交、GMV。</li>
+</ul>
+
+<p>如果这些逻辑每个报表都单独算，就会重复、慢、不一致。DWS 会把它们沉淀成公共层。</p>
+
+<pre><code class="language-text">dws_trade_user_1d_di
+- user_id
+- order_cnt_1d
+- paid_order_cnt_1d
+- pay_amount_1d
+- refund_amount_1d
+- dt
+
+dws_trade_shop_1d_di
+- shop_id
+- order_cnt_1d
+- pay_amount_1d
+- refund_order_cnt_1d
+- dt</code></pre>
+
+<p>DWS 的关键词是<strong>公共</strong>。它不应该只服务一个页面、一个临时分析或一个很窄的需求，而应该沉淀多个场景都能复用的主题汇总能力。</p>
+
+<p>一句话：<strong>DWS 是把明细事实聚合成公共业务能力</strong>。</p>
+
+<h2 id="ADS">八、ADS：应用数据层</h2>
+
+<p>ADS 通常叫 Application Data Service，也叫<strong>应用层、数据服务层、应用数据层</strong>。</p>
+
+<p>ADS 的核心职责是：<strong>面向具体应用场景组织最终数据形态</strong>。</p>
+
+<p>比如经营看板需要一个城市经营日报，它关心的不是下游能否复用，而是页面需要什么字段、什么排序、什么口径、什么更新时间。</p>
+
+<pre><code class="language-text">ads_city_business_dashboard_di
+- city_id
+- city_name
+- gmv
+- order_cnt
+- pay_user_cnt
+- new_user_cnt
+- refund_rate
+- conversion_rate
+- target_finish_rate
+- dt</code></pre>
+
+<p>ADS 层常见服务对象包括：</p>
+
+<ul>
+  <li>BI 报表和可视化大屏；</li>
+  <li>经营分析日报、周报、月报；</li>
+  <li>业务系统里的数据接口；</li>
+  <li>风控策略、营销圈选、用户画像；</li>
+  <li>算法特征、实验分析和效果归因。</li>
+</ul>
+
+<p>ADS 的特点是强场景、强交付、强时效。它可以依赖 DWS，也可以在必要时回到 DWD 取更细粒度数据，但不应该把大量重复清洗逻辑长期堆在 ADS 里。</p>
+
+<p>一句话：<strong>ADS 是把数仓能力包装成业务能直接使用的数据产品</strong>。</p>
+
+<h2 id="订单链路例子">九、用订单分析串起来看一遍</h2>
+
+<p>假设我们要做一个「城市经营看板」，展示每天每个城市的 GMV、订单数、支付用户数和退款率。</p>
+
+<p>一条比较典型的数据链路是：</p>
+
+<pre><code class="language-text">1. ODS
+   ods_trade_order_info_di
+   从订单库同步原始订单数据
+
+2. DWD
+   dwd_trade_order_detail_di
+   清洗测试订单、统一状态、明确一行一单
+
+3. DIM
+   dim_city_df / dim_shop_df / dim_user_df
+   补充城市、商家、用户等解释信息
+
+4. DWS
+   dws_trade_city_1d_di
+   按城市和日期汇总订单数、GMV、退款金额
+
+5. ADS
+   ads_city_business_dashboard_di
+   拼出看板所需字段，补充目标达成率、同比环比、排序展示</code></pre>
+
+<p>同一个指标在不同层的形态不同。DWD 里是一笔笔订单，DWS 里是按城市和天聚合后的公共结果，ADS 里是经营看板直接使用的最终宽表。</p>
+
+<h2 id="层级对比">十、几层之间到底怎么区分</h2>
+
+<table>
+<thead>
+<tr><th>层级</th><th>核心问题</th><th>典型粒度</th><th>主要使用者</th></tr>
+</thead>
+<tbody>
+<tr><td>STG</td><td>数据先接住</td><td>文件、批次、原始记录</td><td>数据开发、同步任务</td></tr>
+<tr><td>ODS</td><td>原始数据保留下来</td><td>接近源表或原始日志</td><td>数据开发、排障、下游加工</td></tr>
+<tr><td>DWD</td><td>明细事实变可信</td><td>订单、支付、点击、曝光等事实明细</td><td>数据开发、分析师、算法工程</td></tr>
+<tr><td>DIM</td><td>业务对象可解释</td><td>用户、商家、商品、城市等维度</td><td>所有下游</td></tr>
+<tr><td>DWS</td><td>公共指标可复用</td><td>按主题、实体、时间窗口汇总</td><td>数据开发、分析师、应用层</td></tr>
+<tr><td>ADS</td><td>业务场景能直接用</td><td>报表、接口、策略、特征所需形态</td><td>业务方、BI、产品、算法、服务接口</td></tr>
+</tbody>
+</table>
+
+<p>最关键的区分方法不是看表名，而是看它的<strong>责任边界</strong>：</p>
+
+<ul>
+  <li>如果主要为了保留源数据，是 ODS；</li>
+  <li>如果主要为了沉淀可信明细，是 DWD；</li>
+  <li>如果主要为了解释实体属性，是 DIM；</li>
+  <li>如果主要为了复用公共汇总，是 DWS；</li>
+  <li>如果主要为了服务具体应用，是 ADS。</li>
+</ul>
+
+<h2 id="命名方式">十一、常见表命名怎么读</h2>
+
+<p>很多数仓表名会长成这样：</p>
+
+<pre><code class="language-text">dwd_trade_order_detail_di
+│   │     │     │      └─ 分区/更新方式：di 表示日增量
+│   │     │     └──────── 粒度或形态：detail 明细
+│   │     └────────────── 业务对象：order 订单
+│   └──────────────────── 业务域：trade 交易
+└──────────────────────── 层级：dwd 明细层</code></pre>
+
+<p>常见后缀大致可以这样理解，不同团队会有差异：</p>
+
+<table>
+<thead>
+<tr><th>后缀</th><th>常见含义</th><th>例子</th></tr>
+</thead>
+<tbody>
+<tr><td><code>di</code></td><td>daily incremental，按天增量</td><td>当天新增或变更订单</td></tr>
+<tr><td><code>df</code></td><td>daily full，按天全量快照</td><td>每日用户维度快照</td></tr>
+<tr><td><code>1d</code></td><td>最近 1 天或按天统计</td><td>用户日订单数</td></tr>
+<tr><td><code>7d</code></td><td>最近 7 天窗口统计</td><td>用户近 7 天点击数</td></tr>
+<tr><td><code>td</code></td><td>截至当天累计</td><td>本月至今累计 GMV</td></tr>
+</tbody>
+</table>
+
+<p>命名不是越长越好，而是要让别人一眼看出：这张表在哪一层、属于哪个业务域、是什么对象、什么粒度、怎么分区。</p>
+
+<h2 id="事实表和维度表">十二、事实表和维度表</h2>
+
+<p>理解 DWD 和 DIM 时，经常会遇到两个词：事实表和维度表。</p>
+
+<p><strong>事实表</strong>记录业务事件，例如订单、支付、退款、曝光、点击、发货、签收。事实表里通常有可度量的指标字段，例如金额、数量、时长、次数，也有连接维度的 key，例如 <code>user_id</code>、<code>shop_id</code>、<code>city_id</code>。</p>
+
+<p><strong>维度表</strong>记录业务对象的属性，例如用户性别、城市名称、商家品类、商品品牌。维度表让事实可以被分析和解释。</p>
+
+<pre><code class="language-text">事实：用户 1001 在 2026-06-16 支付了一笔 89 元订单
+维度：用户 1001 是北京用户，商家属于快餐品类，城市属于华北大区</code></pre>
+
+<p>数仓里常说的「星型模型」就是一张事实表周围连接多张维度表。DWD 里沉淀可信事实，DIM 里沉淀稳定维度，DWS 再基于它们做公共汇总。</p>
+
+<h2 id="数据集市和DM">十三、DM：数据集市是什么</h2>
+
+<p>DM 通常指 Data Mart，也就是<strong>数据集市</strong>。它不是所有公司都会单独放在标准分层里，但在大型组织里很常见。</p>
+
+<p>可以把数据集市理解成面向某个业务线、部门或主题域的小型数仓。例如：</p>
+
+<ul>
+  <li>营销数据集市；</li>
+  <li>风控数据集市；</li>
+  <li>用户增长数据集市；</li>
+  <li>履约配送数据集市。</li>
+</ul>
+
+<p>它可能包含自己的 DWS 和 ADS，也可能只是从集团公共数仓中抽取一部分数据，做面向部门的二次组织。</p>
+
+<p>如果公共数仓解决的是全公司统一口径，数据集市解决的就是某个业务方向的高频使用和快速交付。</p>
+
+<h2 id="实时数仓里的分层">十四、实时数仓里的这些层还存在吗</h2>
+
+<p>实时数仓里仍然会使用类似分层，只是计算引擎和数据形态变了。</p>
+
+<pre><code class="language-text">Kafka 原始日志       → realtime_ods
+Flink 清洗明细       → realtime_dwd
+Flink 窗口聚合       → realtime_dws
+Doris / ClickHouse   → realtime_ads</code></pre>
+
+<p>实时链路更强调低延迟、乱序处理、状态管理、Exactly-once、维表 Join 和结果更新。它不像离线数仓那样天然按天批处理，所以层级边界有时会更薄。</p>
+
+<p>但原则仍然相同：原始数据、可信明细、公共汇总、应用服务要尽量分清。否则实时链路也会陷入同样的问题：口径重复、逻辑散落、异常难排查。</p>
+
+<h2 id="常见误区">十五、常见误区</h2>
+
+<p>数仓分层最常见的问题，不是大家不知道 ODS、DWD、DWS、ADS 这几个词，而是表名像分层，实际职责没有分清。</p>
+
+<table>
+<thead>
+<tr><th>误区</th><th>问题</th><th>更好的做法</th></tr>
+</thead>
+<tbody>
+<tr><td>ODS 里做太多清洗</td><td>原始现场丢失，排障困难</td><td>ODS 尽量贴源，清洗放到 DWD</td></tr>
+<tr><td>DWD 做成汇总表</td><td>明细不可复用，下游难扩展</td><td>DWD 保持稳定明细粒度</td></tr>
+<tr><td>DWS 只服务一个报表</td><td>公共层退化成应用层</td><td>DWS 围绕主题沉淀可复用汇总</td></tr>
+<tr><td>ADS 堆满复杂清洗逻辑</td><td>口径散落，维护成本高</td><td>把公共逻辑下沉到 DWD/DWS</td></tr>
+<tr><td>维表没有历史版本</td><td>回看历史数据时口径漂移</td><td>用快照表或拉链表管理变化</td></tr>
+<tr><td>只分层不治理</td><td>表很多但没人敢用</td><td>补齐负责人、血缘、质量、SLA、生命周期</td></tr>
+</tbody>
+</table>
+
+<h2 id="怎么落地">十六、真正落地时怎么做</h2>
+
+<p>如果从零建设一个数仓，不应该先纠结表名前缀，而应该先回答几个问题。</p>
+
+<ul>
+  <li><strong>业务域怎么划分</strong>：交易、用户、商家、商品、履约、营销、风控分别是什么边界？</li>
+  <li><strong>核心事实有哪些</strong>：订单、支付、退款、曝光、点击、配送、核销分别是什么粒度？</li>
+  <li><strong>核心维度有哪些</strong>：用户、商家、商品、城市、类目、渠道、活动如何管理？</li>
+  <li><strong>公共指标有哪些</strong>：GMV、订单数、支付用户数、转化率、退款率的统一口径是什么？</li>
+  <li><strong>服务场景有哪些</strong>：报表、API、策略、算法、实验分析分别需要什么数据形态？</li>
+  <li><strong>治理机制是什么</strong>：谁负责、什么时候产出、质量怎么校验、失败怎么报警、历史保留多久？</li>
+</ul>
+
+<p>分层只是骨架，真正让数仓变好用的是指标口径、数据质量、任务稳定性、元数据、血缘、权限和文档。</p>
+
+<h2 id="结语">结语</h2>
+
+<p>ODS、DWD、DWS、ADS 这些缩写本身并不神秘。它们只是把数据从「原始」到「可用」再到「可服务」的过程拆成几个责任清晰的阶段。</p>
+
+<p>ODS 保留现场，DWD 沉淀可信明细，DIM 解释业务对象，DWS 提供公共汇总，ADS 面向具体应用交付结果。STG、TMP、DM 等层则根据团队规模、数据复杂度和交付方式补充使用。</p>
+
+<p>判断一张表应该放在哪一层，不要只看它叫什么，而要问：<strong>它是在保留原始数据、清洗明细事实、解释维度属性、沉淀公共汇总，还是服务具体应用？</strong></p>
+
+<p>这就是数仓分层最重要的意义：让数据链路里的每一步都有明确责任，让同一份数据可以被更多人放心复用。</p>
+  </div>]]></content>
+  </entry>
+  <entry>
     <title>为什么有些结果要提前算好：物化到底是什么意思</title>
     <url>/2026/06/15/%E4%BB%80%E4%B9%88%E6%98%AF%E7%89%A9%E5%8C%96/</url>
     <content><![CDATA[<p>很多系统里都会出现一个词：物化。数据库有物化视图，Feature Store 有特征物化，数据仓库有中间结果物化，推荐系统会把候选集和统计特征提前物化，缓存系统本质上也在物化一部分计算结果。</p>
