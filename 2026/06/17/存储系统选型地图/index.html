@@ -102,6 +102,12 @@
   line-height: 1.7;
   text-align: center;
 }
+.storage-decision {
+  overflow-x: auto;
+}
+.storage-decision svg {
+  min-width: 1080px;
+}
 .storage-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -267,7 +273,117 @@ body.dark-mode .storage-svg-line { stroke: #a4adba; }
 
 <h2 id="细化决策树">二、细化决策树：一步一步选</h2>
 
-<p>下面这棵决策树可以直接拿来做初筛。它不是让你“一步到位选唯一答案”，而是把候选范围缩到 2-3 个系统，然后再根据团队经验、存量架构和压测结果定最终方案。</p>
+<p>下面这棵决策树可以直接拿来做初筛。先看图，把候选范围缩到 2-3 个系统；再往下看每个节点的文字解释，结合团队经验、存量架构和压测结果定最终方案。</p>
+
+<figure class="storage-figure storage-decision">
+<svg viewBox="0 0 1120 780" role="img" aria-label="存储系统选型决策树">
+  <rect class="storage-svg-bg" width="1120" height="780" rx="12"></rect>
+  <defs>
+    <marker id="storage-arrow-decision" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#8a9490"></path>
+    </marker>
+  </defs>
+  <text x="560" y="34" text-anchor="middle" font-size="18" font-weight="700" class="storage-svg-text">存储系统选型决策树：先问访问模式，再选候选系统</text>
+
+  <g font-size="13" class="storage-svg-text">
+    <rect x="430" y="58" width="260" height="54" rx="14" class="storage-svg-green"></rect>
+    <text x="560" y="82" text-anchor="middle" font-weight="700">开始：这个数据要解决什么问题？</text>
+    <text x="560" y="101" text-anchor="middle" class="storage-svg-muted" font-size="12">写入方式、读取方式、延迟、成本先说清楚</text>
+
+    <rect x="118" y="142" width="260" height="58" rx="10" class="storage-svg-panel"></rect>
+    <text x="248" y="166" text-anchor="middle" font-weight="700">0. 是事件流还是最终状态？</text>
+    <text x="248" y="185" text-anchor="middle" class="storage-svg-muted" font-size="12">削峰、订阅、回放先分出去</text>
+
+    <rect x="118" y="230" width="260" height="58" rx="10" class="storage-svg-panel"></rect>
+    <text x="248" y="254" text-anchor="middle" font-weight="700">1. 需要强事务和关系吗？</text>
+    <text x="248" y="273" text-anchor="middle" class="storage-svg-muted" font-size="12">ACID、约束、Join、正确性优先</text>
+
+    <rect x="118" y="318" width="260" height="58" rx="10" class="storage-svg-panel"></rect>
+    <text x="248" y="342" text-anchor="middle" font-weight="700">2. 要毫秒级点查吗？</text>
+    <text x="248" y="361" text-anchor="middle" class="storage-svg-muted" font-size="12">按 key 查、小范围查、在线服务</text>
+
+    <rect x="118" y="406" width="260" height="58" rx="10" class="storage-svg-panel"></rect>
+    <text x="248" y="430" text-anchor="middle" font-weight="700">3. 主要做全文搜索吗？</text>
+    <text x="248" y="449" text-anchor="middle" class="storage-svg-muted" font-size="12">分词、相关性、日志检索</text>
+
+    <rect x="118" y="494" width="260" height="58" rx="10" class="storage-svg-panel"></rect>
+    <text x="248" y="518" text-anchor="middle" font-weight="700">4. 主要做 SQL 分析吗？</text>
+    <text x="248" y="537" text-anchor="middle" class="storage-svg-muted" font-size="12">聚合、报表、画像、Ad-hoc</text>
+
+    <rect x="118" y="582" width="260" height="58" rx="10" class="storage-svg-panel"></rect>
+    <text x="248" y="606" text-anchor="middle" font-weight="700">5. 要低成本长期明细吗？</text>
+    <text x="248" y="625" text-anchor="middle" class="storage-svg-muted" font-size="12">多年保存、训练回溯、增量入湖</text>
+
+    <rect x="118" y="670" width="260" height="58" rx="10" class="storage-svg-panel"></rect>
+    <text x="248" y="694" text-anchor="middle" font-weight="700">6/7. 时序指标或向量召回？</text>
+    <text x="248" y="713" text-anchor="middle" class="storage-svg-muted" font-size="12">监控趋势、RAG、语义相似度</text>
+  </g>
+
+  <g font-size="13" class="storage-svg-text">
+    <rect x="720" y="142" width="270" height="58" rx="10" class="storage-svg-hot"></rect>
+    <text x="855" y="166" text-anchor="middle" font-weight="700">Kafka / Pulsar</text>
+    <text x="855" y="185" text-anchor="middle" class="storage-svg-muted" font-size="12">事件总线、削峰、订阅、回放</text>
+
+    <rect x="720" y="230" width="270" height="58" rx="10" class="storage-svg-green"></rect>
+    <text x="855" y="254" text-anchor="middle" font-weight="700">MySQL / PostgreSQL</text>
+    <text x="855" y="273" text-anchor="middle" class="storage-svg-muted" font-size="12">订单、账户、配置、强一致状态</text>
+
+    <rect x="720" y="318" width="270" height="58" rx="10" class="storage-svg-hot"></rect>
+    <text x="855" y="342" text-anchor="middle" font-weight="700">Redis / HBase / Cassandra</text>
+    <text x="855" y="361" text-anchor="middle" class="storage-svg-muted" font-size="12">热点缓存、在线特征、海量宽表</text>
+
+    <rect x="720" y="406" width="270" height="58" rx="10" class="storage-svg-red"></rect>
+    <text x="855" y="430" text-anchor="middle" font-weight="700">Elasticsearch / OpenSearch</text>
+    <text x="855" y="449" text-anchor="middle" class="storage-svg-muted" font-size="12">全文检索、日志检索、相关性排序</text>
+
+    <rect x="720" y="494" width="270" height="58" rx="10" class="storage-svg-cool"></rect>
+    <text x="855" y="518" text-anchor="middle" font-weight="700">ClickHouse / Doris / Druid</text>
+    <text x="855" y="537" text-anchor="middle" class="storage-svg-muted" font-size="12">实时 OLAP、BI、标签圈选、看板</text>
+
+    <rect x="720" y="582" width="270" height="58" rx="10" class="storage-svg-panel"></rect>
+    <text x="855" y="606" text-anchor="middle" font-weight="700">S3 / HDFS + Hudi / Iceberg / Delta</text>
+    <text x="855" y="625" text-anchor="middle" class="storage-svg-muted" font-size="12">低成本明细湖、训练样本、版本回溯</text>
+
+    <rect x="720" y="670" width="270" height="58" rx="10" class="storage-svg-green"></rect>
+    <text x="855" y="694" text-anchor="middle" font-weight="700">Prometheus / Milvus / pgvector</text>
+    <text x="855" y="713" text-anchor="middle" class="storage-svg-muted" font-size="12">时序指标、语义检索、向量召回</text>
+  </g>
+
+  <g fill="none" class="storage-svg-line" stroke-width="2" marker-end="url(#storage-arrow-decision)">
+    <path d="M560 112 C560 130 380 130 340 142"></path>
+    <path d="M248 200 L248 226"></path>
+    <path d="M248 288 L248 314"></path>
+    <path d="M248 376 L248 402"></path>
+    <path d="M248 464 L248 490"></path>
+    <path d="M248 552 L248 578"></path>
+    <path d="M248 640 L248 666"></path>
+    <path d="M378 171 L714 171"></path>
+    <path d="M378 259 L714 259"></path>
+    <path d="M378 347 L714 347"></path>
+    <path d="M378 435 L714 435"></path>
+    <path d="M378 523 L714 523"></path>
+    <path d="M378 611 L714 611"></path>
+    <path d="M378 699 L714 699"></path>
+  </g>
+
+  <g font-size="11" class="storage-svg-muted">
+    <text x="407" y="163">是事件流</text>
+    <text x="407" y="251">要事务</text>
+    <text x="407" y="339">要点查</text>
+    <text x="407" y="427">要搜索</text>
+    <text x="407" y="515">要分析</text>
+    <text x="407" y="603">要湖仓</text>
+    <text x="407" y="691">专项场景</text>
+    <text x="258" y="218">不是，继续判断</text>
+    <text x="258" y="306">不是，继续判断</text>
+    <text x="258" y="394">不是，继续判断</text>
+    <text x="258" y="482">不是，继续判断</text>
+    <text x="258" y="570">不是，继续判断</text>
+    <text x="258" y="658">不是，继续判断</text>
+  </g>
+</svg>
+<figcaption>图里右侧是候选方向，不是唯一答案；实际落地还要看数据规模、团队经验、已有系统和压测结果。</figcaption>
+</figure>
 
 <div class="storage-tree">
   <div class="storage-step">
