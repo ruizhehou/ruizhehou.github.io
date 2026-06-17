@@ -203,13 +203,42 @@
   <p class="home-kicker">最近更新</p>
   <h2>按时间写下的文章</h2>
   <div class="home-latest-status" aria-label="最近更新分页信息">
-    <span>共 <strong>259</strong> 篇</span>
+    <span>共 <strong>260</strong> 篇</span>
     <span>每页 <strong>10</strong> 篇</span>
     <span>第 <strong>3</strong> / 26 页</span>
     <span>本页 <strong>10</strong> 篇</span>
     <span>当前 21-30</span>
   </div>
 </div>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/09/Obsidian%E5%85%A5%E9%97%A8/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/06/09/Obsidian%E5%85%A5%E9%97%A8/" class="post-title-link" itemprop="url">Obsidian：把笔记变成知识网络</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2026-06-09T20:00:00+08:00">06-09</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>Obsidian 是什么：本地优先的 Markdown 笔记软件，所有笔记是纯文本文件，永远归你所有。核心差异：双向链接让知识之间有连接，不只是存储。为什么用它：vs Notion（本地/离线/隐私）vs Roam（免费/轻量）vs 文件夹（可视化连接）。怎么用：Vault 概念、双链语法、Graph View、标签与属性、模板、常用插件（Dataview/Calendar/Templater/Excalidraw）。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
 
 <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/09/FlashAttention/">
@@ -233,7 +262,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>FlashAttention 的核心洞察：注意力机制的瓶颈不是算力，是内存带宽。标准 Attention 需要把 N×N 的注意力矩阵写入再读出 HBM，IO 复杂度 O(N²)。FlashAttention 用分块（Tiling）+在线 Softmax+反向重计...</p>
+          <p>FlashAttention 的核心洞察：注意力机制的瓶颈不是算力，是内存带宽。标准 Attention 需要把 N×N 的注意力矩阵写入再读出 HBM，IO 复杂度 O(N²)。FlashAttention 用分块（Tiling）+在线 Softmax+反向重计算，把 HBM 访问降到 O(N)，在不损失精度的前提下提速 2-4 倍。FlashAttention-2 进一步减少非矩阵乘法运算、改进并行策略，再快约 2 倍。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -291,7 +320,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>Agent 自动化评测技术：为什么比传统 ML 评测难（有状态环境、多条合法路径、副作用）；三种评测方式（执行验证/LLM-as-Judge/轨迹评测）各自的适用场景和局限；SWE-bench、GAIA、WebArena、OSWorld 四个主流 Benchmar...</p>
+          <p>Agent 自动化评测技术：为什么比传统 ML 评测难（有状态环境、多条合法路径、副作用）；三种评测方式（执行验证/LLM-as-Judge/轨迹评测）各自的适用场景和局限；SWE-bench、GAIA、WebArena、OSWorld 四个主流 Benchmark 的设计思路；以及工程层面的环境隔离、非确定性处理、成本控制。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -320,7 +349,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>Apache Doris SQL 查询详解：连接方式、分区裁剪（查询快慢的核心）、聚合模型与预聚合、精确去重（bitmap）vs 近似去重（HLL/approx）、窗口函数、Join 优化（Broadcast vs Shuffle）、EXPLAIN 分析查询计划...</p>
+          <p>Apache Doris SQL 查询详解：连接方式、分区裁剪（查询快慢的核心）、聚合模型与预聚合、精确去重（bitmap）vs 近似去重（HLL/approx）、窗口函数、Join 优化（Broadcast vs Shuffle）、EXPLAIN 分析查询计划、物化视图加速。同一个查询不同写法可以差 100 倍。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -349,7 +378,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>OpenAI Codex 执行安全模型分析：AskForApproval 审批策略的五种模式、ExecPolicy 规则引擎如何用前缀匹配决定命令是否允许执行、以及 macOS Seatbelt、Linux bubblewrap 和 Landlock 三种平台沙箱...</p>
+          <p>OpenAI Codex 执行安全模型分析：AskForApproval 审批策略的五种模式、ExecPolicy 规则引擎如何用前缀匹配决定命令是否允许执行、以及 macOS Seatbelt、Linux bubblewrap 和 Landlock 三种平台沙箱的实现思路。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -407,7 +436,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>GPU 的资源模型和 CPU 完全相反：不追求让一件事做得快，而是让一万件事同时发生。SM 架构、Warp 执行模型、显存带宽为何是 LLM 推理的真正瓶颈（不是算力）、HBM vs GDDR、KV Cache 和显存容量的关系、批大小对吞吐的影响。后端工程师需要...</p>
+          <p>GPU 的资源模型和 CPU 完全相反：不追求让一件事做得快，而是让一万件事同时发生。SM 架构、Warp 执行模型、显存带宽为何是 LLM 推理的真正瓶颈（不是算力）、HBM vs GDDR、KV Cache 和显存容量的关系、批大小对吞吐的影响。后端工程师需要理解 GPU 的哪些概念。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -436,7 +465,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>CPU 的资源模型是为了让一件事做得尽可能快：缓存层级（为什么访问 L1 和访问内存差 200 倍）、Cache Line 与空间局部性、超线程的本质与限制、NUMA 架构对多路服务器的影响。后端工程师需要知道的 CPU 知识，不是如何设计 CPU，而是 CPU...</p>
+          <p>CPU 的资源模型是为了让一件事做得尽可能快：缓存层级（为什么访问 L1 和访问内存差 200 倍）、Cache Line 与空间局部性、超线程的本质与限制、NUMA 架构对多路服务器的影响。后端工程师需要知道的 CPU 知识，不是如何设计 CPU，而是 CPU 的限制如何影响你的代码。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -465,48 +494,17 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>推理时计算（Test-Time Compute）：过去扩展模型靠参数量，现在发现让同一个模型「想更久」同样能大幅提升效果。Chain of Thought 为什么有效、多路探索与最优选择、验证比生成容易这一核心非对称性、过程奖励模型（PRM）如何评估推理步骤、o1...</p>
+          <p>推理时计算（Test-Time Compute）：过去扩展模型靠参数量，现在发现让同一个模型「想更久」同样能大幅提升效果。Chain of Thought 为什么有效、多路探索与最优选择、验证比生成容易这一核心非对称性、过程奖励模型（PRM）如何评估推理步骤、o1 和 DeepSeek-R1 的实现思路，以及代价与适用场景。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
       </footer>
   </article>
 
-<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/07/%E5%A6%82%E4%BD%95%E5%AD%A6%E4%B9%A0Zig/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2026/06/07/%E5%A6%82%E4%BD%95%E5%AD%A6%E4%B9%A0Zig/" class="post-title-link" itemprop="url">如何学习 Zig：一条走得通的路线</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2026-06-07T14:00:00+08:00">06-07</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>学 Zig 的实用路线：需要什么基础、按什么顺序看哪些资源、三个最值得花时间的核心概念（分配器/comptime/错误处理）各用什么方式学、做什么项目练手、卡住了去哪找答案。给从 Java/Python/Go 背景来学 Zig 的人写的。</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <nav class="pagination" aria-label="最近更新分页">
+<nav class="pagination" aria-label="最近更新分页">
     <a class="extend prev" rel="prev" href="/page/2/">上一页</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/4/">下一页</a>
   </nav>
-
-
-          </div>
+</div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -568,7 +566,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
 
-          <span class="site-state-item-count">259</span>
+          <span class="site-state-item-count">260</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

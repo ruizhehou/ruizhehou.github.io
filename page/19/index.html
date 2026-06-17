@@ -203,13 +203,42 @@
   <p class="home-kicker">最近更新</p>
   <h2>按时间写下的文章</h2>
   <div class="home-latest-status" aria-label="最近更新分页信息">
-    <span>共 <strong>259</strong> 篇</span>
+    <span>共 <strong>260</strong> 篇</span>
     <span>每页 <strong>10</strong> 篇</span>
     <span>第 <strong>19</strong> / 26 页</span>
     <span>本页 <strong>10</strong> 篇</span>
     <span>当前 181-190</span>
   </div>
 </div>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/29/grant%E4%B9%8B%E5%90%8E%E8%A6%81%E8%B7%9F%E7%9D%80flush-privileges%E5%90%97%EF%BC%9F/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2020/08/29/grant%E4%B9%8B%E5%90%8E%E8%A6%81%E8%B7%9F%E7%9D%80flush-privileges%E5%90%97%EF%BC%9F/" class="post-title-link" itemprop="url">grant之后要跟着flush privileges吗？</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2020-08-29T11:13:06+08:00">2020-08-29</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>先说结论： 正常情况下，grant命令之后，没有必要跟着执行flush privileges命令。 那么，flush privileges是什么时候使用呢？显然，当数据表中的权限数据根内存中的权限数据不一样的时候，flush privileges语句可以用来重建内存数据，达到一致状态。 这种不一致往往是由不规范的操作导致的，比如直接用DML语句操作系统权限表。 直接操作系统表是不规范的操作。这个不</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
 
 <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/28/Python-socket%E7%BC%96%E7%A8%8B/">
@@ -233,7 +262,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>基于TCP的套接字编程： socket层的位置：socket在传输层和应用层之间  socket是什么： Socket是应用层与TCP/IP协议族通信的中间软件抽象层，它是一组接口。在设计模式中，Socket其实就是一个门面模式，它把复杂的TCP/IP协议族隐藏在...</p>
+          <p>基于TCP的套接字编程： socket层的位置：socket在传输层和应用层之间 socket是什么： Socket是应用层与TCP/IP协议族通信的中间软件抽象层，它是一组接口。在设计模式中，Socket其实就是一个门面模式，它把复杂的TCP/IP协议族隐藏在Socket接口后面，对用户来说，一组简单的接口就是全部，让Socket去组织数据，以符合指定的协议。 所以，我们无需深入理解tcp/u</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -262,7 +291,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>堆的空间是用来存储我们new出来的对象的。当new的对象填充满堆区的话，就会导致内存爆掉，我们的程序就会OOM。jvm 的 GC是清理堆上的对象的。 首先我们应该判断这个对象应不应该被删除。那判断的标准是什么呢？有一个标准叫GCRoot。被  栈 本地方法栈 方法...</p>
+          <p>堆的空间是用来存储我们new出来的对象的。当new的对象填充满堆区的话，就会导致内存爆掉，我们的程序就会OOM。jvm 的 GC是清理堆上的对象的。 首先我们应该判断这个对象应不应该被删除。那判断的标准是什么呢？有一个标准叫GCRoot。被 栈 本地方法栈 方法区（全局变量） 直接或者间接引用的对象，是不能被删除的。 就引出了一个以GCRoot为根的树结构。 思路1：标记需要被删除，在扫描一遍</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -291,7 +320,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>jvm在拿到操作系统分配的内存后，将内存分成了5个区域。 按线程私有和线程共有分为： 线程私有：  栈（函数运行过程中的临时变量，存储基本类型，对象类型的指针） 本地方法栈（C++native方法运行的栈区，C++基本类型，与C++对象类型的指针） 程序计数器（指...</p>
+          <p>jvm在拿到操作系统分配的内存后，将内存分成了5个区域。 按线程私有和线程共有分为： 线程私有： 栈（函数运行过程中的临时变量，存储基本类型，对象类型的指针） 本地方法栈（C++native方法运行的栈区，C++基本类型，与C++对象类型的指针） 程序计数器（指向程序当前运行的位置，字节码序列的位置） 共有（属于同一进程）： 方法区（元空间）（全局静态方法、变量、类加载器，等等一些全局信息）</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -320,7 +349,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>我在上一篇文章最后，给你留下的问题是怎么在两张表中拷贝数据。如果可以控制对源表的扫描行数和加锁范围很小的话，我们简单地使用insert..select语句即可实现。 当然，为了避免对源表加读锁，更稳妥的方案是先将数据写到外部文本文件，然后再写回目标表。这时，有两种...</p>
+          <p>我在上一篇文章最后，给你留下的问题是怎么在两张表中拷贝数据。如果可以控制对源表的扫描行数和加锁范围很小的话，我们简单地使用insert..select语句即可实现。 当然，为了避免对源表加读锁，更稳妥的方案是先将数据写到外部文本文件，然后再写回目标表。这时，有两种常用的方法。接下来的内容，我会和你详细展开一下这两种方法。 为了便于说明，我还是先创建一个表db1.t，并插入1000行数据，同时创建一</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -349,7 +378,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>在上一篇文章中，我提到MySQL对自增主键锁做了优化，尽量在申请到自增id以后，就释放自增锁。 因此，insert语句是一个很轻量的操作。不过，这个结论是对于“普通的insert语句”才有效。也就是说，还有些insert语句是属于“特殊情况”的，在执行过程中需要给...</p>
+          <p>在上一篇文章中，我提到MySQL对自增主键锁做了优化，尽量在申请到自增id以后，就释放自增锁。 因此，insert语句是一个很轻量的操作。不过，这个结论是对于“普通的insert语句”才有效。也就是说，还有些insert语句是属于“特殊情况”的，在执行过程中需要给其他资源加锁，或者无法在申请到自增id以后就立马释放自增锁。 那么，今天这篇文章，我们就一起来聊聊这个话题。 1. insert...s</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -378,7 +407,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>在上一篇文章中，我提到MySQL对自增主键锁做了优化，尽量在申请到自增id以后，就释放自增锁。 因此，insert语句是一个很轻量的操作。不过，这个结论是对于“普通的insert语句”才有效。也就是说，还有些insert语句是属于“特殊情况”的，在执行过程中需要给...</p>
+          <p>在上一篇文章中，我提到MySQL对自增主键锁做了优化，尽量在申请到自增id以后，就释放自增锁。 因此，insert语句是一个很轻量的操作。不过，这个结论是对于“普通的insert语句”才有效。也就是说，还有些insert语句是属于“特殊情况”的，在执行过程中需要给其他资源加锁，或者无法在申请到自增id以后就立马释放自增锁。 那么，今天这篇文章，我们就一起来聊聊这个话题。 1. insert...s</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -407,7 +436,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>为了便于说明，我们创建一个表t，其中id是自增主键字段、c是唯一索引。 12345678CREATE TABLE `t` (  `id` int(11) NOT NULL AUTO_INCREMENT,  `c` int(11) DEFAULT NULL,  `d...</p>
+          <p>为了便于说明，我们创建一个表t，其中id是自增主键字段、c是唯一索引。 12345678CREATE TABLE `t` ( `id` int(11) NOT NULL AUTO_INCREMENT, `c` int(11) DEFAULT NULL, `d` int(11) DEFAULT NULL, PRIMARY KEY (`id`), UNIQUE KEY `c` (`c`))</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -425,7 +454,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-            <a href="/2020/08/28/%E8%AE%A8%E8%AE%BA%E5%B7%B2%E7%BB%8F%E5%88%B0%E8%BE%BE%E4%BA%86-%E6%B0%B4%E8%BE%B9-%EF%BC%8C%E6%98%AF%E5%90%A6%E5%96%9D%E6%B0%B4%E5%B0%B1%E7%9C%8B%E4%BD%A0%E7%9A%84%E5%86%B3%E5%BF%83%E4%BA%86/" class="post-title-link" itemprop="url">讨论已经到达了'水边'，是否喝水就看你的决心了</a>
+            <a href="/2020/08/28/%E8%AE%A8%E8%AE%BA%E5%B7%B2%E7%BB%8F%E5%88%B0%E8%BE%BE%E4%BA%86-%E6%B0%B4%E8%BE%B9-%EF%BC%8C%E6%98%AF%E5%90%A6%E5%96%9D%E6%B0%B4%E5%B0%B1%E7%9C%8B%E4%BD%A0%E7%9A%84%E5%86%B3%E5%BF%83%E4%BA%86/" class="post-title-link" itemprop="url">讨论已经到达了&#x27;水边&#x27;，是否喝水就看你的决心了</a>
         </h2>
         <div class="post-meta">
             <span class="post-meta-item">
@@ -436,7 +465,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>只要没有迷失”他者贡献“这课引导之星，那么你就不会迷失，而且做什么都可以。 我们要像跳舞一样认真过好作为刹那的”此时此刻“，既不看过去也不看未来，只需过好每一个完结的刹那。没必要与谁竞争，也不需要目的地，只要跳着，就一定会到达某一个地方。 我的力量无穷大。 世界不...</p>
+          <p>只要没有迷失”他者贡献“这课引导之星，那么你就不会迷失，而且做什么都可以。 我们要像跳舞一样认真过好作为刹那的”此时此刻“，既不看过去也不看未来，只需过好每一个完结的刹那。没必要与谁竞争，也不需要目的地，只要跳着，就一定会到达某一个地方。 我的力量无穷大。 世界不是靠他人改变而只能靠我来改变。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -465,48 +494,17 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>先说结论 如果你直接使用order by rand()，这个语句需要Using temporary和Using filesort，查询的执行代价往往是比较大的。所以，在设计的时候你要尽量避开这种写法。 在实际应用的过程中，比较规范的用法是：尽量将业务逻辑写在业务代...</p>
+          <p>先说结论 如果你直接使用order by rand()，这个语句需要Using temporary和Using filesort，查询的执行代价往往是比较大的。所以，在设计的时候你要尽量避开这种写法。 在实际应用的过程中，比较规范的用法是：尽量将业务逻辑写在业务代码中，让数据库只做”读写数据“的事情。 正确的方法 下面这个流程： 取得整个表的行数，并记为C。 取得Y = floor(C * ra</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
       </footer>
   </article>
 
-<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/28/%E5%85%B3%E4%BA%8EMySQL%E7%9A%84row-ID/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2020/08/28/%E5%85%B3%E4%BA%8EMySQL%E7%9A%84row-ID/" class="post-title-link" itemprop="url">为什么rowid是6个字节</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2020-08-28T09:51:24+08:00">2020-08-28</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>首先官方文档是这么写的。参考MySQL5.6 Ref manual。 每个InnoDB表都有一个特殊的索引，称为聚簇索引clustered index，行的数据就存储在这里。通常情况下，聚簇索引是主键的同义词。为了从查询、插入和其他数据库操作中获得最佳性能，你必须...</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <nav class="pagination" aria-label="最近更新分页">
+<nav class="pagination" aria-label="最近更新分页">
     <a class="extend prev" rel="prev" href="/page/18/">上一页</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/18/">18</a><span class="page-number current">19</span><a class="page-number" href="/page/20/">20</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/20/">下一页</a>
   </nav>
-
-
-          </div>
+</div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -568,7 +566,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
 
-          <span class="site-state-item-count">259</span>
+          <span class="site-state-item-count">260</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

@@ -203,13 +203,42 @@
   <p class="home-kicker">最近更新</p>
   <h2>按时间写下的文章</h2>
   <div class="home-latest-status" aria-label="最近更新分页信息">
-    <span>共 <strong>259</strong> 篇</span>
+    <span>共 <strong>260</strong> 篇</span>
     <span>每页 <strong>10</strong> 篇</span>
     <span>第 <strong>2</strong> / 26 页</span>
     <span>本页 <strong>10</strong> 篇</span>
     <span>当前 11-20</span>
   </div>
 </div>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/15/%E4%BB%80%E4%B9%88%E6%98%AF%E7%89%A9%E5%8C%96/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/06/15/%E4%BB%80%E4%B9%88%E6%98%AF%E7%89%A9%E5%8C%96/" class="post-title-link" itemprop="url">为什么有些结果要提前算好：物化到底是什么意思</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2026-06-15T12:00:00+08:00">06-15</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>物化就是把本来需要现场计算的结果提前算好并存起来，用存储成本和更新复杂度换查询速度、稳定性和低延迟。本文从订单统计、物化视图、Feature Store 特征物化、缓存和中间表讲起，解释物化解决什么问题、带来哪些代价，以及什么时候应该物化。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
 
 <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/15/%E7%89%B9%E5%BE%81%E7%9B%91%E6%8E%A7%E6%95%B0%E6%8D%AE%E6%BC%82%E7%A7%BB/">
@@ -262,7 +291,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>Point-in-Time Join 不是一个普通 SQL Join，而是训练样本构造里防止数据穿越的关键机制。本文从 event_time、feature_time、process_time、visible_time 四个时间讲起，结合错误 Join、ASOF...</p>
+          <p>Point-in-Time Join 不是一个普通 SQL Join，而是训练样本构造里防止数据穿越的关键机制。本文从 event_time、feature_time、process_time、visible_time 四个时间讲起，结合错误 Join、ASOF Join、特征快照、迟到数据、回填和校验规则，讲清楚 Point-in-Time Join 怎么真正落地。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -320,7 +349,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>Presto 是一个分布式 SQL 查询引擎，适合交互式分析、跨源联合查询、数据湖查询、BI 探索和数据校验；它不适合强事务写入、毫秒级在线点查、复杂长链路 ETL 或无治理的大查询平台。本文用一条 SQL 的执行过程讲清楚它是什么、怎么执行、为什么快、什么时候会...</p>
+          <p>Presto 是一个分布式 SQL 查询引擎，适合交互式分析、跨源联合查询、数据湖查询、BI 探索和数据校验；它不适合强事务写入、毫秒级在线点查、复杂长链路 ETL 或无治理的大查询平台。本文用一条 SQL 的执行过程讲清楚它是什么、怎么执行、为什么快、什么时候会慢，以及该在什么场景里使用。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -378,7 +407,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>Bosun 的核心是用表达式语言把时间序列压缩成 warn/crit 判断，再用 template 和 notification 把机器信号变成人能处理的告警。本文从 RuleConf、q()、group、归约函数、Unknown、lookup、depends 到...</p>
+          <p>Bosun 的核心是用表达式语言把时间序列压缩成 warn/crit 判断，再用 template 和 notification 把机器信号变成人能处理的告警。本文从 RuleConf、q()、group、归约函数、Unknown、lookup、depends 到模板通知，讲清楚 Bosun 语句怎么写。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -465,48 +494,17 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>深度分析 20k star 开源项目 Headroom：为 AI Agent 上下文做压缩，60-95% 减少 token。从源码学习：ML 内容检测（Google Magika）、ContentRouter 内容感知路由、管道生命周期模式与扩展点、CCR 可逆压...</p>
+          <p>深度分析 20k star 开源项目 Headroom：为 AI Agent 上下文做压缩，60-95% 减少 token。从源码学习：ML 内容检测（Google Magika）、ContentRouter 内容感知路由、管道生命周期模式与扩展点、CCR 可逆压缩设计、CacheAligner KV 缓存对齐、零代码改动的代理模式、Python+Rust 混合架构，以及从失败中学习的 headroom learn 机制。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
       </footer>
   </article>
 
-<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/09/Obsidian%E5%85%A5%E9%97%A8/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2026/06/09/Obsidian%E5%85%A5%E9%97%A8/" class="post-title-link" itemprop="url">Obsidian：把笔记变成知识网络</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2026-06-09T20:00:00+08:00">06-09</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>Obsidian 是什么：本地优先的 Markdown 笔记软件，所有笔记是纯文本文件，永远归你所有。核心差异：双向链接让知识之间有连接，不只是存储。为什么用它：vs Notion（本地/离线/隐私）vs Roam（免费/轻量）vs 文件夹（可视化连接）。怎么用：...</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <nav class="pagination" aria-label="最近更新分页">
+<nav class="pagination" aria-label="最近更新分页">
     <a class="extend prev" rel="prev" href="/">上一页</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/3/">下一页</a>
   </nav>
-
-
-          </div>
+</div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -568,7 +566,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
 
-          <span class="site-state-item-count">259</span>
+          <span class="site-state-item-count">260</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

@@ -203,13 +203,42 @@
   <p class="home-kicker">最近更新</p>
   <h2>按时间写下的文章</h2>
   <div class="home-latest-status" aria-label="最近更新分页信息">
-    <span>共 <strong>259</strong> 篇</span>
+    <span>共 <strong>260</strong> 篇</span>
     <span>每页 <strong>10</strong> 篇</span>
     <span>第 <strong>16</strong> / 26 页</span>
     <span>本页 <strong>10</strong> 篇</span>
     <span>当前 151-160</span>
   </div>
 </div>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/09/04/HTTP%E7%9A%84%E6%AD%A3%E7%A1%AE%E5%93%8D%E5%BA%94%E7%A0%81/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2020/09/04/HTTP%E7%9A%84%E6%AD%A3%E7%A1%AE%E5%93%8D%E5%BA%94%E7%A0%81/" class="post-title-link" itemprop="url">HTTP的正确响应码（For Reference）</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2020-09-04T22:37:43+08:00">2020-09-04</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>100，200，300系列表示成功的响应码 响应码规范：RFC6585（2012.4）、RFC7231（2014.6） 1xx：请求已接收到，需要进一步处理才能完成，HTTP1.0不支持 100 Continue：上传大文件前使用 由客户端发起请求中携带Expect 100-continue头部触发 101 Switch Protocols：协议升级使用 由客户端发起请求中携带Upgra</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
 
 <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/09/04/%E9%98%BF%E7%94%98%E6%AD%A3%E4%BC%A0%E7%BB%8F%E5%85%B8%E5%8F%B0%E8%AF%8D-you-have-to-do-the-best-with-what-God-gave-you/">
@@ -262,7 +291,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>在分布式的Web架构中呢，有5类架构风格。那么什么叫架构风格呢？我们在日常编程中可能会有习惯用法，再高一级在面向对象语言中呢，可能会有设计模式，那么再往上更大粒度的抽象我们可以用到架构。而架构风格是指某一类架构它们具有相同的或者说类似的一些约束，我们把它归纳为一类...</p>
+          <p>在分布式的Web架构中呢，有5类架构风格。那么什么叫架构风格呢？我们在日常编程中可能会有习惯用法，再高一级在面向对象语言中呢，可能会有设计模式，那么再往上更大粒度的抽象我们可以用到架构。而架构风格是指某一类架构它们具有相同的或者说类似的一些约束，我们把它归纳为一类架构风格。那么我们rest架构，也就是HTTP设计所遵循的这样的架构会使用到我们下面的，或者说参考我们下列5类架构风格中的其中一些架构。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -320,7 +349,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>TLS保证安全性的最大难题在于如何传递后续对称加密时，所使用的密钥，那么目前所使用的DH或者DHCE协议呢，都存在被快速运算的计算机所破解的一个可能性。那么，接下来将介绍量子通讯协议。当然这里的量子通讯与我们在物理学中所了解到的那个量子力学一点关系都没有，只是借用...</p>
+          <p>TLS保证安全性的最大难题在于如何传递后续对称加密时，所使用的密钥，那么目前所使用的DH或者DHCE协议呢，都存在被快速运算的计算机所破解的一个可能性。那么，接下来将介绍量子通讯协议。当然这里的量子通讯与我们在物理学中所了解到的那个量子力学一点关系都没有，只是借用了其中一些理念而已。 我们首先来看一下量子通讯的理论基础。 TLS密码学回顾 通讯双方在身份验证的基础上，协商出一次性的、随机的密钥（</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -349,7 +378,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>TLS握手中所消耗的一个或者两个RTT的时间，是用于安全性，对于我们应用层的信息传递而言并没有意义。所以TLS提供了许多种手段，比如缓存，ticket等等，用于减少我们TLS握手中所消耗的RTT的时间。接下来简要介绍常用的一些手段，以及它们所存在的问题。 sess...</p>
+          <p>TLS握手中所消耗的一个或者两个RTT的时间，是用于安全性，对于我们应用层的信息传递而言并没有意义。所以TLS提供了许多种手段，比如缓存，ticket等等，用于减少我们TLS握手中所消耗的RTT的时间。接下来简要介绍常用的一些手段，以及它们所存在的问题。 session缓存：以服务器生成的session ID为依据 session resume with session ID 最常用的叫sessi</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -407,7 +436,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>这是一篇较早的记录，保留在时间线中，方便按日期继续阅读。</p>
+          <p></p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -436,7 +465,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>​ HTTP主要有这些不足，列举如下：  通信使用明文（不加密），内容可能会被窃听 不验证通信方的身份，因此有可能遭遇伪装 无法证明报文的完整性，所以有可能已遭篡改  这些问题不仅在HTTP上出现，其他未加密的协议中也会存在这类问题。 除此之外，HTTP本身还有很...</p>
+          <p>​ HTTP主要有这些不足，列举如下： 通信使用明文（不加密），内容可能会被窃听 不验证通信方的身份，因此有可能遭遇伪装 无法证明报文的完整性，所以有可能已遭篡改 这些问题不仅在HTTP上出现，其他未加密的协议中也会存在这类问题。 除此之外，HTTP本身还有很多缺点。而且，还有像某些特定的Web服务器和特定的Web浏览器在实际应用中存在的不足（也可以说成是脆弱性或安全漏洞），另外，用Java和</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -465,48 +494,17 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263# retry_decorat...</p>
+          <p>123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263# retry_decorator.pyimport functoolsimport timedef retry(interval, max_retries=3, e</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
       </footer>
   </article>
 
-<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/09/02/Python%E5%87%BD%E6%95%B0%E5%8F%82%E6%95%B0%E9%BB%98%E8%AE%A4%E5%80%BC%E7%9A%84%E9%99%B7%E9%98%B1%E5%92%8C%E5%8E%9F%E7%90%86%E6%B7%B1%E7%A9%B6/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2020/09/02/Python%E5%87%BD%E6%95%B0%E5%8F%82%E6%95%B0%E9%BB%98%E8%AE%A4%E5%80%BC%E7%9A%84%E9%99%B7%E9%98%B1%E5%92%8C%E5%8E%9F%E7%90%86%E6%B7%B1%E7%A9%B6/" class="post-title-link" itemprop="url">Python函数参数默认值的陷阱和原理深究</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2020-09-02T23:32:08+08:00">2020-09-02</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>参考 http://cenalulu.github.io/python/default-mutable-arguments/ 本文将介绍使用mutable对象作为Python函数参数默认值潜在的危害，以及其实现原理和设计目的 陷阱重现 我们用实际的例子演示一下我们...</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <nav class="pagination" aria-label="最近更新分页">
+<nav class="pagination" aria-label="最近更新分页">
     <a class="extend prev" rel="prev" href="/page/15/">上一页</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><span class="page-number current">16</span><a class="page-number" href="/page/17/">17</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/17/">下一页</a>
   </nav>
-
-
-          </div>
+</div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -568,7 +566,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
 
-          <span class="site-state-item-count">259</span>
+          <span class="site-state-item-count">260</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

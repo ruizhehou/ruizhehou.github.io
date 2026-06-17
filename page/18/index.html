@@ -203,13 +203,42 @@
   <p class="home-kicker">最近更新</p>
   <h2>按时间写下的文章</h2>
   <div class="home-latest-status" aria-label="最近更新分页信息">
-    <span>共 <strong>259</strong> 篇</span>
+    <span>共 <strong>260</strong> 篇</span>
     <span>每页 <strong>10</strong> 篇</span>
     <span>第 <strong>18</strong> / 26 页</span>
     <span>本页 <strong>10</strong> 篇</span>
     <span>当前 171-180</span>
   </div>
 </div>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/31/%E6%88%91%E4%BB%AC%E5%94%AF%E4%B8%80%E5%80%BC%E5%BE%97%E6%81%90%E6%83%A7%E7%9A%84%E5%B0%B1%E6%98%AF%E6%81%90%E6%83%A7%E6%9C%AC%E8%BA%AB/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2020/08/31/%E6%88%91%E4%BB%AC%E5%94%AF%E4%B8%80%E5%80%BC%E5%BE%97%E6%81%90%E6%83%A7%E7%9A%84%E5%B0%B1%E6%98%AF%E6%81%90%E6%83%A7%E6%9C%AC%E8%BA%AB/" class="post-title-link" itemprop="url">我们唯一值得恐惧的就是恐惧本身</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2020-08-31T15:08:04+08:00">2020-08-31</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>1933年，富兰克林·罗斯福首次总统就职演说 因此，首先，请允许我表明自己的坚定信念：我们唯一值得恐惧的就是恐惧本身——这是一种难以名状、盲目冲动、毫无缘由的恐惧，可以使人们转退为进所需的努力全都丧失效力。 名言： 我们必须成为民主制度的伟大兵工厂。对我们来讲，这是如同战争本身一样严重的紧急情况。我们必须以同样的决心，同样的紧迫感，同样的爱国主义和牺牲精神来致力于我们的任务，就好像我们处在战</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
 
 <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/31/%E5%85%A8%E5%B1%80%E9%94%81%E5%92%8C%E8%A1%A8%E9%94%81%EF%BC%9A%E7%BB%99%E8%A1%A8%E5%8A%A0%E4%B8%AA%E5%AD%97%E6%AE%B5%E6%80%8E%E4%B9%88%E6%9C%89%E8%BF%99%E4%B9%88%E5%A4%9A%E9%98%BB%E7%A2%8D%EF%BC%9F/">
@@ -233,7 +262,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>今天我要跟你聊聊MySQL的锁。数据库锁设计的初衷是处理并发问题。作为多用户共享的资源，当出现并发访问的时候，数据库需要合理地控制资源的访问规则。而锁就是用来实现这些访问规则的重要数据结构。 根据加锁的范围，MySQL里面的锁大致可以分成全局锁、表级锁和行锁三类...</p>
+          <p>今天我要跟你聊聊MySQL的锁。数据库锁设计的初衷是处理并发问题。作为多用户共享的资源，当出现并发访问的时候，数据库需要合理地控制资源的访问规则。而锁就是用来实现这些访问规则的重要数据结构。 根据加锁的范围，MySQL里面的锁大致可以分成全局锁、表级锁和行锁三类。今天这篇文章，我会和你分享全局锁和表级锁。而关于行锁的内容，我会留着在下一篇文章中再和你详细介绍。 这里需要说明的是，锁的设计比较复杂，</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -262,7 +291,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>覆盖索引 如果执行的语句是select ID from T where k between 3 and 5，这时只需要查ID的值，而ID的值已经在k索引树上了，因此可以直接提供查询结果，不需要回表。也就是说，在这个查询里面，索引k已经“覆盖了”我们的查询需求，我们...</p>
+          <p>覆盖索引 如果执行的语句是select ID from T where k between 3 and 5，这时只需要查ID的值，而ID的值已经在k索引树上了，因此可以直接提供查询结果，不需要回表。也就是说，在这个查询里面，索引k已经“覆盖了”我们的查询需求，我们称为覆盖索引。 由于覆盖索引可以减少树的搜索次数，显著提升查询性能，所以使用覆盖索引是一个常用的性能优化手段。 需要注意的是，在引擎内部</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -291,7 +320,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>nginx是一个多进程程序，那么不同的worker进程之间，如果需要共享数据，那么只能通过共享内存。那么下面我们来看一看，nginx中的共享内存是怎么使用的。 nginx的进程间的通讯方式，主要有两种，第一种是信号，那么之前我们在说如何管理nginx的过程中，已经...</p>
+          <p>nginx是一个多进程程序，那么不同的worker进程之间，如果需要共享数据，那么只能通过共享内存。那么下面我们来看一看，nginx中的共享内存是怎么使用的。 nginx的进程间的通讯方式，主要有两种，第一种是信号，那么之前我们在说如何管理nginx的过程中，已经比较详细的介绍过了，那么如果需要做数据的同步呢？那么只能通过共享内存，所谓共享内存，也就是说我们打开了一块内存，比如说10M，那么一整块</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -320,7 +349,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>参考  链接  对于支持继承的编程语言来说，其方法（属性）可能定义在当前类，也可能来自于基类，所以在方法调用时就需要对当前类和基类进行搜索以确定方法所在的位置。而搜索的顺序就是所谓的「方法解析顺序」（Method Resolution Order，或MRO）。对于...</p>
+          <p>参考 链接 对于支持继承的编程语言来说，其方法（属性）可能定义在当前类，也可能来自于基类，所以在方法调用时就需要对当前类和基类进行搜索以确定方法所在的位置。而搜索的顺序就是所谓的「方法解析顺序」（Method Resolution Order，或MRO）。对于只支持单继承的语言来说，MRO 一般比较简单；而对于 Python 这种支持多继承的语言来说，MRO 就复杂很多。 先看一个「菱形继承」</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -349,7 +378,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>MySQL里有很多自增的id，每个自增id都是定义了初始值，然后不停地往上加步长。虽然自然数是没有上限的，但是在计算机里，只要定义了表示这个数的字节长度，那它就有上限。比如，无符号整型（unsigned int）是4个字节，上限就是2^32-1。 既然自增id有上...</p>
+          <p>MySQL里有很多自增的id，每个自增id都是定义了初始值，然后不停地往上加步长。虽然自然数是没有上限的，但是在计算机里，只要定义了表示这个数的字节长度，那它就有上限。比如，无符号整型（unsigned int）是4个字节，上限就是2^32-1。 既然自增id有上限，我们就来看看MySQL里面的几种自增id，一起分析一下它们的值达到上限之后，会出现什么情况。 表定义自增值id 说到自增id，你第一</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -378,7 +407,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>问题：  能不能使用join？ 两个大小不同的表，应该用哪个表做驱动表？  为了便于量化分析，我建两个表t1和t2来和你说明。 123456789101112131415161718192021222324CREATE TABLE `t2` (  `id` int...</p>
+          <p>问题： 能不能使用join？ 两个大小不同的表，应该用哪个表做驱动表？ 为了便于量化分析，我建两个表t1和t2来和你说明。 123456789101112131415161718192021222324CREATE TABLE `t2` ( `id` int(11) NOT NULL, `a` int(11) DEFAULT NULL, `b` int(11) DEFAULT NULL,</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -407,7 +436,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>在我看来，能够帮我们扩展一个逻辑的边界的问题，就是好问题。因为通过解决这样的问题，能够加深我们对这个逻辑的理解，或者帮我们关联到另外一个知识点，进而可以帮助我们建立起自己的知识网络。 在工作中会问好问题，是一个很重要的能力。 join的写法 在35篇文章《join...</p>
+          <p>在我看来，能够帮我们扩展一个逻辑的边界的问题，就是好问题。因为通过解决这样的问题，能够加深我们对这个逻辑的理解，或者帮我们关联到另外一个知识点，进而可以帮助我们建立起自己的知识网络。 在工作中会问好问题，是一个很重要的能力。 join的写法 在35篇文章《join语句怎么优化?》中，我在介绍join执行顺序的时候，用的都是strainght_join。有同学哉问候提出了两个问题： 如果用left</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -436,7 +465,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>按照锁的粒度（级别、密度）分，MySQL有三种级别的锁：页级、表级、行级。 1、表级锁：开销小，加锁快；不会出现死锁；锁定粒度大，发生锁冲突的概率最 高，并发度最低。 2、行级锁：开销大，加锁慢；会出现死锁；锁定粒度最小，发生锁冲突的概率最 低，并发度也最高。 3...</p>
+          <p>按照锁的粒度（级别、密度）分，MySQL有三种级别的锁：页级、表级、行级。 1、表级锁：开销小，加锁快；不会出现死锁；锁定粒度大，发生锁冲突的概率最 高，并发度最低。 2、行级锁：开销大，加锁慢；会出现死锁；锁定粒度最小，发生锁冲突的概率最 低，并发度也最高。 3、页面锁：开销和加锁时间界于表锁和行锁之间；会出现死锁；锁定粒度界于表 锁和行锁之间，并发度一般。 按禁止的操作可分为读锁和写锁，其中，</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -465,48 +494,17 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>分区表是什么？ 为了说明分区表的组织形式，我先创建一个表t； 1234567891011CREATE TABLE `t` (  `ftime` datetime NOT NULL,  `c` int(11) DEFAULT NULL,  KEY (`ftime`)...</p>
+          <p>分区表是什么？ 为了说明分区表的组织形式，我先创建一个表t； 1234567891011CREATE TABLE `t` ( `ftime` datetime NOT NULL, `c` int(11) DEFAULT NULL, KEY (`ftime`)) ENGINE=InnoDB DEFAULT CHARSET=latin1PARTITION BY RANGE (YEAR(ftime</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
       </footer>
   </article>
 
-<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/29/grant%E4%B9%8B%E5%90%8E%E8%A6%81%E8%B7%9F%E7%9D%80flush-privileges%E5%90%97%EF%BC%9F/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2020/08/29/grant%E4%B9%8B%E5%90%8E%E8%A6%81%E8%B7%9F%E7%9D%80flush-privileges%E5%90%97%EF%BC%9F/" class="post-title-link" itemprop="url">grant之后要跟着flush privileges吗？</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2020-08-29T11:13:06+08:00">2020-08-29</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>先说结论： 正常情况下，grant命令之后，没有必要跟着执行flush privileges命令。 那么，flush privileges是什么时候使用呢？显然，当数据表中的权限数据根内存中的权限数据不一样的时候，flush privileges语句可以用来重建内...</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <nav class="pagination" aria-label="最近更新分页">
+<nav class="pagination" aria-label="最近更新分页">
     <a class="extend prev" rel="prev" href="/page/17/">上一页</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/17/">17</a><span class="page-number current">18</span><a class="page-number" href="/page/19/">19</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/19/">下一页</a>
   </nav>
-
-
-          </div>
+</div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -568,7 +566,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
 
-          <span class="site-state-item-count">259</span>
+          <span class="site-state-item-count">260</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

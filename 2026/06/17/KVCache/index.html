@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="KV Cache 是大模型自回归推理里的关键优化：它缓存的不是 token，而是每一层 Attention 里已经算好的 Key 和 Value。新 token 只需要计算自己的 Q/K/V，再用 Q 去读历史 K/V，避免每一步都把旧 token 从头算一遍。本文用图解释无缓存与有缓存的区别、KV Cache 的张量形状和显存公式、MHA/MQA/GQA 对缓存大小的影响，以及它和 FlashAttention、PagedAttention 的关系。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="KV Cache：大模型推理为什么不用每个字都从头算">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/17/KVCache/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-17T02:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-17T02:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta property="article:tag" content="计算机科学">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/17/KVCache/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>KV Cache：大模型推理为什么不用每个字都从头算 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-17T10:00:00+08:00" content="2026-06-17">06-17</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">KV Cache：大模型推理为什么不用每个字都从头算</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<style>
+.kv-note {
+  margin: 18px 0;
+  padding: 14px 16px;
+  border-left: 4px solid #4b7bec;
+  background: rgba(75, 123, 236, 0.08);
+  color: inherit;
+}
+.kv-figure {
+  margin: 28px 0;
+  padding: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+.kv-figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.kv-figure figcaption {
+  margin-top: 10px;
+  color: #888;
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+}
+.kv-formula {
+  margin: 18px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.025);
+  font-family: "FuraCode Nerd Font", Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.8;
+  overflow-x: auto;
+}
+.kv-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.kv-card {
+  padding: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+.kv-card strong {
+  display: block;
+  margin-bottom: 8px;
+}
+body.dark-mode .kv-figure,
+body.dark-mode .kv-card {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #1f232b;
+}
+body.dark-mode .kv-note {
+  background: rgba(91, 141, 239, 0.16);
+}
+body.dark-mode .kv-formula {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+}
+.kv-svg-bg { fill: #ffffff; }
+.kv-svg-panel { fill: #f8fafc; stroke: #d8dee9; }
+.kv-svg-soft { fill: #eef4ff; stroke: #8fb1ff; }
+.kv-svg-warm { fill: #fff3df; stroke: #f0b45f; }
+.kv-svg-green { fill: #e9f8ee; stroke: #71c98a; }
+.kv-svg-red { fill: #fff0f0; stroke: #ee8c8c; }
+.kv-svg-text { fill: #2b2f36; }
+.kv-svg-muted { fill: #737b86; }
+.kv-svg-line { stroke: #7b8494; }
+body.dark-mode .kv-svg-bg { fill: #1f232b; }
+body.dark-mode .kv-svg-panel { fill: #252b35; stroke: #465164; }
+body.dark-mode .kv-svg-soft { fill: #263651; stroke: #6f9dff; }
+body.dark-mode .kv-svg-warm { fill: #3c3020; stroke: #d49b4d; }
+body.dark-mode .kv-svg-green { fill: #20362a; stroke: #67c989; }
+body.dark-mode .kv-svg-red { fill: #3b2528; stroke: #e27d7d; }
+body.dark-mode .kv-svg-text { fill: #e8ecf3; }
+body.dark-mode .kv-svg-muted { fill: #a7afbd; }
+body.dark-mode .kv-svg-line { stroke: #a4adba; }
+@media (max-width: 700px) {
+  .kv-grid { grid-template-columns: 1fr; }
+  .kv-figure { padding: 10px; }
+}
+</style>
+
+<p>大模型生成文字的时候，看起来像是一口气说出来，其实内部是一格一格往前走：先根据已有上下文生成下一个 token，再把这个新 token 拼回上下文里，继续生成下一个。</p>
+
+<p>如果每一步都把前面所有 token 从头算一遍，推理会非常浪费。KV Cache 要解决的，就是这件事。</p>
+
+<div class="kv-note">
+  <strong>先给结论：</strong>KV Cache 缓存的不是原始 token，也不是最终输出，而是 Transformer 每一层 Attention 已经算好的 Key 和 Value。后面生成新 token 时，旧 token 的 K/V 不会变，直接复用就行。
+</div>
+
+<h2 id="一句话理解KVCache">一、一句话理解 KV Cache</h2>
+
+<p>可以把 KV Cache 理解成 Transformer 推理时的“历史注意力账本”。</p>
+
+<p>每生成一个新 token，模型都要问一句：我现在这个 token，应该关注前面哪些 token？这个问题由 Attention 完成。Attention 里有三类向量：Query、Key、Value。</p>
+
+<ul>
+  <li><strong>Query（Q）</strong>：当前 token 发出的查询，“我想找什么信息”；</li>
+  <li><strong>Key（K）</strong>：历史 token 提供的索引，“我这里有什么信息”；</li>
+  <li><strong>Value（V）</strong>：历史 token 真正被取走的内容，“匹配以后拿什么走”。</li>
+</ul>
+
+<p>自回归生成时，历史 token 已经固定了。它们在每一层里算出来的 K 和 V 也固定了。既然不会变，就没有必要每一步重新算。</p>
+
+<figure class="kv-figure">
+<svg viewBox="0 0 920 360" role="img" aria-label="无 KV Cache 和有 KV Cache 的推理对比">
+  <rect class="kv-svg-bg" width="920" height="360" rx="12"></rect>
+  <defs>
+    <marker id="kv-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#7b8494"></path>
+    </marker>
+  </defs>
+  <text x="460" y="28" text-anchor="middle" font-size="18" font-weight="700" class="kv-svg-text">生成第 t 个 token 时，浪费发生在哪里</text>
+
+  <rect x="38" y="58" width="395" height="248" rx="12" class="kv-svg-red"></rect>
+  <text x="235" y="88" text-anchor="middle" font-size="16" font-weight="700" class="kv-svg-text">没有 KV Cache</text>
+  <text x="235" y="112" text-anchor="middle" font-size="12" class="kv-svg-muted">每一步都把历史 token 重新过一遍网络</text>
+  <g font-size="12" class="kv-svg-text" text-anchor="middle">
+    <rect x="70" y="145" width="54" height="32" rx="6" class="kv-svg-panel"></rect><text x="97" y="166">我</text>
+    <rect x="135" y="145" width="54" height="32" rx="6" class="kv-svg-panel"></rect><text x="162" y="166">喜欢</text>
+    <rect x="200" y="145" width="54" height="32" rx="6" class="kv-svg-panel"></rect><text x="227" y="166">写</text>
+    <rect x="265" y="145" width="54" height="32" rx="6" class="kv-svg-panel"></rect><text x="292" y="166">代码</text>
+    <rect x="330" y="145" width="54" height="32" rx="6" class="kv-svg-warm"></rect><text x="357" y="166">新</text>
+  </g>
+  <path d="M235 188 C235 205 235 215 235 232" fill="none" class="kv-svg-line" stroke-width="2" marker-end="url(#kv-arrow)"></path>
+  <rect x="78" y="232" width="315" height="45" rx="8" class="kv-svg-panel"></rect>
+  <text x="235" y="252" text-anchor="middle" font-size="13" class="kv-svg-text">重新计算所有 token 的 Q/K/V</text>
+  <text x="235" y="270" text-anchor="middle" font-size="12" class="kv-svg-muted">旧 token 已经算过，还是重复算</text>
+
+  <rect x="487" y="58" width="395" height="248" rx="12" class="kv-svg-green"></rect>
+  <text x="684" y="88" text-anchor="middle" font-size="16" font-weight="700" class="kv-svg-text">有 KV Cache</text>
+  <text x="684" y="112" text-anchor="middle" font-size="12" class="kv-svg-muted">历史 K/V 直接从缓存里读，只算新 token</text>
+  <g font-size="12" class="kv-svg-text" text-anchor="middle">
+    <rect x="525" y="145" width="56" height="32" rx="6" class="kv-svg-soft"></rect><text x="553" y="166">K/V</text>
+    <rect x="590" y="145" width="56" height="32" rx="6" class="kv-svg-soft"></rect><text x="618" y="166">K/V</text>
+    <rect x="655" y="145" width="56" height="32" rx="6" class="kv-svg-soft"></rect><text x="683" y="166">K/V</text>
+    <rect x="720" y="145" width="56" height="32" rx="6" class="kv-svg-soft"></rect><text x="748" y="166">K/V</text>
+    <rect x="785" y="145" width="56" height="32" rx="6" class="kv-svg-warm"></rect><text x="813" y="166">新</text>
+  </g>
+  <path d="M684 188 C684 205 684 215 684 232" fill="none" class="kv-svg-line" stroke-width="2" marker-end="url(#kv-arrow)"></path>
+  <rect x="527" y="232" width="315" height="45" rx="8" class="kv-svg-panel"></rect>
+  <text x="684" y="252" text-anchor="middle" font-size="13" class="kv-svg-text">只计算新 token 的 Q/K/V</text>
+  <text x="684" y="270" text-anchor="middle" font-size="12" class="kv-svg-muted">然后把新 K/V 追加到缓存</text>
+</svg>
+<figcaption>KV Cache 的直觉：历史 token 的 K/V 已经确定，后续步骤只复用，不重复计算。</figcaption>
+</figure>
+
+<h2 id="先区分Prefill和Decode">二、先区分 Prefill 和 Decode</h2>
+
+<p>理解 KV Cache，最好先把 LLM 推理拆成两个阶段。</p>
+
+<p><strong>Prefill</strong> 是处理提示词的阶段。用户输入一整段 prompt，模型可以并行处理这段序列，算出每一层每个 token 的 K/V，并把它们放进缓存里。</p>
+
+<p><strong>Decode</strong> 是逐 token 生成的阶段。之后每一步只进来一个新 token。模型计算这个新 token 在每一层里的 Q/K/V，用 Q 去和缓存里的所有历史 K 做匹配，再用注意力权重读取历史 V，最后得到下一个 token 的分布。</p>
+
+<figure class="kv-figure">
+<svg viewBox="0 0 920 300" role="img" aria-label="Prefill 和 Decode 阶段的 KV Cache 流程">
+  <rect class="kv-svg-bg" width="920" height="300" rx="12"></rect>
+  <defs>
+    <marker id="kv-arrow2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#7b8494"></path>
+    </marker>
+  </defs>
+  <text x="460" y="28" text-anchor="middle" font-size="18" font-weight="700" class="kv-svg-text">一次请求里的两段工作</text>
+  <rect x="55" y="65" width="350" height="175" rx="12" class="kv-svg-soft"></rect>
+  <text x="230" y="96" text-anchor="middle" font-size="16" font-weight="700" class="kv-svg-text">Prefill：读完整 prompt</text>
+  <rect x="90" y="125" width="70" height="34" rx="6" class="kv-svg-panel"></rect><text x="125" y="147" text-anchor="middle" font-size="12" class="kv-svg-text">token 1</text>
+  <rect x="172" y="125" width="70" height="34" rx="6" class="kv-svg-panel"></rect><text x="207" y="147" text-anchor="middle" font-size="12" class="kv-svg-text">token 2</text>
+  <rect x="254" y="125" width="70" height="34" rx="6" class="kv-svg-panel"></rect><text x="289" y="147" text-anchor="middle" font-size="12" class="kv-svg-text">token n</text>
+  <path d="M207 170 L207 194" fill="none" class="kv-svg-line" stroke-width="2" marker-end="url(#kv-arrow2)"></path>
+  <rect x="108" y="195" width="245" height="30" rx="6" class="kv-svg-green"></rect><text x="230" y="215" text-anchor="middle" font-size="12" class="kv-svg-text">建立初始 KV Cache</text>
+
+  <path d="M420 152 L500 152" fill="none" class="kv-svg-line" stroke-width="2" marker-end="url(#kv-arrow2)"></path>
+
+  <rect x="515" y="65" width="350" height="175" rx="12" class="kv-svg-warm"></rect>
+  <text x="690" y="96" text-anchor="middle" font-size="16" font-weight="700" class="kv-svg-text">Decode：一次生成一个 token</text>
+  <rect x="560" y="125" width="95" height="34" rx="6" class="kv-svg-panel"></rect><text x="607" y="147" text-anchor="middle" font-size="12" class="kv-svg-text">新 token</text>
+  <path d="M660 142 L725 142" fill="none" class="kv-svg-line" stroke-width="2" marker-end="url(#kv-arrow2)"></path>
+  <rect x="735" y="119" width="88" height="46" rx="6" class="kv-svg-green"></rect><text x="779" y="139" text-anchor="middle" font-size="12" class="kv-svg-text">读历史 K/V</text><text x="779" y="155" text-anchor="middle" font-size="11" class="kv-svg-muted">追加新 K/V</text>
+  <rect x="596" y="195" width="190" height="30" rx="6" class="kv-svg-panel"></rect><text x="691" y="215" text-anchor="middle" font-size="12" class="kv-svg-text">循环直到结束</text>
+</svg>
+<figcaption>Prefill 阶段负责把 prompt 的缓存建起来；Decode 阶段一边生成，一边往缓存末尾追加。</figcaption>
+</figure>
+
+<h2 id="KVCache缓存的到底是什么">三、KV Cache 缓存的到底是什么</h2>
+
+<p>这里有一个很容易误解的点：KV Cache 不是把 token ID 存起来。token ID 本来就有，存它并不能省多少计算。</p>
+
+<p>KV Cache 存的是每一层 Attention 里，历史 token 经过线性投影之后得到的 Key 和 Value。</p>
+
+<p>为什么要“每一层”都存？因为 Transformer 的每一层都会重新加工隐藏状态。第 1 层的 K/V 和第 20 层的 K/V 不是同一个东西。上层看到的不是原始 token，而是下层处理后的表示，所以每层都要有自己的缓存。</p>
+
+<div class="kv-formula">
+每层常见形状：<br>
+K cache: [batch, kv_heads, seq_len, head_dim]<br>
+V cache: [batch, kv_heads, seq_len, head_dim]<br><br>
+整个模型还要再乘上 num_layers。很多框架内部会为了访存效率换一种布局，但含义基本不变。
+</div>
+
+<figure class="kv-figure">
+<svg viewBox="0 0 920 330" role="img" aria-label="KV Cache 的分层结构和张量形状">
+  <rect class="kv-svg-bg" width="920" height="330" rx="12"></rect>
+  <text x="460" y="30" text-anchor="middle" font-size="18" font-weight="700" class="kv-svg-text">KV Cache 是“每层一份”的缓存</text>
+  <g transform="translate(80 65)">
+    <rect x="0" y="0" width="210" height="46" rx="8" class="kv-svg-panel"></rect>
+    <text x="105" y="28" text-anchor="middle" font-size="13" class="kv-svg-text">Layer 1: K/V Cache</text>
+    <rect x="22" y="62" width="210" height="46" rx="8" class="kv-svg-soft"></rect>
+    <text x="127" y="90" text-anchor="middle" font-size="13" class="kv-svg-text">Layer 2: K/V Cache</text>
+    <rect x="44" y="124" width="210" height="46" rx="8" class="kv-svg-green"></rect>
+    <text x="149" y="152" text-anchor="middle" font-size="13" class="kv-svg-text">Layer 3: K/V Cache</text>
+    <text x="170" y="205" text-anchor="middle" font-size="24" class="kv-svg-muted">...</text>
+    <rect x="88" y="226" width="210" height="46" rx="8" class="kv-svg-warm"></rect>
+    <text x="193" y="254" text-anchor="middle" font-size="13" class="kv-svg-text">Layer L: K/V Cache</text>
+  </g>
+  <g transform="translate(470 70)">
+    <text x="180" y="0" text-anchor="middle" font-size="14" font-weight="700" class="kv-svg-text">单层缓存可以想成一个四维表</text>
+    <rect x="0" y="35" width="360" height="190" rx="12" class="kv-svg-panel"></rect>
+    <text x="180" y="68" text-anchor="middle" font-size="13" class="kv-svg-text">[batch, kv_heads, seq_len, head_dim]</text>
+    <rect x="45" y="95" width="270" height="34" rx="6" class="kv-svg-soft"></rect>
+    <text x="180" y="117" text-anchor="middle" font-size="12" class="kv-svg-text">seq_len 会随着上下文长度线性增长</text>
+    <rect x="45" y="145" width="120" height="34" rx="6" class="kv-svg-green"></rect><text x="105" y="167" text-anchor="middle" font-size="12" class="kv-svg-text">K</text>
+    <rect x="195" y="145" width="120" height="34" rx="6" class="kv-svg-warm"></rect><text x="255" y="167" text-anchor="middle" font-size="12" class="kv-svg-text">V</text>
+    <text x="180" y="207" text-anchor="middle" font-size="12" class="kv-svg-muted">每个请求、每层、每个历史 token 都会占空间</text>
+  </g>
+</svg>
+<figcaption>KV Cache 的显存压力来自“层数 × 序列长度 × KV 头数 × head 维度”。</figcaption>
+</figure>
+
+<h2 id="一步Decode里QKV怎么流动">四、一步 Decode 里 Q/K/V 怎么流动</h2>
+
+<p>假设现在已经有一段历史上下文，KV Cache 里已经存了它们在每一层里的 K/V。现在新来了一个 token。</p>
+
+<ol>
+  <li>新 token 进入当前 Transformer 层；</li>
+  <li>这一层为新 token 计算 Q、K、V；</li>
+  <li>把新 token 的 K/V 追加到这一层的 KV Cache；</li>
+  <li>用新 token 的 Q 去和“历史 K + 新 K”做注意力打分；</li>
+  <li>用注意力权重加权读取“历史 V + 新 V”；</li>
+  <li>输出进入下一层，下一层重复同样过程。</li>
+</ol>
+
+<figure class="kv-figure">
+<svg viewBox="0 0 920 330" role="img" aria-label="单步 Decode 中 Q K V 的流动">
+  <rect class="kv-svg-bg" width="920" height="330" rx="12"></rect>
+  <defs>
+    <marker id="kv-arrow3" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#7b8494"></path>
+    </marker>
+  </defs>
+  <text x="460" y="30" text-anchor="middle" font-size="18" font-weight="700" class="kv-svg-text">第 t 步 Decode：新 token 只带来一份新 Q/K/V</text>
+  <rect x="52" y="135" width="100" height="44" rx="8" class="kv-svg-warm"></rect>
+  <text x="102" y="162" text-anchor="middle" font-size="13" class="kv-svg-text">新 token</text>
+  <path d="M160 157 L235 157" fill="none" class="kv-svg-line" stroke-width="2" marker-end="url(#kv-arrow3)"></path>
+  <rect x="248" y="82" width="120" height="42" rx="8" class="kv-svg-soft"></rect><text x="308" y="108" text-anchor="middle" font-size="13" class="kv-svg-text">Q_t</text>
+  <rect x="248" y="137" width="120" height="42" rx="8" class="kv-svg-green"></rect><text x="308" y="163" text-anchor="middle" font-size="13" class="kv-svg-text">K_t</text>
+  <rect x="248" y="192" width="120" height="42" rx="8" class="kv-svg-warm"></rect><text x="308" y="218" text-anchor="middle" font-size="13" class="kv-svg-text">V_t</text>
+  <path d="M375 158 L455 158" fill="none" class="kv-svg-line" stroke-width="2" marker-end="url(#kv-arrow3)"></path>
+  <rect x="470" y="118" width="165" height="80" rx="10" class="kv-svg-panel"></rect>
+  <text x="552" y="146" text-anchor="middle" font-size="13" class="kv-svg-text">追加 K_t / V_t</text>
+  <text x="552" y="166" text-anchor="middle" font-size="12" class="kv-svg-muted">Cache 长度 +1</text>
+  <path d="M640 158 L715 158" fill="none" class="kv-svg-line" stroke-width="2" marker-end="url(#kv-arrow3)"></path>
+  <rect x="728" y="88" width="145" height="140" rx="10" class="kv-svg-soft"></rect>
+  <text x="800" y="122" text-anchor="middle" font-size="13" class="kv-svg-text">Attention</text>
+  <text x="800" y="146" text-anchor="middle" font-size="12" class="kv-svg-muted">Q_t × K_cache</text>
+  <text x="800" y="166" text-anchor="middle" font-size="12" class="kv-svg-muted">权重 × V_cache</text>
+  <text x="800" y="196" text-anchor="middle" font-size="13" class="kv-svg-text">输出当前层结果</text>
+</svg>
+<figcaption>注意：旧 token 的 Q 通常不用再算，因为它们不会再作为“当前查询”去生成过去的 token。</figcaption>
+</figure>
+
+<h2 id="显存公式">五、KV Cache 的显存公式</h2>
+
+<p>KV Cache 最大的代价是显存。它会随着上下文长度和并发请求数线性增长。</p>
+
+<div class="kv-formula">
+KV Cache bytes = 2 × num_layers × batch_size × seq_len × kv_heads × head_dim × bytes_per_element
+</div>
+
+<p>这里的 2 来自 K 和 V 两份缓存。<code>bytes_per_element</code> 取决于精度：FP16/BF16 通常是 2 bytes，FP32 是 4 bytes，量化 KV Cache 会更小。</p>
+
+<p>举个粗略例子：32 层、batch=1、seq_len=4096、kv_heads=32、head_dim=128、FP16。</p>
+
+<div class="kv-formula">
+2 × 32 × 1 × 4096 × 32 × 128 × 2 bytes<br>
+= 2,147,483,648 bytes<br>
+≈ 2 GiB
+</div>
+
+<p>这只是一个请求。并发多了、上下文长了、batch 变大了，KV Cache 很快就会成为比模型权重更麻烦的显存账单。</p>
+
+<h2 id="为什么长上下文更容易卡住">六、为什么长上下文更容易卡住</h2>
+
+<p>KV Cache 省掉了“重复计算历史 K/V”，但它没有省掉“读取历史 K/V”。</p>
+
+<p>生成第 t 个 token 时，新 token 的 Q 仍然需要看前面所有 token 的 K/V。上下文越长，每一步需要读取的缓存越多。于是 Decode 阶段常常会变成显存带宽问题：算力不一定满，但显存读写已经很忙。</p>
+
+<p>这也是为什么长上下文服务不仅要看模型大小，还要看 KV Cache 管理能力。模型权重是固定成本，KV Cache 是跟请求长度和并发一起涨的动态成本。</p>
+
+<h2 id="MHA-MQA-GQA对缓存有什么影响">七、MHA、MQA、GQA 对缓存有什么影响</h2>
+
+<p>在普通 Multi-Head Attention（MHA）里，每个 attention head 都有自己的 K/V，所以 <code>kv_heads = attention_heads</code>。这很直观，但缓存也大。</p>
+
+<p>Multi-Query Attention（MQA）把所有 query heads 共享同一组 K/V，相当于 <code>kv_heads = 1</code>。它可以显著减少 KV Cache 和带宽压力，但可能带来一定效果损失。</p>
+
+<p>Grouped-Query Attention（GQA）在两者之间折中：多个 query heads 分成若干组，每组共享一组 K/V。很多现代 LLM 都会采用这种方式，在质量和推理效率之间找平衡。</p>
+
+<figure class="kv-figure">
+<svg viewBox="0 0 920 330" role="img" aria-label="MHA MQA GQA 的 KV 头数对比">
+  <rect class="kv-svg-bg" width="920" height="330" rx="12"></rect>
+  <text x="460" y="30" text-anchor="middle" font-size="18" font-weight="700" class="kv-svg-text">减少 KV 头数，就是减少缓存账单</text>
+  <g transform="translate(55 70)">
+    <rect width="240" height="205" rx="12" class="kv-svg-panel"></rect>
+    <text x="120" y="32" text-anchor="middle" font-size="15" font-weight="700" class="kv-svg-text">MHA</text>
+    <text x="120" y="56" text-anchor="middle" font-size="12" class="kv-svg-muted">每个 head 一份 K/V</text>
+    <g transform="translate(34 82)">
+      <rect x="0" y="0" width="36" height="36" rx="6" class="kv-svg-soft"></rect><text x="18" y="23" text-anchor="middle" font-size="11" class="kv-svg-text">Q</text>
+      <rect x="46" y="0" width="36" height="36" rx="6" class="kv-svg-green"></rect><text x="64" y="23" text-anchor="middle" font-size="11" class="kv-svg-text">K</text>
+      <rect x="92" y="0" width="36" height="36" rx="6" class="kv-svg-warm"></rect><text x="110" y="23" text-anchor="middle" font-size="11" class="kv-svg-text">V</text>
+      <rect x="0" y="48" width="36" height="36" rx="6" class="kv-svg-soft"></rect><text x="18" y="71" text-anchor="middle" font-size="11" class="kv-svg-text">Q</text>
+      <rect x="46" y="48" width="36" height="36" rx="6" class="kv-svg-green"></rect><text x="64" y="71" text-anchor="middle" font-size="11" class="kv-svg-text">K</text>
+      <rect x="92" y="48" width="36" height="36" rx="6" class="kv-svg-warm"></rect><text x="110" y="71" text-anchor="middle" font-size="11" class="kv-svg-text">V</text>
+      <text x="82" y="121" text-anchor="middle" font-size="12" class="kv-svg-muted">KV 多，缓存大</text>
+    </g>
+  </g>
+  <g transform="translate(340 70)">
+    <rect width="240" height="205" rx="12" class="kv-svg-panel"></rect>
+    <text x="120" y="32" text-anchor="middle" font-size="15" font-weight="700" class="kv-svg-text">MQA</text>
+    <text x="120" y="56" text-anchor="middle" font-size="12" class="kv-svg-muted">所有 Q 共享一份 K/V</text>
+    <g transform="translate(36 84)">
+      <rect x="0" y="0" width="36" height="36" rx="6" class="kv-svg-soft"></rect><text x="18" y="23" text-anchor="middle" font-size="11" class="kv-svg-text">Q</text>
+      <rect x="44" y="0" width="36" height="36" rx="6" class="kv-svg-soft"></rect><text x="62" y="23" text-anchor="middle" font-size="11" class="kv-svg-text">Q</text>
+      <rect x="88" y="0" width="36" height="36" rx="6" class="kv-svg-soft"></rect><text x="106" y="23" text-anchor="middle" font-size="11" class="kv-svg-text">Q</text>
+      <rect x="42" y="60" width="36" height="36" rx="6" class="kv-svg-green"></rect><text x="60" y="83" text-anchor="middle" font-size="11" class="kv-svg-text">K</text>
+      <rect x="88" y="60" width="36" height="36" rx="6" class="kv-svg-warm"></rect><text x="106" y="83" text-anchor="middle" font-size="11" class="kv-svg-text">V</text>
+      <text x="84" y="128" text-anchor="middle" font-size="12" class="kv-svg-muted">KV 最省</text>
+    </g>
+  </g>
+  <g transform="translate(625 70)">
+    <rect width="240" height="205" rx="12" class="kv-svg-panel"></rect>
+    <text x="120" y="32" text-anchor="middle" font-size="15" font-weight="700" class="kv-svg-text">GQA</text>
+    <text x="120" y="56" text-anchor="middle" font-size="12" class="kv-svg-muted">一组 Q 共享一份 K/V</text>
+    <g transform="translate(32 82)">
+      <rect x="0" y="0" width="34" height="34" rx="6" class="kv-svg-soft"></rect><text x="17" y="22" text-anchor="middle" font-size="10" class="kv-svg-text">Q</text>
+      <rect x="40" y="0" width="34" height="34" rx="6" class="kv-svg-soft"></rect><text x="57" y="22" text-anchor="middle" font-size="10" class="kv-svg-text">Q</text>
+      <rect x="20" y="50" width="34" height="34" rx="6" class="kv-svg-green"></rect><text x="37" y="72" text-anchor="middle" font-size="10" class="kv-svg-text">K</text>
+      <rect x="60" y="50" width="34" height="34" rx="6" class="kv-svg-warm"></rect><text x="77" y="72" text-anchor="middle" font-size="10" class="kv-svg-text">V</text>
+      <rect x="118" y="0" width="34" height="34" rx="6" class="kv-svg-soft"></rect><text x="135" y="22" text-anchor="middle" font-size="10" class="kv-svg-text">Q</text>
+      <rect x="158" y="0" width="34" height="34" rx="6" class="kv-svg-soft"></rect><text x="175" y="22" text-anchor="middle" font-size="10" class="kv-svg-text">Q</text>
+      <rect x="138" y="50" width="34" height="34" rx="6" class="kv-svg-green"></rect><text x="155" y="72" text-anchor="middle" font-size="10" class="kv-svg-text">K</text>
+      <rect x="178" y="50" width="34" height="34" rx="6" class="kv-svg-warm"></rect><text x="195" y="72" text-anchor="middle" font-size="10" class="kv-svg-text">V</text>
+      <text x="110" y="128" text-anchor="middle" font-size="12" class="kv-svg-muted">质量和效率折中</text>
+    </g>
+  </g>
+</svg>
+<figcaption>MHA、MQA、GQA 的核心差别之一，就是 K/V 是否被多个 query heads 共享。</figcaption>
+</figure>
+
+<h2 id="KVCache和FlashAttention的关系">八、KV Cache 和 FlashAttention 的关系</h2>
+
+<p>KV Cache 和 FlashAttention 都在优化 Attention，但它们解决的问题不一样。</p>
+
+<ul>
+  <li><strong>KV Cache</strong> 解决自回归推理里的重复计算：历史 K/V 不变，所以存下来复用；</li>
+  <li><strong>FlashAttention</strong> 解决 Attention 计算过程里的显存读写：不要把巨大的注意力矩阵反复写进 HBM，而是分块在更快的 SRAM 里完成。</li>
+</ul>
+
+<p>所以二者可以同时存在。Prefill 阶段可以用 FlashAttention 更高效地处理整段 prompt；Decode 阶段继续用 KV Cache 复用历史 K/V。</p>
+
+<h2 id="KVCache和PagedAttention的关系">九、KV Cache 和 PagedAttention 的关系</h2>
+
+<p>KV Cache 告诉我们“要缓存什么”。PagedAttention 更像是在回答“这么多缓存怎么管”。</p>
+
+<p>传统做法容易为每个请求预留一大段连续显存。问题是不同请求长短不一，有的很快结束，有的越聊越长，显存会碎片化，预留也会浪费。</p>
+
+<p>PagedAttention 借鉴操作系统分页思想，把 KV Cache 切成固定大小的 block。一个请求的逻辑序列可以映射到多个物理 block，不要求连续。这样显存管理更灵活，也更适合连续批处理和高并发服务。</p>
+
+<figure class="kv-figure">
+<svg viewBox="0 0 920 300" role="img" aria-label="PagedAttention 管理 KV Cache block">
+  <rect class="kv-svg-bg" width="920" height="300" rx="12"></rect>
+  <defs>
+    <marker id="kv-arrow4" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#7b8494"></path>
+    </marker>
+  </defs>
+  <text x="460" y="30" text-anchor="middle" font-size="18" font-weight="700" class="kv-svg-text">PagedAttention：把 KV Cache 切成块来管理</text>
+  <rect x="60" y="72" width="250" height="170" rx="12" class="kv-svg-soft"></rect>
+  <text x="185" y="100" text-anchor="middle" font-size="14" font-weight="700" class="kv-svg-text">逻辑序列</text>
+  <rect x="92" y="130" width="45" height="35" rx="6" class="kv-svg-panel"></rect><text x="114" y="152" text-anchor="middle" font-size="11" class="kv-svg-text">0</text>
+  <rect x="145" y="130" width="45" height="35" rx="6" class="kv-svg-panel"></rect><text x="167" y="152" text-anchor="middle" font-size="11" class="kv-svg-text">1</text>
+  <rect x="198" y="130" width="45" height="35" rx="6" class="kv-svg-panel"></rect><text x="220" y="152" text-anchor="middle" font-size="11" class="kv-svg-text">2</text>
+  <rect x="145" y="182" width="45" height="35" rx="6" class="kv-svg-warm"></rect><text x="167" y="204" text-anchor="middle" font-size="11" class="kv-svg-text">新</text>
+  <path d="M320 157 L405 157" fill="none" class="kv-svg-line" stroke-width="2" marker-end="url(#kv-arrow4)"></path>
+  <rect x="420" y="72" width="440" height="170" rx="12" class="kv-svg-green"></rect>
+  <text x="640" y="100" text-anchor="middle" font-size="14" font-weight="700" class="kv-svg-text">物理 KV blocks</text>
+  <g text-anchor="middle" font-size="11" class="kv-svg-text">
+    <rect x="460" y="130" width="55" height="38" rx="6" class="kv-svg-panel"></rect><text x="487" y="153">Block A</text>
+    <rect x="528" y="130" width="55" height="38" rx="6" class="kv-svg-panel"></rect><text x="555" y="153">Block B</text>
+    <rect x="596" y="130" width="55" height="38" rx="6" class="kv-svg-panel"></rect><text x="623" y="153">Block C</text>
+    <rect x="664" y="130" width="55" height="38" rx="6" class="kv-svg-panel"></rect><text x="691" y="153">Block D</text>
+    <rect x="732" y="130" width="55" height="38" rx="6" class="kv-svg-panel"></rect><text x="759" y="153">Block E</text>
+    <rect x="562" y="185" width="190" height="30" rx="6" class="kv-svg-soft"></rect><text x="657" y="205">逻辑连续，物理不必连续</text>
+  </g>
+</svg>
+<figcaption>PagedAttention 不改变 Attention 数学，它主要改变 KV Cache 的内存管理方式。</figcaption>
+</figure>
+
+<h2 id="工程实现里要注意什么">十、工程实现里要注意什么</h2>
+
+<p>KV Cache 很有用，但它不是免费午餐。工程上通常要关注这些问题：</p>
+
+<ul>
+  <li><strong>缓存生命周期</strong>：请求结束、生成停止、用户断开连接时，缓存要及时释放；</li>
+  <li><strong>最大上下文</strong>：超过窗口后要截断、滑动窗口或做长上下文策略，否则显存会一直涨；</li>
+  <li><strong>并发调度</strong>：不同请求的 decode 步长不同，需要连续批处理把多个请求拼在一起跑；</li>
+  <li><strong>显存碎片</strong>：长短请求混在一起时，最好用 block/paged 管理；</li>
+  <li><strong>缓存量化</strong>：把 K/V 用更低精度存储可以省显存，但要评估效果损失；</li>
+  <li><strong>前缀复用</strong>：多个请求有相同 system prompt 或长前缀时，可以考虑 prefix caching，但这和“单个请求内部的 KV Cache”不是完全一回事。</li>
+</ul>
+
+<div class="kv-note">
+  <strong>一个常见混淆：</strong>很多云厂商说的 prompt cache / prefix cache，通常指跨请求复用相同前缀带来的计费或延迟优化；这和模型 decode 时每个请求内部维护的 KV Cache 有关系，但不是同一个概念。
+</div>
+
+<h2 id="最后总结">十一、最后总结</h2>
+
+<p>KV Cache 的核心并不复杂：历史 token 的 Key 和 Value 不变，所以把它们存下来，后面只算新 token。</p>
+
+<p>但它引出的工程问题很大：缓存按层存，按 token 增长，按并发放大；MHA、MQA、GQA 会影响缓存大小；FlashAttention 优化 Attention 的计算 IO，PagedAttention 优化缓存的显存管理。真正做推理服务时，KV Cache 往往是吞吐、延迟、显存容量和长上下文能力之间最重要的那本账。</p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<ul>
+  <li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Attention Is All You Need</a></li>
+  <li><a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noopener">Fast Transformer Decoding: One Write-Head is All You Need</a></li>
+  <li><a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener">GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints</a></li>
+  <li><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener">Efficient Memory Management for Large Language Model Serving with PagedAttention</a></li>
+  <li><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noopener">FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness</a></li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+          <a href="/tags/计算机科学/" rel="tag"><i class="fa fa-tag"></i> 计算机科学</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#一句话理解KVCache"><span class="nav-number">1.</span> <span class="nav-text">一、一句话理解 KV Cache</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#先区分Prefill和Decode"><span class="nav-number">2.</span> <span class="nav-text">二、先区分 Prefill 和 Decode</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#KVCache缓存的到底是什么"><span class="nav-number">3.</span> <span class="nav-text">三、KV Cache 缓存的到底是什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#一步Decode里QKV怎么流动"><span class="nav-number">4.</span> <span class="nav-text">四、一步 Decode 里 Q/K/V 怎么流动</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#显存公式"><span class="nav-number">5.</span> <span class="nav-text">五、KV Cache 的显存公式</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么长上下文更容易卡住"><span class="nav-number">6.</span> <span class="nav-text">六、为什么长上下文更容易卡住</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#MHA-MQA-GQA对缓存有什么影响"><span class="nav-number">7.</span> <span class="nav-text">七、MHA、MQA、GQA 对缓存有什么影响</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#KVCache和FlashAttention的关系"><span class="nav-number">8.</span> <span class="nav-text">八、KV Cache 和 FlashAttention 的关系</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#KVCache和PagedAttention的关系"><span class="nav-number">9.</span> <span class="nav-text">九、KV Cache 和 PagedAttention 的关系</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#工程实现里要注意什么"><span class="nav-number">10.</span> <span class="nav-text">十、工程实现里要注意什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#最后总结"><span class="nav-number">11.</span> <span class="nav-text">十一、最后总结</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-number">12.</span> <span class="nav-text">参考资料</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">260</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

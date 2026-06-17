@@ -203,13 +203,42 @@
   <p class="home-kicker">最近更新</p>
   <h2>按时间写下的文章</h2>
   <div class="home-latest-status" aria-label="最近更新分页信息">
-    <span>共 <strong>259</strong> 篇</span>
+    <span>共 <strong>260</strong> 篇</span>
     <span>每页 <strong>10</strong> 篇</span>
     <span>第 <strong>17</strong> / 26 页</span>
     <span>本页 <strong>10</strong> 篇</span>
     <span>当前 161-170</span>
   </div>
 </div>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/09/02/Python%E5%87%BD%E6%95%B0%E5%8F%82%E6%95%B0%E9%BB%98%E8%AE%A4%E5%80%BC%E7%9A%84%E9%99%B7%E9%98%B1%E5%92%8C%E5%8E%9F%E7%90%86%E6%B7%B1%E7%A9%B6/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2020/09/02/Python%E5%87%BD%E6%95%B0%E5%8F%82%E6%95%B0%E9%BB%98%E8%AE%A4%E5%80%BC%E7%9A%84%E9%99%B7%E9%98%B1%E5%92%8C%E5%8E%9F%E7%90%86%E6%B7%B1%E7%A9%B6/" class="post-title-link" itemprop="url">Python函数参数默认值的陷阱和原理深究</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2020-09-02T23:32:08+08:00">2020-09-02</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>参考 http://cenalulu.github.io/python/default-mutable-arguments/ 本文将介绍使用mutable对象作为Python函数参数默认值潜在的危害，以及其实现原理和设计目的 陷阱重现 我们用实际的例子演示一下我们今天所要讨论的主要内容。下面一段代码定义了一个名为generate_new_list_with的函数。该函数的本意是在每次都调用时都新建</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
 
 <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/09/02/%E5%8A%A0%E6%B2%B9%E6%AD%A6%E6%B1%89%EF%BC%81/">
@@ -233,7 +262,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>这是一篇较早的记录，保留在时间线中，方便按日期继续阅读。</p>
+          <p></p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -262,7 +291,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>假设我们想对一个函数进行它执行时间的打印，我们可以用函数式编程，完成一个装饰器。 下面给出Python3和Go中的代码： 123456789101112131415def timeSpent(func):    @functools.wraps(func)...</p>
+          <p>假设我们想对一个函数进行它执行时间的打印，我们可以用函数式编程，完成一个装饰器。 下面给出Python3和Go中的代码： 123456789101112131415def timeSpent(func): @functools.wraps(func) def wrapper(*args, **kwargs): start = time.perf_counter()</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -291,7 +320,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>稻盛和夫《活法》读书笔记 稻盛和夫《活法》，是讲我们该如何工作和生活。我们将以什么样的态度、方法去看问题、做事情。 1、人生的意义是什么？ 人生的价值和意义是提升心性、磨炼灵魂。我们经历的悲欢离合，都是在磨练我们的灵魂。为了让我们在死去的时候，灵魂比刚出生时更加纯...</p>
+          <p>稻盛和夫《活法》读书笔记 稻盛和夫《活法》，是讲我们该如何工作和生活。我们将以什么样的态度、方法去看问题、做事情。 1、人生的意义是什么？ 人生的价值和意义是提升心性、磨炼灵魂。我们经历的悲欢离合，都是在磨练我们的灵魂。为了让我们在死去的时候，灵魂比刚出生时更加纯洁。 我想，每个人对人生的意义理解不一样，人为什么活着？ 活着，为了实现心中的理想。这个理想，可能是爱，想让家人过得更好。也有可能是自我</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -320,7 +349,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>他们这群人，又想吃人，又是鬼鬼祟祟，想法子遮掩，不敢直截下手，真要令我笑死。我忍不住，便放声大笑起来，十分快活。自己晓得这笑声里面，有的是义勇和正气。 --鲁迅《狂人日记》 人类的悲欢并不相通，我只是觉得他们吵闹。——鲁迅《而已集·小杂感》 无穷的远方，无数的人们...</p>
+          <p>他们这群人，又想吃人，又是鬼鬼祟祟，想法子遮掩，不敢直截下手，真要令我笑死。我忍不住，便放声大笑起来，十分快活。自己晓得这笑声里面，有的是义勇和正气。 --鲁迅《狂人日记》 人类的悲欢并不相通，我只是觉得他们吵闹。——鲁迅《而已集·小杂感》 无穷的远方，无数的人们，都和我有关。——鲁迅《且介亭杂文末集·这也是生活》</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -349,7 +378,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>这是一篇较早的记录，保留在时间线中，方便按日期继续阅读。</p>
+          <p></p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -378,7 +407,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>MySQL中尽量使用普通索引，减少使用唯一索引 查询过程 平均性能差异微乎其微。 更新过程 change buffer 当需要更新一个数据页时，如果数据页在内存中就直接更新，而如果这个数据页还没有在内存中的话，在不影响数据一致性的前提下，InnoDB会将这些更新操...</p>
+          <p>MySQL中尽量使用普通索引，减少使用唯一索引 查询过程 平均性能差异微乎其微。 更新过程 change buffer 当需要更新一个数据页时，如果数据页在内存中就直接更新，而如果这个数据页还没有在内存中的话，在不影响数据一致性的前提下，InnoDB会将这些更新操作缓存在change buffer中，这样就不需要从磁盘中读入这个数据页了。在下次查询需要访问这个数据页的时候，将数据页读入内存，然后执</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -407,7 +436,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>网络安全是当前收到关注的一个问题，大部分站点都是https来实现自己的数据安全的。那么怎么样才能把自己的站点变成https站点呢？我们需要了解SSL协议。 SSL的全称是（secure sockets layer），而现在我们很多时候在使用TLS（transpor...</p>
+          <p>网络安全是当前收到关注的一个问题，大部分站点都是https来实现自己的数据安全的。那么怎么样才能把自己的站点变成https站点呢？我们需要了解SSL协议。 SSL的全称是（secure sockets layer），而现在我们很多时候在使用TLS（transport layer security）。我们简单看一下它的发展过程。 SSL协议是由网景公司在1995年推出的，那么在3.0获得了一个非常大</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -436,7 +465,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>阻塞与非阻塞  主要是指，操作系统，或者底层的c库，提供的方法，或者是一个系统调用。也就是说我们调用这个方法的时候，这个方法可能会导致我的进程进入sleep状态，为什么会进入sleep状态呢？就是当前的条件不满足的情况下，操作系统主动的把我的进程切换为另外一个进程...</p>
+          <p>阻塞与非阻塞 主要是指，操作系统，或者底层的c库，提供的方法，或者是一个系统调用。也就是说我们调用这个方法的时候，这个方法可能会导致我的进程进入sleep状态，为什么会进入sleep状态呢？就是当前的条件不满足的情况下，操作系统主动的把我的进程切换为另外一个进程了，在使用当前的CPU。那么这样就是一个阻塞方法。 而非阻塞方法就是我们调用该方法，永远不会因为，当我们时间片未用完时，把我们的进程主动</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -465,48 +494,17 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>参考  GeeksforGeeks  如果所有的顶点对之间都有一条路径，那么一个有向图就是强连通的。有向图的强连通分量（strongly connected component，SCC）是一个最大强连通子图。例如，下面的图中有3个SCC。  我们已经讨论过Kosa...</p>
+          <p>参考 GeeksforGeeks 如果所有的顶点对之间都有一条路径，那么一个有向图就是强连通的。有向图的强连通分量（strongly connected component，SCC）是一个最大强连通子图。例如，下面的图中有3个SCC。 我们已经讨论过Kosaraju的强连通分量的算法。前面讨论的算法需要对一个Graph进行两次DFS遍历。在这篇文章中，我们将讨论Tarjan算法，它只需要一次</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
       </footer>
   </article>
 
-<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/31/%E6%88%91%E4%BB%AC%E5%94%AF%E4%B8%80%E5%80%BC%E5%BE%97%E6%81%90%E6%83%A7%E7%9A%84%E5%B0%B1%E6%98%AF%E6%81%90%E6%83%A7%E6%9C%AC%E8%BA%AB/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2020/08/31/%E6%88%91%E4%BB%AC%E5%94%AF%E4%B8%80%E5%80%BC%E5%BE%97%E6%81%90%E6%83%A7%E7%9A%84%E5%B0%B1%E6%98%AF%E6%81%90%E6%83%A7%E6%9C%AC%E8%BA%AB/" class="post-title-link" itemprop="url">我们唯一值得恐惧的就是恐惧本身</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2020-08-31T15:08:04+08:00">2020-08-31</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>1933年，富兰克林·罗斯福首次总统就职演说  因此，首先，请允许我表明自己的坚定信念：我们唯一值得恐惧的就是恐惧本身——这是一种难以名状、盲目冲动、毫无缘由的恐惧，可以使人们转退为进所需的努力全都丧失效力。  名言：  我们必须成为民主制度的伟大兵工厂。对我们来...</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <nav class="pagination" aria-label="最近更新分页">
+<nav class="pagination" aria-label="最近更新分页">
     <a class="extend prev" rel="prev" href="/page/16/">上一页</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><span class="page-number current">17</span><a class="page-number" href="/page/18/">18</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/18/">下一页</a>
   </nav>
-
-
-          </div>
+</div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -568,7 +566,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
 
-          <span class="site-state-item-count">259</span>
+          <span class="site-state-item-count">260</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

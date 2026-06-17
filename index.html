@@ -283,7 +283,7 @@
   <p class="home-kicker">最近更新</p>
   <h2>按时间写下的文章</h2>
   <div class="home-latest-status" aria-label="最近更新分页信息">
-    <span>共 <strong>259</strong> 篇</span>
+    <span>共 <strong>260</strong> 篇</span>
     <span>每页 <strong>10</strong> 篇</span>
     <span>第 <strong>1</strong> / 26 页</span>
     <span>本页 <strong>10</strong> 篇</span>
@@ -291,7 +291,36 @@
   </div>
 </div>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/17/KVCache/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2026/06/17/KVCache/" class="post-title-link" itemprop="url">KV Cache：大模型推理为什么不用每个字都从头算</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2026-06-17T10:00:00+08:00">06-17</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>KV Cache 是大模型自回归推理里的关键优化：它缓存的不是 token，而是每一层 Attention 里已经算好的 Key 和 Value。新 token 只需要计算自己的 Q/K/V，再用 Q 去读历史 K/V，避免每一步都把旧 token 从头算一遍。本文用图解释无缓存与有缓存的区别、KV Cache 的张量形状和显存公式、MHA/MQA/GQA 对缓存大小的影响，以及它和 FlashAttention、PagedAttention 的关系。</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8705-%E6%A0%88%E9%98%9F%E5%88%97%E4%B8%8E%E5%8D%95%E8%B0%83%E7%BB%93%E6%9E%84%E5%85%A5%E9%97%A8/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -320,7 +349,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8704-%E5%8F%8C%E6%8C%87%E9%92%88%E4%B8%8E%E6%BB%91%E5%8A%A8%E7%AA%97%E5%8F%A3/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -349,7 +378,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8703-%E5%89%8D%E7%BC%80%E5%92%8C%E4%B8%8E%E5%B7%AE%E5%88%86/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -378,7 +407,7 @@
       </footer>
   </article>
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8702-%E6%8E%92%E5%BA%8F%E4%B8%8E%E4%BA%8C%E5%88%86/">
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -552,41 +581,10 @@
       </footer>
   </article>
 
-<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/15/%E4%BB%80%E4%B9%88%E6%98%AF%E7%89%A9%E5%8C%96/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2026/06/15/%E4%BB%80%E4%B9%88%E6%98%AF%E7%89%A9%E5%8C%96/" class="post-title-link" itemprop="url">为什么有些结果要提前算好：物化到底是什么意思</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2026-06-15T12:00:00+08:00">06-15</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>物化就是把本来需要现场计算的结果提前算好并存起来，用存储成本和更新复杂度换查询速度、稳定性和低延迟。本文从订单统计、物化视图、Feature Store 特征物化、缓存和中间表讲起，解释物化解决什么问题、带来哪些代价，以及什么时候应该物化。</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <nav class="pagination" aria-label="最近更新分页">
+<nav class="pagination" aria-label="最近更新分页">
     <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/2/">下一页</a>
   </nav>
-
-
-          </div>
+</div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -648,7 +646,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
 
-          <span class="site-state-item-count">259</span>
+          <span class="site-state-item-count">260</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>KV Cache：大模型推理为什么不用每个字都从头算</title>
+    <url>/2026/06/17/KVCache/</url>
+    <content><![CDATA[KV Cache 是大模型自回归推理里的关键优化：历史 token 在每一层 Attention 中计算出来的 Key 和 Value 不会随着后续生成改变，因此可以缓存复用。Prefill 阶段处理完整 prompt 并建立初始缓存，Decode 阶段每次只计算新 token 的 Q/K/V，把新 K/V 追加到缓存，再用 Q 去读取历史 K/V。KV Cache 的典型显存公式是 2 × num_layers × batch_size × seq_len × kv_heads × head_dim × bytes_per_element，其中 2 代表 K 和 V 两份缓存。它减少重复计算，但会增加显存和内存带宽压力；长上下文和高并发会让 KV Cache 成为推理服务的核心瓶颈。MHA、MQA、GQA 的主要差异之一是 KV 头数不同，会直接影响缓存大小。FlashAttention 优化 Attention 计算过程的 IO，PagedAttention 优化 KV Cache 的内存块管理，二者可以和 KV Cache 同时使用。]]></content>
+      <tags><tag>架构</tag><tag>工程实践</tag><tag>计算机科学</tag></tags>
+  </entry>
+  <entry>
     <title>ACM 学习篇 05：栈、队列与单调结构入门</title>
     <url>/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8705-%E6%A0%88%E9%98%9F%E5%88%97%E4%B8%8E%E5%8D%95%E8%B0%83%E7%BB%93%E6%9E%84%E5%85%A5%E9%97%A8/</url>
     <content><![CDATA[<div class="post-body" itemprop="articleBody">

@@ -203,13 +203,42 @@
   <p class="home-kicker">最近更新</p>
   <h2>按时间写下的文章</h2>
   <div class="home-latest-status" aria-label="最近更新分页信息">
-    <span>共 <strong>259</strong> 篇</span>
+    <span>共 <strong>260</strong> 篇</span>
     <span>每页 <strong>10</strong> 篇</span>
     <span>第 <strong>20</strong> / 26 页</span>
     <span>本页 <strong>10</strong> 篇</span>
     <span>当前 191-200</span>
   </div>
 </div>
+
+<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/28/%E5%85%B3%E4%BA%8EMySQL%E7%9A%84row-ID/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+            <a href="/2020/08/28/%E5%85%B3%E4%BA%8EMySQL%E7%9A%84row-ID/" class="post-title-link" itemprop="url">为什么rowid是6个字节</a>
+        </h2>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+              <span class="post-meta-item-text">发表于</span>
+              <time itemprop="dateCreated datePublished" datetime="2020-08-28T09:51:24+08:00">2020-08-28</time>
+            </span>
+        </div>
+      </header>
+    <div class="post-body" itemprop="articleBody">
+          <p>首先官方文档是这么写的。参考MySQL5.6 Ref manual。 每个InnoDB表都有一个特殊的索引，称为聚簇索引clustered index，行的数据就存储在这里。通常情况下，聚簇索引是主键的同义词。为了从查询、插入和其他数据库操作中获得最佳性能，你必须理解InnoDB是如何使用聚簇索引来优化每个表的最常见的查找和DML操作的。 当你在表上定义一个primary key时，InnoDB</p>
+    </div>
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
 
 <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/27/epoll%E7%9A%84%E4%BC%98%E5%8A%A3%E5%92%8C%E5%8E%9F%E7%90%86/">
@@ -233,7 +262,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>epoll 网络事件收集器模型（也有分发） nginx事件分发机制，在其中的循环流程中，最关键的就是，nginx怎样能够快速的从操作系统的kernal中获取到等待处理的事件，这么一个简单的步骤，其实，经历了很长时间的解决。比如，到现在nginx主要在使用epoll...</p>
+          <p>epoll 网络事件收集器模型（也有分发） nginx事件分发机制，在其中的循环流程中，最关键的就是，nginx怎样能够快速的从操作系统的kernal中获取到等待处理的事件，这么一个简单的步骤，其实，经历了很长时间的解决。比如，到现在nginx主要在使用epoll这样一个网络事件收集器的模型。那么，下面我们来简单的回顾下，epoll有些什么样的特点。 首先，epoll 和 kqueue（mac o</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -262,7 +291,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>先上代码 123456789101112131415161718192021class Student(object):    def __new__(cls, *args, **kwargs):        print(&amp;#x27;class.__new__...</p>
+          <p>先上代码 123456789101112131415161718192021class Student(object): def __new__(cls, *args, **kwargs): print(&#x27;class.__new__ called&#x27;) return super(Student, cls).__new__(cls) def</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -291,7 +320,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>人生唯一确定的就是不确定的人生。人的有限性就体现在，我们是无法寻找到从我们自己而来的一个确定。 第一还是阅读，跟人类伟大的灵魂对话，因为你的困惑在两千多年前人类就已经有过这样的困惑。人类所有伟大的思想家都试图对抗这种困惑。 但第二的话更重要的是去做，做一些事情，从...</p>
+          <p>人生唯一确定的就是不确定的人生。人的有限性就体现在，我们是无法寻找到从我们自己而来的一个确定。 第一还是阅读，跟人类伟大的灵魂对话，因为你的困惑在两千多年前人类就已经有过这样的困惑。人类所有伟大的思想家都试图对抗这种困惑。 但第二的话更重要的是去做，做一些事情，从身边的小事开始做起。每天都只是一个礼物，昨天的已经成为过去，明天还没有到来，我们唯一能够拥有的就是今天。所以今天是一个礼物，是一个gif</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -320,7 +349,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>给时光以生命，而不是给生命以时光。（这句话出自帕斯卡，To the time to life, rather than to life in time.老帕之所以有此言论，大概和他的生命状态有很大关系。帕斯卡从小体质虚弱，又因过度劳累而使疾病缠身。他只活到三十九岁...</p>
+          <p>给时光以生命，而不是给生命以时光。（这句话出自帕斯卡，To the time to life, rather than to life in time.老帕之所以有此言论，大概和他的生命状态有很大关系。帕斯卡从小体质虚弱，又因过度劳累而使疾病缠身。他只活到三十九岁，但一生辉煌，活得虽短却很精彩。正是这短暂的一生让他更清楚的看到生命的本质，福祸相依，这正是上帝的公平，或者说是概率的公平。他还说过一句</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -349,7 +378,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>能不能使用join语句？  如果可以使用Index Nested-Loop Join算法，也就是说可以用上被驱动表上的索引，是没问题的。 如果使用Block Nested_Loop Join算法，扫描行数就会过多。尤其是在大表上的join操作，这样可能要扫描被驱动...</p>
+          <p>能不能使用join语句？ 如果可以使用Index Nested-Loop Join算法，也就是说可以用上被驱动表上的索引，是没问题的。 如果使用Block Nested_Loop Join算法，扫描行数就会过多。尤其是在大表上的join操作，这样可能要扫描被驱动表很多次，会占用大量的系统资源。所以这种join尽量不要用。 如果要使用join，应该选择大表做驱动表还是选择小表做驱动表？ 如果</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -378,7 +407,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>读写分离的主要目标是分摊主库的压力。每个大型架构最终都会实现读写分离。 读写分离的架构有两种。  图1中的结构是客户端（client）主动做负载均衡，这种模式下一般会把数据库的连接信息放在客户端的连接层。也就是说，由客户端来选择后端数据库进行查询。 还有一种架构是...</p>
+          <p>读写分离的主要目标是分摊主库的压力。每个大型架构最终都会实现读写分离。 读写分离的架构有两种。 图1中的结构是客户端（client）主动做负载均衡，这种模式下一般会把数据库的连接信息放在客户端的连接层。也就是说，由客户端来选择后端数据库进行查询。 还有一种架构是，在MySQL和客户端之间有一个中间代理层proxy，客户端只连接proxy，由proxy根据请求类型和上下文决定请求的分发路由。 接</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -407,7 +436,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>「被讨厌的勇气」真是一本好书，希望大家都能看一看。 这里开始简单记录书中一些我认为很有意义的话。  阿德勒心理学就是勇气心理学，人不能缺乏”获得幸福的勇气“。 人之所以不幸正是因为自己亲手选择了”不幸“，而不是因为生来就不幸。是因为你认为”不幸“对你自身而言是一种...</p>
+          <p>「被讨厌的勇气」真是一本好书，希望大家都能看一看。 这里开始简单记录书中一些我认为很有意义的话。 阿德勒心理学就是勇气心理学，人不能缺乏”获得幸福的勇气“。 人之所以不幸正是因为自己亲手选择了”不幸“，而不是因为生来就不幸。是因为你认为”不幸“对你自身而言是一种”善“。是因为你在不断地下着不改变自己生活方式的决心。即使人们有各种不满，但还是认为保持现状更加轻松、更能安心。 哲人：是的。以自己的不</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -436,7 +465,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>在现代社会，公众对艾滋病人的接纳，其实也是一个非常奢侈的话题。虽然每一年，我们都有一个专门的日子，我们来表达对艾滋病人的关心。但是，仅仅有这个日子是不够的。 人们对于疾病总是有一种本能的恐惧。不要说艾滋病了，甚至乙肝病毒携带者，甚至白血病，等等都在社会中备受歧视...</p>
+          <p>在现代社会，公众对艾滋病人的接纳，其实也是一个非常奢侈的话题。虽然每一年，我们都有一个专门的日子，我们来表达对艾滋病人的关心。但是，仅仅有这个日子是不够的。 人们对于疾病总是有一种本能的恐惧。不要说艾滋病了，甚至乙肝病毒携带者，甚至白血病，等等都在社会中备受歧视。新闻就曾经报道过，有些白血病的孩子入学，被拒绝。所以在这样一种背景下，各位可以想象，艾滋病患呢，也很难走出歧视，并因为这个歧视，可能他们</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
@@ -465,48 +494,17 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>全局锁、表锁、行锁、间隙锁。 全局锁：flush tables with read lock 表级锁：  表锁：lock tables ... read/write MDL（metadata lock）：server层，增删改查DML语句添加读锁，修改表结构定义D...</p>
+          <p>全局锁、表锁、行锁、间隙锁。 全局锁：flush tables with read lock 表级锁： 表锁：lock tables ... read/write MDL（metadata lock）：server层，增删改查DML语句添加读锁，修改表结构定义DDL语句加写锁。更加详细的可以看这个链接https://blog.csdn.net/q2878948/article/details/9</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
       </footer>
   </article>
 
-<article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2020/08/21/Prim-s%E6%9C%80%E5%B0%8F%E7%94%9F%E6%88%90%E6%A0%91%E7%AE%97%E6%B3%95/">
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="侯瑞哲">
-    </span>
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="侯瑞哲的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-            <a href="/2020/08/21/Prim-s%E6%9C%80%E5%B0%8F%E7%94%9F%E6%88%90%E6%A0%91%E7%AE%97%E6%B3%95/" class="post-title-link" itemprop="url">Prim's最小生成树算法</a>
-        </h2>
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
-              <span class="post-meta-item-text">发表于</span>
-              <time itemprop="dateCreated datePublished" datetime="2020-08-21T17:01:42+08:00">2020-08-21</time>
-            </span>
-        </div>
-      </header>
-    <div class="post-body" itemprop="articleBody">
-          <p>Prim算法是一种Greedy算法。它从一个空的生成树开始。其想法是维护两组顶点。第一组包含已经在MST中的顶点，另一组包含尚未在的顶点。在每一步，它都会考虑连接两组的所有边，并从这些边中挑选出最小权重的边。选取边后，它将边的另一个顶点移动到包含MST的集合中...</p>
-    </div>
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-
-  <nav class="pagination" aria-label="最近更新分页">
+<nav class="pagination" aria-label="最近更新分页">
     <a class="extend prev" rel="prev" href="/page/19/">上一页</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><span class="page-number current">20</span><a class="page-number" href="/page/21/">21</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/21/">下一页</a>
   </nav>
-
-
-          </div>
+</div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -568,7 +566,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
 
-          <span class="site-state-item-count">259</span>
+          <span class="site-state-item-count">260</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
