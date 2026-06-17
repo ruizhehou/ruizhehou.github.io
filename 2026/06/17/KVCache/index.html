@@ -23,7 +23,7 @@
     var NexT = window.NexT || {};
     var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
-  <meta name="description" content="KV Cache 是大模型自回归推理里的关键优化：它缓存的不是 token，而是每一层 Attention 里已经算好的 Key 和 Value。新 token 只需要计算自己的 Q/K/V，再用 Q 去读历史 K/V，避免每一步都把旧 token 从头算一遍。本文用图解释无缓存与有缓存的区别、KV Cache 的张量形状和显存公式、MHA/MQA/GQA 对缓存大小的影响，以及它和 FlashAttention、PagedAttention 的关系。">
+  <meta name="description" content="KV Cache 可以理解成大模型推理时做的“读书笔记”：历史 token 在每一层算出的 Key 和 Value 会被记下来，生成下一个 token 时直接翻笔记，不用把前文从头再算一遍。本文用图解释它缓存什么、Prefill 和 Decode 怎么配合、为什么长上下文会吃显存，以及 MQA/GQA、FlashAttention、PagedAttention 和它的关系。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="KV Cache：大模型推理为什么不用每个字都从头算">
 <meta property="og:url" content="https://ruizhehou.github.io/2026/06/17/KVCache/index.html">
@@ -163,27 +163,29 @@ body.dark-mode .kv-svg-line { stroke: #a4adba; }
 }
 </style>
 
-<p>大模型生成文字的时候，看起来像是一口气说出来，其实内部是一格一格往前走：先根据已有上下文生成下一个 token，再把这个新 token 拼回上下文里，继续生成下一个。</p>
+<p>大模型生成文字的时候，看起来像是在一口气回答，其实内部更像“文字接龙”：先看已有内容，猜下一个 token；再把这个 token 接到后面，继续猜下一个。</p>
 
-<p>如果每一步都把前面所有 token 从头算一遍，推理会非常浪费。KV Cache 要解决的，就是这件事。</p>
+<p>问题是，聊得越长，前面的内容越多。如果每生成一个新 token，都把前面所有内容重新看一遍、重新算一遍，速度会越来越慢，也会浪费很多算力。</p>
 
 <div class="kv-note">
-  <strong>先给结论：</strong>KV Cache 缓存的不是原始 token，也不是最终输出，而是 Transformer 每一层 Attention 已经算好的 Key 和 Value。后面生成新 token 时，旧 token 的 K/V 不会变，直接复用就行。
+  <strong>先给结论：</strong>KV Cache 就像模型给历史上下文做的“读书笔记”。它缓存的不是原始文字，也不是最终答案，而是 Transformer 每一层 Attention 已经算好的 Key 和 Value。后面生成新 token 时，旧内容的 K/V 不会变，直接翻这份笔记就行。
 </div>
 
 <h2 id="一句话理解KVCache">一、一句话理解 KV Cache</h2>
 
-<p>可以把 KV Cache 理解成 Transformer 推理时的“历史注意力账本”。</p>
+<p>可以把 KV Cache 理解成 Transformer 推理时的“历史注意力笔记”。</p>
 
-<p>每生成一个新 token，模型都要问一句：我现在这个 token，应该关注前面哪些 token？这个问题由 Attention 完成。Attention 里有三类向量：Query、Key、Value。</p>
+<p>每生成一个新 token，模型都要问一句：我现在这个位置，应该重点参考前面哪些内容？这个“找参考资料”的过程，就是 Attention。</p>
+
+<p>Attention 里常见的 Q/K/V，可以先用一个很土但好懂的比喻来记：</p>
 
 <ul>
-  <li><strong>Query（Q）</strong>：当前 token 发出的查询，“我想找什么信息”；</li>
-  <li><strong>Key（K）</strong>：历史 token 提供的索引，“我这里有什么信息”；</li>
-  <li><strong>Value（V）</strong>：历史 token 真正被取走的内容，“匹配以后拿什么走”。</li>
+  <li><strong>Query（Q）</strong>：当前 token 提的问题，“我现在想找什么信息”；</li>
+  <li><strong>Key（K）</strong>：历史 token 身上的目录标签，“我这里大概是什么内容”；</li>
+  <li><strong>Value（V）</strong>：历史 token 真正提供的内容，“匹配上以后拿走什么信息”。</li>
 </ul>
 
-<p>自回归生成时，历史 token 已经固定了。它们在每一层里算出来的 K 和 V 也固定了。既然不会变，就没有必要每一步重新算。</p>
+<p>自回归生成时，过去已经写出来的 token 不会再变。它们对应的 K 和 V 也不会再变。既然这份“目录标签”和“正文内容”已经算过了，就没有必要每一步都重算。</p>
 
 <figure class="kv-figure">
 <svg viewBox="0 0 920 360" role="img" aria-label="无 KV Cache 和有 KV Cache 的推理对比">
@@ -230,11 +232,11 @@ body.dark-mode .kv-svg-line { stroke: #a4adba; }
 
 <h2 id="先区分Prefill和Decode">二、先区分 Prefill 和 Decode</h2>
 
-<p>理解 KV Cache，最好先把 LLM 推理拆成两个阶段。</p>
+<p>理解 KV Cache，最好先把一次大模型请求拆成两个阶段。英文名字有点硬，但意思很简单。</p>
 
-<p><strong>Prefill</strong> 是处理提示词的阶段。用户输入一整段 prompt，模型可以并行处理这段序列，算出每一层每个 token 的 K/V，并把它们放进缓存里。</p>
+<p><strong>Prefill</strong> 可以理解成“先把题目读完”。用户输入一整段 prompt，模型先把这段内容整体看一遍，算出每一层、每个 token 的 K/V，并把它们放进缓存里。</p>
 
-<p><strong>Decode</strong> 是逐 token 生成的阶段。之后每一步只进来一个新 token。模型计算这个新 token 在每一层里的 Q/K/V，用 Q 去和缓存里的所有历史 K 做匹配，再用注意力权重读取历史 V，最后得到下一个 token 的分布。</p>
+<p><strong>Decode</strong> 可以理解成“一个字一个字往外写”。之后每一步只处理一个新 token。模型只需要计算这个新 token 的 Q/K/V，然后拿 Q 去翻前面缓存好的 K/V，决定下一个 token 应该是什么。</p>
 
 <figure class="kv-figure">
 <svg viewBox="0 0 920 300" role="img" aria-label="Prefill 和 Decode 阶段的 KV Cache 流程">
@@ -267,11 +269,11 @@ body.dark-mode .kv-svg-line { stroke: #a4adba; }
 
 <h2 id="KVCache缓存的到底是什么">三、KV Cache 缓存的到底是什么</h2>
 
-<p>这里有一个很容易误解的点：KV Cache 不是把 token ID 存起来。token ID 本来就有，存它并不能省多少计算。</p>
+<p>这里有一个很容易误解的点：KV Cache 不是把 token ID 存起来。token ID 本来就很小，而且一直都在，单独存它并不能省多少计算。</p>
 
-<p>KV Cache 存的是每一层 Attention 里，历史 token 经过线性投影之后得到的 Key 和 Value。</p>
+<p>KV Cache 真正存的是：历史 token 进入每一层 Attention 后，已经算好的 Key 和 Value。你可以先把它理解成“模型读完历史内容后留下的中间笔记”。</p>
 
-<p>为什么要“每一层”都存？因为 Transformer 的每一层都会重新加工隐藏状态。第 1 层的 K/V 和第 20 层的 K/V 不是同一个东西。上层看到的不是原始 token，而是下层处理后的表示，所以每层都要有自己的缓存。</p>
+<p>为什么要“每一层”都存？因为 Transformer 不是只读一遍文本。它每过一层，都会把信息重新加工一次。第 1 层看到的东西，和第 20 层看到的东西已经不一样了，所以每一层都要有自己的 K/V 缓存。</p>
 
 <div class="kv-formula">
 每层常见形状：<br>
@@ -311,15 +313,15 @@ V cache: [batch, kv_heads, seq_len, head_dim]<br><br>
 
 <h2 id="一步Decode里QKV怎么流动">四、一步 Decode 里 Q/K/V 怎么流动</h2>
 
-<p>假设现在已经有一段历史上下文，KV Cache 里已经存了它们在每一层里的 K/V。现在新来了一个 token。</p>
+<p>假设现在已经有一段历史上下文，KV Cache 里也已经存好了它们的 K/V。现在新来了一个 token，模型大概会这么做：</p>
 
 <ol>
   <li>新 token 进入当前 Transformer 层；</li>
-  <li>这一层为新 token 计算 Q、K、V；</li>
-  <li>把新 token 的 K/V 追加到这一层的 KV Cache；</li>
-  <li>用新 token 的 Q 去和“历史 K + 新 K”做注意力打分；</li>
-  <li>用注意力权重加权读取“历史 V + 新 V”；</li>
-  <li>输出进入下一层，下一层重复同样过程。</li>
+  <li>这一层只为这个新 token 计算 Q、K、V；</li>
+  <li>把新 token 的 K/V 追加到这一层的 KV Cache 后面；</li>
+  <li>用新 token 的 Q 去查“历史 K + 新 K”，看看应该关注谁；</li>
+  <li>根据注意力权重，从“历史 V + 新 V”里取出需要的信息；</li>
+  <li>这一层处理完后，结果进入下一层，下一层重复同样过程。</li>
 </ol>
 
 <figure class="kv-figure">
@@ -353,13 +355,15 @@ V cache: [batch, kv_heads, seq_len, head_dim]<br><br>
 
 <h2 id="显存公式">五、KV Cache 的显存公式</h2>
 
-<p>KV Cache 最大的代价是显存。它会随着上下文长度和并发请求数线性增长。</p>
+<p>KV Cache 最大的代价是显存。说白了：笔记越多，占的地方就越大。</p>
+
+<p>如果公式看着有点吓人，只要先记住一句话：层数越多、上下文越长、并发请求越多、KV 头数越多，KV Cache 就越大。</p>
 
 <div class="kv-formula">
 KV Cache bytes = 2 × num_layers × batch_size × seq_len × kv_heads × head_dim × bytes_per_element
 </div>
 
-<p>这里的 2 来自 K 和 V 两份缓存。<code>bytes_per_element</code> 取决于精度：FP16/BF16 通常是 2 bytes，FP32 是 4 bytes，量化 KV Cache 会更小。</p>
+<p>这里的 2 来自 K 和 V 两份缓存。<code>bytes_per_element</code> 取决于精度：FP16/BF16 通常是 2 bytes，FP32 是 4 bytes。如果对 KV Cache 做量化，每个元素占用的字节数还能再降。</p>
 
 <p>举个粗略例子：32 层、batch=1、seq_len=4096、kv_heads=32、head_dim=128、FP16。</p>
 
@@ -369,17 +373,19 @@ KV Cache bytes = 2 × num_layers × batch_size × seq_len × kv_heads × head_di
 ≈ 2 GiB
 </div>
 
-<p>这只是一个请求。并发多了、上下文长了、batch 变大了，KV Cache 很快就会成为比模型权重更麻烦的显存账单。</p>
+<p>注意，这还只是一个请求。并发多了、上下文长了、batch 变大了，KV Cache 很快就会成为很大的显存账单。</p>
 
 <h2 id="为什么长上下文更容易卡住">六、为什么长上下文更容易卡住</h2>
 
 <p>KV Cache 省掉了“重复计算历史 K/V”，但它没有省掉“读取历史 K/V”。</p>
 
-<p>生成第 t 个 token 时，新 token 的 Q 仍然需要看前面所有 token 的 K/V。上下文越长，每一步需要读取的缓存越多。于是 Decode 阶段常常会变成显存带宽问题：算力不一定满，但显存读写已经很忙。</p>
+<p>也就是说，它让模型不用重新做笔记，但每次回答时还是要翻笔记。上下文越长，笔记越厚，每一步要翻的内容就越多。于是 Decode 阶段常常会卡在显存读写上：算力不一定满，但显存带宽已经很忙。</p>
 
 <p>这也是为什么长上下文服务不仅要看模型大小，还要看 KV Cache 管理能力。模型权重是固定成本，KV Cache 是跟请求长度和并发一起涨的动态成本。</p>
 
 <h2 id="MHA-MQA-GQA对缓存有什么影响">七、MHA、MQA、GQA 对缓存有什么影响</h2>
+
+<p>这一节只要抓住一个关键词：<code>kv_heads</code>。KV 头数越多，要存的 K/V 就越多，缓存也越大。</p>
 
 <p>在普通 Multi-Head Attention（MHA）里，每个 attention head 都有自己的 K/V，所以 <code>kv_heads = attention_heads</code>。这很直观，但缓存也大。</p>
 
@@ -440,11 +446,11 @@ KV Cache bytes = 2 × num_layers × batch_size × seq_len × kv_heads × head_di
 
 <h2 id="KVCache和FlashAttention的关系">八、KV Cache 和 FlashAttention 的关系</h2>
 
-<p>KV Cache 和 FlashAttention 都在优化 Attention，但它们解决的问题不一样。</p>
+<p>KV Cache 和 FlashAttention 都在优化 Attention，但它们不是一回事。</p>
 
 <ul>
-  <li><strong>KV Cache</strong> 解决自回归推理里的重复计算：历史 K/V 不变，所以存下来复用；</li>
-  <li><strong>FlashAttention</strong> 解决 Attention 计算过程里的显存读写：不要把巨大的注意力矩阵反复写进 HBM，而是分块在更快的 SRAM 里完成。</li>
+  <li><strong>KV Cache</strong> 解决“旧内容别重复算”的问题：历史 K/V 不变，所以存下来复用；</li>
+  <li><strong>FlashAttention</strong> 解决“Attention 计算时少搬数据”的问题：不要把巨大的注意力矩阵反复写进 HBM，而是分块在更快的 SRAM 里完成。</li>
 </ul>
 
 <p>所以二者可以同时存在。Prefill 阶段可以用 FlashAttention 更高效地处理整段 prompt；Decode 阶段继续用 KV Cache 复用历史 K/V。</p>
@@ -453,7 +459,7 @@ KV Cache bytes = 2 × num_layers × batch_size × seq_len × kv_heads × head_di
 
 <p>KV Cache 告诉我们“要缓存什么”。PagedAttention 更像是在回答“这么多缓存怎么管”。</p>
 
-<p>传统做法容易为每个请求预留一大段连续显存。问题是不同请求长短不一，有的很快结束，有的越聊越长，显存会碎片化，预留也会浪费。</p>
+<p>可以把显存想成仓库。传统做法容易给每个请求预留一大块连续仓库空间。问题是不同请求长短不一：有的很快结束，有的越聊越长，仓库就容易出现空洞和浪费。</p>
 
 <p>PagedAttention 借鉴操作系统分页思想，把 KV Cache 切成固定大小的 block。一个请求的逻辑序列可以映射到多个物理 block，不要求连续。这样显存管理更灵活，也更适合连续批处理和高并发服务。</p>
 
@@ -489,7 +495,7 @@ KV Cache bytes = 2 × num_layers × batch_size × seq_len × kv_heads × head_di
 
 <h2 id="工程实现里要注意什么">十、工程实现里要注意什么</h2>
 
-<p>KV Cache 很有用，但它不是免费午餐。工程上通常要关注这些问题：</p>
+<p>读到这里，原理基本就清楚了。真正做推理服务时，还要把这些缓存管好。工程上通常要关注这些问题：</p>
 
 <ul>
   <li><strong>缓存生命周期</strong>：请求结束、生成停止、用户断开连接时，缓存要及时释放；</li>
@@ -506,9 +512,9 @@ KV Cache bytes = 2 × num_layers × batch_size × seq_len × kv_heads × head_di
 
 <h2 id="最后总结">十一、最后总结</h2>
 
-<p>KV Cache 的核心并不复杂：历史 token 的 Key 和 Value 不变，所以把它们存下来，后面只算新 token。</p>
+<p>KV Cache 的核心并不复杂：历史 token 的 Key 和 Value 不变，所以把它们存下来，后面生成新 token 时直接复用。</p>
 
-<p>但它引出的工程问题很大：缓存按层存，按 token 增长，按并发放大；MHA、MQA、GQA 会影响缓存大小；FlashAttention 优化 Attention 的计算 IO，PagedAttention 优化缓存的显存管理。真正做推理服务时，KV Cache 往往是吞吐、延迟、显存容量和长上下文能力之间最重要的那本账。</p>
+<p>用一句更口语的话说：KV Cache 不是让模型“不看历史”，而是让模型“别把历史重新算一遍”。它让推理快了很多，但也带来了显存压力。上下文越长、并发越高，这本“历史笔记”就越厚。真正做推理服务时，KV Cache 往往是吞吐、延迟、显存容量和长上下文能力之间最重要的那本账。</p>
 
 <h2 id="参考资料">参考资料</h2>
 

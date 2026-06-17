@@ -313,7 +313,7 @@
         </div>
       </header>
     <div class="post-body" itemprop="articleBody">
-          <p>KV Cache 是大模型自回归推理里的关键优化：它缓存的不是 token，而是每一层 Attention 里已经算好的 Key 和 Value。新 token 只需要计算自己的 Q/K/V，再用 Q 去读历史 K/V，避免每一步都把旧 token 从头算一遍。本文用图解释无缓存与有缓存的区别、KV Cache 的张量形状和显存公式、MHA/MQA/GQA 对缓存大小的影响，以及它和 FlashAttention、PagedAttention 的关系。</p>
+          <p>KV Cache 可以理解成大模型推理时做的“读书笔记”：历史 token 在每一层算出的 Key 和 Value 会被记下来，生成下一个 token 时直接翻笔记，不用把前文从头再算一遍。本文用图解释它缓存什么、Prefill 和 Decode 怎么配合、为什么长上下文会吃显存，以及 MQA/GQA、FlashAttention、PagedAttention 和它的关系。</p>
     </div>
       <footer class="post-footer">
         <div class="post-eof"></div>
