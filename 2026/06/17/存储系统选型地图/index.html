@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="存储系统选型不是在 Redis、MySQL、HBase、ClickHouse、Doris、Hudi、Iceberg、Elasticsearch、Kafka、Milvus 之间排一个绝对名次，而是先判断访问模式、延迟 SLA、更新方式、查询形态、数据规模和成本约束。本文给出一棵细致决策树，并用性能、吞吐、成本、运维复杂度和模型平台场景做横向对比。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="存储系统选型地图：性能、成本和场景怎么取舍">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/17/%E5%AD%98%E5%82%A8%E7%B3%BB%E7%BB%9F%E9%80%89%E5%9E%8B%E5%9C%B0%E5%9B%BE/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-17T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-17T10:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="计算机科学">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/17/%E5%AD%98%E5%82%A8%E7%B3%BB%E7%BB%9F%E9%80%89%E5%9E%8B%E5%9C%B0%E5%9B%BE/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>存储系统选型地图：性能、成本和场景怎么取舍 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-17T18:00:00+08:00" content="2026-06-17">06-17</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">存储系统选型地图：性能、成本和场景怎么取舍</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+
+<style>
+.storage-note {
+  margin: 18px 0;
+  padding: 14px 16px;
+  border-left: 4px solid #2f7d5f;
+  background: rgba(47, 125, 95, 0.08);
+}
+.storage-figure {
+  margin: 28px 0;
+  padding: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+.storage-figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.storage-figure figcaption {
+  margin-top: 10px;
+  color: #888;
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+}
+.storage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.storage-card {
+  padding: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+.storage-card strong {
+  display: block;
+  margin-bottom: 8px;
+}
+.storage-tree {
+  margin: 22px 0;
+  border-left: 3px solid #2f7d5f;
+  padding-left: 16px;
+}
+.storage-step {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.018);
+}
+.storage-step h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+.storage-step ul {
+  margin-bottom: 0;
+}
+.storage-table-wrap {
+  overflow-x: auto;
+  margin: 20px 0;
+}
+.storage-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.storage-table th,
+.storage-table td {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 10px 12px;
+  vertical-align: top;
+}
+.storage-table th {
+  background: rgba(47, 125, 95, 0.09);
+  text-align: left;
+}
+.storage-pill {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(47, 125, 95, 0.1);
+  color: inherit;
+  font-size: 12px;
+}
+.storage-svg-bg { fill: #ffffff; }
+.storage-svg-panel { fill: #f7faf8; stroke: #d6e3dc; }
+.storage-svg-hot { fill: #fff3df; stroke: #d9a44d; }
+.storage-svg-cool { fill: #eef4ff; stroke: #7fa4f5; }
+.storage-svg-green { fill: #e8f6ee; stroke: #62b982; }
+.storage-svg-red { fill: #fff0f0; stroke: #e58a8a; }
+.storage-svg-text { fill: #27302d; }
+.storage-svg-muted { fill: #6f7975; }
+.storage-svg-line { stroke: #8a9490; }
+body.dark-mode .storage-figure,
+body.dark-mode .storage-card,
+body.dark-mode .storage-step {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #1f232b;
+}
+body.dark-mode .storage-note,
+body.dark-mode .storage-table th,
+body.dark-mode .storage-pill {
+  background: rgba(72, 169, 124, 0.15);
+}
+body.dark-mode .storage-table th,
+body.dark-mode .storage-table td {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+body.dark-mode .storage-svg-bg { fill: #1f232b; }
+body.dark-mode .storage-svg-panel { fill: #252b35; stroke: #465164; }
+body.dark-mode .storage-svg-hot { fill: #3a3022; stroke: #d0a24f; }
+body.dark-mode .storage-svg-cool { fill: #263651; stroke: #6f9dff; }
+body.dark-mode .storage-svg-green { fill: #20362a; stroke: #67c989; }
+body.dark-mode .storage-svg-red { fill: #3b2528; stroke: #e27d7d; }
+body.dark-mode .storage-svg-text { fill: #e8ecf3; }
+body.dark-mode .storage-svg-muted { fill: #a7afbd; }
+body.dark-mode .storage-svg-line { stroke: #a4adba; }
+@media (max-width: 760px) {
+  .storage-grid { grid-template-columns: 1fr; }
+  .storage-figure { padding: 10px; }
+}
+</style>
+
+<p>存储系统选型最容易犯的错，是一上来就问：“Redis、HBase、ClickHouse、Doris、Hudi、Elasticsearch，到底哪个性能最好？”</p>
+
+<p>这个问题其实没有答案。因为存储系统不是一条赛道。Redis 在内存里做热点 KV 很强，但拿它存多年明细数据会贵得离谱；ClickHouse 扫百亿行做聚合很强，但拿它做强事务订单库就很别扭；Kafka 吞吐很高，但它首先是事件流，不是给你随便 SQL 查询的数据库。</p>
+
+<div class="storage-note">
+  <strong>先给结论：</strong>存储系统选型不是产品排名，而是访问模式匹配。先问数据怎么写、怎么读、要多快、要保留多久、能不能接受最终一致、成本卡在哪里，再去选系统。
+</div>
+
+<h2 id="先按问题分类">一、先按问题分类</h2>
+
+<p>我会先把常见存储拆成几大家族。这个分类比背产品名更有用，因为真实系统里经常是组合拳：Kafka 接流量，Flink 做计算，Hudi/Iceberg 存明细，Redis/HBase 服务在线特征，Doris/ClickHouse 做分析，Elasticsearch 做搜索，向量库做语义召回。</p>
+
+<figure class="storage-figure">
+<svg viewBox="0 0 960 390" role="img" aria-label="常见存储系统家族地图">
+  <rect class="storage-svg-bg" width="960" height="390" rx="12"></rect>
+  <text x="480" y="32" text-anchor="middle" font-size="18" font-weight="700" class="storage-svg-text">存储系统家族地图：先看问题，再看产品</text>
+  <g text-anchor="middle" font-size="13" class="storage-svg-text">
+    <rect x="45" y="70" width="170" height="86" rx="10" class="storage-svg-hot"></rect>
+    <text x="130" y="102" font-weight="700">在线低延迟</text>
+    <text x="130" y="127" class="storage-svg-muted" font-size="12">Redis / HBase</text>
+    <text x="130" y="146" class="storage-svg-muted" font-size="12">Cassandra / RocksDB</text>
+
+    <rect x="255" y="70" width="170" height="86" rx="10" class="storage-svg-green"></rect>
+    <text x="340" y="102" font-weight="700">事务状态</text>
+    <text x="340" y="127" class="storage-svg-muted" font-size="12">MySQL / PostgreSQL</text>
+    <text x="340" y="146" class="storage-svg-muted" font-size="12">订单 / 账户 / 配置</text>
+
+    <rect x="465" y="70" width="170" height="86" rx="10" class="storage-svg-cool"></rect>
+    <text x="550" y="102" font-weight="700">分析查询</text>
+    <text x="550" y="127" class="storage-svg-muted" font-size="12">ClickHouse / Doris</text>
+    <text x="550" y="146" class="storage-svg-muted" font-size="12">Druid / Trino</text>
+
+    <rect x="675" y="70" width="220" height="86" rx="10" class="storage-svg-panel"></rect>
+    <text x="785" y="102" font-weight="700">低成本明细湖</text>
+    <text x="785" y="127" class="storage-svg-muted" font-size="12">S3 / HDFS + Parquet</text>
+    <text x="785" y="146" class="storage-svg-muted" font-size="12">Hudi / Iceberg / Delta</text>
+
+    <rect x="110" y="220" width="180" height="86" rx="10" class="storage-svg-red"></rect>
+    <text x="200" y="252" font-weight="700">搜索与日志</text>
+    <text x="200" y="277" class="storage-svg-muted" font-size="12">Elasticsearch</text>
+    <text x="200" y="296" class="storage-svg-muted" font-size="12">OpenSearch / Lucene</text>
+
+    <rect x="330" y="220" width="180" height="86" rx="10" class="storage-svg-hot"></rect>
+    <text x="420" y="252" font-weight="700">事件流</text>
+    <text x="420" y="277" class="storage-svg-muted" font-size="12">Kafka / Pulsar</text>
+    <text x="420" y="296" class="storage-svg-muted" font-size="12">削峰 / 订阅 / 回放</text>
+
+    <rect x="550" y="220" width="180" height="86" rx="10" class="storage-svg-green"></rect>
+    <text x="640" y="252" font-weight="700">时序指标</text>
+    <text x="640" y="277" class="storage-svg-muted" font-size="12">Prometheus / InfluxDB</text>
+    <text x="640" y="296" class="storage-svg-muted" font-size="12">TimescaleDB</text>
+
+    <rect x="770" y="220" width="150" height="86" rx="10" class="storage-svg-cool"></rect>
+    <text x="845" y="252" font-weight="700">向量召回</text>
+    <text x="845" y="277" class="storage-svg-muted" font-size="12">Milvus / Weaviate</text>
+    <text x="845" y="296" class="storage-svg-muted" font-size="12">Pinecone / pgvector</text>
+  </g>
+  <text x="480" y="352" text-anchor="middle" font-size="12" class="storage-svg-muted">同一个业务通常会同时用多种存储：没有银弹，只有分工。</text>
+</svg>
+<figcaption>不要让一个系统承担所有职责。先拆读写模式，再组合存储。</figcaption>
+</figure>
+
+<h2 id="细化决策树">二、细化决策树：一步一步选</h2>
+
+<p>下面这棵决策树可以直接拿来做初筛。它不是让你“一步到位选唯一答案”，而是把候选范围缩到 2-3 个系统，然后再根据团队经验、存量架构和压测结果定最终方案。</p>
+
+<div class="storage-tree">
+  <div class="storage-step">
+    <h3>第 0 步：你要存的是“状态”，还是要传递“事件”？</h3>
+    <ul>
+      <li><strong>如果核心是事件流、削峰、订阅、回放</strong>：先看 Kafka / Pulsar。它们适合把事件可靠地传给下游，不适合替代最终查询库。</li>
+      <li><strong>如果核心是保存最终状态并被查询</strong>：继续往下走。比如用户画像、账户余额、订单状态、特征值、日志明细、训练样本。</li>
+      <li><strong>如果两者都有</strong>：常见做法是 Kafka/Pulsar 做入口，后面落到 OLTP、OLAP、湖仓或在线 KV。</li>
+    </ul>
+  </div>
+
+  <div class="storage-step">
+    <h3>第 1 步：是否需要强事务和复杂关系？</h3>
+    <ul>
+      <li><strong>需要 ACID、唯一约束、事务提交、复杂 Join、数据正确性优先</strong>：优先 MySQL / PostgreSQL。</li>
+      <li><strong>数据量不大，但业务语义复杂</strong>：仍然优先关系型数据库。不要因为“未来可能很大”过早上 NoSQL。</li>
+      <li><strong>写入巨大、关系很弱、主要按 key 查</strong>：进入第 2 步，考虑 KV / 宽表。</li>
+    </ul>
+  </div>
+
+  <div class="storage-step">
+    <h3>第 2 步：是否要求在线低延迟点查？</h3>
+    <ul>
+      <li><strong>要求亚毫秒到毫秒级，数据能放内存，允许较高成本</strong>：Redis。适合缓存、会话、排行榜、限流、热点特征。</li>
+      <li><strong>数据量很大，单条或小范围查询，延迟可以是毫秒到几十毫秒</strong>：HBase / Cassandra。适合用户维表、在线特征、设备状态、海量 key-value。</li>
+      <li><strong>是在本地进程里做状态存储，而不是独立服务</strong>：RocksDB。常见于流计算状态、嵌入式 KV、LSM 存储引擎。</li>
+      <li><strong>还需要 SQL 聚合和报表</strong>：不要只放在线 KV，继续进入 OLAP 分支。</li>
+    </ul>
+  </div>
+
+  <div class="storage-step">
+    <h3>第 3 步：是否主要做全文检索、日志检索或半结构化搜索？</h3>
+    <ul>
+      <li><strong>关键词搜索、分词、相关性排序、模糊匹配、多字段过滤</strong>：Elasticsearch / OpenSearch。</li>
+      <li><strong>日志既要检索又要聚合分析</strong>：Elasticsearch 能做，但成本可能高；如果更偏指标聚合，考虑 ClickHouse / Druid。</li>
+      <li><strong>只是按 ID 查 JSON</strong>：不要为了“能搜”就上搜索引擎，关系型库、文档库或 KV 可能更简单。</li>
+    </ul>
+  </div>
+
+  <div class="storage-step">
+    <h3>第 4 步：是否主要做 SQL 分析、报表和聚合？</h3>
+    <ul>
+      <li><strong>宽表扫描、聚合、明细分析，追求极致查询速度和压缩率</strong>：ClickHouse。</li>
+      <li><strong>高并发 BI、用户画像、标签圈选、实时导入、需要 MySQL 协议生态</strong>：Doris。</li>
+      <li><strong>事件流实时摄入，高并发看板，按时间维度 slice-and-dice</strong>：Druid。</li>
+      <li><strong>数据主要在湖上，希望多引擎共享，不想把所有数据搬进专用 OLAP</strong>：S3/HDFS + Iceberg/Hudi/Delta，再配 Trino、Spark、Doris、Presto 等查询引擎。</li>
+    </ul>
+  </div>
+
+  <div class="storage-step">
+    <h3>第 5 步：是否需要低成本保存多年明细，并支持回溯训练？</h3>
+    <ul>
+      <li><strong>只是存大量原始文件、日志、图片、离线明细</strong>：对象存储 / HDFS。成本低、容量大，但随机更新和低延迟查询不是强项。</li>
+      <li><strong>明细数据有 Upsert、删除、CDC、增量消费</strong>：Hudi 更贴近“增量写入和更新”的问题。</li>
+      <li><strong>重视开放表格式、Schema 演进、隐藏分区、多引擎共享</strong>：Iceberg。</li>
+      <li><strong>团队已经深度使用 Spark / Databricks 生态</strong>：Delta Lake 通常更顺手。</li>
+    </ul>
+  </div>
+
+  <div class="storage-step">
+    <h3>第 6 步：是否是时序指标或监控数据？</h3>
+    <ul>
+      <li><strong>服务监控、告警、指标标签、PromQL</strong>：Prometheus。它更像监控系统自带的时序库，不适合当通用数据仓库。</li>
+      <li><strong>IoT、设备指标、金融 tick、时间范围聚合</strong>：InfluxDB / TimescaleDB。</li>
+      <li><strong>超大日志和指标混合分析</strong>：ClickHouse / Druid 也经常参与，但查询模型和运维方式不同。</li>
+    </ul>
+  </div>
+
+  <div class="storage-step">
+    <h3>第 7 步：是否需要语义相似度、RAG 或向量召回？</h3>
+    <ul>
+      <li><strong>数据规模小，已经有 PostgreSQL，想少引入组件</strong>：pgvector。</li>
+      <li><strong>向量规模大，需要独立扩展、索引类型丰富、召回性能稳定</strong>：Milvus / Weaviate。</li>
+      <li><strong>希望少运维，接受云服务绑定</strong>：Pinecone 等托管向量数据库。</li>
+      <li><strong>既要关键词又要语义检索</strong>：考虑 Elasticsearch / Weaviate / Milvus + 搜索引擎的混合检索方案。</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="性能吞吐成本矩阵">三、性能、吞吐和成本矩阵</h2>
+
+<p>下面的表不要当成 benchmark。它表达的是工程选型里的“倾向”：什么系统更容易拿到低延迟，什么系统更容易摊薄成本，什么系统更适合高吞吐写入。</p>
+
+<div class="storage-table-wrap">
+<table class="storage-table">
+  <thead>
+    <tr>
+      <th>类型</th>
+      <th>代表系统</th>
+      <th>延迟倾向</th>
+      <th>吞吐倾向</th>
+      <th>成本倾向</th>
+      <th>最适合</th>
+      <th>不适合</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>内存 KV / 缓存</td>
+      <td>Redis</td>
+      <td>最低，通常追求毫秒内</td>
+      <td>读写都强，但受内存和网络约束</td>
+      <td>高，内存是贵资源</td>
+      <td>热点数据、缓存、在线特征、限流、会话</td>
+      <td>长期明细、低价值大数据量、复杂分析</td>
+    </tr>
+    <tr>
+      <td>关系型数据库</td>
+      <td>MySQL / PostgreSQL</td>
+      <td>毫秒级常见</td>
+      <td>事务写入强，水平扩展要设计</td>
+      <td>中等，生态成熟</td>
+      <td>订单、账户、配置、强一致业务状态</td>
+      <td>海量扫描、日志分析、百亿级聚合</td>
+    </tr>
+    <tr>
+      <td>宽表 / 分布式 KV</td>
+      <td>HBase / Cassandra</td>
+      <td>毫秒到几十毫秒</td>
+      <td>高写入、高容量、水平扩展</td>
+      <td>中到高，依赖集群规模</td>
+      <td>用户维表、在线特征、海量 key 查询</td>
+      <td>复杂 Join、临时 SQL、多维聚合</td>
+    </tr>
+    <tr>
+      <td>搜索引擎</td>
+      <td>Elasticsearch / OpenSearch</td>
+      <td>搜索通常毫秒到秒级</td>
+      <td>写入强，但索引和副本成本高</td>
+      <td>偏高，索引膨胀明显</td>
+      <td>全文检索、日志检索、相关性排序</td>
+      <td>强事务、低成本冷数据、超复杂 OLAP</td>
+    </tr>
+    <tr>
+      <td>实时 OLAP</td>
+      <td>ClickHouse / Doris / Druid</td>
+      <td>聚合查询可做到亚秒到秒级</td>
+      <td>批量/流式导入强，查询吞吐强</td>
+      <td>中等，列存压缩好，但计算资源要够</td>
+      <td>报表、画像、标签圈选、日志聚合、Ad-hoc 分析</td>
+      <td>强事务、频繁单行更新、复杂小事务</td>
+    </tr>
+    <tr>
+      <td>对象存储 / 分布式文件</td>
+      <td>S3 / OSS / HDFS</td>
+      <td>低延迟点查不是强项</td>
+      <td>顺序读写和批处理吞吐强</td>
+      <td>最低，适合大规模长期保存</td>
+      <td>原始日志、训练样本、数据湖、备份归档</td>
+      <td>在线毫秒级查询、频繁小文件更新</td>
+    </tr>
+    <tr>
+      <td>湖仓表格式</td>
+      <td>Hudi / Iceberg / Delta</td>
+      <td>取决于计算引擎</td>
+      <td>批处理强，增量能力因格式而异</td>
+      <td>低存储成本，计算按需扩展</td>
+      <td>离线明细、增量入湖、训练回溯、跨引擎共享</td>
+      <td>直接承接在线低延迟请求</td>
+    </tr>
+    <tr>
+      <td>事件流</td>
+      <td>Kafka / Pulsar</td>
+      <td>端到端通常追求低延迟流转</td>
+      <td>高吞吐追加写和订阅消费</td>
+      <td>中等，成本来自磁盘、副本、保留周期</td>
+      <td>事件总线、削峰、CDC、流式计算入口</td>
+      <td>最终查询库、复杂历史分析</td>
+    </tr>
+    <tr>
+      <td>向量数据库</td>
+      <td>Milvus / Weaviate / Pinecone / pgvector</td>
+      <td>取决于索引、维度、召回率</td>
+      <td>读多写少更常见，增量写需评估</td>
+      <td>中到高，索引和内存成本明显</td>
+      <td>RAG、语义检索、相似推荐、多模态召回</td>
+      <td>强事务主库、通用报表、精确关系查询</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="OLAP怎么细分">四、OLAP 再细分：ClickHouse、Doris、Druid 怎么看</h2>
+
+<p>OLAP 是最容易混在一起的一类。ClickHouse、Doris、Druid 都能做分析，但工程气质不一样。</p>
+
+<div class="storage-grid">
+  <div class="storage-card"><strong>ClickHouse</strong>更像“极快的列式分析引擎”。宽表扫描、聚合、压缩率、单查询性能都很突出。它适合日志分析、行为分析、指标明细分析，但高并发 BI、频繁更新和复杂权限隔离要认真设计。</div>
+  <div class="storage-card"><strong>Doris</strong>更像“面向工程落地的一体化实时数仓”。MPP、MySQL 协议、高并发点查、实时导入、物化视图、湖仓查询这些能力组合起来，比较适合业务报表、画像、标签服务和统一分析入口。</div>
+  <div class="storage-card"><strong>Druid</strong>更像“事件时间驱动的实时分析数据库”。它适合按时间维度切片、过滤、聚合，给高并发看板和用户交互式分析做后端，尤其偏事件流和运营分析。</div>
+</div>
+
+<p>如果你只记一句话：ClickHouse 偏极致列式分析，Doris 偏统一实时数仓和高并发服务化查询，Druid 偏实时事件分析和高并发看板。</p>
+
+<h2 id="模型平台场景怎么选">五、模型平台场景怎么选</h2>
+
+<p>如果把问题放回模型平台，存储选型会更清楚。模型平台不是一个库打天下，而是一条链路上不同阶段用不同存储。</p>
+
+<div class="storage-table-wrap">
+<table class="storage-table">
+  <thead>
+    <tr>
+      <th>场景</th>
+      <th>核心问题</th>
+      <th>候选存储</th>
+      <th>选型理由</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>在线特征查询</td>
+      <td>推理请求里按 user_id / item_id 低延迟读特征</td>
+      <td><span class="storage-pill">Redis</span><span class="storage-pill">HBase</span><span class="storage-pill">Cassandra</span></td>
+      <td>Redis 适合热点和低延迟；HBase/Cassandra 适合容量更大的宽表特征。</td>
+    </tr>
+    <tr>
+      <td>离线训练样本</td>
+      <td>低成本保存多年明细，支持回溯和 Point-in-Time Join</td>
+      <td><span class="storage-pill">S3/HDFS</span><span class="storage-pill">Hudi</span><span class="storage-pill">Iceberg</span><span class="storage-pill">Delta</span></td>
+      <td>对象存储和表格式适合大规模明细、版本、增量和跨引擎读取。</td>
+    </tr>
+    <tr>
+      <td>实时特征生产</td>
+      <td>事件持续进入，窗口计算后写入在线特征库</td>
+      <td><span class="storage-pill">Kafka</span><span class="storage-pill">Pulsar</span><span class="storage-pill">RocksDB</span><span class="storage-pill">Redis/HBase</span></td>
+      <td>Kafka/Pulsar 承接流；RocksDB 常作为流计算状态；结果落 Redis/HBase。</td>
+    </tr>
+    <tr>
+      <td>标签服务和人群圈选</td>
+      <td>多条件组合过滤、聚合、Bitmap、较高并发查询</td>
+      <td><span class="storage-pill">Doris</span><span class="storage-pill">ClickHouse</span></td>
+      <td>OLAP 列存适合多维过滤和聚合，Doris 在高并发服务化查询上更友好。</td>
+    </tr>
+    <tr>
+      <td>模型监控和特征漂移</td>
+      <td>按时间看指标、分布、异常和趋势</td>
+      <td><span class="storage-pill">Prometheus</span><span class="storage-pill">ClickHouse</span><span class="storage-pill">Doris</span><span class="storage-pill">Druid</span></td>
+      <td>监控指标用 Prometheus；复杂分析和长期明细更适合 OLAP。</td>
+    </tr>
+    <tr>
+      <td>RAG 和语义召回</td>
+      <td>根据 embedding 找相似文本、图片或多模态对象</td>
+      <td><span class="storage-pill">pgvector</span><span class="storage-pill">Milvus</span><span class="storage-pill">Weaviate</span><span class="storage-pill">Pinecone</span></td>
+      <td>小规模可贴近 Postgres；大规模或独立扩展时用专门向量库。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="成本怎么想">六、成本怎么想</h2>
+
+<p>成本不是只看机器单价，而是看“单位有效查询”的成本。</p>
+
+<ul>
+  <li><strong>内存最贵</strong>：Redis 快，但别把低价值冷数据塞进去。</li>
+  <li><strong>对象存储最便宜</strong>：适合长期明细和训练数据，但要靠计算引擎把它查出来。</li>
+  <li><strong>列存靠压缩摊成本</strong>：ClickHouse、Doris、Druid 对分析查询划算，但要为导入、Compaction、索引和副本付钱。</li>
+  <li><strong>搜索引擎索引会膨胀</strong>：Elasticsearch 的检索能力很强，但全文索引、倒排、字段副本都会增加成本。</li>
+  <li><strong>向量库成本常被低估</strong>：embedding 维度、索引结构、召回率、过滤条件和副本都会影响成本。</li>
+</ul>
+
+<h2 id="容易选错的地方">七、容易选错的地方</h2>
+
+<ul>
+  <li><strong>把 Kafka 当数据库</strong>：Kafka 可以保留一段时间的事件日志，但它不是通用查询系统。</li>
+  <li><strong>把 Redis 当低成本主存储</strong>：Redis 的速度来自内存，容量账单也来自内存。</li>
+  <li><strong>把 Elasticsearch 当 OLAP</strong>：它能聚合，但强项仍然是搜索和检索相关性，不是最低成本的大规模分析。</li>
+  <li><strong>把湖仓表格式当查询引擎</strong>：Hudi、Iceberg、Delta 解决表管理和事务语义，真正跑查询还要 Spark、Trino、Doris、Presto 等引擎。</li>
+  <li><strong>只看单机性能，不看并发和运维</strong>：很多系统压单条查询很快，但高并发、权限隔离、扩容、冷热分层才是长期成本。</li>
+</ul>
+
+<h2 id="最后总结">八、最后总结</h2>
+
+<p>存储系统选型的核心不是“哪个系统最强”，而是“哪个系统最适合这个访问模式”。</p>
+
+<p>在线事务交给 MySQL/PostgreSQL，热点低延迟交给 Redis，大规模宽表点查交给 HBase/Cassandra，搜索交给 Elasticsearch，分析交给 ClickHouse/Doris/Druid，低成本明细交给对象存储和湖仓表格式，事件流交给 Kafka/Pulsar，语义召回交给向量库。真正成熟的架构不是迷信一个系统，而是让每个系统只做它擅长的事情。</p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<ul>
+  <li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html" target="_blank" rel="noopener">Amazon S3 User Guide</a></li>
+  <li><a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html" target="_blank" rel="noopener">Apache Hadoop HDFS Architecture</a></li>
+  <li><a href="https://redis.io/docs/latest/get-started/" target="_blank" rel="noopener">Redis Open Source Documentation</a></li>
+  <li><a href="https://hbase.apache.org/book.html" target="_blank" rel="noopener">Apache HBase Reference Guide</a></li>
+  <li><a href="https://cassandra.apache.org/_/index.html" target="_blank" rel="noopener">Apache Cassandra Documentation</a></li>
+  <li><a href="https://clickhouse.com/docs/intro" target="_blank" rel="noopener">ClickHouse Docs: What is ClickHouse?</a></li>
+  <li><a href="https://doris.apache.org/docs/3.x/gettingStarted/what-is-apache-doris/" target="_blank" rel="noopener">Apache Doris Overview</a></li>
+  <li><a href="https://druid.apache.org/docs/latest/design/" target="_blank" rel="noopener">Apache Druid Design Documentation</a></li>
+  <li><a href="https://www.elastic.co/docs/reference/elasticsearch" target="_blank" rel="noopener">Elasticsearch Reference</a></li>
+  <li><a href="https://hudi.apache.org/docs/overview/" target="_blank" rel="noopener">Apache Hudi Overview</a></li>
+  <li><a href="https://iceberg.apache.org/docs/latest/" target="_blank" rel="noopener">Apache Iceberg Documentation</a></li>
+  <li><a href="https://docs.databricks.com/aws/en/delta/" target="_blank" rel="noopener">Delta Lake Documentation</a></li>
+  <li><a href="https://kafka.apache.org/" target="_blank" rel="noopener">Apache Kafka</a></li>
+  <li><a href="https://pulsar.apache.org/" target="_blank" rel="noopener">Apache Pulsar</a></li>
+  <li><a href="https://prometheus.io/docs/introduction/overview/" target="_blank" rel="noopener">Prometheus Overview</a></li>
+  <li><a href="https://milvus.io/docs/overview.md" target="_blank" rel="noopener">Milvus Documentation</a></li>
+  <li><a href="https://github.com/pgvector/pgvector" target="_blank" rel="noopener">pgvector</a></li>
+</ul>
+
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/数据库/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/计算机科学/" rel="tag"><i class="fa fa-tag"></i> 计算机科学</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#先按问题分类"><span class="nav-number">1.</span> <span class="nav-text">一、先按问题分类</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#细化决策树"><span class="nav-number">2.</span> <span class="nav-text">二、细化决策树：一步一步选</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#性能吞吐成本矩阵"><span class="nav-number">3.</span> <span class="nav-text">三、性能、吞吐和成本矩阵</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#OLAP怎么细分"><span class="nav-number">4.</span> <span class="nav-text">四、OLAP 再细分：ClickHouse、Doris、Druid 怎么看</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#模型平台场景怎么选"><span class="nav-number">5.</span> <span class="nav-text">五、模型平台场景怎么选</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#成本怎么想"><span class="nav-number">6.</span> <span class="nav-text">六、成本怎么想</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#容易选错的地方"><span class="nav-number">7.</span> <span class="nav-text">七、容易选错的地方</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#最后总结"><span class="nav-number">8.</span> <span class="nav-text">八、最后总结</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-number">9.</span> <span class="nav-text">参考资料</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">262</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

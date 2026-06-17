@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>存储系统选型地图：性能、成本和场景怎么取舍</title>
+    <url>/2026/06/17/%E5%AD%98%E5%82%A8%E7%B3%BB%E7%BB%9F%E9%80%89%E5%9E%8B%E5%9C%B0%E5%9B%BE/</url>
+    <content><![CDATA[存储系统选型应该从访问模式出发，而不是从产品名出发。事件流优先 Kafka/Pulsar；在线事务优先 MySQL/PostgreSQL；极低延迟热点数据看 Redis；海量宽表点查看 HBase/Cassandra；全文检索看 Elasticsearch；复杂 OLAP 看 ClickHouse/Doris/Druid；低成本明细湖看 S3/HDFS 加 Hudi/Iceberg/Delta；向量召回看 pgvector、Milvus、Weaviate 或 Pinecone。文章给出细致决策树，并从延迟、吞吐、成本、更新能力、查询能力和模型平台场景做对比。]]></content>
+      <tags><tag>数据库</tag><tag>架构</tag><tag>计算机科学</tag></tags>
+  </entry>
+  <entry>
     <title>Transformer：大模型为什么能读懂上下文</title>
     <url>/2026/06/17/Transformer%E6%9E%B6%E6%9E%84/</url>
     <content><![CDATA[Transformer 是现代大模型的核心架构：它先把 token 变成向量并加入位置信息，再通过多层 Transformer Block 反复更新每个 token 的上下文表示。Self-Attention 让 token 在规则允许的范围内参考其他位置，Q/K/V 分别对应提问、索引和内容，Mask 决定哪些位置不能看，Multi-Head Attention 让模型从多个视角看关系，FFN 负责逐位置加工，Residual 和 LayerNorm 负责稳定训练。Encoder-only 偏理解，Encoder-Decoder 适合输入到输出的转换，Decoder-only 通过预测下一个 token 支撑 GPT 类大语言模型。理解 Transformer 后，KV Cache、FlashAttention、PagedAttention 等推理优化会更容易理解。]]></content>
