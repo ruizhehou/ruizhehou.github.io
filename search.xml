@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>Transformer：大模型为什么能读懂上下文</title>
+    <url>/2026/06/17/Transformer%E6%9E%B6%E6%9E%84/</url>
+    <content><![CDATA[Transformer 是现代大模型的核心架构：它先把 token 变成向量并加入位置信息，再通过多层 Transformer Block 反复更新每个 token 的上下文表示。Self-Attention 让 token 在规则允许的范围内参考其他位置，Q/K/V 分别对应提问、索引和内容，Mask 决定哪些位置不能看，Multi-Head Attention 让模型从多个视角看关系，FFN 负责逐位置加工，Residual 和 LayerNorm 负责稳定训练。Encoder-only 偏理解，Encoder-Decoder 适合输入到输出的转换，Decoder-only 通过预测下一个 token 支撑 GPT 类大语言模型。理解 Transformer 后，KV Cache、FlashAttention、PagedAttention 等推理优化会更容易理解。]]></content>
+      <tags><tag>架构</tag><tag>工程实践</tag><tag>计算机科学</tag></tags>
+  </entry>
+  <entry>
     <title>KV Cache：大模型推理为什么不用每个字都从头算</title>
     <url>/2026/06/17/KVCache/</url>
     <content><![CDATA[KV Cache 可以理解成大模型推理时做的“读书笔记”：历史 token 在每一层算出的 Key 和 Value 会被记下来，生成下一个 token 时直接翻笔记，不用把前文从头再算一遍。Prefill 像“先把题目读完”，负责处理完整 prompt 并建立初始缓存；Decode 像“一个字一个字往外写”，每次只计算新 token，再用它去读取历史 K/V。KV Cache 减少了重复计算，但没有省掉读取历史缓存，所以长上下文和高并发会带来明显的显存与带宽压力。MHA、MQA、GQA 会影响 KV 头数，也就会影响缓存大小；FlashAttention 优化 Attention 计算过程的 IO，PagedAttention 优化 KV Cache 的内存块管理。]]></content>

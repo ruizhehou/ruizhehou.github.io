@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="Transformer 可以理解成一套让 token 在允许范围内互相参考的架构。它先把文字变成向量，再加入位置信息，经过多层 Self-Attention、前馈网络、残差连接和 LayerNorm，不断重写每个 token 的表示。本文用图解释 Transformer Block、Q/K/V、Mask、Multi-Head Attention、FFN，以及 Encoder、Decoder、Decoder-only 的区别。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Transformer：大模型为什么能读懂上下文">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/17/Transformer%E6%9E%B6%E6%9E%84/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-17T05:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-17T05:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="架构">
+<meta property="article:tag" content="工程实践">
+<meta property="article:tag" content="计算机科学">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/17/Transformer%E6%9E%B6%E6%9E%84/">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>Transformer：大模型为什么能读懂上下文 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-17T13:00:00+08:00" content="2026-06-17">06-17</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">Transformer：大模型为什么能读懂上下文</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<style>
+.tf-note {
+  margin: 18px 0;
+  padding: 14px 16px;
+  border-left: 4px solid #4b7bec;
+  background: rgba(75, 123, 236, 0.08);
+  color: inherit;
+}
+.tf-figure {
+  margin: 28px 0;
+  padding: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+.tf-figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.tf-figure figcaption {
+  margin-top: 10px;
+  color: #888;
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+}
+.tf-formula {
+  margin: 18px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.025);
+  font-family: "FuraCode Nerd Font", Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.8;
+  overflow-x: auto;
+}
+.tf-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.tf-card {
+  padding: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+.tf-card strong {
+  display: block;
+  margin-bottom: 8px;
+}
+body.dark-mode .tf-figure,
+body.dark-mode .tf-card {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #1f232b;
+}
+body.dark-mode .tf-note {
+  background: rgba(91, 141, 239, 0.16);
+}
+body.dark-mode .tf-formula {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+}
+.tf-svg-bg { fill: #ffffff; }
+.tf-svg-panel { fill: #f8fafc; stroke: #d8dee9; }
+.tf-svg-soft { fill: #eef4ff; stroke: #8fb1ff; }
+.tf-svg-warm { fill: #fff3df; stroke: #f0b45f; }
+.tf-svg-green { fill: #e9f8ee; stroke: #71c98a; }
+.tf-svg-red { fill: #fff0f0; stroke: #ee8c8c; }
+.tf-svg-text { fill: #2b2f36; }
+.tf-svg-muted { fill: #737b86; }
+.tf-svg-line { stroke: #7b8494; }
+body.dark-mode .tf-svg-bg { fill: #1f232b; }
+body.dark-mode .tf-svg-panel { fill: #252b35; stroke: #465164; }
+body.dark-mode .tf-svg-soft { fill: #263651; stroke: #6f9dff; }
+body.dark-mode .tf-svg-warm { fill: #3c3020; stroke: #d49b4d; }
+body.dark-mode .tf-svg-green { fill: #20362a; stroke: #67c989; }
+body.dark-mode .tf-svg-red { fill: #3b2528; stroke: #e27d7d; }
+body.dark-mode .tf-svg-text { fill: #e8ecf3; }
+body.dark-mode .tf-svg-muted { fill: #a7afbd; }
+body.dark-mode .tf-svg-line { stroke: #a4adba; }
+@media (max-width: 700px) {
+  .tf-grid { grid-template-columns: 1fr; }
+  .tf-figure { padding: 10px; }
+}
+</style>
+
+<p>如果只用一句话解释 Transformer，我会这样说：</p>
+
+<div class="tf-note">
+  <strong>Transformer 是一套让 token 在允许范围内互相参考的架构。</strong>它不是简单地从左到右把一句话读完，而是把整段文字变成一组向量，让每个位置自己判断“我应该重点看谁”，再一层一层地重写自己的理解。
+</div>
+
+<p>这也是为什么 Transformer 后来会成为大模型的核心架构。它既能并行处理整段文本，又能捕捉很远位置之间的关系。比如一句话前面提到“这家公司”，后面才说“它的收入增长很快”，模型需要知道“它”指的是谁。Transformer 做的，就是不断建立这种上下文关系。只是到了 Decoder-only 生成模型里，它会用 Mask 遮住未来位置，不能提前偷看答案。</p>
+
+<h2 id="Transformer想解决什么问题">一、Transformer 想解决什么问题</h2>
+
+<p>在 Transformer 之前，很多序列模型会按顺序处理文本：先读第一个词，再读第二个词，再读第三个词。这样很符合人的直觉，但机器训练起来不够痛快。</p>
+
+<ul>
+  <li><strong>不容易并行</strong>：后面的计算依赖前面的结果，GPU 很难一次性把整段文字铺开算；</li>
+  <li><strong>长距离关系难抓</strong>：一句话前后隔得很远时，信息要经过很多步传递，容易变弱；</li>
+  <li><strong>上下文混在一起</strong>：模型需要自己记住前面发生过什么，序列越长越难。</li>
+</ul>
+
+<p>Transformer 的思路很直接：既然每个词都可能影响其他词，那就让它们直接互相看。这个机制，就是 Self-Attention。</p>
+
+<h2 id="整体架构">二、整体架构</h2>
+
+<p>Transformer 的主流程可以拆成几步：先把 token 变成向量，再加入位置信息，然后经过很多层 Transformer Block，最后输出每个位置的预测结果。</p>
+
+<figure class="tf-figure">
+<svg viewBox="0 0 920 320" role="img" aria-label="Transformer 整体架构">
+  <rect class="tf-svg-bg" width="920" height="320" rx="12"></rect>
+  <defs>
+    <marker id="tf-arrow1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#7b8494"></path>
+    </marker>
+  </defs>
+  <text x="460" y="30" text-anchor="middle" font-size="18" font-weight="700" class="tf-svg-text">Transformer：从 token 到预测结果</text>
+  <g text-anchor="middle" font-size="13" class="tf-svg-text">
+    <rect x="45" y="125" width="120" height="62" rx="10" class="tf-svg-panel"></rect><text x="105" y="151">输入 token</text><text x="105" y="170" class="tf-svg-muted" font-size="11">我 / 喜欢 / 写</text>
+    <rect x="210" y="105" width="135" height="102" rx="10" class="tf-svg-soft"></rect><text x="277" y="139">Embedding</text><text x="277" y="159" class="tf-svg-muted" font-size="11">文字变向量</text><text x="277" y="179" class="tf-svg-muted" font-size="11">+ 位置编码</text>
+    <rect x="390" y="82" width="150" height="148" rx="12" class="tf-svg-green"></rect><text x="465" y="118" font-weight="700">Transformer Block</text><text x="465" y="143" class="tf-svg-muted" font-size="11">Self-Attention</text><text x="465" y="163" class="tf-svg-muted" font-size="11">FFN</text><text x="465" y="183" class="tf-svg-muted" font-size="11">Add &amp; Norm</text><text x="465" y="207" class="tf-svg-text" font-size="12">重复 N 层</text>
+    <rect x="585" y="105" width="130" height="102" rx="10" class="tf-svg-warm"></rect><text x="650" y="143">输出向量</text><text x="650" y="165" class="tf-svg-muted" font-size="11">每个位置的新理解</text>
+    <rect x="760" y="125" width="120" height="62" rx="10" class="tf-svg-panel"></rect><text x="820" y="151">预测下一个</text><text x="820" y="170" class="tf-svg-muted" font-size="11">token 概率</text>
+  </g>
+  <path d="M170 156 L205 156" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow1)"></path>
+  <path d="M350 156 L385 156" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow1)"></path>
+  <path d="M545 156 L580 156" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow1)"></path>
+  <path d="M720 156 L755 156" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow1)"></path>
+</svg>
+<figcaption>Transformer 的核心不是某一个单独组件，而是“向量表示 + 注意力 + 多层重写”的组合。</figcaption>
+</figure>
+
+<p>这里最容易忽略的是位置编码。Self-Attention 本身只看一堆 token 向量，并不知道谁在前谁在后。所以模型必须额外拿到位置信息，否则“我喜欢你”和“你喜欢我”在结构上就太像了。</p>
+
+<h2 id="Self-Attention">三、Self-Attention：每个 token 都在找参考对象</h2>
+
+<p>Self-Attention 可以理解成一句话内部的“互相参考”。每个 token 都会问：我理解自己时，应该参考哪些别的 token？参考多少？</p>
+
+<p>比如“苹果发布了新芯片，它性能很强”这句话里，“它”需要参考前面的“新芯片”，而不是“苹果”这个公司。Attention 的作用，就是给不同 token 分配不同权重。</p>
+
+<figure class="tf-figure">
+<svg viewBox="0 0 920 310" role="img" aria-label="Self-Attention 中 token 之间互相参考">
+  <rect class="tf-svg-bg" width="920" height="310" rx="12"></rect>
+  <text x="460" y="30" text-anchor="middle" font-size="18" font-weight="700" class="tf-svg-text">Self-Attention：每个 token 都在选择参考对象</text>
+  <g text-anchor="middle" font-size="13" class="tf-svg-text">
+    <rect x="85" y="88" width="86" height="40" rx="8" class="tf-svg-panel"></rect><text x="128" y="113">苹果</text>
+    <rect x="205" y="88" width="86" height="40" rx="8" class="tf-svg-panel"></rect><text x="248" y="113">发布</text>
+    <rect x="325" y="88" width="86" height="40" rx="8" class="tf-svg-green"></rect><text x="368" y="113">芯片</text>
+    <rect x="445" y="88" width="86" height="40" rx="8" class="tf-svg-warm"></rect><text x="488" y="113">它</text>
+    <rect x="565" y="88" width="86" height="40" rx="8" class="tf-svg-panel"></rect><text x="608" y="113">性能</text>
+    <rect x="685" y="88" width="86" height="40" rx="8" class="tf-svg-panel"></rect><text x="728" y="113">很强</text>
+  </g>
+  <path d="M488 135 C470 190 410 198 368 135" fill="none" stroke="#f0b45f" stroke-width="5" opacity="0.95"></path>
+  <path d="M488 135 C520 175 575 175 608 135" fill="none" stroke="#8fb1ff" stroke-width="3" opacity="0.75"></path>
+  <path d="M488 135 C430 225 165 225 128 135" fill="none" stroke="#7b8494" stroke-width="2" opacity="0.45"></path>
+  <text x="460" y="235" text-anchor="middle" font-size="14" class="tf-svg-text">“它”会更强地关注“芯片”，弱一些关注其他 token</text>
+  <text x="460" y="258" text-anchor="middle" font-size="12" class="tf-svg-muted">注意力权重不是手写规则，而是模型训练出来的</text>
+</svg>
+<figcaption>Self-Attention 让每个位置都能直接参考其他位置，所以长距离关系不用一步步传递。</figcaption>
+</figure>
+
+<p>严格说，“能参考谁”还要看模型类型。Encoder 做理解任务时，通常可以双向看完整输入；Decoder 做生成任务时，通常只能看自己和前文，未来 token 会被 Mask 挡住。这个差别很重要，因为大语言模型生成答案时，本质上是在一步一步预测下一个 token。</p>
+
+<h2 id="QKV">四、Q/K/V：提问、索引和内容</h2>
+
+<p>Self-Attention 里面最常见的三个字母是 Q、K、V。它们一开始看起来像玄学，其实可以先用资料检索来理解。</p>
+
+<ul>
+  <li><strong>Query（Q）</strong>：当前 token 发出的提问，“我想找什么信息”；</li>
+  <li><strong>Key（K）</strong>：每个 token 提供的索引，“我这里有什么信息”；</li>
+  <li><strong>Value（V）</strong>：真正被取走的内容，“匹配以后拿什么走”。</li>
+</ul>
+
+<div class="tf-formula">
+Attention(Q, K, V) = softmax(QK^T / sqrt(d_k)) V
+</div>
+
+<p>这行公式先不用怕。它做的事情就是：用 Q 和 K 算相似度，得到一组权重，再用这组权重去加权读取 V。换成人话：先查目录，再取内容。</p>
+
+<figure class="tf-figure">
+<svg viewBox="0 0 920 330" role="img" aria-label="Q K V 的含义">
+  <rect class="tf-svg-bg" width="920" height="330" rx="12"></rect>
+  <defs>
+    <marker id="tf-arrow2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#7b8494"></path>
+    </marker>
+  </defs>
+  <text x="460" y="30" text-anchor="middle" font-size="18" font-weight="700" class="tf-svg-text">Q/K/V：先匹配，再读取</text>
+  <rect x="70" y="120" width="130" height="62" rx="10" class="tf-svg-warm"></rect>
+  <text x="135" y="146" text-anchor="middle" font-size="14" class="tf-svg-text">Query</text>
+  <text x="135" y="166" text-anchor="middle" font-size="12" class="tf-svg-muted">我想找什么</text>
+  <rect x="280" y="82" width="150" height="62" rx="10" class="tf-svg-soft"></rect>
+  <text x="355" y="108" text-anchor="middle" font-size="14" class="tf-svg-text">Keys</text>
+  <text x="355" y="128" text-anchor="middle" font-size="12" class="tf-svg-muted">每段内容的索引</text>
+  <rect x="280" y="190" width="150" height="62" rx="10" class="tf-svg-green"></rect>
+  <text x="355" y="216" text-anchor="middle" font-size="14" class="tf-svg-text">Values</text>
+  <text x="355" y="236" text-anchor="middle" font-size="12" class="tf-svg-muted">真正拿走的信息</text>
+  <rect x="520" y="120" width="140" height="62" rx="10" class="tf-svg-panel"></rect>
+  <text x="590" y="146" text-anchor="middle" font-size="14" class="tf-svg-text">注意力权重</text>
+  <text x="590" y="166" text-anchor="middle" font-size="12" class="tf-svg-muted">该看谁，看多少</text>
+  <rect x="735" y="120" width="120" height="62" rx="10" class="tf-svg-soft"></rect>
+  <text x="795" y="146" text-anchor="middle" font-size="14" class="tf-svg-text">新表示</text>
+  <text x="795" y="166" text-anchor="middle" font-size="12" class="tf-svg-muted">融合上下文</text>
+  <path d="M205 151 L275 113" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow2)"></path>
+  <path d="M435 113 L515 151" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow2)"></path>
+  <path d="M435 221 L515 163" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow2)"></path>
+  <path d="M665 151 L730 151" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow2)"></path>
+</svg>
+<figcaption>Q 和 K 决定“看谁”，V 决定“拿到什么信息”。</figcaption>
+</figure>
+
+<h2 id="Mask">五、Mask：为什么 Decoder 不能偷看答案</h2>
+
+<p>Attention 的公式本身并不知道“未来”这个概念。如果不加限制，训练生成模型时，第 3 个 token 可能会直接看到第 4 个 token，那就像考试时把答案纸也发下来了，训练指标会好看，但模型学到的不是正常生成能力。</p>
+
+<p>所以 Decoder 里会加入 causal mask，也叫因果遮罩。它的规则很简单：当前位置只能看自己和前面的 token，不能看后面的 token。</p>
+
+<ul>
+  <li><strong>Encoder Attention</strong>：通常双向看，适合理解完整输入；</li>
+  <li><strong>Decoder Self-Attention</strong>：用因果 Mask，只看过去和当前位置；</li>
+  <li><strong>Encoder-Decoder Attention</strong>：Decoder 生成时，还可以去看 Encoder 读完的输入。</li>
+</ul>
+
+<p>理解 Mask 之后，再看 GPT 类模型会更清楚：它不是一次性把整段答案吐出来，而是每次根据已有上下文预测下一个 token。</p>
+
+<h2 id="Multi-Head-Attention">六、Multi-Head Attention：为什么要多个头</h2>
+
+<p>一句话里的关系往往不止一种。一个 token 可能既要关注语法关系，也要关注指代关系，还要关注语义相似性。只用一个注意力视角，容易把这些关系揉在一起。</p>
+
+<p>Multi-Head Attention 的做法是：让多个注意力头并行工作，每个头都可以学一种不同的关注方式，最后再把结果拼起来。</p>
+
+<div class="tf-grid">
+  <div class="tf-card"><strong>头 1</strong>可能更关注主谓宾、修饰关系这类语法线索。</div>
+  <div class="tf-card"><strong>头 2</strong>可能更关注“它、这个、那个”指向谁。</div>
+  <div class="tf-card"><strong>头 3</strong>可能更关注语义相近或主题相关的 token。</div>
+</div>
+
+<p>当然，这只是帮助理解的说法。真实模型里的每个 head 不一定能被清晰命名，但“多个视角同时看上下文”这个直觉是对的。</p>
+
+<h2 id="Transformer-Block">七、Transformer Block 里有什么</h2>
+
+<p>一个 Transformer Block 通常由两大块组成：Self-Attention 和 FFN。前者负责“和上下文交流”，后者负责“自己再加工一遍”。中间还会配 Residual 和 LayerNorm，让训练更稳定。</p>
+
+<figure class="tf-figure">
+<svg viewBox="0 0 920 340" role="img" aria-label="Transformer Block 结构">
+  <rect class="tf-svg-bg" width="920" height="340" rx="12"></rect>
+  <defs>
+    <marker id="tf-arrow3" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#7b8494"></path>
+    </marker>
+  </defs>
+  <text x="460" y="30" text-anchor="middle" font-size="18" font-weight="700" class="tf-svg-text">一个 Transformer Block：先交流，再加工</text>
+  <g text-anchor="middle" font-size="13" class="tf-svg-text">
+    <rect x="70" y="140" width="110" height="52" rx="8" class="tf-svg-panel"></rect><text x="125" y="171">输入表示</text>
+    <rect x="235" y="105" width="145" height="52" rx="8" class="tf-svg-soft"></rect><text x="307" y="136">Self-Attention</text>
+    <rect x="235" y="197" width="145" height="42" rx="8" class="tf-svg-green"></rect><text x="307" y="223">Add &amp; Norm</text>
+    <rect x="455" y="105" width="145" height="52" rx="8" class="tf-svg-warm"></rect><text x="527" y="136">FFN</text>
+    <rect x="455" y="197" width="145" height="42" rx="8" class="tf-svg-green"></rect><text x="527" y="223">Add &amp; Norm</text>
+    <rect x="675" y="140" width="120" height="52" rx="8" class="tf-svg-panel"></rect><text x="735" y="171">输出表示</text>
+  </g>
+  <path d="M185 166 L230 131" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow3)"></path>
+  <path d="M307 160 L307 192" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow3)"></path>
+  <path d="M385 218 L450 131" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow3)"></path>
+  <path d="M527 160 L527 192" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow3)"></path>
+  <path d="M605 218 L670 166" fill="none" class="tf-svg-line" stroke-width="2" marker-end="url(#tf-arrow3)"></path>
+  <path d="M185 166 C220 265 350 265 450 218" fill="none" stroke="#8fb1ff" stroke-width="2" stroke-dasharray="6 6" opacity="0.85"></path>
+  <path d="M385 218 C430 285 560 285 670 166" fill="none" stroke="#8fb1ff" stroke-width="2" stroke-dasharray="6 6" opacity="0.85"></path>
+  <text x="460" y="288" text-anchor="middle" font-size="12" class="tf-svg-muted">虚线表示残差连接：原始信息可以绕过复杂变换，直接加回去</text>
+</svg>
+<figcaption>Attention 负责跨 token 交流，FFN 负责每个 token 内部加工，残差和归一化负责稳定训练。</figcaption>
+</figure>
+
+<h2 id="FFN">八、FFN：每个 token 自己再思考一遍</h2>
+
+<p>Attention 之后，每个 token 已经融合了上下文信息。但融合完还不够，它还需要在自己的位置上做一轮非线性加工，这就是 FFN（Feed Forward Network）。</p>
+
+<p>FFN 可以理解成一个“逐位置的小 MLP”：每个 token 都用同一套参数加工，但不同 token 之间不直接交流。交流已经在 Attention 里完成了，FFN 负责把信息消化成更有用的表示。</p>
+
+<div class="tf-formula">
+FFN(x) = Linear2(Activation(Linear1(x)))
+</div>
+
+<p>很多大模型的参数，其实大量都在 FFN 里。Attention 很显眼，但 FFN 也很吃参数、很吃算力。</p>
+
+<h2 id="Residual-LayerNorm">九、Residual 和 LayerNorm：让深层网络稳住</h2>
+
+<p>Transformer 往往不是一两层，而是几十层甚至上百层。层数一深，训练就容易不稳定：信息可能越传越乱，梯度也可能变得不好优化。</p>
+
+<ul>
+  <li><strong>Residual（残差连接）</strong>：把输入直接加到输出上，让原始信息有一条“高速通道”；</li>
+  <li><strong>LayerNorm</strong>：把每一层的数值范围整理一下，避免激活值忽大忽小。</li>
+</ul>
+
+<p>可以把它们理解成 Transformer 的稳定器。Attention 和 FFN 负责变聪明，Residual 和 LayerNorm 负责别把自己练崩。</p>
+
+<h2 id="Encoder-Decoder-DecoderOnly">十、Encoder、Decoder、Decoder-only 有什么区别</h2>
+
+<p>原版 Transformer 是 Encoder-Decoder 架构，常用于机器翻译：Encoder 读输入句子，Decoder 生成输出句子。但后来不同任务里，大家会取其中一部分来用。</p>
+
+<figure class="tf-figure">
+<svg viewBox="0 0 920 330" role="img" aria-label="Encoder Decoder Decoder-only 对比">
+  <rect class="tf-svg-bg" width="920" height="330" rx="12"></rect>
+  <text x="460" y="30" text-anchor="middle" font-size="18" font-weight="700" class="tf-svg-text">三种常见 Transformer 用法</text>
+  <g text-anchor="middle" font-size="13" class="tf-svg-text">
+    <rect x="55" y="75" width="245" height="190" rx="12" class="tf-svg-soft"></rect>
+    <text x="177" y="110" font-weight="700">Encoder-only</text>
+    <text x="177" y="138" class="tf-svg-muted" font-size="12">代表：BERT</text>
+    <rect x="100" y="165" width="155" height="42" rx="8" class="tf-svg-panel"></rect><text x="177" y="191">理解输入</text>
+    <text x="177" y="235" class="tf-svg-muted" font-size="12">适合分类、抽取、理解</text>
+
+    <rect x="337" y="75" width="245" height="190" rx="12" class="tf-svg-green"></rect>
+    <text x="459" y="110" font-weight="700">Encoder-Decoder</text>
+    <text x="459" y="138" class="tf-svg-muted" font-size="12">代表：原版 Transformer / T5</text>
+    <rect x="365" y="165" width="80" height="42" rx="8" class="tf-svg-panel"></rect><text x="405" y="191">读输入</text>
+    <rect x="475" y="165" width="80" height="42" rx="8" class="tf-svg-panel"></rect><text x="515" y="191">写输出</text>
+    <text x="459" y="235" class="tf-svg-muted" font-size="12">适合翻译、摘要、生成</text>
+
+    <rect x="619" y="75" width="245" height="190" rx="12" class="tf-svg-warm"></rect>
+    <text x="741" y="110" font-weight="700">Decoder-only</text>
+    <text x="741" y="138" class="tf-svg-muted" font-size="12">代表：GPT / LLaMA</text>
+    <rect x="664" y="165" width="155" height="42" rx="8" class="tf-svg-panel"></rect><text x="741" y="191">预测下一个 token</text>
+    <text x="741" y="235" class="tf-svg-muted" font-size="12">适合大语言模型对话</text>
+  </g>
+</svg>
+<figcaption>今天我们说的大语言模型，大多是 Decoder-only Transformer。</figcaption>
+</figure>
+
+<div class="tf-grid">
+  <div class="tf-card"><strong>Encoder-only</strong>双向看上下文，更偏理解任务。比如判断一句话情感、抽取实体、做文本匹配。</div>
+  <div class="tf-card"><strong>Encoder-Decoder</strong>一边读输入，一边生成输出。很适合“把 A 转成 B”的任务，比如翻译和摘要。</div>
+  <div class="tf-card"><strong>Decoder-only</strong>只做一件事：根据前文预测下一个 token。GPT 系列和很多现代 LLM 都属于这一类。</div>
+</div>
+
+<h2 id="优点和代价">十一、Transformer 的优点和代价</h2>
+
+<p>Transformer 能成为主流，不是因为它完美，而是它特别适合大规模训练。</p>
+
+<ul>
+  <li><strong>优点一：并行友好</strong>。训练时可以同时处理一整段序列，比逐步递归更适合 GPU；</li>
+  <li><strong>优点二：长距离关系更直接</strong>。任意两个 token 可以通过 Attention 直接建立联系；</li>
+  <li><strong>优点三：扩展性好</strong>。层数、宽度、数据、算力都能比较自然地放大。</li>
+</ul>
+
+<p>代价也很明显：标准 Attention 会让序列长度带来很高的计算和显存压力。长度从 1K 到 2K，不只是多一倍那么简单，很多 Attention 计算会接近平方增长。这也是为什么后来会出现 FlashAttention、稀疏注意力、滑动窗口注意力、KV Cache、PagedAttention 等一堆优化。</p>
+
+<h2 id="和KVCacheFlashAttention的关系">十二、和 KV Cache、FlashAttention 的关系</h2>
+
+<p>把 Transformer 主结构看懂以后，很多推理优化就更容易理解了。</p>
+
+<ul>
+  <li><strong>KV Cache</strong>：来自 Attention 里的 K/V。生成新 token 时，历史 token 的 K/V 不变，所以可以缓存复用；</li>
+  <li><strong>FlashAttention</strong>：还是在算 Attention，但通过分块和在线 Softmax 减少显存读写；</li>
+  <li><strong>PagedAttention</strong>：不改变 Transformer 数学，主要是把 KV Cache 管得更省显存、更适合高并发。</li>
+</ul>
+
+<p>所以 Transformer 是地基，KV Cache 和 FlashAttention 更像是围绕这个地基做出来的工程优化。先理解主结构，再看这些优化，会顺很多。</p>
+
+<h2 id="最后总结">十三、最后总结</h2>
+
+<p>Transformer 的核心直觉其实很朴素：一句话里的每个 token，都应该有机会参考其他 token，然后不断更新自己对上下文的理解。</p>
+
+<p>Embedding 把文字变成向量，位置编码告诉模型顺序，Self-Attention 让 token 在规则允许的范围内互相参考，Mask 决定哪些位置不能看，Multi-Head Attention 让模型从多个视角看关系，FFN 负责逐位置加工，Residual 和 LayerNorm 负责稳定训练。很多大模型看起来很神秘，但底层依然是在反复堆叠这样的 Transformer Block。</p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<ul>
+  <li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Attention Is All You Need</a></li>
+  <li><a href="https://arxiv.org/abs/1810.04805" target="_blank" rel="noopener">BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding</a></li>
+  <li><a href="https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf" target="_blank" rel="noopener">Improving Language Understanding by Generative Pre-Training</a></li>
+  <li><a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener">Language Models are Few-Shot Learners</a></li>
+</ul>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/架构/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+          <a href="/tags/工程实践/" rel="tag"><i class="fa fa-tag"></i> 工程实践</a>
+          <a href="/tags/计算机科学/" rel="tag"><i class="fa fa-tag"></i> 计算机科学</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Transformer想解决什么问题"><span class="nav-number">1.</span> <span class="nav-text">一、Transformer 想解决什么问题</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#整体架构"><span class="nav-number">2.</span> <span class="nav-text">二、整体架构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Self-Attention"><span class="nav-number">3.</span> <span class="nav-text">三、Self-Attention：每个 token 都在找参考对象</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#QKV"><span class="nav-number">4.</span> <span class="nav-text">四、Q/K/V：提问、索引和内容</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Mask"><span class="nav-number">5.</span> <span class="nav-text">五、Mask：为什么 Decoder 不能偷看答案</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Multi-Head-Attention"><span class="nav-number">6.</span> <span class="nav-text">六、Multi-Head Attention：为什么要多个头</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Transformer-Block"><span class="nav-number">7.</span> <span class="nav-text">七、Transformer Block 里有什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#FFN"><span class="nav-number">8.</span> <span class="nav-text">八、FFN：每个 token 自己再思考一遍</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Residual-LayerNorm"><span class="nav-number">9.</span> <span class="nav-text">九、Residual 和 LayerNorm：让深层网络稳住</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#Encoder-Decoder-DecoderOnly"><span class="nav-number">10.</span> <span class="nav-text">十、Encoder、Decoder、Decoder-only 有什么区别</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#优点和代价"><span class="nav-number">11.</span> <span class="nav-text">十一、Transformer 的优点和代价</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#和KVCacheFlashAttention的关系"><span class="nav-number">12.</span> <span class="nav-text">十二、和 KV Cache、FlashAttention 的关系</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#最后总结"><span class="nav-number">13.</span> <span class="nav-text">十三、最后总结</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-number">14.</span> <span class="nav-text">参考资料</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">261</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
