@@ -317,7 +317,7 @@ body.dark-mode .sidebar-nav {
 
 body.dark-mode .sidebar-nav-toc,
 body.dark-mode .sidebar-nav-overview {
-  color: #999;
+  color: #aaa;
 }
 
 body.dark-mode .sidebar-nav-active {
@@ -331,23 +331,29 @@ body.dark-mode .post-toc {
 }
 
 body.dark-mode .post-toc .nav-link {
-  color: #b0b0b0;
+  border-bottom: 0;
+  color: #b8b8b8;
 }
 
 body.dark-mode .post-toc .nav-link:hover {
+  background: #262626;
+  border-bottom: 0;
   color: #fc6423;
 }
 
+body.dark-mode .post-toc .nav .active > a,
+body.dark-mode .post-toc .nav .active-current > a,
 body.dark-mode .post-toc .nav-link.active {
+  background: rgba(252,100,35,0.14);
   color: #fc6423;
 }
 
 body.dark-mode .post-toc .nav-number {
-  color: #666;
+  color: #777;
 }
 
 body.dark-mode .post-toc .nav-text {
-  color: #d0d0d0;
+  color: inherit;
 }
 
 /* 标签深色模式 */
