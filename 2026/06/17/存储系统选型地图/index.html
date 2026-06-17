@@ -465,7 +465,19 @@ body.dark-mode .storage-svg-line { stroke: #a4adba; }
 
 <h2 id="性能吞吐成本矩阵">三、性能、吞吐和成本矩阵</h2>
 
-<p>下面的表不要当成 benchmark。它表达的是工程选型里的“倾向”：什么系统更容易拿到低延迟，什么系统更容易摊薄成本，什么系统更适合高吞吐写入。</p>
+<p>这一节不要再只看“快、慢、贵、便宜”。选型时至少要能先算一笔账：同样是 1 TiB 数据，放在对象存储、SSD 集群、Redis、Kafka、向量库里，成本可能差两个到三个数量级。</p>
+
+<p>先把口径说清楚，避免数字看起来很精确，其实没法落地：</p>
+
+<ul>
+  <li><strong>容量口径</strong>：按 1 TiB 逻辑数据估算，1 TiB 约等于 1024 GB；云价以 AWS us-east-1 公开 On-Demand 价格做示例。</li>
+  <li><strong>时间口径</strong>：按 730 小时/月估算。美元价格只是统一量尺，不代表必须使用 AWS。</li>
+  <li><strong>副本口径</strong>：在线服务通常至少 1 主 1 副本；HDFS、Kafka、Cassandra 这类系统常见 RF=3；列存和湖仓要先看压缩率。</li>
+  <li><strong>未计入项</strong>：跨 AZ/跨地域流量、请求费、快照、备份、监控、运维人力、预留实例折扣、峰值冗余都没有算进去。</li>
+  <li><strong>性能口径</strong>：下面是公开 benchmark、官方文档和常见工程容量规划量级，不是 SLA。真正上线前仍然要用自己的数据和查询压测。</li>
+</ul>
+
+<h3 id="性能吞吐量级">1. 性能和吞吐的量级</h3>
 
 <div class="storage-table-wrap">
 <table class="storage-table">
@@ -473,94 +485,177 @@ body.dark-mode .storage-svg-line { stroke: #a4adba; }
     <tr>
       <th>类型</th>
       <th>代表系统</th>
-      <th>延迟倾向</th>
-      <th>吞吐倾向</th>
-      <th>成本倾向</th>
-      <th>最适合</th>
-      <th>不适合</th>
+      <th>典型延迟量级</th>
+      <th>吞吐量级</th>
+      <th>容量/索引放大</th>
+      <th>读数字时要注意</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td>内存 KV / 缓存</td>
       <td>Redis</td>
-      <td>最低，通常追求毫秒内</td>
-      <td>读写都强，但受内存和网络约束</td>
-      <td>高，内存是贵资源</td>
-      <td>热点数据、缓存、在线特征、限流、会话</td>
-      <td>长期明细、低价值大数据量、复杂分析</td>
+      <td>P50 常见 0.2-1 ms，P99 常见 1-5 ms；跨机房或大 value 会变差</td>
+      <td>官方 redis-benchmark 示例中，pipeline=16 时 SET 约 153 万 req/s，GET 约 181 万 req/s；生产容量规划通常先按单实例 10 万 req/s 量级保守估</td>
+      <td>内存对象本身 + jemalloc 碎片 + 副本 + 持久化；通常按 2-3 倍逻辑容量预留</td>
+      <td>Redis 的快来自内存和简单命令；Lua、大 key、热 key、AOF fsync 都会拉低尾延迟。</td>
     </tr>
     <tr>
       <td>关系型数据库</td>
       <td>MySQL / PostgreSQL</td>
-      <td>毫秒级常见</td>
-      <td>事务写入强，水平扩展要设计</td>
-      <td>中等，生态成熟</td>
-      <td>订单、账户、配置、强一致业务状态</td>
-      <td>海量扫描、日志分析、百亿级聚合</td>
+      <td>主键/唯一索引点查常见 1-10 ms；复杂 Join、锁等待、慢 SQL 可到 100 ms 以上</td>
+      <td>单主库常见规划起点：5k-50k QPS 或 1k-10k TPS；强依赖 CPU、索引命中率、事务大小、磁盘 fsync</td>
+      <td>索引、binlog/WAL、undo、备库、备份后常见 2-4 倍逻辑容量</td>
+      <td>它强在事务和一致性，不强在百亿行扫描。读写混合时，锁和 buffer pool 命中率比“裸 QPS”更重要。</td>
     </tr>
     <tr>
       <td>宽表 / 分布式 KV</td>
       <td>HBase / Cassandra</td>
-      <td>毫秒到几十毫秒</td>
-      <td>高写入、高容量、水平扩展</td>
-      <td>中到高，依赖集群规模</td>
-      <td>用户维表、在线特征、海量 key 查询</td>
-      <td>复杂 Join、临时 SQL、多维聚合</td>
+      <td>按 row key 点查/写入常见 P99 5-30 ms；跨分区、宽行、压缩抖动会更高</td>
+      <td>按节点水平扩展；中等规模集群常见是数万到数十万 ops/s 量级</td>
+      <td>RF=3 时先变 3 倍；LSM compaction、WAL、block cache 还会带来 1.3-2 倍写放大/空间放大</td>
+      <td>key 设计决定上限。热点分区会让“集群总容量很大”变成“某几台机器被打爆”。</td>
     </tr>
     <tr>
       <td>搜索引擎</td>
       <td>Elasticsearch / OpenSearch</td>
-      <td>搜索通常毫秒到秒级</td>
-      <td>写入强，但索引和副本成本高</td>
-      <td>偏高，索引膨胀明显</td>
-      <td>全文检索、日志检索、相关性排序</td>
-      <td>强事务、低成本冷数据、超复杂 OLAP</td>
+      <td>关键词检索/过滤常见 50-500 ms；高基数字段聚合、深分页可能到秒级</td>
+      <td>中等集群常见 5k-50k docs/s 写入量级；文档大小、分词、refresh_interval、replica 数影响很大</td>
+      <td>倒排索引、doc_values、stored fields、replica 后，常见 2-5 倍逻辑容量</td>
+      <td>它是搜索系统，不是最低成本 OLAP。字段全开索引很爽，账单也会很爽。</td>
     </tr>
     <tr>
       <td>实时 OLAP</td>
       <td>ClickHouse / Doris / Druid</td>
-      <td>聚合查询可做到亚秒到秒级</td>
-      <td>批量/流式导入强，查询吞吐强</td>
-      <td>中等，列存压缩好，但计算资源要够</td>
-      <td>报表、画像、标签圈选、日志聚合、Ad-hoc 分析</td>
-      <td>强事务、频繁单行更新、复杂小事务</td>
+      <td>过滤聚合常见 100 ms-5 s；命中分区、预聚合、物化视图时可亚秒</td>
+      <td>单节点扫描常见 GB/s 量级；集群批量导入可到 100 MB/s-GB/s 量级</td>
+      <td>列存压缩常见 5-10 倍；ClickBench 100M 行数据中 ClickHouse 约 9.26 GiB，PostgreSQL 约 100 GiB</td>
+      <td>OLAP 的成本优势来自列裁剪、压缩和批量扫描；频繁小更新和强事务不是它的舒适区。</td>
     </tr>
     <tr>
       <td>对象存储 / 分布式文件</td>
       <td>S3 / OSS / HDFS</td>
-      <td>低延迟点查不是强项</td>
-      <td>顺序读写和批处理吞吐强</td>
-      <td>最低，适合大规模长期保存</td>
-      <td>原始日志、训练样本、数据湖、备份归档</td>
-      <td>在线毫秒级查询、频繁小文件更新</td>
+      <td>S3 单请求常见 10-100 ms 量级；HDFS 顺序读写延迟低一些，但也不是在线点查数据库</td>
+      <td>S3 官方口径：每个 prefix 至少 3500 PUT/COPY/POST/DELETE req/s，5500 GET/HEAD req/s；多 prefix 可继续横向扩</td>
+      <td>S3 本身按对象计费；HDFS 默认 3 副本就是 3 倍，纠删码可降到约 1.5 倍左右</td>
+      <td>适合吞吐型读写和长期保存，不适合大量小文件随机更新。</td>
     </tr>
     <tr>
       <td>湖仓表格式</td>
       <td>Hudi / Iceberg / Delta</td>
-      <td>取决于计算引擎</td>
-      <td>批处理强，增量能力因格式而异</td>
-      <td>低存储成本，计算按需扩展</td>
-      <td>离线明细、增量入湖、训练回溯、跨引擎共享</td>
-      <td>直接承接在线低延迟请求</td>
+      <td>查询通常是秒到分钟级，取决于 Spark、Trino、Doris、Presto 等计算引擎</td>
+      <td>批量写入可到 100 MB/s-GB/s 量级；小文件、metadata、compaction 会影响稳定性</td>
+      <td>Parquet/ORC 压缩常见 2-10 倍；快照、delete files、metadata 额外增加 5%-30%</td>
+      <td>Hudi/Iceberg/Delta 是表管理格式，不是查询引擎本身。查询慢时别只怪表格式。</td>
     </tr>
     <tr>
       <td>事件流</td>
       <td>Kafka / Pulsar</td>
-      <td>端到端通常追求低延迟流转</td>
-      <td>高吞吐追加写和订阅消费</td>
-      <td>中等，成本来自磁盘、副本、保留周期</td>
-      <td>事件总线、削峰、CDC、流式计算入口</td>
-      <td>最终查询库、复杂历史分析</td>
+      <td>健康集群端到端常见毫秒到几十毫秒；Confluent benchmark 在 200 MB/s 负载下 p99 约 5 ms</td>
+      <td>Confluent benchmark 峰值吞吐 605 MB/s；生产吞吐主要受分区数、batch、acks、磁盘和网络限制</td>
+      <td>成本 = 保留数据量 &times; RF；RF=3 时，1 TiB 保留数据至少占 3 TiB 磁盘</td>
+      <td>Kafka 很适合追加写和回放，不适合当通用查询数据库。</td>
+    </tr>
+    <tr>
+      <td>时序监控</td>
+      <td>Prometheus / InfluxDB / VictoriaMetrics</td>
+      <td>近期指标查询常见 10 ms-秒级；高基数、长时间范围查询会明显变慢</td>
+      <td>单 Prometheus 常按 10 万-100 万 samples/s 量级做规划，超过后通常分片或上 remote storage</td>
+      <td>Prometheus 官方估算：保留秒数 &times; samples/s &times; 1-2 bytes/sample</td>
+      <td>时序库的核心敌人是高基数标签。一个 user_id 标签就可能把容量和查询打穿。</td>
     </tr>
     <tr>
       <td>向量数据库</td>
       <td>Milvus / Weaviate / Pinecone / pgvector</td>
-      <td>取决于索引、维度、召回率</td>
-      <td>读多写少更常见，增量写需评估</td>
-      <td>中到高，索引和内存成本明显</td>
-      <td>RAG、语义检索、相似推荐、多模态召回</td>
-      <td>强事务主库、通用报表、精确关系查询</td>
+      <td>ANN topK 查询常见 10-200 ms；过滤条件复杂、召回率要求高会更慢</td>
+      <td>查询吞吐取决于维度、索引类型、topK、过滤条件；写入通常比普通 KV 更重</td>
+      <td>原始向量 = N &times; dim &times; bytes；HNSW/IVF 等索引通常再带来 1-3 倍开销</td>
+      <td>100M 条 768 维 FP32 向量，光原始向量就约 286 GiB；1B 条就是约 2.86 TiB，还没算索引和副本。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="一TiB成本账本">2. 1 TiB 成本账本</h3>
+
+<p>下面这张表更适合做“第一版架构预算”。重点不是精确到个位数美元，而是看数量级：对象存储是几十美元，SSD 三副本是几百美元，Redis 内存化可能直接上万美元。</p>
+
+<div class="storage-table-wrap">
+<table class="storage-table">
+  <thead>
+    <tr>
+      <th>系统/介质</th>
+      <th>计算口径</th>
+      <th>1 TiB 月成本示例</th>
+      <th>为什么会变贵</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>S3 Standard 对象存储</td>
+      <td>$0.023/GB-month &times; 1024 GB</td>
+      <td>约 $23.55/月；如果 1 TiB 原始日志压成 0.2-0.5 TiB，则约 $4.71-$11.78/月</td>
+      <td>请求费、跨区域流量、生命周期、S3 Tables/compaction、频繁扫描的计算费用。</td>
+    </tr>
+    <tr>
+      <td>EBS gp3 / 通用 SSD</td>
+      <td>$0.08/GB-month &times; 1024 GB</td>
+      <td>约 $81.92/月；gp3 基线含 3000 IOPS 和 125 MiB/s</td>
+      <td>额外 IOPS、额外吞吐、多副本、快照、空闲预留容量。</td>
+    </tr>
+    <tr>
+      <td>Redis 托管内存</td>
+      <td>ElastiCache Redis cache.r7g.xlarge：26.32 GiB，$0.437/h，折算约 $12.1/GiB-month</td>
+      <td>1 TiB 逻辑数据，按主副本 2 份 + 30% headroom：1024 &times; 2 &times; 1.3 &times; $12.1，约 $32,000/月</td>
+      <td>内存单价高，且还要为副本、碎片、持久化、热备和扩容 buffer 付钱。</td>
+    </tr>
+    <tr>
+      <td>MySQL / PostgreSQL</td>
+      <td>1 TiB 主库 + 备库 + 索引/WAL/binlog，常见 2-4 TiB 物理占用</td>
+      <td>仅按 gp3 存储约 $164-$328/月；数据库计算节点通常另加数百到数千美元/月</td>
+      <td>二级索引、事务日志、备份保留、读副本、主备高可用、峰值 CPU。</td>
+    </tr>
+    <tr>
+      <td>HBase / Cassandra</td>
+      <td>RF=3，再乘 LSM/compaction 空间放大 1.3-2 倍，约 4-6 TiB 磁盘</td>
+      <td>仅按 gp3 存储约 $328-$492/月；还要加多台节点计算成本</td>
+      <td>副本、compaction 临时空间、WAL、block cache、热点分区冗余。</td>
+    </tr>
+    <tr>
+      <td>Elasticsearch / OpenSearch</td>
+      <td>倒排索引 + doc_values + 1 副本，常见 2.4-5 TiB 物理占用</td>
+      <td>仅按 gp3 存储约 $197-$410/月；实际常因内存和 CPU 节点变成更高</td>
+      <td>字段全量索引、分词、深分页、聚合、refresh、replica、热温冷分层。</td>
+    </tr>
+    <tr>
+      <td>ClickHouse / Doris / Druid</td>
+      <td>列存压缩 5-10 倍，2 副本后约 0.2-0.4 TiB；保守按 0.4-1.0 TiB 看</td>
+      <td>仅按 gp3 存储约 $33-$82/月；真正成本常在计算节点和导入/compaction</td>
+      <td>高并发查询、物化视图、冷热分层、导入峰值、SSD/NVMe、本地副本。</td>
+    </tr>
+    <tr>
+      <td>Hudi / Iceberg / Delta on S3</td>
+      <td>1 TiB 原始明细压成 0.2-0.5 TiB，metadata/snapshot/delete files 再加 5%-30%</td>
+      <td>对象存储约 $5-$15/月；查询时 Spark/Trino/Doris 的计算费用另算</td>
+      <td>小文件、快照保留、compaction、delete files、元数据膨胀、全表扫描。</td>
+    </tr>
+    <tr>
+      <td>Kafka / Pulsar</td>
+      <td>保留量 = 写入速率 &times; 保留时间 &times; RF；1 TiB 保留数据 RF=3 就是 3 TiB</td>
+      <td>1 TiB 保留数据按 gp3 约 $245.76/月；100 MB/s 写入保留 7 天，RF=3 时磁盘约 173 TiB，存储约 $14,000/月</td>
+      <td>保留周期、RF、跨 AZ、消息压缩率、consumer lag、峰值吞吐和磁盘水位。</td>
+    </tr>
+    <tr>
+      <td>Prometheus 本地 TSDB</td>
+      <td>官方公式：retention_seconds &times; samples_per_second &times; 1-2 bytes/sample</td>
+      <td>200k samples/s 保留 15 天，按 2 bytes/sample 约 483 GiB；gp3 存储约 $39/月</td>
+      <td>高基数标签、WAL、block compaction、remote write、长期保留和查询 fan-out。</td>
+    </tr>
+    <tr>
+      <td>向量库</td>
+      <td>100M &times; 768 维 &times; FP32 4 bytes = 约 286 GiB 原始向量；索引 1-3 倍，副本再乘</td>
+      <td>如果按内存放 2 副本，光原始向量约 572 GiB；用上面的内存单价粗算约 $6900/月，还没算索引</td>
+      <td>维度、精度 FP32/FP16/INT8、索引类型、召回率、过滤条件、冷热分层。</td>
     </tr>
   </tbody>
 </table>
@@ -635,15 +730,18 @@ body.dark-mode .storage-svg-line { stroke: #a4adba; }
 
 <h2 id="成本怎么想">六、成本怎么想</h2>
 
-<p>成本不是只看机器单价，而是看“单位有效查询”的成本。</p>
+<p>成本不是只看机器单价，而是看“单位有效查询”的成本。一个更实用的算法是先把成本拆成公式：</p>
 
 <ul>
-  <li><strong>内存最贵</strong>：Redis 快，但别把低价值冷数据塞进去。</li>
-  <li><strong>对象存储最便宜</strong>：适合长期明细和训练数据，但要靠计算引擎把它查出来。</li>
-  <li><strong>列存靠压缩摊成本</strong>：ClickHouse、Doris、Druid 对分析查询划算，但要为导入、Compaction、索引和副本付钱。</li>
-  <li><strong>搜索引擎索引会膨胀</strong>：Elasticsearch 的检索能力很强，但全文索引、倒排、字段副本都会增加成本。</li>
-  <li><strong>向量库成本常被低估</strong>：embedding 维度、索引结构、召回率、过滤条件和副本都会影响成本。</li>
+  <li><strong>Redis 成本</strong> = 逻辑 GiB &times; 副本数 &times; headroom &times; 内存单价。只要数据从 100 GiB 变成 1 TiB，成本就会从“可接受”变成“要专门评审”。</li>
+  <li><strong>磁盘型集群成本</strong> = 逻辑 GiB &times; 索引/压缩/compaction 放大 &times; 副本数 &times; 磁盘单价 + 计算节点。HBase、Cassandra、Elasticsearch、Kafka 都要这么算。</li>
+  <li><strong>湖仓成本</strong> = 压缩后对象存储成本 + 元数据/快照/小文件成本 + 查询计算成本。存着便宜，不代表反复扫全表也便宜。</li>
+  <li><strong>Kafka 成本</strong> = 写入速率 &times; 保留时间 &times; 副本数。100 MB/s 写入看起来不夸张，保留 7 天、RF=3 后就是百 TiB 级磁盘。</li>
+  <li><strong>Prometheus 成本</strong> = retention_seconds &times; samples_per_second &times; bytes_per_sample。真正要管的是 samples/s 和标签基数。</li>
+  <li><strong>向量库成本</strong> = 向量条数 &times; 维度 &times; 单维字节数 &times; 索引放大 &times; 副本数。维度从 384 到 768，成本几乎直接翻倍。</li>
 </ul>
+
+<p>所以选型时我会先问一句很具体的话：这个数据未来一年会到 100 GiB、1 TiB、10 TiB，还是 100 TiB？如果答案是 10 TiB 以上，就不要轻易把它放进内存系统或全文索引系统；如果答案是 100 TiB 以上，湖仓和冷热分层基本是绕不开的。</p>
 
 <h2 id="容易选错的地方">七、容易选错的地方</h2>
 
@@ -665,11 +763,19 @@ body.dark-mode .storage-svg-line { stroke: #a4adba; }
 
 <ul>
   <li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html" target="_blank" rel="noopener">Amazon S3 User Guide</a></li>
+  <li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html" target="_blank" rel="noopener">Amazon S3 Performance Guidelines</a></li>
+  <li><a href="https://aws.amazon.com/s3/pricing/" target="_blank" rel="noopener">Amazon S3 Pricing</a></li>
+  <li><a href="https://docs.aws.amazon.com/ebs/latest/userguide/general-purpose.html" target="_blank" rel="noopener">Amazon EBS gp3 Performance</a></li>
+  <li><a href="https://aws.amazon.com/ebs/pricing/" target="_blank" rel="noopener">Amazon EBS Pricing</a></li>
+  <li><a href="https://aws.amazon.com/elasticache/pricing/" target="_blank" rel="noopener">Amazon ElastiCache Pricing</a></li>
   <li><a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html" target="_blank" rel="noopener">Apache Hadoop HDFS Architecture</a></li>
+  <li><a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HDFSErasureCoding.html" target="_blank" rel="noopener">Apache Hadoop HDFS Erasure Coding</a></li>
   <li><a href="https://redis.io/docs/latest/get-started/" target="_blank" rel="noopener">Redis Open Source Documentation</a></li>
+  <li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/benchmarks/" target="_blank" rel="noopener">Redis Benchmark Documentation</a></li>
   <li><a href="https://hbase.apache.org/book.html" target="_blank" rel="noopener">Apache HBase Reference Guide</a></li>
   <li><a href="https://cassandra.apache.org/_/index.html" target="_blank" rel="noopener">Apache Cassandra Documentation</a></li>
   <li><a href="https://clickhouse.com/docs/intro" target="_blank" rel="noopener">ClickHouse Docs: What is ClickHouse?</a></li>
+  <li><a href="https://clickhouse.com/resources/engineering/database-compression" target="_blank" rel="noopener">ClickHouse Engineering: Database Compression</a></li>
   <li><a href="https://doris.apache.org/docs/3.x/gettingStarted/what-is-apache-doris/" target="_blank" rel="noopener">Apache Doris Overview</a></li>
   <li><a href="https://druid.apache.org/docs/latest/design/" target="_blank" rel="noopener">Apache Druid Design Documentation</a></li>
   <li><a href="https://www.elastic.co/docs/reference/elasticsearch" target="_blank" rel="noopener">Elasticsearch Reference</a></li>
@@ -677,8 +783,10 @@ body.dark-mode .storage-svg-line { stroke: #a4adba; }
   <li><a href="https://iceberg.apache.org/docs/latest/" target="_blank" rel="noopener">Apache Iceberg Documentation</a></li>
   <li><a href="https://docs.databricks.com/aws/en/delta/" target="_blank" rel="noopener">Delta Lake Documentation</a></li>
   <li><a href="https://kafka.apache.org/" target="_blank" rel="noopener">Apache Kafka</a></li>
+  <li><a href="https://developer.confluent.io/learn/kafka-performance/" target="_blank" rel="noopener">Apache Kafka Performance Benchmark by Confluent</a></li>
   <li><a href="https://pulsar.apache.org/" target="_blank" rel="noopener">Apache Pulsar</a></li>
   <li><a href="https://prometheus.io/docs/introduction/overview/" target="_blank" rel="noopener">Prometheus Overview</a></li>
+  <li><a href="https://prometheus.io/docs/prometheus/latest/storage/" target="_blank" rel="noopener">Prometheus Storage</a></li>
   <li><a href="https://milvus.io/docs/overview.md" target="_blank" rel="noopener">Milvus Documentation</a></li>
   <li><a href="https://github.com/pgvector/pgvector" target="_blank" rel="noopener">pgvector</a></li>
 </ul>
