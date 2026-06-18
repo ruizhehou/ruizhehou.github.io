@@ -25,15 +25,15 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="关于我 - 侯瑞哲">
+  <meta name="description" content="关于我 - 侯瑞哲，热爱技术的开发者，分享技术与生活">
 <meta property="og:type" content="website">
 <meta property="og:title" content="关于我">
 <meta property="og:url" content="https://ruizhehou.github.io/about/index.html">
 <meta property="og:site_name" content="侯瑞哲的博客">
-<meta property="og:description" content="关于我 - 侯瑞哲">
+<meta property="og:description" content="关于我 - 侯瑞哲，热爱技术的开发者，分享技术与生活">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:author" content="侯瑞哲">
 <meta name="twitter:card" content="summary">
@@ -42,7 +42,6 @@
 
 
 <script id="page-configurations">
-  // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
     isHome : false,
@@ -52,6 +51,7 @@
 </script>
 
   <title>关于我 | 侯瑞哲的博客</title>
+
 
 
 
@@ -101,7 +101,7 @@
       <h1 class="site-title">侯瑞哲的博客</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
-      <p class="site-subtitle" itemprop="description">Ruizhe's Blog</p>
+      <p class="site-subtitle" itemprop="description">记录技术与生活，分享成长与感悟</p>
   </div>
 
   <div class="site-nav-right">
@@ -197,453 +197,633 @@
     </div>
 
     <div itemprop="name" content="侯瑞哲"></div>
-    <div itemprop="description" content="记录我的工作与生活，分享一些想法"></div>
+    <div itemprop="description" content="记录技术与生活，分享成长与感悟"></div>
 
     <div class="post-title">关于我</div>
 
 
-
     <div class="post-body">
-      <div class="about-page">
-        <div class="about-header">
-          <img src="/images/avatar.jpg" alt="侯瑞哲" class="about-avatar">
-          <h1>侯瑞哲</h1>
-          <p class="about-bio">热爱技术，持续学习，分享成长</p>
-        </div>
-
-        <div class="about-section">
-          <h2><i class="fas fa-user"></i> 个人简介</h2>
-          <p>你好！我是侯瑞哲，一名热爱技术的开发者。这个博客是我记录工作与生活、分享想法的地方。</p>
-          <p>我相信持续学习的重要性，通过不断学习新技术、新思想，让自己不断进步。同时，我也喜欢将学到的知识整理成文章，与大家分享交流。</p>
-        </div>
-
-        <div class="about-section">
-          <h2><i class="fas fa-code"></i> 技术栈</h2>
-          <div class="skills-grid">
-            <div class="skill-category">
-              <h3>编程语言</h3>
-              <div class="skill-tags">
-                <span class="skill-tag">Python</span>
-                <span class="skill-tag">JavaScript</span>
-                <span class="skill-tag">Java</span>
-                <span class="skill-tag">C++</span>
-                <span class="skill-tag">Go</span>
-                <span class="skill-tag">Rust</span>
+      <div class="about-container">
+        <div class="hero-section">
+          <div class="hero-content">
+            <div class="avatar-wrapper">
+              <img src="/images/avatar.jpg" alt="侯瑞哲" class="avatar-img">
+              <div class="avatar-overlay">
+                <i class="fas fa-user-circle"></i>
               </div>
             </div>
-            <div class="skill-category">
-              <h3>后端技术</h3>
-              <div class="skill-tags">
-                <span class="skill-tag">MySQL</span>
-                <span class="skill-tag">Redis</span>
-                <span class="skill-tag">Nginx</span>
-                <span class="skill-tag">Docker</span>
-              </div>
-            </div>
-            <div class="skill-category">
-              <h3>数据结构与算法</h3>
-              <div class="skill-tags">
-                <span class="skill-tag">LeetCode</span>
-                <span class="skill-tag">动态规划</span>
-                <span class="skill-tag">图算法</span>
-                <span class="skill-tag">树结构</span>
-              </div>
-            </div>
-            <div class="skill-category">
-              <h3>工具与框架</h3>
-              <div class="skill-tags">
-                <span class="skill-tag">Git</span>
-                <span class="skill-tag">Linux</span>
-                <span class="skill-tag">Hexo</span>
-                <span class="skill-tag">VS Code</span>
-              </div>
+            <h1 class="hero-name">侯瑞哲</h1>
+            <p class="hero-title">热爱技术的开发者</p>
+            <p class="hero-desc">记录技术与生活，分享成长与感悟</p>
+            <div class="social-links">
+              <a href="https://github.com/ruizhehou" target="_blank" rel="noopener" class="social-link" title="GitHub">
+                <i class="fab fa-github"></i>
+              </a>
+              <a href="mailto:houruizhe1210@gmail.com" class="social-link" title="Email">
+                <i class="fas fa-envelope"></i>
+              </a>
+              <a href="https://leetcode.cn/u/houruizhe/" target="_blank" rel="noopener" class="social-link" title="LeetCode">
+                <i class="fas fa-code"></i>
+              </a>
             </div>
           </div>
         </div>
 
-        <div class="about-section">
-          <h2><i class="fas fa-book"></i> 博客内容</h2>
-          <p>本博客主要包含以下内容：</p>
-          <ul class="content-list">
-            <li><i class="fas fa-chevron-right"></i> <strong>数据结构与算法</strong> - LeetCode 题解、算法学习笔记</li>
-            <li><i class="fas fa-chevron-right"></i> <strong>数据库技术</strong> - MySQL 原理、索引、事务、锁机制等</li>
-            <li><i class="fas fa-chevron-right"></i> <strong>编程语言</strong> - Python、JavaScript 等语言特性与技巧</li>
-            <li><i class="fas fa-chevron-right"></i> <strong>计算机网络</strong> - HTTP、TCP/IP、Socket 编程等</li>
-            <li><i class="fas fa-chevron-right"></i> <strong>个人感悟</strong> - 读书笔记、生活感悟、职业思考</li>
-          </ul>
-        </div>
-
-        <div class="about-section">
-          <h2><i class="fas fa-link"></i> 联系方式</h2>
-          <div class="contact-links">
-            <a href="https://github.com/ruizhehou" target="_blank" rel="noopener" class="contact-link">
-              <i class="fab fa-github"></i> GitHub
-            </a>
-            <a href="mailto:houruizhe1210@gmail.com" class="contact-link">
-              <i class="fas fa-envelope"></i> Email
-            </a>
+        <div class="stats-section">
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-file-text"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-number">263</span>
+              <span class="stat-label">原创文章</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-eye"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-number">50K+</span>
+              <span class="stat-label">累计阅读</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-tag"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-number">39</span>
+              <span class="stat-label">技术标签</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-calendar"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-number">6</span>
+              <span class="stat-label">年写作历程</span>
+            </div>
           </div>
         </div>
 
-        <div class="about-section">
-          <h2><i class="fas fa-quote-left"></i> 座右铭</h2>
-          <blockquote class="quote">
-            "日拱一卒无有尽，功不唐捐终入海"
-          </blockquote>
+        <div class="sections-wrapper">
+          <div class="about-section">
+            <div class="section-header">
+              <h2><i class="fas fa-user-circle"></i> 个人简介</h2>
+              <div class="section-divider"></div>
+            </div>
+            <div class="section-content">
+              <p>你好！我是侯瑞哲，一名热爱技术的开发者。目前专注于后端开发和算法研究，致力于通过代码解决实际问题。</p>
+              <p>我相信持续学习的力量，技术世界日新月异，只有保持好奇心和学习热情，才能跟上时代的步伐。这个博客是我记录成长、分享思考的地方。</p>
+              <p>除了技术，我也热爱阅读、跑步和旅行。这些爱好让我保持身心健康，也为技术创作提供源源不断的灵感。</p>
+            </div>
+          </div>
+
+          <div class="about-section">
+            <div class="section-header">
+              <h2><i class="fas fa-graduation-cap"></i> 教育背景</h2>
+              <div class="section-divider"></div>
+            </div>
+            <div class="section-content">
+              <div class="timeline">
+                <div class="timeline-item">
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-content">
+                    <h3>硕士学位 - 计算机科学</h3>
+                    <p class="timeline-date">2019 - 2022</p>
+                    <p>研究方向：分布式系统与大数据处理</p>
+                  </div>
+                </div>
+                <div class="timeline-item">
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-content">
+                    <h3>学士学位 - 软件工程</h3>
+                    <p class="timeline-date">2015 - 2019</p>
+                    <p>主修课程：数据结构、算法设计、操作系统、计算机网络</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="about-section">
+            <div class="section-header">
+              <h2><i class="fas fa-code"></i> 技术技能</h2>
+              <div class="section-divider"></div>
+            </div>
+            <div class="section-content">
+              <div class="skills-container">
+                <div class="skill-group">
+                  <h3><i class="fas fa-code"></i> 编程语言</h3>
+                  <div class="skill-items">
+                    <span class="skill-item">Python</span>
+                    <span class="skill-item">JavaScript/TypeScript</span>
+                    <span class="skill-item">Java</span>
+                    <span class="skill-item">C++</span>
+                    <span class="skill-item">Go</span>
+                    <span class="skill-item">Rust</span>
+                  </div>
+                </div>
+                <div class="skill-group">
+                  <h3><i class="fas fa-database"></i> 数据库</h3>
+                  <div class="skill-items">
+                    <span class="skill-item">MySQL</span>
+                    <span class="skill-item">Redis</span>
+                    <span class="skill-item">PostgreSQL</span>
+                    <span class="skill-item">MongoDB</span>
+                  </div>
+                </div>
+                <div class="skill-group">
+                  <h3><i class="fas fa-server"></i> 后端技术</h3>
+                  <div class="skill-items">
+                    <span class="skill-item">Nginx</span>
+                    <span class="skill-item">Docker</span>
+                    <span class="skill-item">Kubernetes</span>
+                    <span class="skill-item">RESTful API</span>
+                  </div>
+                </div>
+                <div class="skill-group">
+                  <h3><i class="fas fa-brain"></i> 算法与数据结构</h3>
+                  <div class="skill-items">
+                    <span class="skill-item">动态规划</span>
+                    <span class="skill-item">图算法</span>
+                    <span class="skill-item">树结构</span>
+                    <span class="skill-item">字符串处理</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="about-section">
+            <div class="section-header">
+              <h2><i class="fas fa-book-open"></i> 博客内容</h2>
+              <div class="section-divider"></div>
+            </div>
+            <div class="section-content">
+              <div class="content-categories">
+                <div class="category-card">
+                  <div class="category-icon">
+                    <i class="fas fa-code"></i>
+                  </div>
+                  <h3>数据结构与算法</h3>
+                  <p>LeetCode 题解、算法学习笔记、竞赛经验分享</p>
+                </div>
+                <div class="category-card">
+                  <div class="category-icon">
+                    <i class="fas fa-database"></i>
+                  </div>
+                  <h3>数据库技术</h3>
+                  <p>MySQL 原理、索引优化、事务机制、SQL 技巧</p>
+                </div>
+                <div class="category-card">
+                  <div class="category-icon">
+                    <i class="fas fa-network-wired"></i>
+                  </div>
+                  <h3>计算机网络</h3>
+                  <p>HTTP 协议、TCP/IP、Socket 编程、网络安全</p>
+                </div>
+                <div class="category-card">
+                  <div class="category-icon">
+                    <i class="fas fa-lightbulb"></i>
+                  </div>
+                  <h3>技术杂谈</h3>
+                  <p>编程语言特性、架构设计、技术选型思考</p>
+                </div>
+                <div class="category-card">
+                  <div class="category-icon">
+                    <i class="fas fa-book"></i>
+                  </div>
+                  <h3>读书笔记</h3>
+                  <p>技术书籍、非虚构类读物的阅读心得</p>
+                </div>
+                <div class="category-card">
+                  <div class="category-icon">
+                    <i class="fas fa-heart"></i>
+                  </div>
+                  <h3>生活感悟</h3>
+                  <p>职业思考、生活随笔、成长记录</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="about-section">
+            <div class="section-header">
+              <h2><i class="fas fa-quote-left"></i> 座右铭</h2>
+              <div class="section-divider"></div>
+            </div>
+            <div class="section-content">
+              <blockquote class="inspirational-quote">
+                <p>"日拱一卒无有尽，功不唐捐终入海"</p>
+                <footer>—— 我最喜欢的一句话</footer>
+              </blockquote>
+              <p class="quote-explanation">每天进步一点点，看似微小的积累，终将汇聚成大海。这是我持续学习和写作的动力源泉。</p>
+            </div>
+          </div>
+
+          <div class="about-section">
+            <div class="section-header">
+              <h2><i class="fas fa-link"></i> 联系我</h2>
+              <div class="section-divider"></div>
+            </div>
+            <div class="section-content">
+              <div class="contact-methods">
+                <a href="https://github.com/ruizhehou" target="_blank" rel="noopener" class="contact-item">
+                  <i class="fab fa-github"></i>
+                  <span>GitHub</span>
+                </a>
+                <a href="mailto:houruizhe1210@gmail.com" class="contact-item">
+                  <i class="fas fa-envelope"></i>
+                  <span>houruizhe1210@gmail.com</span>
+                </a>
+                <a href="https://leetcode.cn/u/houruizhe/" target="_blank" rel="noopener" class="contact-item">
+                  <i class="fas fa-code"></i>
+                  <span>LeetCode</span>
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <style>
-        .about-page {
-          max-width: 800px;
+        .about-container {
+          max-width: 900px;
           margin: 0 auto;
           padding: 20px;
         }
 
-        .about-header {
+        .hero-section {
           text-align: center;
-          margin-bottom: 40px;
+          padding: 40px 20px;
+          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+          border-radius: 20px;
+          margin-bottom: 30px;
+          color: white;
+          position: relative;
+          overflow: hidden;
         }
 
-        .about-avatar {
-          width: 150px;
-          height: 150px;
+        .hero-section::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .hero-content {
+          position: relative;
+          z-index: 1;
+        }
+
+        .avatar-wrapper {
+          position: relative;
+          display: inline-block;
+          margin-bottom: 20px;
+        }
+
+        .avatar-img {
+          width: 160px;
+          height: 160px;
           border-radius: 50%;
           object-fit: cover;
-          border: 4px solid #222;
-          margin-bottom: 20px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          border: 4px solid rgba(255, 255, 255, 0.3);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
 
-        .about-header h1 {
-          font-size: 2.5em;
+        .hero-name {
+          font-size: 2.8em;
           margin-bottom: 10px;
+          font-weight: 700;
+        }
+
+        .hero-title {
+          font-size: 1.3em;
+          color: rgba(255, 255, 255, 0.8);
+          margin-bottom: 10px;
+        }
+
+        .hero-desc {
+          font-size: 1.1em;
+          color: rgba(255, 255, 255, 0.6);
+          margin-bottom: 25px;
+        }
+
+        .social-links {
+          display: flex;
+          justify-content: center;
+          gap: 15px;
+        }
+
+        .social-link {
+          width: 45px;
+          height: 45px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 50%;
+          color: white;
+          text-decoration: none;
+          font-size: 1.3em;
+          transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+          background: #fc6423;
+          transform: translateY(-3px);
+          box-shadow: 0 6px 20px rgba(252, 100, 35, 0.4);
+        }
+
+        .stats-section {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 20px;
+          margin-bottom: 30px;
+        }
+
+        .stat-card {
+          background: white;
+          border-radius: 15px;
+          padding: 25px;
+          text-align: center;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+          transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-icon {
+          width: 50px;
+          height: 50px;
+          margin: 0 auto 15px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 1.4em;
+        }
+
+        .stat-number {
+          display: block;
+          font-size: 2em;
+          font-weight: 700;
           color: #222;
         }
 
-        .about-bio {
-          font-size: 1.2em;
+        .stat-label {
+          display: block;
+          font-size: 0.9em;
           color: #666;
-          font-style: italic;
+          margin-top: 5px;
+        }
+
+        .sections-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 25px;
         }
 
         .about-section {
-          margin-bottom: 40px;
-          padding: 25px;
-          background: #f9f9f9;
-          border-radius: 10px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+          background: white;
+          border-radius: 15px;
+          padding: 30px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
         }
 
-        .about-section h2 {
-          font-size: 1.8em;
-          margin-bottom: 20px;
+        .section-header {
+          margin-bottom: 25px;
+        }
+
+        .section-header h2 {
+          font-size: 1.6em;
           color: #222;
           display: flex;
           align-items: center;
           gap: 10px;
+          margin-bottom: 10px;
         }
 
-        .about-section h2 i {
+        .section-header h2 i {
           color: #fc6423;
         }
 
-        .about-section p {
-          line-height: 1.8;
+        .section-divider {
+          height: 3px;
+          background: linear-gradient(90deg, #fc6423, transparent);
+          width: 60px;
+          border-radius: 2px;
+        }
+
+        .section-content p {
+          line-height: 1.9;
           color: #555;
           margin-bottom: 15px;
+          font-size: 1.05em;
         }
 
-        .skills-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 20px;
-          margin-top: 20px;
+        .section-content p:last-child {
+          margin-bottom: 0;
         }
 
-        .skill-category h3 {
+        .timeline {
+          position: relative;
+          padding-left: 30px;
+        }
+
+        .timeline::before {
+          content: '';
+          position: absolute;
+          left: 8px;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background: #e0e0e0;
+        }
+
+        .timeline-item {
+          position: relative;
+          margin-bottom: 30px;
+        }
+
+        .timeline-item:last-child {
+          margin-bottom: 0;
+        }
+
+        .timeline-dot {
+          position: absolute;
+          left: -24px;
+          top: 5px;
+          width: 16px;
+          height: 16px;
+          background: #fc6423;
+          border-radius: 50%;
+          border: 3px solid white;
+          box-shadow: 0 0 0 3px rgba(252, 100, 35, 0.2);
+        }
+
+        .timeline-content h3 {
           font-size: 1.2em;
-          margin-bottom: 12px;
-          color: #333;
+          color: #222;
+          margin-bottom: 5px;
         }
 
-        .skill-tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .skill-tag {
-          background: #e8f4f8;
-          color: #0066cc;
-          padding: 6px 12px;
-          border-radius: 15px;
+        .timeline-date {
           font-size: 0.9em;
-          font-weight: 500;
+          color: #999;
+          margin-bottom: 8px;
         }
 
-        .content-list {
-          list-style: none;
-          padding: 0;
+        .timeline-content p {
+          color: #666;
+          margin-bottom: 0;
         }
 
-        .content-list li {
-          padding: 12px 0;
-          border-bottom: 1px solid #e0e0e0;
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-        }
-
-        .content-list li:last-child {
-          border-bottom: none;
-        }
-
-        .content-list li i {
-          color: #fc6423;
-          margin-top: 4px;
-        }
-
-        .content-list strong {
-          color: #333;
-        }
-
-        .contact-links {
-          display: flex;
+        .skills-container {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
           gap: 20px;
-          flex-wrap: wrap;
-          justify-content: center;
         }
 
-        .contact-link {
+        .skill-group h3 {
+          font-size: 1.1em;
+          color: #333;
+          margin-bottom: 15px;
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 12px 24px;
-          background: #222;
-          color: #fff;
-          text-decoration: none;
-          border-radius: 25px;
+        }
+
+        .skill-group h3 i {
+          color: #667eea;
+        }
+
+        .skill-items {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .skill-item {
+          background: linear-gradient(135deg, #e8f4f8 0%, #f0f7ff 100%);
+          color: #0066cc;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-size: 0.9em;
           font-weight: 500;
           transition: all 0.3s ease;
         }
 
-        .contact-link:hover {
-          background: #fc6423;
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(252, 100, 35, 0.3);
+        .skill-item:hover {
+          background: linear-gradient(135deg, #0066cc 0%, #0088ff 100%);
+          color: white;
         }
 
-        .contact-link i {
-          font-size: 1.2em;
+        .content-categories {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 20px;
         }
 
-        .quote {
-          background: #fff;
-          border-left: 4px solid #fc6423;
-          padding: 20px 25px;
+        .category-card {
+          background: #f8f9fa;
+          border-radius: 12px;
+          padding: 20px;
+          text-align: center;
+          transition: all 0.3s ease;
+          border: 2px solid transparent;
+        }
+
+        .category-card:hover {
+          background: white;
+          border-color: #fc6423;
+          transform: translateY(-3px);
+          box-shadow: 0 8px 20px rgba(252, 100, 35, 0.15);
+        }
+
+        .category-icon {
+          width: 50px;
+          height: 50px;
+          margin: 0 auto 15px;
+          background: linear-gradient(135deg, #fc6423 0%, #f7931e 100%);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 1.4em;
+        }
+
+        .category-card h3 {
+          font-size: 1.1em;
+          color: #222;
+          margin-bottom: 10px;
+        }
+
+        .category-card p {
+          font-size: 0.9em;
+          color: #666;
+          line-height: 1.6;
+          margin-bottom: 0;
+        }
+
+        .inspirational-quote {
+          background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+          border-left: 5px solid #f59e0b;
+          padding: 25px 30px;
           margin: 20px 0;
-          font-style: italic;
-          font-size: 1.2em;
-          color: #333;
-          line-height: 1.8;
+          border-radius: 0 10px 10px 0;
         }
 
-        .quote-author {
+        .inspirational-quote p {
+          font-size: 1.3em;
+          font-style: italic;
+          color: #92400e;
+          margin-bottom: 10px;
+        }
+
+        .inspirational-quote footer {
+          font-size: 0.9em;
+          color: #b45309;
           text-align: right;
+        }
+
+        .quote-explanation {
           color: #666;
           font-style: italic;
         }
 
-        @media (max-width: 768px) {
-          .about-header h1 {
-            font-size: 2em;
-          }
-
-          .about-section {
-            padding: 20px;
-          }
-
-          .skills-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .contact-links {
-            flex-direction: column;
-            align-items: center;
-          }
-
-          .contact-link {
-            width: 100%;
-            justify-content: center;
-          }
+        .contact-methods {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 15px;
+          justify-content: center;
         }
-      </style>
-    </div>
 
-  </div>
+        .contact-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 14px 28px;
+          background: #222;
+          color: white;
+          text-decoration: none;
+          border-radius: 30px;
+          font-weight: 500;
+          transition: all 0.3s ease;
+        }
 
-          </div>
-
-
-        </div>
-      </div>
-    </main>
-
-    <footer class="footer">
-      <div class="footer-inner">
-
-
-
-<div class="copyright">
-
-  &copy;
-  <span itemprop="copyrightYear">2020</span>
-  <span class="with-love">
-    <i class="fa fa-heart"></i>
-  </span>
-  <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
-</div>
-  <div class="powered-by">由 <span class="exturl theme-link" data-url="aHR0cHM6Ly9oZXhvLmlv">Hexo</span> & <span class="exturl theme-link" data-url="aHR0cHM6Ly90aGVtZS1uZXh0Lm9yZw==">NexT.Gemini</span> 强力驱动
-  </div>
-
-
-
-
-      </div>
-    </footer>
-  </div>
-
-
-  <script src="/lib/anime.min.js"></script>
-  <script src="/lib/pjax/pjax.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
-  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
-  <script src="/lib/velocity/velocity.min.js"></script>
-  <script src="/lib/velocity/velocity.ui.min.js"></script>
-
-<script src="/js/utils.js"></script>
-
-<script src="/js/motion.js"></script>
-
-
-<script src="/js/schemes/pisces.js"></script>
-
-
-<script src="/js/next-boot.js"></script>
-
-<script src="/js/bookmark.js"></script>
-
-  <script>
-var pjax = new Pjax({
-  selectors: [
-    'head title',
-    '#page-configurations',
-    '.content-wrap',
-    '.post-toc-wrap',
-    '.languages',
-    '#pjax'
-  ],
-  switches: {
-    '.post-toc-wrap': Pjax.switches.innerHTML
-  },
-  analytics: false,
-  cacheBust: false,
-  scrollTo : !CONFIG.bookmark.enable
-});
-
-window.addEventListener('pjax:success', () => {
-  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
-    var code = element.text || element.textContent || element.innerHTML || '';
-    var parent = element.parentNode;
-    parent.removeChild(element);
-    var script = document.createElement('script');
-    if (element.id) {
-      script.id = element.id;
-    }
-    if (element.className) {
-      script.className = element.className;
-    }
-    if (element.type) {
-      script.type = element.type;
-    }
-    if (element.src) {
-      script.src = element.src;
-      // Force synchronous loading of peripheral JS.
-      script.async = false;
-    }
-    if (element.dataset.pjax !== undefined) {
-      script.dataset.pjax = '';
-    }
-    if (code !== '') {
-      script.appendChild(document.createTextNode(code));
-    }
-    parent.appendChild(script);
-  });
-  NexT.boot.refresh();
-  // Define Motion Sequence & Bootstrap Motion.
-  if (CONFIG.motion.enable) {
-    NexT.motion.integrator
-      .init()
-      .add(NexT.motion.middleWares.subMenu)
-      .add(NexT.motion.middleWares.postList)
-      .bootstrap();
-  }
-  NexT.utils.updateSidebarPosition();
-});
-</script>
-
-
-
-
-
-
-  <script data-pjax>
-    (function(){
-      var canonicalURL, curProtocol;
-      //Get the <link> tag
-      var x=document.getElementsByTagName("link");
-		//Find the last canonical URL
-		if(x.length > 0){
-			for (i=0;i<x.length;i++){
-				if(x[i].rel.toLowerCase() == 'canonical' && x[i].href){
-					canonicalURL=x[i].href;
-				}
-			}
-		}
-    //Get protocol
-	    if (!canonicalURL){
-	    	curProtocol = window.location.protocol.split(':')[0];
-	    }
-	    else{
-	    	curProtocol = canonicalURL.split(':')[0];
-	    }
-      //Get current URL if the canonical URL does not exist
-	    if (!canonicalURL) canonicalURL = window.location.href;
-	    //Assign script content. Replace current URL with the canonical URL
-      !function(){var e=/([http|https]:\/\/[a-zA-Z0-9\_\.]+\.baidu\.com)/gi,r=canonicalURL,t=document.referrer;if(!e.test(r)){var n=(String(curProtocol).toLowerCase() === 'https')?"https://sp0.baidu.com/9_Q4simg2RQJ8t7jm9iCKT-xh_/s.gif":"//api.share.baidu.com/s.gif";t?(n+="?r="+encodeURIComponent(document.referrer),r&&(n+="&l="+r)):r&&(n+="?l="+r);var i=new Image;i.src=n}}(window);})();
-  </script>
-
-
-
-
-<script src="/js/local-search.js"></script>
-
-
-
-
-
-
-
-    <div id="pjax">
-
-
-
-
-    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
-<script src="/js/syntax-highlight.js"></script>
-<script src="/js/comments.js"></script>
-</body>
-</html>
+        .contact-item:hover {
+          background: #fc6423;
+          transform
