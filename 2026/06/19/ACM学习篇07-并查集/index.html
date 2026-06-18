@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ACM 学习篇第七课：理解并查集的原理与实现，掌握路径压缩和按秩合并的优化技巧，学会用并查集高效解决连通性、分组和集合合并问题。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ACM 学习篇 07：并查集">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8707-%E5%B9%B6%E6%9F%A5%E9%9B%86/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-19T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-19T04:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据结构与算法">
+<meta property="article:tag" content="算法题目">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8707-%E5%B9%B6%E6%9F%A5%E9%9B%86/index.html">
+<script id="page-configurations">
+  CONFIG.page = {"sidebar":"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>ACM 学习篇 07：并查集 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-19T12:00:00+08:00" content="2026-06-19">06-19</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">ACM 学习篇 07：并查集</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<h2 id="什么是并查集">什么是并查集</h2>
+
+<p>并查集，英文叫 Union-Find，也叫不相交集合。它专门处理"把一些元素合并成集合"和"查询两个元素是否在同一个集合"这两个操作，而且都很快。</p>
+<p>想象一下，你有一堆人，需要不断告诉你：谁和谁是亲戚，谁和谁不是亲戚。每告诉一对关系，你可能要把两个家族合并起来。然后你还要经常问：某两个人是不是亲戚？</p>
+<p>用数组和链表做这件事，每次合并要遍历一个集合的所有元素，效率很低。并查集就是来解决这个问题的。</p>
+
+<h2 id="并查集的核心思想">并查集的核心思想</h2>
+
+<p>并查集用一种很巧妙的方式表示集合：每个元素指向一个"代表"，所有属于同一个集合的元素，最终都指向同一个代表。</p>
+<p>打个比方：若干家庭各自选出一个族长，所有家庭成员都认族长为头。并查集就是维护这个"谁认谁当头"的关系。</p>
+<p>具体实现上，每个元素有一个父节点。如果一个元素的父节点是它自己，那它就是代表。查找两个元素是否在同一个集合，就是看它们的代表是不是同一个人。</p>
+
+<h2 id="基本操作与代码实现">基本操作与代码实现</h2>
+
+<h3 id="初始化">初始化</h3>
+
+<p>一开始，每个元素都是独立的，自己是自己的代表：</p>
+<pre><code class="language-cpp">vector<int> parent(n + 1);
+vector<int> rank(n + 1);  // 秩，用于按秩合并优化
+
+void init(int n) {
+    for (int i = 1; i <= n; i++) {
+        parent[i] = i;  // 每个元素的父节点是自己
+        rank[i] = 0;    // 初始秩为0
+    }
+}
+</code></pre>
+
+<h3 id="查找-find">查找 find</h3>
+
+<p>查找操作就是找出一个元素所在集合的代表。朴素写法：</p>
+<pre><code class="language-cpp">int find(int x) {
+    if (parent[x] == x) return x;
+    return find(parent[x]);
+}
+</code></pre>
+
+<p>但这样树可能很深，查找效率会退化。于是引入路径压缩：</p>
+<pre><code class="language-cpp">int find(int x) {
+    if (parent[x] != x) {
+        parent[x] = find(parent[x]);  // 路径压缩：直接指向根节点
+    }
+    return parent[x];
+}
+</code></pre>
+<p>路径压缩的意思是：沿途所有节点都直接认根节点当代表，就像大家都记住了族长是谁，不用每次都顺着链条往上找了。</p>
+
+<h3 id="合并-union">合并 union</h3>
+
+<p>合并两个集合，就是把一个集合的代表接到另一个代表的下面：</p>
+<pre><code class="language-cpp">void union(int x, int y) {
+    int rx = find(x);
+    int ry = find(y);
+    if (rx == ry) return;  // 已经在同一个集合，不需要合并
+    // 按秩合并优化：秩大的接到秩小的下面
+    if (rank[rx] < rank[ry]) {
+        parent[rx] = ry;
+    } else if (rank[rx] > rank[ry]) {
+        parent[ry] = rx;
+    } else {
+        parent[ry] = rx;
+        rank[rx]++;
+    }
+}
+</code></pre>
+<p>按秩合并的意思是：矮树接到高树下面，这样树不容易变深。两个秩相同的树合并，秩才加一。</p>
+
+<h3 id="判断连通">判断连通</h3>
+
+<p>判断两个元素是否在同一个集合：</p>
+<pre><code class="language-cpp">bool connected(int x, int y) {
+    return find(x) == find(y);
+}
+</code></pre>
+
+<h2 id="典型题亲戚问题">典型题：亲戚问题</h2>
+
+<p>并查集的经典入门题：给出若干对"是亲戚"的关系，问某两个人是否是亲戚。</p>
+<pre><code class="language-cpp">int n, m, p;  // n个人，m对亲戚关系，p个询问
+cin >> n >> m >> p;
+
+init(n);
+for (int i = 0; i < m; i++) {
+    int x, y;
+    cin >> x >> y;
+    union(x, y);
+}
+
+for (int i = 0; i < p; i++) {
+    int x, y;
+    cin >> x >> y;
+    if (connected(x, y)) {
+        cout << "Yes\n";
+    } else {
+        cout << "No\n";
+    }
+}
+</code></pre>
+<p>思路很简单：每对亲戚关系就是一次合并操作，然后每个询问只需要一次查找比较。</p>
+
+<h2 id="典型题连通分量个数">典型题：连通分量个数</h2>
+
+<p>给一个无向图，问它有几个连通分量。用并查集非常方便：</p>
+<pre><code class="language-cpp">int countComponents(int n, vector<vector<int>>& edges) {
+    init(n);
+    for (auto& e : edges) {
+        union(e[0], e[1]);
+    }
+    int cnt = 0;
+    for (int i = 0; i < n; i++) {
+        if (parent[i] == i) cnt++;
+    }
+    return cnt;
+}
+</code></pre>
+<p>思路：合并所有边，最后数一数有多少个代表，就有多少个连通分量。</p>
+
+<h2 id="并查集还能做什么">并查集还能做什么</h2>
+
+<ul>
+  <li><strong>合并集合</strong>：动态合并多个集合，查询元素归属；</li>
+  <li><strong>连通分量</strong>：无向图连通块个数、岛屿数量；</li>
+  <li><strong>最小生成树</strong>：Kruskal 算法用并查集判断是否成环；</li>
+  <li><strong>亲戚关系</strong>：传递闭包问题；</li>
+  <li><strong>等式约束</strong>：判断一组等式是否矛盾；</li>
+  <li><strong>分组问题</strong>：把有关系的元素归到同一组。</li>
+</ul>
+
+<h2 id="并查集的易错点">并查集的易错点</h2>
+
+<ul>
+  <li><strong>忘了路径压缩</strong>：不压缩会退化成链表，查询变成 O(n)；</li>
+  <li><strong>忘了按秩合并</strong>：不按秩合并，树可能变得又深又歪；</li>
+  <li><strong>下标从0还是从1开始</strong>：看清楚题目输入；</li>
+  <li><strong>合并时没判断是否 already connected</strong>：不加判断会导致重复操作和错误；</li>
+  <li><strong>用 long long 的情况</strong>：如果元素编号很大，用 long long 存 parent。</li>
+</ul>
+
+<h2 id="什么时候用并查集">什么时候用并查集</h2>
+
+<p>看到这些问题描述，就可以考虑并查集：</p>
+<ul>
+  <li>若干元素不断合并，问两个元素是否在同一个集合；</li>
+  <li>无向图的连通分量个数；</li>
+  <li>需要判断是否会成环；</li>
+  <li>传递性的关系：a 和 b 是亲戚，b 和 c 是亲戚，问 a 和 c 是不是亲戚。</li>
+</ul>
+
+<h2 id="这一篇先记住什么">这一篇先记住什么</h2>
+
+<ul>
+  <li>并查集处理集合合并与查询，平均近乎 O(1)；</li>
+  <li>find 用路径压缩，union 用按秩合并，这是标准优化；</li>
+  <li>connected 判断两个元素是否在同一个集合；</li>
+  <li>典型应用：亲戚关系、连通分量、Kruskal；</li>
+  <li>看到"连通""合并""分组""传递闭包"就想到并查集。</li>
+</ul>
+<p>下一篇继续数据结构：堆与优先队列。它是处理最值问题的利器，能高效维护动态集合的最大值或最小值。</p>
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E7%AE%97%E6%B3%95/" rel="tag"><i class="fa fa-tag"></i> 数据结构与算法</a>
+          <a href="/tags/%E7%AE%97%E6%B3%95%E9%A2%98%E7%9B%AE/" rel="tag"><i class="fa fa-tag"></i> 算法题目</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+          <a href="/2026/06/18/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8706-%E5%93%88%E5%B8%8C%E8%A1%A8%E4%B8%8E%E8%AE%A1%E6%95%B0/" rel="prev" title="ACM 学习篇 06：哈希表与计数">
+            ACM 学习篇 06：哈希表与计数 <i class="fa fa-chevron-right"></i>
+          </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </article>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么是并查集"><span class="nav-number">1.</span> <span class="nav-text">什么是并查集</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#并查集的核心思想"><span class="nav-number">2.</span> <span class="nav-text">并查集的核心思想</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#基本操作与代码实现"><span class="nav-number">3.</span> <span class="nav-text">基本操作与代码实现</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#典型题亲戚问题"><span class="nav-number">4.</span> <span class="nav-text">典型题：亲戚问题</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#典型题连通分量个数"><span class="nav-number">5.</span> <span class="nav-text">典型题：连通分量个数</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#并查集还能做什么"><span class="nav-number">6.</span> <span class="nav-text">并查集还能做什么</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#并查集的易错点"><span class="nav-number">7.</span> <span class="nav-text">并查集的易错点</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么时候用并查集"><span class="nav-number">8.</span> <span class="nav-text">什么时候用并查集</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#这一篇先记住什么"><span class="nav-number">9.</span> <span class="nav-text">这一篇先记住什么</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">263</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>

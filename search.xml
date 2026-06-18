@@ -9783,4 +9783,10 @@ x = \frac{4-\pi}{4}r \approx0.2146r
     <content><![CDATA[深度分析 Headroom（20k star，60-95%减少LLM token）。架构：CacheAligner→ContentRouter→SmartCrusher/CodeCompressor/Kompress-base→CCR→Memory→LLM。八个工程亮点：(1)用Google Magika ML模型做内容类型检测（5ms, 99%准确率），单一真相来源映射；(2)管道生命周期Pattern：11个阶段Enum，Protocol扩展接口，entry_points零侵入插件发现；(3)CacheAligner稳定prompt前缀，最大化Provider KV缓存命中率（Anthropic cache hit节省90%）；(4)CCR可逆压缩：原文存本地→注入headroom_retrieve工具→LLM按需取原文，信息从'总是可见'变成'按需可见'；(5)CCR模块五职责清晰划分（batch_processor/batch_store/context_tracker/tool_injection/response_handler）；(6)零代码代理模式：Library/Proxy/Wrap三层接入，代理模式把压缩从应用代码解耦，和sidecar模式同一思路；(7)headroom learn：分析失败会话提取规律，自动写入CLAUDE.md/AGENTS.md，失败→规则反馈循环；(8)Python+Rust混合架构，headroom-parity crate专门做行为一致性测试。8条可带走的工程原则。]]></content>
       <tags><tag>架构</tag><tag>工程实践</tag></tags>
   </entry>
+  <entry>
+    <title>ACM 学习篇 07：并查集</title>
+    <url>/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8707-%E5%B9%B6%E6%9F%A5%E9%9B%86/</url>
+    <content><![CDATA[ACM 学习篇第七课：理解并查集的原理与实现，掌握路径压缩和按秩合并的优化技巧，学会用并查集高效解决连通性、分组和集合合并问题。并查集（Union-Find）专门处理"把一些元素合并成集合"和"查询两个元素是否在同一个集合"这两个操作。并查集用一种很巧妙的方式表示集合：每个元素指向一个"代表"，所有属于同一个集合的元素，最终都指向同一个代表。核心操作包括 find（路径压缩）、union（按秩合并）、connected（判断连通）。典型应用：亲戚问题、连通分量个数、Kruskal 算法。]]></content>
+      <tags><tag>数据结构与算法</tag><tag>算法题目</tag></tags>
+  </entry>
 </search>
