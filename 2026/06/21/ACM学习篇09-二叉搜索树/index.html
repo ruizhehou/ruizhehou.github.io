@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"搜索...","hits_empty":"We did not find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ACM 学习篇第九课：理解二叉搜索树的原理与性质，掌握搜索、插入、删除、遍历等基础操作，学会用 BST 高效解决第 K 小、Kth 最小、验证 BST、LCA 等经典问题。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ACM 学习篇 09：二叉搜索树（BST）">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/21/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8709-%E4%BA%8C%E5%8F%89%E6%90%9C%E7%B4%A2%E6%A0%91BST/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-21T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-21T04:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据结构与算法">
+<meta property="article:tag" content="算法题目">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/21/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8709-%E4%BA%8C%E5%8F%89%E6%90%9C%E7%B4%A2%E6%A0%91BST/index.html">
+<script id="page-configurations">
+  CONFIG.page = {"sidebar":"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>ACM 学习篇 09：二叉搜索树（BST） | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-21T12:00:00+08:00" content="2026-06-21">06-21</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">ACM 学习篇 09：二叉搜索树（BST）</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>上一篇讲了堆，它能高效维护最值，但无法支持快速查找和有序遍历。二叉搜索树（Binary Search Tree，BST）就是来解决这个问题的：它能在 O(log n) 期望时间内同时支持搜索、插入、删除、有序遍历，是真正全能的动态有序数据结构。</p>
+
+<h2 id="为什么需要 BST">为什么需要 BST</h2>
+
+<p>哈希表能在 O(1) 时间查找，但它是"无序"的。如果需要：</p>
+<ul>
+  <li>查找第 K 小的元素</li>
+  <li>找一个数的"上界"和"下界"</li>
+  <li>按顺序遍历数据</li>
+  <li>查找比 x 大的最小元素</li>
+</ul>
+<p>这些有序操作，哈希表无能为力，但 BST 可以做到。</p>
+
+<h2 id="什么是二叉搜索树">什么是二叉搜索树</h2>
+
+<p>BST 是一棵二叉树，每个节点最多有两个孩子，同时满足<strong>二叉搜索树性质</strong>：</p>
+<ul>
+  <li>左子树的所有节点值 < <b>根节点值</b></li>
+  <li>右子树的所有节点值 > <b>根节点值</b></li>
+  <li>左右子树本身也是 BST（递归定义）</li>
+</ul>
+
+<blockquote><p>注意：中序遍历 BST 会得到一个<strong>严格升序</strong>的序列。这个性质是 BST 几乎所有操作的基础。</p></blockquote>
+
+<pre><code>        8
+       / \
+      3   10
+     / \    \
+    1   6    14
+      </code></pre>
+
+<p>中序遍历：1 → 3 → 6 → 8 → 10 → 14 ✅ 升序</p>
+
+<h2 id="BST 的实现">BST 的实现</h2>
+
+<pre><code>struct TreeNode {
+    int val;
+    TreeNode *left, *right;
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+};</code></pre>
+
+<h3 id="搜索">搜索</h3>
+
+<pre><code>TreeNode* search(TreeNode* root, int target) {
+    if (!root || root->val == target) return root;
+    if (target < root->val) return search(root->left, target);
+    return search(root->right, target);
+}
+
+// 迭代版
+TreeNode* searchIter(TreeNode* root, int target) {
+    while (root && root->val != target) {
+        root = (target < root->val) ? root->left : root->right;
+    }
+    return root;
+}</code></pre>
+
+<h3 id="插入">插入</h3>
+
+<pre><code>TreeNode* insert(TreeNode* root, int val) {
+    if (!root) return new TreeNode(val);
+    if (val < root->val) root->left = insert(root->left, val);
+    else if (val > root->val) root->right = insert(root->right, val);
+    // val == root->val 不插入（可重复）
+    return root;
+}</code></pre>
+
+<h3 id="删除">删除</h3>
+
+<p>删除有三种情况：</p>
+<ul>
+  <li><strong>叶子节点</strong>：直接删，返回 null</li>
+  <li><strong>只有一个孩子</strong>：用孩子替代它</li>
+  <li><strong>有两个孩子</strong>：用<strong>后继</strong>（右子树最小节点）或<strong>前驱</strong>（左子树最大节点）替换，然后删掉后继/前驱</li>
+</ul>
+
+<pre><code>TreeNode* findMin(TreeNode* node) {
+    while (node->left) node = node->left;
+    return node;
+}
+
+TreeNode* erase(TreeNode* root, int val) {
+    if (!root) return nullptr;
+    if (val < root->val) {
+        root->left = erase(root->left, val);
+    } else if (val > root->val) {
+        root->right = erase(root->right, val);
+    } else {
+        if (!root->left) return root->right;
+        if (!root->right) return root->left;
+        TreeNode* succ = findMin(root->right); // 后继
+        root->val = succ->val;
+        root->right = erase(root->right, succ->val);
+    }
+    return root;
+}</code></pre>
+
+<h3 id="遍历">遍历</h3>
+
+<pre><code>// 中序（得到升序）
+void inorder(TreeNode* root, vector<int>& res) {
+    if (!root) return;
+    inorder(root->left, res);
+    res.push_back(root->val);
+    inorder(root->right, res);
+}
+
+// 前序（先访问根，用于序列化/前缀表达式）
+void preorder(TreeNode* root, vector<int>& res) {
+    if (!root) return;
+    res.push_back(root->val);
+    preorder(root->left, res);
+    preorder(root->right, res);
+}
+
+// 后序（后访问根，用于释放内存/后缀表达式）
+void postorder(TreeNode* root, vector<int>& res) {
+    if (!root) return;
+    postorder(root->left, res);
+    postorder(root->right, res);
+    res.push_back(root->val);
+}</code></pre>
+
+<h2 id="BST 的进阶操作">BST 的进阶操作</h2>
+
+<h3 id="找第 K 小的元素">找第 K 小的元素</h3>
+
+<p>中序遍历第 K 个元素即第 K 小，时间 O(n)。如果频繁查询，可以给每个节点加一个 <code>size</code> 字段记录子树节点数，这样能做到 O(log n)。</p>
+
+<pre><code>// 中序遍历计数版
+int kthSmallest(TreeNode* root, int k) {
+    vector<int> in;
+    inorder(root, in);
+    return in[k - 1];
+}
+
+// O(log n) 做法：利用子树大小
+struct TreeNode {
+    int val, size;
+    TreeNode *left, *right;
+    TreeNode(int x) : val(x), size(1), left(nullptr), right(nullptr) {}
+};
+
+int kthSmallestFast(TreeNode* root, int k) {
+    int leftSize = root->left ? root->left->size : 0;
+    if (k <= leftSize) return kthSmallestFast(root->left, k);
+    if (k == leftSize + 1) return root->val;
+    return kthSmallestFast(root->right, k - leftSize - 1);
+}</code></pre>
+
+<h3 id="lower-bound-和-upper-bound">Lower Bound 和 Upper Bound</h3>
+
+<ul>
+  <li><strong>Lower Bound</strong>：找 ≥ target 的最小元素（等价于 C++ 的 <code>lower_bound</code>）</li>
+  <li><strong>Upper Bound</strong>：找 > target 的最小元素（等价于 C++ 的 <code>upper_bound</code>）</li>
+</ul>
+
+<pre><code>// 找 >= target 的最小节点
+TreeNode* lowerBound(TreeNode* root, int target) {
+    TreeNode* ans = nullptr;
+    while (root) {
+        if (root->val >= target) {
+            ans = root;
+            root = root->left;
+        } else {
+            root = root->right;
+        }
+    }
+    return ans;
+}
+
+// 找 > target 的最小节点
+TreeNode* upperBound(TreeNode* root, int target) {
+    TreeNode* ans = nullptr;
+    while (root) {
+        if (root->val > target) {
+            ans = root;
+            root = root->left;
+        } else {
+            root = root->right;
+        }
+    }
+    return ans;
+}</code></pre>
+
+<h3 id="验证 BST">验证 BST</h3>
+
+<p>验证一棵树是否是 BST，不能只比较父子节点，要传递合法上界和下界。</p>
+
+<pre><code>bool isValidBST(TreeNode* root) {
+    return validate(root, nullptr, nullptr);
+}
+
+bool validate(TreeNode* node, TreeNode* low, TreeNode* high) {
+    if (!node) return true;
+    if (low && node->val <= low->val) return false;
+    if (high && node->val >= high->val) return false;
+    return validate(node->left, low, node) && validate(node->right, node, high);
+}</code></pre>
+
+<h3 id="BST-最近公共祖先 LCA">BST 最近公共祖先（LCA）</h3>
+
+<p>BST 的 LCA 比普通二叉树更简单，因为可以利用大小关系：</p>
+
+<pre><code>TreeNode* lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* q) {
+    if (!root) return nullptr;
+    if (max(p->val, q->val) < root->val) return lowestCommonAncestor(root->left, p, q);
+    if (min(p->val, q->val) > root->val) return lowestCommonAncestor(root->right, p, q);
+    return root;
+}</code></pre>
+
+<h3 id="BST 迭代器">BST 迭代器</h3>
+
+<p>把 BST 的中序遍历变成流式输出，每次 <code>next()</code> 返回下一个最小的数。</p>
+
+<pre><code>class BSTIterator {
+    stack<TreeNode*> st;
+    void pushLeft(TreeNode* node) {
+        while (node) { st.push(node); node = node->left; }
+    }
+public:
+    BSTIterator(TreeNode* root) { pushLeft(root); }
+    int next() {
+        TreeNode* cur = st.top(); st.pop();
+        pushLeft(cur->right);
+        return cur->val;
+    }
+    bool hasNext() { return !st.empty(); }
+};</code></pre>
+
+<h2 id="典型题">典型题</h2>
+
+<h3 id="题 1：验证二叉搜索树">题 1：验证二叉搜索树</h3>
+
+<p><strong>LeetCode 98</strong> —— 用上界下界递归验证，时间 O(n)，空间 O(h)。</p>
+
+<h3 id="题 2：二叉搜索树中第 K 小的元素">题 2：二叉搜索树中第 K 小的元素</h3>
+
+<p><strong>LeetCode 230</strong> —— 中序遍历第 k 个即为答案，或用 size 字段 O(log n) 求解。</p>
+
+<h3 id="题 3：二叉搜索树的范围和">题 3：二叉搜索树的范围和</h3>
+
+<p><strong>LeetCode 938</strong> —— 利用 BST 性质剪枝，只遍历可能在 [low, high] 范围内的子树。</p>
+
+<pre><code>int rangeSumBST(TreeNode* root, int low, int high) {
+    if (!root) return 0;
+    if (root->val < low) return rangeSumBST(root->right, low, high);
+    if (root->val > high) return rangeSumBST(root->left, low, high);
+    return root->val + rangeSumBST(root->left, low, high) + rangeSumBST(root->right, low, high);
+}</code></pre>
+
+<h3 id="题 4：把有序数组转化为 BST">题 4：把有序数组转化为 BST</h3>
+
+<p><strong>LeetCode 108</strong> —— 取中间元素当根，递归构造左右子树，得到的 BST 是"平衡"的。</p>
+
+<pre><code>TreeNode* sortedArrayToBST(vector<int>& nums) {
+    function&lt;TreeNode*(int,int)&gt; build = [&](int l, int r) {
+        if (l > r) return (TreeNode*)nullptr;
+        int m = (l + r) / 2;
+        TreeNode* node = new TreeNode(nums[m]);
+        node->left = build(l, m - 1);
+        node->right = build(m + 1, r);
+        return node;
+    };
+    return build(0, nums.size() - 1);
+}</code></pre>
+
+<h2 id="BST 的时间复杂度">BST 的时间复杂度</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>操作</th>
+      <th>期望（平衡）</th>
+      <th>最坏（退化成链）</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>搜索</td>
+      <td>O(log n)</td>
+      <td>O(n)</td>
+    </tr>
+    <tr>
+      <td>插入</td>
+      <td>O(log n)</td>
+      <td>O(n)</td>
+    </tr>
+    <tr>
+      <td>删除</td>
+      <td>O(log n)</td>
+      <td>O(n)</td>
+    </tr>
+    <tr>
+      <td>中序遍历</td>
+      <td>O(n)</td>
+      <td>O(n)</td>
+    </tr>
+    <tr>
+      <td>找最大/最小</td>
+      <td>O(log n)</td>
+      <td>O(n)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>平衡时效率很高，但最坏情况（数据有序插入）会退化成链表。**AVL 树和红黑树**就是用来解决这个问题的——它们通过旋转操作保持树的平衡，把最坏情况也优化到 O(log n)。</p>
+
+<h2 id="BST 的易错点">BST 的易错点</h2>
+
+<ul>
+  <li><strong>验证 BST 时不能只比较父子</strong>：左孩子小于根、右孩子大于根不够，必须保证整棵左子树都 < 根、整棵右子树都 > 根。</li>
+  <li><strong>删除操作的后继/前驱要小心</strong>：替换后要递归删掉原来的后继节点。</li>
+  <li><strong>迭代器不要用递归</strong>：递归会爆栈，中序遍历用栈模拟。</li>
+  <li><strong>重复元素的处理</strong>：可以选择都放左边或都放右边，但一定要保持一致。</li>
+  <li><strong>BST 和二叉树的遍历不要混淆</strong>：BST 的中序是升序，但前序和后序没有这个性质。</li>
+</ul>
+
+<h2 id="什么时候用 BST">什么时候用 BST</h2>
+
+<p>看到这些关键词，优先考虑 BST：</p>
+<ul>
+  <li>需要<strong>有序数据</strong>（第 K 小、Kth Largest）</li>
+  <li>需要<strong>范围查询</strong>（lower_bound、upper_bound、区间和）</li>
+  <li>需要<strong>动态维护有序集合</strong>（插入、删除、搜索共存）</li>
+  <li>需要<strong>模拟"流式有序输出"</strong>（BST 迭代器）</li>
+  <li>和哈希表的区别：需要有序时用 BST，不需要有序但要速度时用哈希表</li>
+</ul>
+
+<h2 id="这一篇先记住什么">这一篇先记住什么</h2>
+
+<ul>
+  <li>BST 的核心性质：<strong>左小右大，中序升序</strong></li>
+  <li>搜索、插入、删除的递归实现（都要和根比较后递归一边）</li>
+  <li>删除两个孩子的节点时，用<strong>后继（右子树最小）</strong>替换</li>
+  <li>验证 BST 要传<strong>上界和下界</strong>，不能只比较父子</li>
+  <li>BST 的 LCA 利用大小关系可以 O(log n) 完成</li>
+  <li>BST 最坏退化成 O(n)，平衡树（AVL、红黑树）解决此问题</li>
+  <li>有序数组转平衡 BST：取中点递归</li>
+</ul>
+
+  </div>
+  <div>
+    <div class="post-guide">
+      <div class="post-guide-item">分类：
+        <a href="/tags/数据结构与算法/">数据结构与算法</a>，
+        <a href="/tags/算法题目/">算法题目</a>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <div class="post-eof"></div>
+  </footer>
+</article>
+          <div class="post-spread"><div class="addthis_inline_share_toolbox"></div></div>
+          <div class="post-tags">
+  <a href="/tags/数据结构与算法/" rel="tag">数据结构与算法</a>
+  <a href="/tags/算法题目/" rel="tag">算法题目</a>
+</div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+          <a href="/2026/06/20/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8708-%E5%A0%86%E4%B8%8E%E4%BC%98%E5%85%88%E9%98%9F%E5%88%97/" rel="next" title="ACM 学习篇 08：堆与优先队列">
+            <i class="fa fa-chevron-left"></i> ACM 学习篇 08：堆与优先队列
+          </a>
+        </div>
+      </nav>
+  </div>
+        </div>
+      </div>
+      <div class="sidebar-toggle"><div class="sidebar-toggle-line"></div></div>
+      <aside class="sidebar">
+      <div class="sidebar-inner">
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview">
+            站点概览
+          </li>
+        </ul>
+        <div class="sidebar-panel-container">
+          <!--noindex-->
+          <div class="post-toc-wrap motion-element">
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#为什么需要 BST"><span class="post-toc-text">为什么需要 BST</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#什么是二叉搜索树"><span class="post-toc-text">什么是二叉搜索树</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#BST 的实现"><span class="post-toc-text">BST 的实现</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#搜索"><span class="post-toc-text">搜索</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#插入"><span class="post-toc-text">插入</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#删除"><span class="post-toc-text">删除</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#遍历"><span class="post-toc-text">遍历</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#BST 的进阶操作"><span class="post-toc-text">BST 的进阶操作</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#找第 K 小的元素"><span class="post-toc-text">找第 K 小的元素</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#lower-bound-和-upper-bound"><span class="post-toc-text">Lower Bound 和 Upper Bound</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#验证 BST"><span class="post-toc-text">验证 BST</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#BST-最近公共祖先 LCA"><span class="post-toc-text">BST 最近公共祖先（LCA）</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#BST 迭代器"><span class="post-toc-text">BST 迭代器</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#典型题"><span class="post-toc-text">典型题</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#题 1：验证二叉搜索树"><span class="post-toc-text">题 1：验证二叉搜索树</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#题 2：二叉搜索树中第 K 小的元素"><span class="post-toc-text">题 2：二叉搜索树中第 K 小的元素</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#题 3：二叉搜索树的范围和"><span class="post-toc-text">题 3：二叉搜索树的范围和</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#题 4：把有序数组转化为 BST"><span class="post-toc-text">题 4：把有序数组转化为 BST</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#BST 的时间复杂度"><span class="post-toc-text">BST 的时间复杂度</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#BST 的易错点"><span class="post-toc-text">BST 的易错点</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#什么时候用 BST"><span class="post-toc-text">什么时候用 BST</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#这一篇先记住什么"><span class="post-toc-text">这一篇先记住什么</span></a></li></ol>
+          </div>
+          <!--noindex-->
+          <div class="post-overview">
+            <div class="posts">
+              <div class="widget">
+                <div class="sidebar-toc-title"><i class="fa fa-bullseyle"> 站点概览</i></div>
+                <div class="sidebar-toc-content">
+                  <div class="post-data-name">
+                    <i class="fa fa-user-circle"> 侯瑞哲</i>
+                  </div>
+                  <div class="post-data">
+                    <div class="to">邮箱：</div>
+                    <div class=" Zi">ruizhe@foxmail.com</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="post-data">
+              <div class="sidebar-toc-title"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <div class="back-to-top motion-element"><i class="fa fa-arrow-up"></i></div>
+</main>
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="copyright">
+      &copy; <span itemprop="copyrightYear">2020</span>
+      <span class="with-love"><i class="fa fa-heart"></i></span>
+      <span class="author" itemprop="copyrightHolder">侯瑞哲</span>
+    </div>
+    <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="external nofollow" target="_blank">Hexo</a> & <a href="https://github.com/XPoet/hexo-theme-pure" class="theme-link" rel="external nofollow" target="_blank">Pure</a> 强力驱动
+    </div>
+  </div>
+</footer>
+<div class="post-modal"></div>
+<script src="/lib/velocity/velocity.min.js"></script>
+<script src="/lib/velocity/velocity.ui.min.js"></script>
+<script src="/lib/velocities/velocities.min.js"></script>
+<script src="/lib/pjax/jquery.pjax.js"></script>
+<script src="/lib/fancybox/source/jquery.fancybox.pack.js"></script>
+<script src="/lib/hanhegs/hone.js"></script>
+<script src="/lib/require/require.js ""></script>
+<script src="/js/local-search.js"></script>
+<script src="/js/toc.js"></script>
+<script src="/js/motion.js"></script>
+<script src="/js/bootoast/bootoast.js"></script>
+<script src="/js/bootstrap.js"></script>
+<script src="/js/schemes/muse.js"></script>
+<script src="/js/local-search.js"></script>
+<script>window.config={"copybtn":true,"lazyload":true,"local-search":{"path":"/local-search.xml"}};</script>
+<script src="/js/local-search.js"></script>
+<script>if (document.body.clientWidth > 860) {
+    var arr = document.getElementsByClassName("post-spread");
+    for (let item of arr) {
+      var a = document.createElement("script");
+      a.src = "//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-60faceebc07b8240";
+      a.defer = "true";
+      item.appendChild(a);
+    }
+  }</script>
+</body>
+</html>
