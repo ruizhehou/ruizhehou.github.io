@@ -1,0 +1,320 @@
+#!/usr/bin/env python3
+import os
+
+content = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We did not find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ACM 学习篇第六课：理解哈希表的原理与应用，掌握计数、查找、去重等常用操作，学会用 unordered_map 和 unordered_set 高效解决问题。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ACM 学习篇 06：哈希表与计数">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/18/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8706-%E5%93%88%E5%B8%8C%E8%A1%A8%E4%B8%8E%E8%AE%A1%E6%95%B0/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-18T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-18T04:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据结构与算法">
+<meta property="article:tag" content="算法题目">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/18/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8706-%E5%93%88%E5%B8%8C%E8%A1%A8%E4%B8%8E%E8%AE%A1%E6%95%B0/index.html">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>ACM 学习篇 06：哈希表与计数 | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-18T12:00:00+08:00" content="2026-06-18">06-18</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">ACM 学习篇 06：哈希表与计数</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>上一篇讲了单调栈和单调队列，它们擅长处理有顺序关系的元素。但很多时候我们需要的是"快速查找"和"统计次数"，这就该哈希表出场了。</p>
+
+<h2 id="为什么需要哈希表">为什么需要哈希表</h2>
+
+<p>如果想知道一个元素出现了几次，或者想快速判断某个值是否存在，用数组行不行？</p>
+
+<p>如果元素范围不大，比如只有 0 到 1000，数组很完美。但如果元素是字符串、大数或者稀疏分布的整数，数组就无能为力了。</p>
+
+<p>哈希表的核心就是把任意类型的 key，通过哈希函数映射到一个整数索引，然后用数组存储。这样就能做到平均 O(1) 的插入、查找和删除。</p>
+
+<h2 id="C++中的哈希容器">C++ 中的哈希容器</h2>
+
+<p>C++ STL 提供了两个常用的哈希容器：</p>
+
+<ul>
+  <li><code>unordered_map&lt;K, V&gt;</code>：键值对的哈希表，像字典一样用；</li>
+  <li><code>unordered_set&lt;K&gt;</code>：哈希集合，只存键不存值，用于去重和存在性判断。</li>
+</ul>
+
+<h2 id="计数最常用的操作">计数：最常用的操作</h2>
+
+<p>统计元素出现次数是哈希表最基础的用法。比如统计数组中每个数出现几次：</p>
+
+<pre><code class="language-cpp">vector&lt;int&gt; a = {1, 2, 3, 2, 1, 3, 3, 3};
+unordered_map&lt;int, int&gt; cnt;
+
+for (int x : a) {
+    cnt[x]++;
+}
+
+for (auto&amp; [k, v] : cnt) {
+    cout &lt;&lt; k &lt;&lt; &quot; 出现了 &quot; &lt;&lt; v &lt;&lt; &quot; 次\n&quot;;
+}
+</code></pre>
+
+<p>输出：</p>
+
+<pre><code>1 出现了 2 次
+2 出现了 2 次
+3 出现了 4 次
+</code></pre>
+
+<h2 id="查找存在性">查找：判断是否存在</h2>
+
+<p>用 <code>unordered_set</code> 判断元素是否存在：</p>
+
+<pre><code class="language-cpp">unordered_set&lt;string&gt; s = {&quot;apple&quot;, &quot;banana&quot;, &quot;cherry&quot;};
+
+if (s.count(&quot;apple&quot;)) {
+    cout &lt;&lt; &quot;存在 apple\n&quot;;
+}
+
+if (!s.count(&quot;orange&quot;)) {
+    cout &lt;&lt; &quot;不存在 orange\n&quot;;
+}
+</code></pre>
+
+<h2 id="典型题目两数之和">典型题：两数之和</h2>
+
+<p>给定数组和目标值，找两个数的下标使它们的和等于目标值。</p>
+
+<pre><code class="language-cpp">vector&lt;int&gt; twoSum(vector&lt;int&gt;&amp; nums, int target) {
+    unordered_map&lt;int, int&gt; mp;
+    for (int i = 0; i &lt; nums.size(); i++) {
+        int complement = target - nums[i];
+        if (mp.count(complement)) {
+            return {mp[complement], i};
+        }
+        mp[nums[i]] = i;
+    }
+    return {};
+}
+</code></pre>
+
+<p>思路：遍历数组时，用哈希表记录已遍历元素及其下标。对当前元素 <code>nums[i]</code>，检查 <code>target - nums[i]</code> 是否在哈希表中。</p>
+
+<h2 id="去重与统计频率">去重与统计频率</h2>
+
+<p>哈希表还能方便地去重。比如找出数组中只出现一次的元素：</p>
+
+<pre><code class="language-cpp">int singleNumber(vector&lt;int&gt;&amp; nums) {
+    unordered_map&lt;int, int&gt; cnt;
+    for (int x : nums) cnt[x]++;
+    for (auto&amp; [k, v] : cnt) {
+        if (v == 1) return k;
+    }
+    return -1;
+}
+</code></pre>
+
+<h2 id="哈希表的性能与注意事项">哈希表的性能与注意事项</h2>
+
+<p>哈希表虽然平均是 O(1)，但有几个坑需要注意：</p>
+
+<ul>
+  <li><strong>哈希冲突</strong>：不同的 key 可能映射到同一个位置，导致退化成链表，最坏 O(n)；</li>
+  <li><strong>自定义类型</strong>：如果用自定义结构体当 key，需要提供哈希函数；</li>
+  <li><strong>遍历顺序</strong>：<code>unordered_map</code> 的遍历顺序是不确定的，不依赖插入顺序；</li>
+  <li><strong>数组 vs 哈希表</strong>：如果 key 是小范围整数，数组比哈希表更快。</li>
+</ul>
+
+<p>在 C++17 中，可以用结构化绑定让代码更简洁：</p>
+
+<pre><code class="language-cpp">for (auto&amp; [key, value] : my_map) {
+    // 直接访问 key 和 value
+}
+</code></pre>
+
+<h2 id="什么时候用哈希表">什么时候用哈希表</h2>
+
+<p>看到这些场景，就可以考虑哈希表：</p>
+
+<ul>
+  <li>需要快速统计频率、计数；</li>
+  <li>需要快速判断元素是否存在；</li>
+  <li>需要建立键值映射关系；</li>
+  <li>需要 O(1) 时间的查找和插入。</li>
+</ul>
+
+<h2 id="这一篇先记住什么">这一篇先记住什么</h2>
+
+<ul>
+  <li><code>unordered_map</code> 用于键值映射和计数；</li>
+  <li><code>unordered_set</code> 用于去重和存在性判断；</li>
+  <li>哈希表平均 O(1)，但要注意哈希冲突的影响；</li>
+  <li>小范围整数优先用数组，其他情况用哈希表。</li>
+</ul>
+
+<p>下一篇继续数据结构：并查集。它是处理连通性问题的利器，能高效解决动态连通性、分组等问题。</p>
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E7%AE%97%E6%B3%95/" rel="tag"><i class="fa fa-tag"></i> 数据结构与算法</a>
+          <a href="/tags/%E7%AE%97%E6%B3%95%E9%A2%98%E7%9B%AE/" rel="tag"><i class="fa fa-tag"></i> 算法题目</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item"></div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item">
+          <a href="/2026/06/16/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8705-%E6%A0%88%E9%98%9F%E5%88%97%E4%B8%8E%E5%8D%95%E8%B0%83%E7%BB%93%E6%9E%84%E5%85%A5%E9%97%A8/" rel="prev" title="ACM 学习篇 05：栈、队列与单调结构入门">
+            ACM 学习篇 05：栈、队列与单调结构入门 <i class="fa fa-chevron-right"></i>
+          </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+  </article>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么需要哈希表"><span class="nav-number">1.</span> <span class="nav-text">为什么需要哈希表</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#C++中的哈希容器"><span class="nav-number">2.</span> <span class="nav-text">C++ 中的哈希容器</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#计数最常用的操作"><span class="nav-number">3.</span> <span class="nav-text">计数：最常用的操作</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#查找存在性"><span class="nav-number">4.</span> <span class="nav-text">查找：判断是否存在</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#典型题目两数之和"><span class="nav-number">5.</span> <span class="nav-text">典型题：两数之和</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#去重与统计频率"><span class="nav-number">6.</span> <span class="nav-text">去重与统计频率</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#哈希表的性能与注意事项"><span class="nav-number">7.</span> <span class="nav-text">哈希表的性能与注意事项</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么时候用哈希表"><span class="nav-number">8.</span> <span class="nav-text">什么时候用哈希表</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#这一篇先记住什么"><span class="nav-number">9.</span> <span class="nav-text">这一篇先记住什么</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">263</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
+"""
+
+os.makedirs('/Users/bytedance/go/src/github.com/ruizhehou/ruizhehou.github.io/2026/06/18/ACM学习篇06-哈希表与计数', exist_ok=True)
+with open('/Users/bytedance/go/src/github.com/ruizhehou/ruizhehou.github.io/2026/06/18/ACM学习篇06-哈希表与计数/index.html', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('File created successfully!')
