@@ -826,4 +826,55 @@
 
         .contact-item:hover {
           background: #fc6423;
-          transform
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(252, 100, 35, 0.3);
+        }
+
+        @media (max-width: 768px) {
+          .about-container {
+            padding: 15px;
+          }
+
+          .hero-section {
+            padding: 30px 15px;
+          }
+
+          .hero-name {
+            font-size: 2.2em;
+          }
+
+          .avatar-img {
+            width: 120px;
+            height: 120px;
+          }
+
+          .stats-section {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .stat-card {
+            padding: 20px 15px;
+          }
+
+          .about-section {
+            padding: 20px;
+          }
+
+          .skills-container {
+            grid-template-columns: 1fr;
+          }
+
+          .content-categories {
+            grid-template-columns: 1fr;
+          }
+
+          .contact-methods {
+            flex-direction: column;
+            align-items: center;
+          }
+
+          .contact-item {
+            width: 100%;
+            justify-content: center;
+          }
+        }
