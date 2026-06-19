@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We did not find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ACM 学习篇第十课：理解树状数组（Fenwick Tree）的核心原理，掌握 lowbit、单点更新、区间查询等基础操作，学会用树状数组高效解决前缀和、逆序对、动态排名等经典问题。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ACM 学习篇 10：树状数组（Fenwick Tree）">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/22/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8710-%E6%A0%91%E7%8A%B6%E6%95%B0%E7%BB%84/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-22T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-22T04:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据结构与算法">
+<meta property="article:tag" content="算法题目">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/22/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8710-%E6%A0%91%E7%8A%B6%E6%95%B0%E7%BB%84/index.html">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>ACM 学习篇 10：树状数组（Fenwick Tree） | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-22T12:00:00+08:00" content="2026-06-22">06-22</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">ACM 学习篇 10：树状数组（Fenwick Tree）</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>上一篇讲了二叉搜索树，它能高效支持搜索、插入、删除和有序遍历。但如果问题只需要<strong>区间求和</strong>和<strong>单点修改</strong>，BST 就显得太重了。树状数组（Binary Indexed Tree，也叫 Fenwick Tree）就是专门解决这类问题的轻量级数据结构，代码短、常数小、实现简单，是 ACM 中最常用的数据结构之一。</p>
+
+<h2 id="为什么需要树状数组">为什么需要树状数组</h2>
+
+<p>假设有一个数组，需要频繁做两种操作：</p>
+<ul>
+  <li><strong>单点修改</strong>：把某个位置的值加上一个数；</li>
+  <li><strong>区间查询</strong>：查询某个区间的和。</li>
+</ul>
+
+<p>如果用普通数组，单点修改是 O(1)，但区间查询是 O(n)；如果用前缀和数组，区间查询是 O(1)，但单点修改会破坏整个前缀和，变成 O(n)。</p>
+
+<p>树状数组把两者结合起来：<strong>单点修改 O(log n)，区间查询 O(log n)</strong>。而且代码比线段树短得多，常数也更小。</p>
+
+<h2 id="树状数组的核心思想">树状数组的核心思想：lowbit</h2>
+
+<p>树状数组的关键是利用二进制的性质。定义 <strong>lowbit(x)</strong> 为 x 的二进制表示中最低位的 1 代表的值：</p>
+
+<pre><code class="language-cpp">int lowbit(int x) {
+    return x & (-x);
+}</code></pre>
+
+<p>原理：-x 是 x 的补码，相当于把 x 的所有位取反再加 1。这样 x 和 -x 做与运算，只会保留最低位的 1。</p>
+
+<p>举例：</p>
+<pre><code>x = 6  = 0110
+-x = -6 = 1010（补码）
+x & (-x) = 0010 = 2</code></pre>
+
+<p>lowbit 的值决定了每个节点"管辖"的范围。树状数组中，节点 i 管理区间 <code>[i - lowbit(i) + 1, i]</code>。</p>
+
+<h2 id="树状数组的结构">树状数组的结构</h2>
+
+<p>假设原数组是 <code>a[1..n]</code>，树状数组 <code>tree[1..n]</code> 存的是：</p>
+
+<pre><code>tree[i] = a[i - lowbit(i) + 1] + ... + a[i]</code></pre>
+
+<p>比如 n = 8：</p>
+
+<pre><code>tree[1] = a[1]                    （lowbit(1) = 1，管辖 [1, 1]）
+tree[2] = a[1] + a[2]              （lowbit(2) = 2，管辖 [1, 2]）
+tree[3] = a[3]                     （lowbit(3) = 1，管辖 [3, 3]）
+tree[4] = a[1] + a[2] + a[3] + a[4]（lowbit(4) = 4，管辖 [1, 4]）
+tree[5] = a[5]                     （lowbit(5) = 1，管辖 [5, 5]）
+tree[6] = a[5] + a[6]              （lowbit(6) = 2，管辖 [5, 6]）
+tree[7] = a[7]                     （lowbit(7) = 1，管辖 [7, 7]）
+tree[8] = a[1] + ... + a[8]        （lowbit(8) = 8，管辖 [1, 8]）</code></pre>
+
+<p>画成树形结构：</p>
+
+<pre><code>        tree[8] (1-8)
+       /        \
+   tree[4]      tree[6]    tree[7]
+   (1-4)        (5-6)      (7)
+  /    \        /    \
+tree[2] tree[3] tree[5]
+(1-2)  (3)      (5)
+  |
+tree[1]
+(1)</code></pre>
+
+<h2 id="单点更新">单点更新</h2>
+
+<p>把 <code>a[i]</code> 加上 <code>delta</code>，需要更新所有"管辖" i 的节点。这些节点是：<code>i, i + lowbit(i), i + lowbit(i) + lowbit(...), ...</code>，直到超出 n。</p>
+
+<pre><code class="language-cpp">void update(int i, int delta) {
+    while (i <= n) {
+        tree[i] += delta;
+        i += lowbit(i);
+    }
+}</code></pre>
+
+<p>每次 i 加上 lowbit(i)，相当于跳到上一层"更大的管辖节点"。最多跳 log n 次。</p>
+
+<h2 id="前缀查询">前缀查询</h2>
+
+<p>查询前缀和 <code>a[1] + a[2] + ... + a[i]</code>，需要累加所有"覆盖"这个范围的节点。这些节点是：<code>i, i - lowbit(i), i - lowbit(i) - lowbit(...), ...</code>，直到 i 变成 0。</p>
+
+<pre><code class="language-cpp">int query(int i) {
+    int sum = 0;
+    while (i > 0) {
+        sum += tree[i];
+        i -= lowbit(i);
+    }
+    return sum;
+}</code></pre>
+
+<p>每次 i 减去 lowbit(i)，相当于去掉当前节点管辖的范围，跳到下一个需要累加的节点。最多跳 log n 次。</p>
+
+<h2 id="区间查询">区间查询</h2>
+
+<p>查询区间 <code>[l, r]</code> 的和，用前缀和相减：</p>
+
+<pre><code class="language-cpp">int rangeQuery(int l, int r) {
+    return query(r) - query(l - 1);
+}</code></pre>
+
+<h2 id="初始化">初始化</h2>
+
+<p>初始化树状数组，可以先把 tree 清零，然后对每个 a[i] 执行 update：</p>
+
+<pre><code class="language-cpp">void init() {
+    memset(tree, 0, sizeof(tree));
+    for (int i = 1; i <= n; i++) {
+        update(i, a[i]);
+    }
+}</code></pre>
+
+<p>更高效的做法是直接计算每个 tree[i]：</p>
+
+<pre><code class="language-cpp">void initFast() {
+    for (int i = 1; i <= n; i++) {
+        tree[i] = a[i];
+        int j = i + lowbit(i);
+        if (j <= n) tree[j] += tree[i];
+    }
+}</code></pre>
+
+<h2 id="完整模板">完整模板</h2>
+
+<pre><code class="language-cpp">class FenwickTree {
+private:
+    vector<int> tree;
+    int n;
+
+    int lowbit(int x) {
+        return x & (-x);
+    }
+
+public:
+    FenwickTree(int size) : n(size), tree(size + 1, 0) {}
+
+    void update(int i, int delta) {
+        while (i <= n) {
+            tree[i] += delta;
+            i += lowbit(i);
+        }
+    }
+
+    int query(int i) {
+        int sum = 0;
+        while (i > 0) {
+            sum += tree[i];
+            i -= lowbit(i);
+        }
+        return sum;
+    }
+
+    int rangeQuery(int l, int r) {
+        return query(r) - query(l - 1);
+    }
+};</code></pre>
+
+<h2 id="典型题逆序对">典型题：逆序对</h2>
+
+<p>逆序对是树状数组最经典的应用。给定数组，统计有多少对 <code>(i, j)</code> 满足 <code>i < j</code> 但 <code>a[i] > a[j]</code>。</p>
+
+<p>思路：从左到右遍历，对每个元素 <code>a[i]</code>，统计之前有多少个比它大的数。用树状数组维护已出现的数的频率，查询时用 <code>query(MAX) - query(a[i])</code> 得到比 a[i] 大的数量。</p>
+
+<pre><code class="language-cpp">long long countInversions(vector<int>& a) {
+    int n = a.size();
+    // 如果值域太大，需要离散化
+    vector<int> b = a;
+    sort(b.begin(), b.end());
+    b.erase(unique(b.begin(), b.end()), b.end());
+
+    FenwickTree ft(b.size());
+    long long ans = 0;
+
+    for (int i = 0; i < n; i++) {
+        // 离散化：把 a[i] 映射到 1..m
+        int idx = lower_bound(b.begin(), b.end(), a[i]) - b.begin() + 1;
+        // 统计之前有多少个比 a[i] 大的
+        ans += ft.query(b.size()) - ft.query(idx);
+        ft.update(idx, 1);
+    }
+
+    return ans;
+}</code></pre>
+
+<p>注意：如果值域很大（比如 10^9），需要先<strong>离散化</strong>，把值映射到 1..m 的范围。</p>
+
+<h2 id="典型题动态第 K 小">典型题：动态第 K 小</h2>
+
+<p>树状数组还可以用来求动态序列的第 K 小元素。思路是给每个值维护出现次数，然后用类似二分的方法找第 K 小。</p>
+
+<pre><code class="language-cpp">int findKth(FenwickTree& ft, int k, int maxVal) {
+    int pos = 0;
+    int bit = 1;
+    while (bit <= maxVal) bit <<= 1;
+    bit >>= 1;
+
+    while (bit > 0) {
+        int next = pos + bit;
+        if (next <= maxVal && ft.query(next) < k) {
+            pos = next;
+            k -= ft.query(next);
+        }
+        bit >>= 1;
+    }
+    return pos + 1;
+}</code></pre>
+
+<h2 id="树状数组 vs 线段树">树状数组 vs 线段树</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>特性</th>
+      <th>树状数组</th>
+      <th>线段树</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>单点修改</td>
+      <td>O(log n)</td>
+      <td>O(log n)</td>
+    </tr>
+    <tr>
+      <td>区间查询</td>
+      <td>O(log n)</td>
+      <td>O(log n)</td>
+    </tr>
+    <tr>
+      <td>区间修改</td>
+      <td>需要差分技巧</td>
+      <td>原生支持</td>
+    </tr>
+    <tr>
+      <td>代码长度</td>
+      <td>短（~20 行）</td>
+      <td>长（~50 行）</td>
+    </tr>
+    <tr>
+      <td>常数</td>
+      <td>小</td>
+      <td>较大</td>
+    </tr>
+    <tr>
+      <td>空间</td>
+      <td>O(n)</td>
+      <td>O(4n)</td>
+    </tr>
+    <tr>
+      <td>灵活性</td>
+      <td>只能处理可合并的信息</td>
+      <td>可以处理更复杂的操作</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>简单说：<strong>能用树状数组就用树状数组</strong>，需要区间修改或更复杂操作时才用线段树。</p>
+
+<h2 id="树状数组的易错点">树状数组的易错点</h2>
+
+<ul>
+  <li><strong>下标从 1 开始</strong>：树状数组的下标必须从 1 开始，因为 lowbit(0) = 0，会导致死循环。</li>
+  <li><strong>离散化别忘了</strong>：逆序对等题目如果值域很大，必须先离散化。</li>
+  <li><strong>区间修改需要差分</strong>：普通树状数组不支持区间修改，但可以用"差分树状数组"实现：维护差分数组，区间修改变成两个单点修改，前缀和变成单点查询。</li>
+  <li><strong>long long 防溢出</strong>：逆序对数量可能很大，统计时用 long long。</li>
+  <li><strong>query(l - 1) 的边界</strong>：如果 l = 1，query(0) 会返回 0，没问题。</li>
+</ul>
+
+<h2 id="差分树状数组">差分树状数组：支持区间修改</h2>
+
+<p>如果需要支持区间修改（把 <code>[l, r]</code> 都加上 delta），可以用差分思想：</p>
+
+<ul>
+  <li>维护差分数组 <code>d[i] = a[i] - a[i-1]</code>；</li>
+  <li>区间修改 <code>[l, r]</code> 加 delta：只需 <code>d[l] += delta</code>，<code>d[r+1] -= delta</code>；</li>
+  <li>单点查询 <code>a[i]</code>：就是 <code>d[1] + d[2] + ... + d[i]</code>。</li>
+</ul>
+
+<p>用树状数组维护差分数组，就能做到<strong>区间修改 O(log n)，单点查询 O(log n)</strong>。</p>
+
+<pre><code class="language-cpp">class DiffFenwick {
+private:
+    FenwickTree ft;
+
+public:
+    DiffFenwick(int n) : ft(n) {}
+
+    void rangeUpdate(int l, int r, int delta) {
+        ft.update(l, delta);
+        ft.update(r + 1, -delta);
+    }
+
+    int pointQuery(int i) {
+        return ft.query(i);
+    }
+};</code></pre>
+
+<h2 id="什么时候用树状数组">什么时候用树状数组</h2>
+
+<p>看到这些关键词，优先考虑树状数组：</p>
+<ul>
+  <li><strong>单点修改 + 区间求和</strong>（最经典场景）</li>
+  <li><strong>逆序对</strong>（统计比当前大/小的数量）</li>
+  <li><strong>动态排名/第 K 小</strong>（维护频率，二分找位置）</li>
+  <li><strong>区间修改 + 单点查询</strong>（用差分树状数组）</li>
+  <li><strong>需要 O(log n) 但线段树太重</strong></li>
+</ul>
+
+<h2 id="这一篇先记住什么">这一篇先记住什么</h2>
+
+<ul>
+  <li><strong>lowbit(x) = x & (-x)</strong>：树状数组的核心，决定每个节点管辖的范围</li>
+  <li><strong>单点更新</strong>：i += lowbit(i)，向上跳</li>
+  <li><strong>前缀查询</strong>：i -= lowbit(i)，向下累加</li>
+  <li><strong>区间查询</strong>：query(r) - query(l - 1)</li>
+  <li><strong>逆序对</strong>：遍历时统计之前比当前大的数量，需要离散化</li>
+  <li><strong>下标从 1 开始</strong>，否则 lowbit(0) = 0 会死循环</li>
+  <li><strong>区间修改用差分树状数组</strong>：两个单点更新 + 前缀查询</li>
+</ul>
+
+<p>下一篇继续数据结构：线段树。它能支持更复杂的区间操作，比如区间修改、区间最值查询，是树状数组的"升级版"。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E7%AE%97%E6%B3%95/" rel="tag"><i class="fa fa-tag"></i> 数据结构与算法</a>
+          <a href="/tags/%E7%AE%97%E6%B3%95%E9%A2%98%E7%9B%AE/" rel="tag"><i class="fa fa-tag"></i> 算法题目</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+          <a href="/2026/06/21/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8709-%E4%BA%8C%E5%8F%89%E6%90%9C%E7%B4%A2%E6%A0%B9BST/" rel="next" title="ACM 学习篇 09：二叉搜索树（BST）">
+            <i class="fa fa-chevron-left"></i> ACM 学习篇 09：二叉搜索树（BST）
+          </a>
+        </div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </article>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#为什么需要树状数组"><span class="nav-number">1.</span> <span class="nav-text">为什么需要树状数组</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#树状数组的核心思想"><span class="nav-number">2.</span> <span class="nav-text">树状数组的核心思想：lowbit</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#树状数组的结构"><span class="nav-number">3.</span> <span class="nav-text">树状数组的结构</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#单点更新"><span class="nav-number">4.</span> <span class="nav-text">单点更新</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#前缀查询"><span class="nav-number">5.</span> <span class="nav-text">前缀查询</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#区间查询"><span class="nav-number">6.</span> <span class="nav-text">区间查询</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#初始化"><span class="nav-number">7.</span> <span class="nav-text">初始化</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#完整模板"><span class="nav-number">8.</span> <span class="nav-text">完整模板</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#典型题逆序对"><span class="nav-number">9.</span> <span class="nav-text">典型题：逆序对</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#典型题动态第 K 小"><span class="nav-number">10.</span> <span class="nav-text">典型题：动态第 K 小</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#树状数组-vs-线段树"><span class="nav-number">11.</span> <span class="nav-text">树状数组 vs 线段树</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#树状数组的易错点"><span class="nav-number">12.</span> <span class="nav-text">树状数组的易错点</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#差分树状数组"><span class="nav-number">13.</span> <span class="nav-text">差分树状数组：支持区间修改</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么时候用树状数组"><span class="nav-number">14.</span> <span class="nav-text">什么时候用树状数组</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#这一篇先记住什么"><span class="nav-number">15.</span> <span class="nav-text">这一篇先记住什么</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">264</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
