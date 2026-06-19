@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+<link rel="stylesheet" href="/css/mobile-optimization.css">
+<link rel="stylesheet" href="/css/dark-mode.css">
+<link rel="stylesheet" href="/css/code-block.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We did not find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ACM 学习篇第十一课：深入理解线段树（Segment Tree），掌握单点更新、区间查询、区间修改与懒标记延迟更新，学会用线段树解决区间最值、区间和、区间覆盖等复杂问题。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ACM 学习篇 11：线段树（Segment Tree）">
+<meta property="og:url" content="https://ruizhehou.github.io/2026/06/23/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8711-%E7%BA%BF%E6%AE%B5%E6%A0%91/index.html">
+<meta property="og:site_name" content="侯瑞哲的博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-23T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-23T04:00:00.000Z">
+<meta property="article:author" content="侯瑞哲">
+<meta property="article:tag" content="数据结构与算法">
+<meta property="article:tag" content="算法题目">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://ruizhehou.github.io/2026/06/23/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8711-%E7%BA%BF%E6%AE%B5%E6%A0%91/index.html">
+<script id="page-configurations">
+  CONFIG.page = {sidebar:"",isHome:false,isPost:true,lang:'zh-CN'};
+</script>
+  <title>ACM 学习篇 11：线段树（Segment Tree） | 侯瑞哲的博客</title>
+  <noscript><style>.use-motion .brand,.use-motion .menu-item,.sidebar-inner,.use-motion .post-block,.use-motion .pagination,.use-motion .comments,.use-motion .post-header,.use-motion .post-body,.use-motion .collection-header{opacity:initial;}.use-motion .site-title,.use-motion .site-subtitle{opacity:initial;top:initial;}.use-motion .logo-line-before i{left:initial;}.use-motion .logo-line-after i{right:initial;}</style></noscript>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+</div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content page posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+  <div class="post-header">
+    <div class="post-meta-container"><div class="post-meta">
+      <time itemprop="dateCreated" datetime="2026-06-23T12:00:00+08:00" content="2026-06-23">06-23</time>
+    </div></div>
+    <h1 class="post-title" itemprop="name headline">ACM 学习篇 11：线段树（Segment Tree）</h1>
+  </div>
+
+  <div class="post-body" itemprop="articleBody">
+
+<p>上一篇讲了树状数组，它能高效处理单点修改和区间求和。但如果问题需要：</p>
+<ul>
+  <li><strong>区间修改</strong>：把一个区间内的所有元素都加上某个值；</li>
+  <li><strong>区间最值查询</strong>：查询一个区间的最大值或最小值；</li>
+  <li><strong>更复杂的区间操作</strong>：区间覆盖、区间翻转等。</li>
+</ul>
+
+<p>树状数组就不够用了。这时候需要 <strong>线段树（Segment Tree）</strong>——一种更通用、更强大的数据结构。</p>
+
+<h2 id="线段树的核心思想">线段树的核心思想</h2>
+
+<p>线段树是一种二叉树，每个节点代表一个区间 <code>[l, r]</code>：</p>
+<ul>
+  <li><strong>叶子节点</strong>：<code>l = r</code>，存储单个元素的值；</li>
+  <li><strong>非叶子节点</strong>：存储其左右子树区间的合并信息（如和、最值等）；</li>
+  <li><strong>结构</strong>：通常用数组存储，假设原数组长度为 n，线段树数组大小一般取 <code>4 * n</code>。</li>
+</ul>
+
+<p>比如数组 <code>[1, 3, 5, 7, 9, 11]</code> 的线段树结构：</p>
+
+<pre><code>                [1-6] sum=36
+              /         \
+        [1-3] sum=9    [4-6] sum=27
+        /    \          /    \
+    [1-2]   [3]    [4-5]   [6]
+    /   \          /   \
+  [1]  [2]      [4]   [5]
+   1    3        7     9</code></pre>
+
+<h2 id="线段树的基本操作">线段树的基本操作</h2>
+
+<h3 id="1-单点更新">1. 单点更新</h3>
+
+<p>把 <code>a[i]</code> 改成 <code>val</code>，需要从叶子节点一路更新到根节点。</p>
+
+<pre><code class="language-cpp">void update(int node, int l, int r, int idx, int val) {
+    if (l == r) {
+        tree[node] = val;
+        return;
+    }
+    int mid = (l + r) / 2;
+    if (idx <= mid) {
+        update(2 * node, l, mid, idx, val);
+    } else {
+        update(2 * node + 1, mid + 1, r, idx, val);
+    }
+    // 合并左右子树的信息
+    tree[node] = tree[2 * node] + tree[2 * node + 1];
+}</code></pre>
+
+<h3 id="2-区间查询">2. 区间查询</h3>
+
+<p>查询区间 <code>[ql, qr]</code> 的和，分三种情况：</p>
+<ul>
+  <li>当前节点区间完全在查询区间外：返回 0（或其他单位元）；</li>
+  <li>当前节点区间完全在查询区间内：直接返回该节点的值；</li>
+  <li>当前节点区间与查询区间部分重叠：递归查询左右子树并合并结果。</li>
+</ul>
+
+<pre><code class="language-cpp">int query(int node, int l, int r, int ql, int qr) {
+    if (qr < l || ql > r) return 0;  // 完全不重叠
+    if (ql <= l && r <= qr) return tree[node];  // 完全包含
+    int mid = (l + r) / 2;
+    return query(2 * node, l, mid, ql, qr) + query(2 * node + 1, mid + 1, r, ql, qr);
+}</code></pre>
+
+<h3 id="3-区间修改与懒标记">3. 区间修改与懒标记</h3>
+
+<p>如果需要把区间 <code>[ul, ur]</code> 的所有元素都加上 <code>delta</code>，朴素做法需要遍历每个叶子节点，复杂度是 O(n)。这太慢了。</p>
+
+<p><strong>懒标记（Lazy Propagation）</strong> 的思想是：先把修改记录在当前节点的懒标记中，等到需要访问子节点时再把标记传递下去。这样可以把区间修改的复杂度降到 O(log n)。</p>
+
+<pre><code class="language-cpp">void pushDown(int node, int l, int r) {
+    if (lazy[node] != 0 && l != r) {
+        // 把懒标记传递给左右子节点
+        int mid = (l + r) / 2;
+        tree[2 * node] += lazy[node] * (mid - l + 1);
+        lazy[2 * node] += lazy[node];
+        tree[2 * node + 1] += lazy[node] * (r - mid);
+        lazy[2 * node + 1] += lazy[node];
+        // 清除当前节点的懒标记
+        lazy[node] = 0;
+    }
+}
+
+void rangeUpdate(int node, int l, int r, int ul, int ur, int delta) {
+    if (ur < l || ul > r) return;
+    if (ul <= l && r <= ur) {
+        tree[node] += delta * (r - l + 1);
+        lazy[node] += delta;
+        return;
+    }
+    pushDown(node, l, r);  // 先传递懒标记
+    int mid = (l + r) / 2;
+    rangeUpdate(2 * node, l, mid, ul, ur, delta);
+    rangeUpdate(2 * node + 1, mid + 1, r, ul, ur, delta);
+    tree[node] = tree[2 * node] + tree[2 * node + 1];
+}</code></pre>
+
+<h3 id="4-区间修改后的查询">4. 区间修改后的查询</h3>
+
+<p>查询时也要先传递懒标记，确保访问的子节点信息是最新的：</p>
+
+<pre><code class="language-cpp">int queryWithLazy(int node, int l, int r, int ql, int qr) {
+    if (qr < l || ql > r) return 0;
+    if (ql <= l && r <= qr) return tree[node];
+    pushDown(node, l, r);  // 查询前先传递懒标记
+    int mid = (l + r) / 2;
+    return queryWithLazy(2 * node, l, mid, ql, qr) + queryWithLazy(2 * node + 1, mid + 1, r, ql, qr);
+}</code></pre>
+
+<h2 id="完整模板区间求和">完整模板：区间求和</h2>
+
+<pre><code class="language-cpp">class SegmentTree {
+private:
+    vector<int> tree;
+    vector<int> lazy;
+    int n;
+
+    void build(int node, int l, int r, vector<int>& a) {
+        if (l == r) {
+            tree[node] = a[l];
+            return;
+        }
+        int mid = (l + r) / 2;
+        build(2 * node, l, mid, a);
+        build(2 * node + 1, mid + 1, r, a);
+        tree[node] = tree[2 * node] + tree[2 * node + 1];
+    }
+
+    void pushDown(int node, int l, int r) {
+        if (lazy[node] != 0 && l != r) {
+            int mid = (l + r) / 2;
+            tree[2 * node] += lazy[node] * (mid - l + 1);
+            lazy[2 * node] += lazy[node];
+            tree[2 * node + 1] += lazy[node] * (r - mid);
+            lazy[2 * node + 1] += lazy[node];
+            lazy[node] = 0;
+        }
+    }
+
+    void update(int node, int l, int r, int idx, int val) {
+        if (l == r) {
+            tree[node] = val;
+            return;
+        }
+        pushDown(node, l, r);
+        int mid = (l + r) / 2;
+        if (idx <= mid) {
+            update(2 * node, l, mid, idx, val);
+        } else {
+            update(2 * node + 1, mid + 1, r, idx, val);
+        }
+        tree[node] = tree[2 * node] + tree[2 * node + 1];
+    }
+
+    void rangeUpdate(int node, int l, int r, int ul, int ur, int delta) {
+        if (ur < l || ul > r) return;
+        if (ul <= l && r <= ur) {
+            tree[node] += delta * (r - l + 1);
+            lazy[node] += delta;
+            return;
+        }
+        pushDown(node, l, r);
+        int mid = (l + r) / 2;
+        rangeUpdate(2 * node, l, mid, ul, ur, delta);
+        rangeUpdate(2 * node + 1, mid + 1, r, ul, ur, delta);
+        tree[node] = tree[2 * node] + tree[2 * node + 1];
+    }
+
+    int query(int node, int l, int r, int ql, int qr) {
+        if (qr < l || ql > r) return 0;
+        if (ql <= l && r <= qr) return tree[node];
+        pushDown(node, l, r);
+        int mid = (l + r) / 2;
+        return query(2 * node, l, mid, ql, qr) + query(2 * node + 1, mid + 1, r, ql, qr);
+    }
+
+public:
+    SegmentTree(vector<int>& a) {
+        n = a.size() - 1;  // 假设 a 从 1 开始
+        tree.resize(4 * (n + 1));
+        lazy.resize(4 * (n + 1), 0);
+        build(1, 1, n, a);
+    }
+
+    void update(int idx, int val) {
+        update(1, 1, n, idx, val);
+    }
+
+    void rangeUpdate(int l, int r, int delta) {
+        rangeUpdate(1, 1, n, l, r, delta);
+    }
+
+    int query(int l, int r) {
+        return query(1, 1, n, l, r);
+    }
+};</code></pre>
+
+<h2 id="区间最值线段树">区间最值线段树</h2>
+
+<p>线段树不仅能维护区间和，也能维护区间最大值/最小值。只需要修改合并逻辑：</p>
+
+<pre><code class="language-cpp">class SegmentTreeMax {
+private:
+    vector<int> tree;
+    vector<int> lazy;
+    int n;
+
+    void build(int node, int l, int r, vector<int>& a) {
+        if (l == r) {
+            tree[node] = a[l];
+            return;
+        }
+        int mid = (l + r) / 2;
+        build(2 * node, l, mid, a);
+        build(2 * node + 1, mid + 1, r, a);
+        tree[node] = max(tree[2 * node], tree[2 * node + 1]);
+    }
+
+    void pushDown(int node) {
+        if (lazy[node] != 0) {
+            tree[2 * node] += lazy[node];
+            lazy[2 * node] += lazy[node];
+            tree[2 * node + 1] += lazy[node];
+            lazy[2 * node + 1] += lazy[node];
+            lazy[node] = 0;
+        }
+    }
+
+    void rangeUpdate(int node, int l, int r, int ul, int ur, int delta) {
+        if (ur < l || ul > r) return;
+        if (ul <= l && r <= ur) {
+            tree[node] += delta;
+            lazy[node] += delta;
+            return;
+        }
+        pushDown(node);
+        int mid = (l + r) / 2;
+        rangeUpdate(2 * node, l, mid, ul, ur, delta);
+        rangeUpdate(2 * node + 1, mid + 1, r, ul, ur, delta);
+        tree[node] = max(tree[2 * node], tree[2 * node + 1]);
+    }
+
+    int query(int node, int l, int r, int ql, int qr) {
+        if (qr < l || ql > r) return INT_MIN;
+        if (ql <= l && r <= qr) return tree[node];
+        pushDown(node);
+        int mid = (l + r) / 2;
+        return max(query(2 * node, l, mid, ql, qr), query(2 * node + 1, mid + 1, r, ql, qr));
+    }
+
+public:
+    // ... 构造函数和接口函数类似
+};</code></pre>
+
+<h2 id="典型题区间染色">典型题：区间染色</h2>
+
+<p>问题：初始时所有位置都是白色，多次操作：</p>
+<ul>
+  <li>把区间 <code>[l, r]</code> 染成某种颜色；</li>
+  <li>查询区间 <code>[l, r]</code> 有多少种不同的颜色。</li>
+</ul>
+
+<p>思路：用线段树维护区间的颜色信息，懒标记表示区间被统一染色。</p>
+
+<pre><code class="language-cpp">class ColorSegmentTree {
+private:
+    vector<int> tree;  // -1 表示区间颜色不统一
+    vector<int> lazy;
+    int n;
+
+    void pushDown(int node) {
+        if (lazy[node] != -1) {
+            tree[2 * node] = lazy[node];
+            lazy[2 * node] = lazy[node];
+            tree[2 * node + 1] = lazy[node];
+            lazy[2 * node + 1] = lazy[node];
+            lazy[node] = -1;
+        }
+    }
+
+    void update(int node, int l, int r, int ul, int ur, int color) {
+        if (ur < l || ul > r) return;
+        if (ul <= l && r <= ur) {
+            tree[node] = color;
+            lazy[node] = color;
+            return;
+        }
+        pushDown(node);
+        int mid = (l + r) / 2;
+        update(2 * node, l, mid, ul, ur, color);
+        update(2 * node + 1, mid + 1, r, ul, ur, color);
+        // 如果左右子树颜色相同，合并
+        if (tree[2 * node] != -1 && tree[2 * node] == tree[2 * node + 1]) {
+            tree[node] = tree[2 * node];
+        } else {
+            tree[node] = -1;
+        }
+    }
+
+    void query(int node, int l, int r, int ql, int qr, unordered_set<int>& colors) {
+        if (qr < l || ql > r) return;
+        if (tree[node] != -1) {
+            colors.insert(tree[node]);
+            return;
+        }
+        pushDown(node);
+        int mid = (l + r) / 2;
+        query(2 * node, l, mid, ql, qr, colors);
+        query(2 * node + 1, mid + 1, r, ql, qr, colors);
+    }
+
+public:
+    ColorSegmentTree(int size) : n(size) {
+        tree.resize(4 * (n + 1), 0);  // 初始颜色为 0（白色）
+        lazy.resize(4 * (n + 1), -1);
+    }
+
+    void paint(int l, int r, int color) {
+        update(1, 1, n, l, r, color);
+    }
+
+    int countColors(int l, int r) {
+        unordered_set<int> colors;
+        query(1, 1, n, l, r, colors);
+        return colors.size();
+    }
+};</code></pre>
+
+<h2 id="线段树的扩展应用">线段树的扩展应用</h2>
+
+<ul>
+  <li><strong>二维线段树</strong>：处理二维区间查询和修改；</li>
+  <li><strong>动态开点线段树</strong>：处理值域很大但实际点数不多的情况；</li>
+  <li><strong>可持久化线段树（主席树）</strong>：维护历史版本，支持区间第 K 小；</li>
+  <li><strong>线段树合并/分裂</strong>：动态维护多个线段树；</li>
+  <li><strong>扫描线 + 线段树</strong>：处理平面矩形面积并等问题。</li>
+</ul>
+
+<h2 id="树状数组 vs 线段树对比">树状数组 vs 线段树对比</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>特性</th>
+      <th>树状数组</th>
+      <th>线段树</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>单点修改</td>
+      <td>O(log n)</td>
+      <td>O(log n)</td>
+    </tr>
+    <tr>
+      <td>区间查询（和）</td>
+      <td>O(log n)</td>
+      <td>O(log n)</td>
+    </tr>
+    <tr>
+      <td>区间修改（加）</td>
+      <td>需要差分技巧</td>
+      <td>O(log n)（懒标记）</td>
+    </tr>
+    <tr>
+      <td>区间最值查询</td>
+      <td>不支持</td>
+      <td>O(log n)</td>
+    </tr>
+    <tr>
+      <td>区间覆盖</td>
+      <td>不支持</td>
+      <td>O(log n)</td>
+    </tr>
+    <tr>
+      <td>代码长度</td>
+      <td>短（~20 行）</td>
+      <td>长（~50 行）</td>
+    </tr>
+    <tr>
+      <td>常数</td>
+      <td>小</td>
+      <td>较大</td>
+    </tr>
+    <tr>
+      <td>空间</td>
+      <td>O(n)</td>
+      <td>O(4n)</td>
+    </tr>
+    <tr>
+      <td>灵活性</td>
+      <td>只能处理可合并的信息</td>
+      <td>可以处理更复杂的操作</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="线段树的易错点">线段树的易错点</h2>
+
+<ul>
+  <li><strong>数组下标从 1 开始</strong>：线段树通常用 1 作为根节点，这样左子节点是 2*node，右子节点是 2*node+1；</li>
+  <li><strong>懒标记的初始化</strong>：懒标记初始值要合理（如求和用 0，最值用 -INF/INF，颜色用 -1）；</li>
+  <li><strong>pushDown 的时机</strong>：在更新和查询前都要调用 pushDown，确保子节点信息正确；</li>
+  <li><strong>区间合并逻辑</strong>：不同问题的合并方式不同（求和、最值、计数等）；</li>
+  <li><strong>线段树大小</strong>：通常开 4*n 的空间，防止越界；</li>
+  <li><strong>递归边界</strong>：注意 l == r 时的处理，避免死循环。</li>
+</ul>
+
+<h2 id="什么时候用线段树">什么时候用线段树</h2>
+
+<p>看到这些关键词，优先考虑线段树：</p>
+<ul>
+  <li><strong>区间修改 + 区间查询</strong>（树状数组需要差分技巧）；</li>
+  <li><strong>区间最值查询</strong>（树状数组不支持）；</li>
+  <li><strong>区间覆盖、翻转、赋值</strong>（需要特殊的懒标记）；</li>
+  <li><strong>需要维护多个信息</strong>（如同时维护区间和、最大值、最小值）；</li>
+  <li><strong>可持久化</strong>（主席树）。</li>
+</ul>
+
+<h2 id="这一篇先记住什么">这一篇先记住什么</h2>
+
+<ul>
+  <li><strong>线段树结构</strong>：每个节点代表一个区间，叶子节点是单个元素；</li>
+  <li><strong>单点更新</strong>：从叶子到根，一路更新；</li>
+  <li><strong>区间查询</strong>：分三种情况（完全不重叠、完全包含、部分重叠）；</li>
+  <li><strong>懒标记</strong>：延迟传递修改，把区间修改降到 O(log n)；</li>
+  <li><strong>pushDown</strong>：查询或更新前传递懒标记；</li>
+  <li><strong>空间</strong>：开 4*n 的数组；</li>
+  <li><strong>对比树状数组</strong>：树状数组代码短、常数小；线段树更灵活、支持更多操作。</li>
+</ul>
+
+<p>下一篇继续数据结构：ST 表（稀疏表），它能在 O(1) 时间内回答区间最值查询，但不支持修改。</p>
+
+  </div>
+
+  <div class="post-footer-container">
+    <div class="post-footer">
+      <div class="post-tags">
+          <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E7%AE%97%E6%B3%95/" rel="tag"><i class="fa fa-tag"></i> 数据结构与算法</a>
+          <a href="/tags/%E7%AE%97%E6%B3%95%E9%A2%98%E7%9B%AE/" rel="tag"><i class="fa fa-tag"></i> 算法题目</a>
+      </div>
+      <nav class="post-nav">
+        <div class="post-nav-next post-nav-item">
+          <a href="/2026/06/22/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8710-%E6%A0%91%E7%8A%B6%E6%95%B0%E7%BB%84/" rel="next" title="ACM 学习篇 10：树状数组（Fenwick Tree）">
+            <i class="fa fa-chevron-left"></i> ACM 学习篇 10：树状数组（Fenwick Tree）
+          </a>
+        </div>
+        <span class="post-nav-divider"></span>
+        <div class="post-nav-prev post-nav-item"></div>
+      </nav>
+    </div>
+  </div>
+  </article>
+  </div>
+  </div>
+
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span><span class="toggle-line"></span><span class="toggle-line"></span>
+  </div>
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc">文章目录</li>
+        <li class="sidebar-nav-overview" data-target="site-overview">站点概览</li>
+      </ul>
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel sidebar-panel-active">
+        <div class="post-toc motion-element"><ol class="nav">
+<li class="nav-item nav-level-2"><a class="nav-link" href="#线段树的核心思想"><span class="nav-number">1.</span> <span class="nav-text">线段树的核心思想</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#线段树的基本操作"><span class="nav-number">2.</span> <span class="nav-text">线段树的基本操作</span></a></li>
+<li class="nav-item nav-level-3"><a class="nav-link" href="#1-单点更新"><span class="nav-number">2.1.</span> <span class="nav-text">1. 单点更新</span></a></li>
+<li class="nav-item nav-level-3"><a class="nav-link" href="#2-区间查询"><span class="nav-number">2.2.</span> <span class="nav-text">2. 区间查询</span></a></li>
+<li class="nav-item nav-level-3"><a class="nav-link" href="#3-区间修改与懒标记"><span class="nav-number">2.3.</span> <span class="nav-text">3. 区间修改与懒标记</span></a></li>
+<li class="nav-item nav-level-3"><a class="nav-link" href="#4-区间修改后的查询"><span class="nav-number">2.4.</span> <span class="nav-text">4. 区间修改后的查询</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#完整模板区间求和"><span class="nav-number">3.</span> <span class="nav-text">完整模板：区间求和</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#区间最值线段树"><span class="nav-number">4.</span> <span class="nav-text">区间最值线段树</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#典型题区间染色"><span class="nav-number">5.</span> <span class="nav-text">典型题：区间染色</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#线段树的扩展应用"><span class="nav-number">6.</span> <span class="nav-text">线段树的扩展应用</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#树状数组-vs-线段树对比"><span class="nav-number">7.</span> <span class="nav-text">树状数组 vs 线段树对比</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#线段树的易错点"><span class="nav-number">8.</span> <span class="nav-text">线段树的易错点</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#什么时候用线段树"><span class="nav-number">9.</span> <span class="nav-text">什么时候用线段树</span></a></li>
+<li class="nav-item nav-level-2"><a class="nav-link" href="#这一篇先记住什么"><span class="nav-number">10.</span> <span class="nav-text">这一篇先记住什么</span></a></li>
+</ol></div>
+      </div>
+      <!--/noindex-->
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+              <p class="site-author-name" itemprop="name">侯瑞哲</p>
+              <div class="site-description motion-element" itemprop="description"></div>
+          </div>
+          <nav class="site-state motion-element">
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/"><span class="site-state-item-count">264</span><span class="site-state-item-name">日志</span></a>
+            </div>
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/"><span class="site-state-item-count">0</span><span class="site-state-item-name">分类</span></a>
+            </div>
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/"><span class="site-state-item-count">39</span><span class="site-state-item-name">标签</span></a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2026</span> <span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">侯瑞哲</span></div>
+        <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> &amp; <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动</div>
+      </div>
+    </footer>
+  </div>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/lozad@1/dist/lozad.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  <script src="/lib/reading-progress/reading-progress.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/schemes/pisces.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/js/bookmark.js"></script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script src="/js/search/algolia-search.js"></script>
+  <script src="/js/reading-progress.js"></script>
+  <script src="/js/related-posts.js"></script>
+  <script src="/js/dark-mode-toggle.js"></script>
+  <script src="/js/local-search.js"></script>
+  <script>
+var pjax = new Pjax({selectors:['head title','#page-configurations','.content-wrap','.post-toc-wrap','.languages','#pjax'],switches:{'.post-toc-wrap':Pjax.switches.innerHTML},analytics:false,cacheBust:false,scrollTo:!CONFIG.bookmark.enable});
+window.addEventListener('pjax:success',()=>{document.querySelectorAll('script[data-pjax],script#page-configurations,#pjax script').forEach(element=>{var code=element.text||element.textContent||element.innerHTML||'';var script=document.createElement('script');script.type='text/javascript';script.text=code;document.body.appendChild(script);});});
+  </script>
+<script src="/js/syntax-highlight.js"></script>
+<script src="/js/comments.js"></script>
+</body>
+</html>
