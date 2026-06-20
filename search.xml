@@ -1,14 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>ACM 学习篇 11：线段树（Segment Tree）</title>
+    <url>/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8711-%E7%BA%BF%E6%AE%B5%E6%A0%91/</url>
+    <content><![CDATA[线段树是树状数组的"全能升级版"，支持任意区间修改、区间最值等多种操作。核心是将区间递归划分为左右子区间，每个节点存储对应区间的信息（和、最值等）。单点更新、区间查询、区间修改都可以在 O(log n) 时间完成。懒标记（Lazy Propagation）技术让区间修改更高效，通过延迟更新机制避免重复计算。线段树适用于区间求和、区间最值、区间染色等问题。]]></content>
+    <tags><tag>数据结构与算法</tag><tag>算法题目</tag></tags>
+  </entry>
+  <entry>
+    <title>ACM 学习篇 10：树状数组（Fenwick Tree）</title>
+    <url>/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8710-%E6%A0%91%E7%8A%B6%E6%95%B0%E7%BB%84/</url>
+    <content><![CDATA[树状数组是专门解决区间求和与单点修改的轻量级数据结构，核心原理是 lowbit(x) = x & (-x)，利用二进制表示将数组下标分解为若干个区间。单点更新、前缀查询、区间查询均为 O(log n) 时间复杂度。代码简洁、常数小，是 ACM 竞赛中最常用的数据结构之一。经典应用包括逆序对计数、动态第 K 小、区间和查询等。]]></content>
+    <tags><tag>数据结构与算法</tag><tag>算法题目</tag></tags>
+  </entry>
+  <entry>
     <title>ACM 学习篇 09：二叉搜索树（BST）</title>
-    <url>/2026/06/21/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8709-%E4%BA%8C%E5%8F%89%E6%90%9C%E7%B4%A2%E6%A0%91BST/</url>
+    <url>/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8709-%E4%BA%8C%E5%8F%89%E6%90%9C%E7%B4%A2%E6%A0%91BST/</url>
     <content><![CDATA[ACM 学习篇第九课：理解二叉搜索树的原理与性质，掌握搜索、插入、删除、遍历等基础操作，学会用 BST 高效解决第 K 小、Kth 最小、验证 BST、LCA 等经典问题。BST 的核心性质是左子树所有节点小于根、右子树所有节点大于根，中序遍历 BST 会得到严格升序序列。搜索、插入、删除的期望时间复杂度为 O(log n)，但最坏情况（退化成链）会达到 O(n)，需要通过 AVL 树或红黑树来保证平衡。典型操作包括：用上下界验证 BST、找第 K 小/大的元素、区间和查询、最近公共祖先（LCA）、以及 BST 迭代器实现流式有序输出。]]></content>
     <tags><tag>数据结构与算法</tag><tag>算法题目</tag></tags>
   </entry>
   <entry>
     <title>ACM 学习篇 08：堆与优先队列</title>
-    <url>/2026/06/20/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8708-%E5%A0%86%E4%B8%8E%E4%BC%98%E5%85%88%E9%98%9F%E5%88%97/</url>
+    <url>/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8708-%E5%A0%86%E4%B8%8E%E4%BC%98%E5%85%88%E9%98%9F%E5%88%97/</url>
     <content><![CDATA[ACM 学习篇第八课：理解堆的原理与二叉堆的实现，掌握优先队列的常用操作，学会用堆高效解决 Top-K、合并有序链表、数据流中位数等经典问题。二叉堆本质上是一棵完全二叉树，大顶堆保证父节点大于等于子节点，小顶堆保证父节点小于等于子节点。上浮 swim 和下沉 sink 是堆的两个核心操作。C++ STL 的 priority_queue 默认是大顶堆，指定 greater<T> 就是小顶堆。典型应用：用小顶堆维护 Top-K、多路归并排序、Dijkstra 最短路径、Prim 最小生成树、任务调度等。]]></content>
     <tags><tag>数据结构与算法</tag><tag>算法题目</tag></tags>
   </entry>
