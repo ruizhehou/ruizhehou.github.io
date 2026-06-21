@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+  <meta name="theme-color" content="#222">
+  <meta name="generator" content="Hexo 5.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/apple-touch-icon-next.png" color="#222">
+  <meta name="baidu-site-verification" content="true">
+  <link rel="stylesheet" href="/css/mobile-optimization.css">
+  <link rel="stylesheet" href="/css/dark-mode.css">
+  <link rel="stylesheet" href="/css/code-block.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC:300,300italic,400,400italic,700,700italic|FuraCode Nerd Font:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+  <link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+  <script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ruizhehou.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":true,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}}},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for search: ${query}","hits_stats":"${hints} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":true,"preload":true},"motion":{"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+  <meta name="description" content="ST 表（Sparse Table）是一种用于高效处理静态区间最值查询的数据结构，通过 O(n log n) 预处理实现 O(1) 的 RMQ 查询，适合区间最大值、最小值、GCD 等满足幂等律的运算。">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="ACM 学习篇 12：ST 表（稀疏表）">
+  <meta property="og:url" content="https://ruizhehou.github.io/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8712-ST%E8%A1%A8/">
+  <meta property="og:site_name" content="侯瑞哲的博客">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="article:published_time" content="2026-06-19T12:00:00.000Z">
+  <meta property="article:modified_time" content="2026-06-20T12:00:00.000Z">
+  <meta property="article:author" content="侯瑞哲">
+  <meta property="article:tag" content="数据结构与算法">
+  <meta property="article:tag" content="算法题目">
+  <meta name="twitter:card" content="summary">
+  <link rel="canonical" href="https://ruizhehou.github.io/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8712-ST%E8%A1%A8/">
+  <title>ACM 学习篇 12：ST 表（稀疏表） | 侯瑞哲的博客</title>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div>
+  <div class="site-meta"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span><span class="site-title">侯瑞哲的博客</span><span class="logo-line-after"><i></i></span></a></div>
+  <div class="site-nav-right"><div class="toggle popup-trigger"><i class="fa fa-search fa-fw"></i></div></div>
+</div>
+<nav class="site-nav"><ul class="main-menu menu">
+  <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+  <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+  <li class="menu-item menu-item-catalog"><a href="/catalog/" rel="section"><i class="fa fa-list fa-fw"></i>目录</a></li>
+  <li class="menu-item menu-item-projects"><a href="/projects/" rel="section"><i class="fa fa-folder-open fa-fw"></i>项目</a></li>
+  <li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索</a></li>
+</ul></nav>
+<div class="search-pop-overlay"><div class="popup search-popup"><div class="search-header"><span class="search-icon"><i class="fa fa-search"></i></span><div class="search-input-container"><input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="搜索..." spellcheck="false" type="search" class="search-input"></div><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span></div><div id="search-result"><div id="no-result"><i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i></div></div></div></div>
+    </header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div class="content posts-expand">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://ruizhehou.github.io/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8712-ST%E8%A1%A8/">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="侯瑞哲">
+    </span>
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="侯瑞哲的博客">
+    </span>
+    <header class="post-header">
+      <h1 class="post-title" itemprop="name headline">ACM 学习篇 12：ST 表（稀疏表）</h1>
+      <div class="post-meta">
+        <span class="post-meta-item">
+          <span class="post-meta-item-icon"><i class="far fa-calendar"></i></span>
+          <span class="post-meta-item-text">发表于</span>
+          <time itemprop="dateCreated datePublished" datetime="2026-06-19T12:00:00+08:00">06-19</time>
+        </span>
+        <span class="post-meta-item">
+          <span class="post-meta-item-icon"><i class="far fa-clock"></i></span>
+          <span class="post-meta-item-text">阅读时长</span>
+          约 12 分钟
+        </span>
+      </div>
+    </header>
+    <div class="post-body" itemprop="articleBody">
+
+<h2 id="为什么学">一、为什么学 ST 表</h2>
+
+<p>线段树可以在 O(log n) 时间内完成单点更新和区间查询，但如果数据是<strong>静态的</strong>（建好后不再修改），ST 表就是更优的选择：预处理 O(n log n)，查询 O(1)。</p>
+
+<p>ST 表的核心思想是<strong>倍增</strong>：预处理出所有长度为 2^k 的区间答案，查询时把 [l, r] 拆成两个重叠的 2^k 区间。由于很多运算满足幂等律（如 max、min、GCD），重叠不会影响结果。</p>
+
+<h2 id="核心原理">二、核心原理</h2>
+
+<h3 id="预处理">预处理：st[i][k]</h3>
+
+<p>设 <code>st[i][k]</code> 表示以 i 开头、长度为 2^k 的区间内的最值。</p>
+
+<ul>
+  <li><code>st[i][0] = a[i]</code>（长度为 1 的区间就是自己）</li>
+  <li><code>st[i][k] = op(st[i][k-1], st[i + 2^(k-1)][k-1])</code></li>
+</ul>
+
+<p>状态转移把区间分成两半，左半部分是 [i, i+2^(k-1)-1]，右半部分是 [i+2^(k-1), i+2^k-1]。</p>
+
+<h3 id="查询">查询：RMQ(l, r)</h3>
+
+<p>设区间长度为 len = r - l + 1，取 k = floor(log2(len))。则：</p>
+
+<ul>
+  <li>左区间：[l, l + 2^k - 1]</li>
+  <li>右区间：[r - 2^k + 1, r]</li>
+</ul>
+
+<p>这两个区间都覆盖了 [l, r]，取最值即可。</p>
+
+<h3 id="适用范围">适用范围</h3>
+
+<p>ST 表只适用于<strong>满足幂等律</strong>的操作，即 op(a, op(b, c)) = op(op(a, b), c)，且 op(x, x) = x。</p>
+
+<ul>
+  <li>最大值、最小值：✓</li>
+  <li>GCD（最大公约数）：✓</li>
+  <li>区间和：✗（不满足幂等律）</li>
+</ul>
+
+<h2 id="模板代码">三、模板代码</h2>
+
+<h3 id="区间最大值">区间最大值</h3>
+
+<pre><code class="cpp">class SparseTable {
+private:
+    vector<vector<int>> st;
+    vector<int> lg2;  // 整数对数，用于 O(1) 查询
+    int n;
+
+    // op 函数：这里用 max
+    int op(int a, int b) { return max(a, b); }
+
+public:
+    SparseTable(const vector<int>& a) {
+        n = a.size() - 1;  // 假设 a 下标从 1 开始
+        int K = log2(n) + 1;
+        st.assign(K, vector<int>(n + 1));
+
+        // 预处理 k = 0
+        for (int i = 1; i <= n; i++) st[0][i] = a[i];
+
+        // 预处理 k > 0
+        for (int k = 1; k < K; k++) {
+            for (int i = 1; i + (1 << k) - 1 <= n; i++) {
+                st[k][i] = op(st[k-1][i], st[k-1][i + (1 << (k-1))]);
+            }
+        }
+
+        // 预处理对数
+        lg2.resize(n + 1);
+        lg2[1] = 0;
+        for (int i = 2; i <= n; i++) lg2[i] = lg2[i/2] + 1;
+    }
+
+    // O(1) 查询
+    int query(int l, int r) {
+        int k = lg2[r - l + 1];
+        return op(st[k][l], st[k][r - (1<<k) + 1]);
+    }
+};
+</code></pre>
+
+<h3 id="区间 GCD">区间 GCD</h3>
+
+<pre><code class="cpp">class GcdSparseTable {
+private:
+    vector<vector<int>> st;
+    vector<int> lg2;
+    int n;
+
+public:
+    GcdSparseTable(const vector<int>& a) {
+        n = a.size() - 1;
+        int K = log2(n) + 1;
+        st.assign(K, vector<int>(n + 1));
+
+        for (int i = 1; i <= n; i++) st[0][i] = a[i];
+        for (int k = 1; k < K; k++) {
+            for (int i = 1; i + (1 << k) - 1 <= n; i++) {
+                st[k][i] = std::gcd(st[k-1][i], st[k-1][i + (1 << (k-1))]);
+            }
+        }
+
+        lg2.resize(n + 1);
+        lg2[1] = 0;
+        for (int i = 2; i <= n; i++) lg2[i] = lg2[i/2] + 1;
+    }
+
+    int query(int l, int r) {
+        int k = lg2[r - l + 1];
+        return std::gcd(st[k][l], st[k][r - (1<<k) + 1]);
+    }
+};
+</code></pre>
+
+<h2 id="典型题目">四、典型题目</h2>
+
+<h3 id="RMQ 模板题">RMQ 模板题</h3>
+
+<p><strong>题意：</strong>给定数组，动态查询区间 [l, r] 的最大值或最小值。</p>
+
+<p><strong>思路：</strong>静态数组，直接用 ST 表。预处理 O(n log n)，每次查询 O(1)。</p>
+
+<h3 id="LCA 最近公共祖先">LCA：最近公共祖先</h3>
+
+<p>两棵树做 LCA 时，可以预处理欧拉序和深度，用 ST 表维护欧拉序中相邻节点深度的最小值对应的节点编号。</p>
+
+<ul>
+  <li>欧拉序：DFS 进入节点时记录一次，离开时再记录一次，形成长度为 2n-1 的序列。</li>
+  <li>在欧拉序中，u 和 v 之间的区间就是从 u 往上到 LCA 再到 v 的路径。</li>
+  <li>区间深度最小值对应的节点就是 LCA。</li>
+</ul>
+
+<pre><code class="cpp">class LCA {
+private:
+    vector<vector<int>> st;   // 节点编号的 ST 表
+    vector<int> first, depth, euler;
+    vector<int> lg2;
+    int timer = 0;
+
+    void dfs(int u, int p, int d, const vector<vector<int>>& g) {
+        first[u] = timer;
+        euler.push_back(u);
+        depth.push_back(d);
+        timer++;
+
+        for (int v : g[u]) {
+            if (v == p) continue;
+            dfs(v, u, d + 1, g);
+            euler.push_back(u);
+            depth.push_back(d);
+            timer++;
+        }
+    }
+
+    int queryMinDepth(int l, int r) {
+        int k = lg2[r - l + 1];
+        // 返回深度最小值对应的节点（需要另一个 ST 表存储节点）
+        // 这里简化处理，实际需要维护 (depth, node) 的二元组
+        return r;  // 占位
+    }
+
+public:
+    LCA(int n, int root, const vector<vector<int>>& g) {
+        first.assign(n + 1, 0);
+        dfs(root, 0, 0, g);
+
+        int m = euler.size();
+        int K = log2(m) + 1;
+        st.assign(K, vector<int>(m));
+
+        // 用另一个数组存储欧拉序，用 RMQ 找 LCA
+    }
+
+    int lca(int u, int v) {
+        int l = first[u], r = first[v];
+        if (l > r) swap(l, r);
+        // 在欧拉序区间 [l, r] 中找深度最小的节点
+        int k = lg2[r - l + 1];
+        int minDepth = INT_MAX;
+        int lcaNode = 0;
+        // 实际需要二维 ST 或在 RMQ 中返回节点
+        return lcaNode;
+    }
+};
+</code></pre>
+
+<h3 id="离线区间最值">离线区间最值</h3>
+
+<p><strong>题意：</strong>给定数组 a 和 q 个查询 [l, r]，求每个区间的最大值（静态）。</p>
+
+<p><strong>思路：</strong>用 ST 表 O(n log n) 预处理后，O(1) 回答每个查询。总复杂度 O(n log n + q)。</p>
+
+<h2 id="易错点">五、易错点</h2>
+
+<ul>
+  <li><strong>数组下标</strong>：ST 表通常用 1-indexed，代码中要统一。</li>
+  <li><strong>lg2 预处理</strong>：查询时用 <code>lg2[len]</code> 而不是 <code>log2(len)</code>，避免浮点误差。</li>
+  <li><strong>空间</strong>：st 数组大小约为 n * log2(n)，n = 10^5 时约 1.7M 个元素，可以接受。</li>
+  <li><strong>ST 表不支持修改</strong>：如果需要单点更新，切换成线段树。</li>
+  <li><strong>类型选择</strong>：区间和不能用 ST 表，换成前缀和或线段树。</li>
+</ul>
+
+<h2 id="复盘">六、复盘</h2>
+
+<p>ST 表的特征是：<strong>静态数据 + 区间最值/GCD + 需要 O(1) 查询</strong>。见到这类约束，直接想 ST 表。</p>
+
+<p>常见提示词：</p>
+
+<ul>
+  <li>"多组查询，查询互不影响"</li>
+  <li>"n 和 q 都很大（10^5），需要 O(1) 查询"</li>
+  <li>"数组不会修改"</li>
+</ul>
+
+<p>学完 ST 表后，数据结构这一块已经覆盖了：</p>
+
+<ul>
+  <li>栈/队列、单调栈/队列 → 线性结构</li>
+  <li>堆/优先队列 → 完全二叉树结构</li>
+  <li>哈希表 → 散列结构</li>
+  <li>并查集 → 森林结构</li>
+  <li>树状数组 → 二叉索引树</li>
+  <li>线段树 → 区间树</li>
+  <li>ST 表 → 倍增稀疏表</li>
+</ul>
+
+<p>下一块可以往 Trie 字典树走，也可以开始动态规划专题。Trie 是字符串高频考点，也是 AC 自动机和后缀自动机的基础。</p>
+
+    </div>
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+    </footer>
+  </article>
+          </div>
+  <div class="post-nav">
+    <div class="post-nav-item">
+        <a href="/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8711-%E7%BA%BF%E6%AE%B5%E6%A0%91/" rel="prev" title="ACM 学习篇 11：线段树（Segment Tree）">
+          <i class="fa fa-chevron-left"></i> ACM 学习篇 11：线段树（Segment Tree）
+        </a>
+    </div>
+  </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+  <script>velocity.min.js</script>
+  <script src="/lib/algolia-search/algolia-search.js"></script>
+  <script src="/lib/local-search/local-search.js"></script>
+  <script>local-search.js</script>
+  <script src="/js/motion.js"></script>
+  <script src="/js/next-boot.js"></script>
+  <script src="/lib/bookmark/bookmark.min.js"></script>
+  <script>bookmark.min.js</script>
+  <script src="/lib/geopattern/geopattern.min.js"></script>
+  <script>geopattern.min.js</script>
+  <script src="/lib/next-pjax.js"></script>
+  <script>next-pjax.js</script>
+  <script>define('pjax', [], function() { return window.Pjax; });
+  <script>if (window.netlifyIdentity) {
+    window.netlifyIdentity.on("init", user => {
+      if (!user) {
+        window.netlifyIdentity.on("login", () => {
+          document.location.href = "/admin/";
+        });
+      }
+    });
+  }</script>
+  <script src="/lib/pjax/pjax.min.js"></script>
+  <script>if('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(function(registration) {
+    console.log('ServiceWorker registration successful.');
+  }).catch(function(err) {
+    console.log('ServiceWorker registration failed: ', err);
+  });
+}</script>
+</body>
+</html>

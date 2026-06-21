@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>ACM 学习篇 12：ST 表（稀疏表）</title>
+    <url>/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8712-ST%E8%A1%A8/</url>
+    <content><![CDATA[ST 表是一种用于高效处理静态区间最值查询的数据结构，通过 O(n log n) 预处理实现 O(1) 的 RMQ 查询。核心是倍增思想：预处理出所有长度为 2^k 的区间答案，查询时将区间拆成两个重叠的 2^k 区间。由于 max、min、GCD 等运算满足幂等律，重叠不影响结果。适用于区间最大值、区间最小值、区间 GCD 等查询，也常用于 LCA 最近公共祖先问题。]]></content>
+    <tags><tag>数据结构与算法</tag><tag>算法题目</tag></tags>
+  </entry>
+  <entry>
     <title>ACM 学习篇 11：线段树（Segment Tree）</title>
     <url>/2026/06/19/ACM%E5%AD%A6%E4%B9%A0%E7%AF%8711-%E7%BA%BF%E6%AE%B5%E6%A0%91/</url>
     <content><![CDATA[线段树是树状数组的"全能升级版"，支持任意区间修改、区间最值等多种操作。核心是将区间递归划分为左右子区间，每个节点存储对应区间的信息（和、最值等）。单点更新、区间查询、区间修改都可以在 O(log n) 时间完成。懒标记（Lazy Propagation）技术让区间修改更高效，通过延迟更新机制避免重复计算。线段树适用于区间求和、区间最值、区间染色等问题。]]></content>
